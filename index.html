@@ -16287,6 +16287,7 @@ function fsBuilderRender() {
   const ckb = document.getElementById("fsBldCkBtn");
   if (ckb) ckb.onclick = () => { syncTop(); fsCkEditOpen(); };
   body.querySelectorAll("[data-bldgrant]").forEach(cb => cb.onchange = () => {
+    syncTop();   /* ACFIX-1: was missing — a give-tick toggle wiped the typed name/users/access */
     st.grants = st.grants || {};
     st.grants[cb.dataset.bldgrant] = cb.checked;
     fsBuilderRender();
@@ -16352,6 +16353,13 @@ function fsBuilderRender() {
             else st2.modules[pre + k] = v !== false;
           });
           flat(obj.modules, "");
+        }
+        if (obj.grants) {   /* ACFIX-2: grants were dropped on load — re-export silently re-granted everything */
+          const flatG = (o, pre) => Object.entries(o).forEach(([k, v]) => {
+            if (v && typeof v === "object") flatG(v, pre + k + ".");
+            else st2.grants[pre + k] = v !== false;
+          });
+          flatG(obj.grants, "");
         }
         if (obj.access) st2.access = { mode: obj.access.mode || "none", start: obj.access.start || "", expiry: obj.access.expiry || "", user: obj.access.user || "", pass: "", passHash: obj.access.passHash || "", contact: obj.access.contact || "" };
         st2._src = obj;
