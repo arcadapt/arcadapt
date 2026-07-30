@@ -180,7 +180,7 @@
 <div id="fsReg">
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
-      <span class="aaWm" style="font-size:19px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:27px;height:27px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
+      <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
       <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.01 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
@@ -8478,6 +8478,14 @@ function fsTaskLibLoad(key) {
                 March 2025 it is not on the roadmap. An approved quote whose
                 work is done is an invoice, so that is what we hand over.
 
+   v0.2, 30 July 2026 adds a FOURTH output, for service charges:
+
+     serviceCharges - the charge LINES earned by completed service visits, as a
+                plain CSV. Deliberately NOT called an invoice and deliberately
+                not shaped like one: this app records the work and hands the
+                lines over. It has no invoice numbers, no due dates, no payment
+                terms and still computes no tax anywhere.
+
    Verified 27 Jul 2026 against Xero's own SalesInvoiceTemplate.csv and MYOB's
    published import-field list. Where the vendors disagree with themselves the
    conservative choice is taken and the reason is in a comment.
@@ -8544,7 +8552,13 @@ function fsTaskLibLoad(key) {
         qty: qty,
         unitCents: unit,
         amountCents: M.roundHalfUp(unit * qty),
-        unpriced: (l.kind === "item" && l.priceSource === "none") || (l.kind === "labour" && l.priced === false)
+        /* A visit with no rate behind it carries priced:false, exactly as an
+           unpriced labour line does - the cents field stays a real 0 so the
+           money core never sees a null, and the FLAG is what says "no price".
+           Without it a forgotten rate would go across as $0.00 on a charge. */
+        unpriced: (l.kind === "item" && l.priceSource === "none") ||
+                  (l.kind === "labour" && l.priced === false) ||
+                  (l.kind === "visit" && l.priced === false)
       };
     });
   }
@@ -8664,6 +8678,36 @@ function fsTaskLibLoad(key) {
     return out.join("\r\n") + "\r\n";
   }
 
+  /* --------------------------------------------------- service charges --
+     Completed service visits, one row per charge line, plus nothing else. No
+     invoice number, no due date, no tax column: it is a list of lines and what
+     they come to. A bookkeeper raises the actual invoice in the package that
+     owns the money. */
+  var CHARGE_COLS = ["Date", "Client", "Site", "Visit", "Line", "Qty",
+                     "Unit price", "Amount"];
+  function serviceCharges(q) {
+    var rows = [CHARGE_COLS.map(cell).join(",")];
+    lines(q).forEach(function (l, i) {
+      var src = (q.rows || [])[i] || {};
+      rows.push([
+        String(src.created || q.created || "").slice(0, 10),
+        src.clientName || q.clientName || "",
+        src.siteName || q.siteName || "",
+        src.visitLabel || "",
+        l.description, l.qty,
+        l.unpriced ? "" : M.fromCents(l.unitCents),
+        l.unpriced ? "" : M.fromCents(l.amountCents)
+      ].map(cell).join(","));
+    });
+    return "\ufeff" + rows.join("\r\n") + "\r\n";
+  }
+
+  var CHARGE_ADAPTERS = [
+    { k: "serviceCharges", label: "Service charge lines (CSV)", ext: "csv", mime: "text/csv",
+      note: "The lines earned by completed visits, and what they come to. Not an invoice \u2014 your accounting system raises that.",
+      build: serviceCharges }
+  ];
+
   var ADAPTERS = [
     { k: "generic", label: "Quote lines (CSV)", ext: "csv", mime: "text/csv",
       note: "Opens in any spreadsheet. Nothing imports it automatically — it is for a person to work from.",
@@ -8676,12 +8720,15 @@ function fsTaskLibLoad(key) {
       build: xeroInvoice }
   ];
   function adapter(k) {
-    for (var i = 0; i < ADAPTERS.length; i++) if (ADAPTERS[i].k === k) return ADAPTERS[i];
+    var i;
+    for (i = 0; i < ADAPTERS.length; i++) if (ADAPTERS[i].k === k) return ADAPTERS[i];
+    for (i = 0; i < CHARGE_ADAPTERS.length; i++) if (CHARGE_ADAPTERS[i].k === k) return CHARGE_ADAPTERS[i];
     return null;
   }
   function filename(k, q) {
     var a = adapter(k);
     if (!a) return "export.txt";
+    if (k === "serviceCharges") return "service-charges-" + (q.number || "list") + "." + a.ext;
     return k + "-" + (q.number || "draft") + "." + a.ext;
   }
   function build(k, q, opts) {
@@ -8691,11 +8738,13 @@ function fsTaskLibLoad(key) {
   }
 
   return {
-    DEFAULTS: DEFAULTS, ADAPTERS: ADAPTERS, adapter: adapter,
+    DEFAULTS: DEFAULTS, ADAPTERS: ADAPTERS, CHARGE_ADAPTERS: CHARGE_ADAPTERS, adapter: adapter,
     XERO_COLS: XERO_COLS, MYOB_COLS: MYOB_COLS, GENERIC_COLS: GENERIC_COLS,
+    CHARGE_COLS: CHARGE_COLS,
     dateAU: dateAU, addDays: addDays, cfg: cfg, lines: lines,
     checks: checks, build: build, filename: filename,
-    generic: generic, xeroInvoice: xeroInvoice, myobQuote: myobQuote
+    generic: generic, xeroInvoice: xeroInvoice, myobQuote: myobQuote,
+    serviceCharges: serviceCharges
   };
 }));
 
@@ -8776,6 +8825,163 @@ function fsAcctExport(q) {
   }
 }
 /* ===== end accounting handoff UI ============================================ */
+
+
+
+/* ===== Service charges - completed visits ===================================
+   A routine visit is worth money whether or not it finds a defect. Recording a
+   test writes ONE charge line for that visit.
+
+   What this produces is A CHARGE LINE AND A TOTAL. It is not an invoice, it is
+   not called one, and no tax is worked out here or in the handoff - the
+   accounting package raises the invoice and applies its own rate.
+
+   The price is read most-specific-first: the SITE, then the pricebook. A blank
+   price is "not priced yet", never zero: the line still appears, flagged, so a
+   forgotten price is visible instead of silently charging nothing.
+
+   Charging is OFF until someone turns it on, so an existing register gains
+   nothing it did not ask for. */
+
+/* Visit types come from the checklists, so a client with their own checklist
+   file prices their own visit types without anything here changing. */
+function fsVisitTypes() {
+  const m = (typeof fsChecklists !== "undefined" && fsChecklists && fsChecklists.modes) || {};
+  return Object.keys(m).map(k => ({ k: k, label: (m[k] && m[k].label) || k }));
+}
+function fsVisitRates() {
+  const b = fsBook();
+  if (!b) return {};
+  b.visitRates = b.visitRates || {};
+  return b.visitRates;
+}
+function fsVisitChargeOn() { const b = fsBook(); return !!(b && b.visitChargeOn); }
+/* Most specific wins, exactly as access difficulty does. */
+function fsVisitRateFor(site, mode) {
+  const so = (site && site.visitRates) || {};
+  if (FSMoney.isCents(so[mode])) return { cents: so[mode], src: "site" };
+  const d = fsVisitRates();
+  if (FSMoney.isCents(d[mode])) return { cents: d[mode], src: "profile" };
+  return { cents: null, src: "none" };
+}
+function fsVisitOverrideSites() {
+  const out = [];
+  ((fsRegister || {}).clients || []).forEach(c => (c.sites || []).forEach(s => {
+    if (s && s.visitRates) out.push({ key: (c.name || "") + "␟" + (s.name || ""), client: c.name || "", site: s });
+  }));
+  return out;
+}
+function fsVisitSiteByKey(k) {
+  const hit = fsVisitOverrideSites().filter(x => x.key === k)[0];
+  return hit ? hit.site : null;
+}
+function fsCharges() {
+  if (!fsRegister) return [];
+  fsRegister.charges = fsRegister.charges || [];
+  return fsRegister.charges;
+}
+/* One completed visit, one charge line. Keyed on the test record id so the same
+   visit can never be charged twice - a re-recorded or re-imported test is the
+   same visit and must not earn a second line. */
+function fsVisitCharge(site, rec, clientName) {
+  if (!fsRegister || !rec || !fsVisitChargeOn()) return null;
+  const list = fsCharges();
+  if (list.filter(x => x.recId === rec.id).length) return null;
+  const r = fsVisitRateFor(site, rec.mode);
+  const when = String(rec.finished || "").slice(0, 10);
+  const label = rec.label || rec.mode || "Service";
+  const ch = {
+    id: fsBookId("sc"), recId: rec.id, created: rec.finished,
+    visit: rec.mode || "", visitLabel: label,
+    clientName: clientName || "", siteName: (site && site.name) || "",
+    rateSource: r.src, status: "open", handedAt: null,
+    /* Integer cents always - the money core never sees a null. "No price" is
+       the FLAG, not a blank number, so nothing can silently become zero. */
+    line: { kind: "visit", description: label + " service visit — " + ((site && site.name) || "") + " (" + when + ")",
+            qty: 1, unitPriceCents: r.cents == null ? 0 : r.cents, priced: r.cents != null, taxCode: "" }
+  };
+  list.push(ch);
+  return ch;
+}
+function fsChargeLines(list) { return list.map(c => c.line); }
+function fsChargeTotals(list) {
+  return FSMoney.computeDoc({ lines: fsChargeLines(list), lineAmountsInclusive: false }, null);
+}
+/* The shape the handoff reads. rows[] carries the per-line context so one file
+   can cover several sites without pretending they are one document. */
+function fsChargeDoc(list) {
+  const now = new Date().toISOString();
+  return { number: now.slice(0, 10), created: now, status: "",
+           clientName: (list[0] || {}).clientName || "", siteName: (list[0] || {}).siteName || "",
+           rows: list, lines: fsChargeLines(list) };
+}
+function fsChargeExport(list) {
+  if (!list.length) { alert("There are no open charge lines to hand over."); return; }
+  const a = FSAccounting.CHARGE_ADAPTERS[0];
+  const doc = fsChargeDoc(list);
+  const problems = FSAccounting.checks(doc, a.k, {});
+  if (problems.length && !confirm("Worth checking first:\n\n• " + problems.join("\n• ") + "\n\nExport anyway?")) return;
+  const text = FSAccounting.build(a.k, doc, {});
+  deliverFile(new Blob([text], { type: a.mime }), FSAccounting.filename(a.k, doc), a.mime);
+  const now = new Date().toISOString();
+  list.forEach(c => { c.status = "handed"; c.handedAt = now; });
+  fsMarkDirty(); fsChargeListRender();
+  alert("✓ Saved.\n\nThat file is a list of charge LINES and what they come to. It is not an invoice — raise the invoice in your accounting system, which applies your own tax.");
+}
+
+function fsChargeListRender() {
+  const wrap = document.getElementById("fsDashView");
+  const all = fsCharges().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
+  const open = all.filter(c => c.status !== "handed");
+  const tot = fsChargeTotals(open);
+  let html = '<div style="margin-bottom:12px"><a id="fsScBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<h2 style="font-size:20px;flex:1;min-width:150px">&#129534; Service charges</h2>' +
+    '<button class="fsbtn" id="fsScRates">&#128176; Visit prices</button>' +
+    '<button class="fsbtn" id="fsScExport">&#127974; Send to accounting</button></div>';
+  html += '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:10px">One completed visit, one charge line. ' +
+    'No invoice is made here and no tax is worked out — your accounting system raises the invoice and applies its own rate.' +
+    (fsVisitChargeOn() ? '' : ' <b style="color:#ffd873">Charging for visits is currently off</b> — turn it on under Visit prices.') + '</div>';
+
+  html += '<div class="fscard" style="padding:4px 14px">';
+  if (!all.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">Nothing here yet. Turn charging on under Visit prices and set a price per visit type — a charge line appears here each time a test is recorded.</div>';
+  all.forEach((c, i) => {
+    const l = c.line || {}, unpriced = l.priced === false;
+    const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
+    const from = c.rateSource === "site" ? "priced on this site"
+               : (c.rateSource === "profile" ? "priced in the pricebook" : "no price set");
+    html += '<div style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + '">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;font-weight:600">' + fsEsc(c.visitLabel) + ' &middot; ' + fsEsc(c.siteName) + '</div>' +
+        '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(c.clientName || "(no client name)") + ' &middot; ' +
+          fsEsc(String(c.created).slice(0, 10)) + ' &middot; ' + fsEsc(from) + '</div></div>' +
+      '<span style="width:86px;text-align:right;font-size:13.5px;font-weight:700;color:' + (unpriced ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
+        (unpriced ? '—' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
+      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + (c.status === "handed" ? '#1b8a3f' : '#b58900') +
+        ';border-radius:11px;padding:2px 9px;flex:none">' + (c.status === "handed" ? 'Handed over' : 'Open') + '</span>' +
+      '<a class="fsScDel" data-id="' + fsEsc(c.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
+    '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:14px;font-weight:700">Open charges, excluding tax</span>' +
+    '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">A charge line and a total. Nothing here works out GST — your accounting system applies its own tax codes.</div></div>';
+
+  wrap.innerHTML = html;
+  document.getElementById("fsScBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
+  document.getElementById("fsScRates").onclick = () => { fsBookTab = "visits"; fsDashMode = "book"; fsBookRender(); };
+  document.getElementById("fsScExport").onclick = () => fsChargeExport(open);
+  wrap.querySelectorAll(".fsScDel").forEach(a => a.onclick = () => {
+    const list = fsCharges();
+    const c = list.filter(x => x.id === a.dataset.id)[0];
+    if (!c) return;
+    if (!confirm("Remove this charge line?\n\n" + ((c.line || {}).description || "") + "\n\nThe test record itself is not touched.")) return;
+    list.splice(list.indexOf(c), 1);
+    fsMarkDirty(); fsChargeListRender();
+  });
+}
+/* ===== end service charges ================================================= */
 
 
 /* ===== Pricebook =============================================================
@@ -8861,7 +9067,8 @@ function fsBookRender() {
 
   const tabs = [["items", "Items (" + st.items + ")"], ["labour", "Labour (" + st.rates + ")"],
                 ["tasks", "Remedy tasks (" + st.tasks + ")"],
-                ["deftypes", "Defect types (" + fsDefTypes().length + ")"], ["access", "Access difficulty"]];
+                ["deftypes", "Defect types (" + fsDefTypes().length + ")"], ["access", "Access difficulty"],
+                ["visits", "Visit charges"]];
   html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     tabs.map(t => '<a class="fsBookTab" data-t="' + t[0] + '" style="cursor:pointer;padding:6px 11px;border-radius:14px;font-size:13px;font-weight:700;' +
       (fsBookTab === t[0] ? 'background:var(--fs-accent);color:#101214' : 'background:#1a1d21;color:var(--fs-sub)') + '">' + fsEsc(t[1]) + '</a>').join('') + '</div>';
@@ -8961,6 +9168,37 @@ function fsBookRender() {
     html += '<div style="margin-top:10px"><a id="fsBkAccReset" style="color:var(--fs-accent);cursor:pointer;font-size:13px">Reset to defaults</a></div>';
   }
 
+  if (fsBookTab === "visits") {
+    const vt = fsVisitTypes(), vr = fsVisitRates(), vOn = fsVisitChargeOn();
+    html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:10px">What a completed service visit is worth. ' +
+      'With this on, recording a test writes ONE charge line for that visit. ' +
+      '<b style="color:#ffd873">A line and a total, never an invoice</b> — no tax is worked out anywhere in this app.</div>';
+    html += '<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;font-weight:700;padding:8px 0;border-bottom:1px solid var(--fs-border)">' +
+      '<input type="checkbox" id="fsBkVisitOn"' + (vOn ? ' checked' : '') + '> Charge for completed visits</label>';
+    if (!vt.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:10px 0">No visit types yet — they come from the test checklists in your company profile.</div>';
+    vt.forEach(t => {
+      html += '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fs-border)">' +
+        '<span style="flex:1;font-size:13px">' + fsEsc(t.label) + '</span>' + fsMoneyIn("fsBkVisit", t.k, vr[t.k]) + '</div>';
+    });
+    const ovs = fsVisitOverrideSites();
+    html += '<div style="margin-top:14px;font-size:13px;font-weight:700">Sites priced differently</div>' +
+      '<div style="font-size:12px;color:var(--fs-sub2);margin:3px 0 8px">A site with its own price uses it. Every other site uses the prices above.</div>';
+    if (!ovs.length) html += '<div style="color:var(--fs-faint);font-size:13px;padding:4px 0">None — every site uses the prices above.</div>';
+    ovs.forEach(o => {
+      html += '<div style="padding:8px 0;border-top:1px solid var(--fs-border)">' +
+        '<div style="display:flex;gap:8px;align-items:center"><span style="flex:1;font-size:13px;font-weight:600">' + fsEsc(o.site.name || "") +
+        ' <span style="font-weight:400;color:var(--fs-sub2)">' + fsEsc(o.client) + '</span></span>' +
+        '<a class="fsBkVsDel" data-id="' + fsEsc(o.key) + '" style="color:#c62828;cursor:pointer">&#10005;</a></div>';
+      vt.forEach(t => {
+        html += '<div style="display:flex;gap:8px;align-items:center;padding:4px 0 4px 12px">' +
+          '<span style="flex:1;font-size:12.5px;color:var(--fs-sub2)">' + fsEsc(t.label) + '</span>' +
+          fsMoneyIn("fsBkVsRate", o.key + "|" + t.k, (o.site.visitRates || {})[t.k]) + '</div>';
+      });
+      html += '</div>';
+    });
+    html += '<div style="margin-top:10px"><a id="fsBkVsAdd" style="color:var(--fs-accent);cursor:pointer;font-size:13px">&#65291; Price a site differently</a></div>';
+  }
+
   html += '</div>';
   html += '<div style="margin-top:10px;font-size:11.5px;color:var(--fs-faint)">Prices are your business data. They travel inside the register file and never leave it.</div>';
   wrap.innerHTML = html;
@@ -8991,6 +9229,38 @@ function fsBookRender() {
     const lvl = list.filter(l => l.k === el.dataset.k)[0];
     if (lvl) lvl.pct = Math.max(1, Math.round(Number(el.value) || 100));
     b.accessLevels = list;
+  });
+  bind("fsBkVisit", el => { fsVisitRates()[el.dataset.id] = fsMoneyOut(el); });
+  bind("fsBkVsRate", el => {
+    const parts = String(el.dataset.id).split("|");
+    const s = fsVisitSiteByKey(parts[0]);
+    if (!s) return;
+    s.visitRates = s.visitRates || {};
+    const v = fsMoneyOut(el);
+    /* Clearing a site price falls back to the pricebook, it does not mean free. */
+    if (v == null) delete s.visitRates[parts[1]]; else s.visitRates[parts[1]] = v;
+  });
+  const bkVOn = document.getElementById("fsBkVisitOn");
+  if (bkVOn) bkVOn.onchange = () => { b.visitChargeOn = !!bkVOn.checked; fsMarkDirty(); fsBookRender(); };
+  const bkVAdd = document.getElementById("fsBkVsAdd");
+  if (bkVAdd) bkVAdd.onclick = () => {
+    const list = fsQuoteSites();
+    if (!list.length) { alert("There are no sites in the register yet."); return; }
+    const menu = list.slice(0, 60).map((x, i) => "  " + (i + 1) + ". " + x.client + " — " + x.site).join("\n");
+    const p = prompt("Which site is priced differently?\n\n" + menu +
+      (list.length > 60 ? "\n  … and " + (list.length - 60) + " more" : "") + "\n\nType a number:");
+    if (p === null) return;
+    const x = list[parseInt(p, 10) - 1];
+    if (!x) { alert("No site with that number."); return; }
+    x.s.visitRates = x.s.visitRates || {};
+    fsMarkDirty(); fsBookRender();
+  };
+  wrap.querySelectorAll(".fsBkVsDel").forEach(a => a.onclick = () => {
+    const s = fsVisitSiteByKey(a.dataset.id);
+    if (!s) return;
+    if (!confirm('Stop pricing "' + (s.name || "") + '" differently?\n\nIt goes back to the prices above.')) return;
+    delete s.visitRates;
+    fsMarkDirty(); fsBookRender();
   });
 
   const del = (cls, arr, what) => wrap.querySelectorAll("." + cls).forEach(a => a.onclick = () => {
@@ -9598,6 +9868,36 @@ function fsQuoteAddManual(q, desc) {
   q.updated = new Date().toISOString();
 }
 
+
+/* ---- a quote with no defect behind it -------------------------------------
+   Same object, empty defectId. Everything downstream already reads the client
+   and site off the QUOTE, so nothing else needed a branch. */
+function fsQuoteSites() {
+  const out = [];
+  ((fsRegister || {}).clients || []).forEach(c => (c.sites || []).forEach(s => {
+    if (s && s.name) out.push({ client: c.name || "", site: s.name || "", c: c, s: s });
+  }));
+  return out.sort((a, b) => (a.client + " " + a.site).localeCompare(b.client + " " + b.site));
+}
+/* Returns the new quote, or null if the user backed out. Access difficulty is
+   captured from the SITE at creation, exactly as it is for a defect quote. */
+function fsQuoteStart() {
+  const list = fsQuoteSites();
+  if (!list.length) {
+    alert("There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later.");
+    return null;
+  }
+  const menu = list.slice(0, 60).map((x, i) => "  " + (i + 1) + ". " + x.client + " — " + x.site).join("\n");
+  const p = prompt("Which site is this quote for?\n\n" + menu +
+    (list.length > 60 ? "\n  … and " + (list.length - 60) + " more" : "") + "\n\nType a number:");
+  if (p === null) return null;
+  const x = list[parseInt(p, 10) - 1];
+  if (!x) { alert("No site with that number."); return null; }
+  const q = fsQuoteNew({ client: x.client, site: x.site, s: x.s, node: x.s });
+  fsMarkDirty();
+  return q;
+}
+
 /* What still stops this quote going out. Returned as a list so the UI can say
    exactly what to fix rather than just disabling a button. */
 function fsQuoteBlockers(q) {
@@ -9638,6 +9938,7 @@ function fsQuoteSetStatus(q, k) {
   }
 }
 function fsQuoteDefect(q) {
+  if (!q || !q.defectId) return null;   /* standalone quote - nothing to look up */
   let found = null;
   ((fsRegister || {}).clients || []).forEach(c => (c.sites || []).forEach(s => {
     const w = n => {
@@ -9656,15 +9957,16 @@ function fsQuoteListRender() {
   let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128195; Quotes</h2>' +
+    '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>' +
     '<button class="fsbtn" id="fsQlSeq">&#128290; Numbering</button>' +
     '<button class="fsbtn" id="fsQlAcct">&#127974; Accounting setup</button></div>';
   html += '<div class="fscard" style="padding:4px 14px">';
-  if (!qs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">No quotes yet. Start one from a defect on the Defect pipeline.</div>';
+  if (!qs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">No quotes yet. Start one from a defect on the Defect pipeline, or press &#65291; New quote for work that has no defect behind it.</div>';
   qs.forEach((q, i) => {
     const st = fsQStat(q), tot = fsQuoteTotals(q);
     html += '<div class="fsQlRow" data-id="' + fsEsc(q.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.number || "Draft") + ' &middot; ' + fsEsc(q.defectDesc || "(no defect)") + '</div>' +
+        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.number || "Draft") + ' &middot; ' + fsEsc(q.defectDesc || (q.defectId ? "(no defect)" : "Quoted work")) + '</div>' +
         '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(q.siteName) + (q.where ? ' &middot; ' + fsEsc(q.where) : '') +
         ' &middot; ' + fsEsc(String(q.created).slice(0, 10)) + ' &middot; ' + q.lines.length + ' line' + (q.lines.length === 1 ? '' : 's') + '</div></div>' +
       '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span>' +
@@ -9674,6 +9976,11 @@ function fsQuoteListRender() {
   wrap.innerHTML = html;
   document.getElementById("fsQlBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsQlAcct").onclick = fsAcctSetup;
+  document.getElementById("fsQlNew").onclick = () => {
+    const q = fsQuoteStart();
+    if (!q) return;
+    fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsQuoteRender();
+  };
   document.getElementById("fsQlSeq").onclick = () => {
     const r = fsRegister;
     const cur = Number.isInteger(r.quoteSeq) ? r.quoteSeq : 1000;
@@ -9708,7 +10015,7 @@ function fsQuoteRender() {
     '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 10px">' + fsEsc(st.label) + '</span></div>';
 
   html += '<div class="fscard" style="padding:14px;margin-bottom:10px">' +
-    '<div style="font-size:14px;font-weight:600">' + fsEsc(q.defectDesc || "(no defect attached)") + '</div>' +
+    '<div style="font-size:14px;font-weight:600">' + fsEsc(q.defectDesc || (q.defectId ? "(no defect attached)" : "Quoted work — no defect behind it")) + '</div>' +
     '<div style="font-size:12px;color:var(--fs-sub2);margin-top:3px">' + fsEsc(q.siteName) +
       (q.where ? ' &middot; ' + fsEsc(q.where) : '') + (q.clientName ? ' &middot; ' + fsEsc(q.clientName) : '') + '</div>' +
     '<div style="font-size:12px;color:var(--fs-sub2);margin-top:3px">Access at this site: <b>' +
@@ -9843,7 +10150,9 @@ function fsQuoteRender() {
   document.getElementById("fsQPdf").onclick = () => fsQuotePdf(q);
   document.getElementById("fsQAcct").onclick = () => fsAcctExport(q);
   document.getElementById("fsQDel2").onclick = () => {
-    if (!confirm("Delete this quote?\n\nThe defect goes back to not quoted. The defect itself is not touched.")) return;
+    if (!confirm("Delete this quote?\n\n" + (q.defectId
+      ? "The defect goes back to not quoted. The defect itself is not touched."
+      : "Nothing else is affected \u2014 there is no defect attached to it."))) return;
     const d = fsQuoteDefect(q);
     if (d) { d.quoteStatus = null; d.quoteRef = ""; }
     const arr = fsQuotes();
@@ -9858,8 +10167,7 @@ function fsQuotePdf(q) {
   const L = [["h", "Quote " + (q.number || "(draft)")]];
   L.push(["t", (q.clientName ? q.clientName + " — " : "") + q.siteName + (q.where ? " — " + q.where : "")]);
   L.push(["t", "Date: " + String(q.created).slice(0, 10) + "    Status: " + fsQStat(q).label]);
-  L.push(["b", "Defect"]);
-  L.push(["t", q.defectDesc || "(none recorded)"]);
+  if (q.defectDesc) { L.push(["b", "Defect"]); L.push(["t", q.defectDesc]); }
   L.push(["b", "Work to be carried out"]);
   q.lines.forEach(l => {
     const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
@@ -10131,6 +10439,7 @@ function fsDashRender() {
   if (fsDashMode === "book") return fsBookRender();
   if (fsDashMode === "quotes") return fsQuoteListRender();
   if (fsDashMode === "quote") return fsQuoteRender();
+  if (fsDashMode === "charges") return fsChargeListRender();
   const wrap = document.getElementById("fsDashView");
   const rows = fsDashRows();
   const over = rows.filter(r => r.days !== null && r.days < 0).length;
@@ -10138,7 +10447,7 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Clients</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Portfolio dashboard</h2>' +
-    '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -10157,6 +10466,7 @@ function fsDashRender() {
   document.getElementById("fsPipeBtn").onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
   document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
   document.getElementById("fsQuotesBtn").onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
+  document.getElementById("fsChargesBtn").onclick = () => { fsDashMode = "charges"; fsChargeListRender(); };
   wrap.querySelectorAll(".fsDashRow").forEach(el => el.onclick = () => {
     const r = rows[+el.dataset.i];
     if (!r) return;
@@ -12360,6 +12670,11 @@ function fsFinishTest() {
   site.testing = site.testing || {};
   const map = { monthly: "lastMonthly", sixMonthly: "last6m", annual: "lastAnnual", fiveYearly: "last5y", fullFunction: "lastFF" };
   if (map[fsSession.mode]) site.testing[map[fsSession.mode]] = rec.finished.slice(0, 10);
+  /* The visit earns its charge line here, SILENTLY. The technician who just
+     finished the test is not shown an amount and never should be - money lives
+     behind fsCan("money") on the dashboard. Wrapped because a charging problem
+     must never cost someone the test they just recorded. */
+  try { fsVisitCharge(site, rec, (typeof fsClient !== "undefined" && fsClient && fsClient.name) || ""); } catch (e) {}
   fsMarkDirty();
   fsClearSession();
   fsCloseTest();
