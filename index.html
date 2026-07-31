@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.04 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.05 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Register file &mdash; load, company profile, export one client">&#128193; Register</button>
@@ -240,7 +240,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.04 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.05 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -829,6 +829,10 @@
     <div style="margin-bottom:12px">
       <div style="font-size:13.5px;margin-bottom:5px">Your name (stamped on saves, tests and defects)</div>
       <input id="fsSetName" autocomplete="off" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px" placeholder="e.g. R. Smith">
+    </div>
+    <div id="fsSetSigned" style="display:none;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="flex:1;font-size:13.5px;min-width:140px">Signed in as <b id="fsSetSignedWho"></b> <span id="fsSetSignedRole" style="color:#93a4ab;font-size:12px"></span></span>
+      <button class="btn" id="fsSetSignOut">&#128274; Sign out</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <span style="flex:1;font-size:13.5px">Who did what in this register</span>
@@ -7660,18 +7664,19 @@ document.getElementById("fsDashBtn").onclick = async () => {
   if (!fsRegister) return;
   if (!fsRegister.adminPin) {
     if (!confirm("No admin passcode is set for this register yet.\nThe dashboard is an all-sites management view \u2014 set a passcode now?")) return;
-    const p1 = prompt("Choose an admin passcode (4+ characters):") || "";
-    if (p1.length < 4) { if (p1) alert("Too short \u2014 passcode not set."); return; }
-    const p2 = prompt("Re-enter the passcode:") || "";
-    if (p1 !== p2) { alert("They didn't match \u2014 passcode not set."); return; }
-    fsRegister.adminPin = await fsSha256(p1);
+    const p1 = await fsAskPass("Choose an admin passcode", {
+      confirm: true, min: 4, okLabel: "Set passcode",
+      note: "It is stored in the register file, so colleagues' copies use the same one. Save the register afterwards."
+    });
+    if (p1 === null) return;
+    fsRegister.adminPin = await fsPassMake(p1);
     fsMarkDirty();
     alert("Passcode set \u2713 \u2014 Save the register so colleagues' copies use the same one.");
     fsDashUnlocked = true;
   } else if (!fsDashUnlocked) {
-    const p = prompt("Admin passcode:");
+    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock", sub: "All-sites dashboard" });
     if (p === null) return;
-    if (await fsSha256(p) !== fsRegister.adminPin) { alert("Wrong passcode."); return; }
+    if (!(await fsPassVerify(p, fsRegister.adminPin))) { alert("Wrong passcode."); return; }
     fsDashUnlocked = true;
   }
   fsDashRender();
@@ -8562,6 +8567,153 @@ function fsPick(title, rows, opts) {
   });
 }
 /* ===== end fsPick ========================================================== */
+
+/* ===== Passwords: hashing, and a box to type one into ======================
+   V0.05, 31 Jul 2026.
+
+   THE HASH. Everything before this pass used fsSha256 — one pass, no salt. Two
+   users who both chose "fire" had the same stored string, and any rainbow table
+   turns that string back into "fire" in no time. New passwords are PBKDF2-
+   SHA-256, 210,000 iterations, with 16 random bytes of salt each:
+
+       pbkdf2$210000$<32 hex chars of salt>$<64 hex chars of hash>
+
+   Old 64-hex values still verify — see fsPassVerify — and get rewritten in this
+   format the first time their owner successfully signs in. Nobody is locked out
+   and nobody is left on the weak hash.
+
+   210,000 is chosen to cost roughly a quarter of a second on the oldest tablet
+   these apps run on. Higher is better against an offline attack; slower than
+   about half a second reads as a broken login.
+
+   THE BOX. fsAskPass is a real modal with a masked field, because window.prompt
+   shows the password in clear text under a browser banner. Same objection Reece
+   raised about the list pickers, and worse here — this one is a password.
+   ========================================================================== */
+const FS_PBKDF2_ITERS = 210000;
+const FS_PASS_MIN = { admin: 8, office: 8, tech: 4 };
+
+function fsHexOf(buf) {
+  return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+function fsRandHex(nBytes) {
+  const a = new Uint8Array(nBytes);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+async function fsPbkdf2(pw, saltHex, iters) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(String(pw)), "PBKDF2", false, ["deriveBits"]);
+  const salt = new Uint8Array((String(saltHex).match(/../g) || []).map(h => parseInt(h, 16)));
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: salt, iterations: iters, hash: "SHA-256" }, key, 256);
+  return fsHexOf(bits);
+}
+async function fsPassMake(pw) {
+  const salt = fsRandHex(16);
+  return "pbkdf2$" + FS_PBKDF2_ITERS + "$" + salt + "$" + (await fsPbkdf2(pw, salt, FS_PBKDF2_ITERS));
+}
+/* Constant-time-ish compare. Both sides are hex of a fixed length, so this is
+   belt and braces rather than a real side channel — but it costs nothing. */
+function fsHashEq(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+function fsPassIsLegacy(stored) { return /^[0-9a-f]{64}$/.test(String(stored || "")); }
+async function fsPassVerify(pw, stored) {
+  const s = String(stored || "");
+  if (!s) return false;
+  if (s.indexOf("pbkdf2$") === 0) {
+    const p = s.split("$");
+    if (p.length !== 4) return false;
+    const iters = parseInt(p[1], 10);
+    if (!(iters >= 1000)) return false;                 /* refuse a tampered-down cost */
+    if (!/^[0-9a-f]+$/.test(p[2]) || !/^[0-9a-f]{64}$/.test(p[3])) return false;
+    return fsHashEq(await fsPbkdf2(pw, p[2], iters), p[3]);
+  }
+  if (fsPassIsLegacy(s)) return fsHashEq(await fsSha256(pw), s);   /* V1.29 and earlier */
+  return false;
+}
+/* Quietly re-hash a legacy password the moment its owner proves they know it. */
+async function fsPassUpgrade(name, pw) {
+  try {
+    if (typeof fsProfile === "undefined" || !fsProfile || !Array.isArray(fsProfile.users)) return false;
+    const u = fsProfile.users.find(x => String((x && x.name) || "").toLowerCase() === String(name || "").toLowerCase());
+    if (!u || !fsPassIsLegacy(u.passHash)) return false;
+    u.passHash = await fsPassMake(pw);
+    try { idbPut("fsProfile", fsProfile).catch(() => {}); } catch (e) {}
+    if (typeof fsRegister !== "undefined" && fsRegister) { fsRegister.profile = fsProfile; fsMarkDirty(); }
+    try { fsActLog("Password upgraded", String(name) + " — unsalted hash replaced"); } catch (e) {}
+    return true;
+  } catch (e) { return false; }
+}
+
+/* fsAskPass(title, opts) -> Promise<string|null>.  null means cancelled.
+   opts: { note, confirm:true (ask twice), min:N, okLabel, sub } */
+function fsAskPass(title, opts) {
+  opts = opts || {};
+  const min = opts.min || 0;
+  return new Promise(resolve => {
+    const d = document.createElement("div");
+    d.className = "modal show";
+    d.style.zIndex = "160";                       /* above fsPick (140) and the login (150) */
+    d.innerHTML =
+      '<div class="modalbox" style="max-width:400px;width:92vw;text-align:left">' +
+        '<h3 class="fsApTitle" style="margin-bottom:4px"></h3>' +
+        '<div class="fsApSub" style="font-size:12px;color:#9aa7ae;margin-bottom:10px;display:none"></div>' +
+        '<div style="display:flex;gap:6px;margin-bottom:8px">' +
+          '<input type="password" class="fsApPass" autocomplete="off" autocapitalize="off" spellcheck="false" ' +
+                 'placeholder="Password" style="flex:1;min-width:0;padding:11px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:15px">' +
+          '<button type="button" class="btn fsApEye" title="Show or hide" style="padding:6px 10px">&#128065;</button>' +
+        '</div>' +
+        '<input type="password" class="fsApPass2" autocomplete="off" autocapitalize="off" spellcheck="false" ' +
+               'placeholder="Type it again" style="width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:15px;margin-bottom:8px;display:none">' +
+        '<div class="fsApNote" style="font-size:11.5px;color:#8b979d;margin-bottom:8px;display:none"></div>' +
+        '<div class="fsApMsg" style="min-height:17px;font-size:12.5px;color:#ff8a80;margin-bottom:8px"></div>' +
+        '<div class="row" style="display:flex;gap:8px"><span style="flex:1"></span>' +
+          '<button class="btn fsApCancel">Cancel</button>' +
+          '<button class="btn fsApOk" style="background:var(--fs-accent,#2596ab);border-color:var(--fs-accent,#2596ab);color:#08191d;font-weight:700"></button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(d);
+
+    d.querySelector(".fsApTitle").textContent = title || "Password";
+    d.querySelector(".fsApOk").textContent = opts.okLabel || "OK";
+    if (opts.sub) { const s = d.querySelector(".fsApSub"); s.textContent = opts.sub; s.style.display = "block"; }
+    if (opts.note) { const n = d.querySelector(".fsApNote"); n.textContent = opts.note; n.style.display = "block"; }
+    const p1 = d.querySelector(".fsApPass"), p2 = d.querySelector(".fsApPass2");
+    if (opts.confirm) p2.style.display = "block";
+    const msg = d.querySelector(".fsApMsg");
+
+    const done = v => { document.removeEventListener("keydown", onKey, true); d.remove(); resolve(v); };
+    const submit = () => {
+      const a = p1.value || "";
+      if (min && a.length < min) { msg.textContent = "Use at least " + min + " characters."; return; }
+      if (!a) { msg.textContent = "Type a password."; return; }
+      if (opts.confirm && a !== (p2.value || "")) { msg.textContent = "The two don't match."; return; }
+      done(a);
+    };
+    const onKey = e => { if (e.key === "Escape") { e.preventDefault(); done(null); } };
+    document.addEventListener("keydown", onKey, true);
+
+    d.querySelector(".fsApEye").onclick = () => {
+      const t = p1.type === "password" ? "text" : "password";
+      p1.type = t; p2.type = t;
+    };
+    [p1, p2].forEach(el => el.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); submit(); }
+    }));
+    d.querySelector(".fsApOk").onclick = submit;
+    d.querySelector(".fsApCancel").onclick = () => done(null);
+    d.onclick = e => { if (e.target === d) done(null); };
+    setTimeout(() => { try { p1.focus(); } catch (e) {} }, 40);
+  });
+}
+/* ===== end fsAskPass ====================================================== */
+
 
 /* ===== Accounting handoff - embedded from money/accounting.js at patch time ==
    Single source of truth is money/accounting.js with its own test suite. Do not
@@ -13378,7 +13530,8 @@ document.getElementById("fsResAnnuals").onclick = () => { document.getElementByI
 /* ---------- Settings (V1.1): theme, backups, colour-coding, name, updates, device wipe ---------- */
 document.getElementById("fsSettingsBtn").onclick = () => {
   document.getElementById("fsResFade").checked = fsFadeOn();
-  try { document.getElementById("fsSetName").value = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  try { document.getElementById("fsSetName").value = fsWho() || ""; } catch (e) {}
+  try { fsSetSignedRefresh(); } catch (e) {}
   try { document.getElementById("fsMapsApp").value = fsMapsApp(); } catch (e) {}
   const vb = document.getElementById("fsVerBadge");
   /* Version AND build. The badge alone could not tell Reece whether a deploy had
@@ -13389,7 +13542,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v7";
+const FS_BUILD = "aa-v8";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -13423,6 +13576,26 @@ function fsCwApply() {
   fsCwApply();
 })();
 document.getElementById("fsMapsApp").onchange = e => { try { localStorage.setItem("fs-mapsapp", e.target.value); } catch (er) {} };
+/* Who am I, and a way out. Hidden entirely when the profile has no user list —
+   there is nothing to sign out OF in that case. */
+function fsSetSignedRefresh() {
+  const row = document.getElementById("fsSetSigned");
+  if (!row) return;
+  const users = (typeof fsUsers === "function" ? fsUsers() : []).filter(u => u.status === "active");
+  const who = fsWho();
+  if (!users.length || !who) { row.style.display = "none"; return; }
+  row.style.display = "flex";
+  document.getElementById("fsSetSignedWho").textContent = who;
+  const r = fsWhoRole();
+  document.getElementById("fsSetSignedRole").textContent = "· " + (FS_ROLE_LABEL[r] || r);
+}
+(function () {
+  const b = document.getElementById("fsSetSignOut");
+  if (b) b.onclick = () => {
+    if (!confirm("Sign out on this device?\n\nAnything already saved keeps your name on it.")) return;
+    fsSignOut();
+  };
+})();
 document.getElementById("fsSetName").addEventListener("change", async e => {
   const name = e.target.value.trim();
   /* switching to a listed user with a password asks for it — same rule as the picker */
@@ -15930,17 +16103,19 @@ async function fsSparkGate() {
   try { stored = localStorage.getItem("fs-spark-pin") || ""; } catch (e) {}
   if (!stored) {
     if (!confirm("SparkCommand is the profile builder — the vendor-side tool.\n\nNo passcode is set on this device yet. Set one now?")) return false;
-    const p1 = prompt("Choose a SparkCommand passphrase (8+ characters — this device only):") || "";
-    if (p1.length < 8) { if (p1) alert("Too short — use at least 8 characters. Nothing was set."); return false; }
-    const p2 = prompt("Re-enter it:") || "";
-    if (p1 !== p2) { alert("They didn't match — nothing was set."); return false; }
-    try { localStorage.setItem("fs-spark-pin", await fsSha256(p1)); } catch (e) {}
+    const p1 = await fsAskPass("Choose a SparkCommand passphrase", {
+      confirm: true, min: 8, okLabel: "Set passphrase",
+      note: "At least 8 characters. Stored on THIS device only — you will set it again on any other machine you build profiles from."
+    });
+    if (p1 === null) return false;
+    try { localStorage.setItem("fs-spark-pin", await fsPassMake(p1)); } catch (e) {}
     alert("Passcode set ✓ — it is stored on this device only. You'll need to set it again on any other device you build profiles from.");
     return true;
   }
-  const p = prompt("SparkCommand passphrase:");
+  const p = await fsAskPass("SparkCommand passphrase", { okLabel: "Unlock", sub: "Vendor-side profile builder" });
   if (p === null) return false;
-  if ((await fsSha256(p)) !== stored) { alert("Wrong passphrase."); return false; }
+  if (!(await fsPassVerify(p, stored))) { alert("Wrong passphrase."); return false; }
+  try { if (fsPassIsLegacy(stored)) localStorage.setItem("fs-spark-pin", await fsPassMake(p)); } catch (e) {}
   return true;
 }
 async function fsSparkOpen() { if (await fsSparkGate()) fsBuilderOpen(); }
@@ -16168,7 +16343,39 @@ function fsGateRemove() { const g = document.getElementById("fsGate"); if (g) g.
    devices — it is convenience gating, NOT security: the file is readable by anyone who has it.
    Real logins and a tamper-proof trail are the backend's job. fsWho()/fsWhoRole() are the seam
    that swaps to authenticated users with zero rework. No user list = app behaves as before. */
-function fsWho() { try { return (localStorage.getItem("fs-user") || "").trim(); } catch (e) { return ""; } }
+/* sessionStorage first: "stay signed in" unticked puts the session there, and it
+   must win over a stale localStorage name left by whoever used the device last. */
+function fsWho() {
+  try { return (sessionStorage.getItem("fs-user") || localStorage.getItem("fs-user") || "").trim(); }
+  catch (e) { return ""; }
+}
+/* The auth record is what separates "signed in" from "typed a name". It is
+   written only after a password is verified, and it names WHO it is for. */
+function fsAuthRec() {
+  try {
+    const raw = sessionStorage.getItem("fs-auth") || localStorage.getItem("fs-auth") || "";
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function fsAuthOk(name) {
+  const a = fsAuthRec();
+  return !!(a && String(a.name || "").toLowerCase() === String(name || "").toLowerCase());
+}
+function fsAuthSet(name, stay) {
+  try {
+    ["fs-auth", "fs-user"].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); });
+    const store = stay ? localStorage : sessionStorage;
+    store.setItem("fs-auth", JSON.stringify({ name: name, at: new Date().toISOString() }));
+    store.setItem("fs-user", name);
+  } catch (e) {}
+}
+function fsSignOut() {
+  try { ["fs-auth", "fs-user"].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); }); } catch (e) {}
+  try { const n = document.getElementById("fsSetName"); if (n) n.value = ""; } catch (e) {}
+  try { fsRoleRefresh(); } catch (e) {}
+  try { fsSetSignedRefresh(); } catch (e) {}
+  fsWhoCheck();
+}
 function fsUsers() {
   const p = (typeof fsProfile !== "undefined" && fsProfile) || null;
   let u = p && Array.isArray(p.users) ? p.users : null;
@@ -16186,6 +16393,11 @@ function fsWhoRole() {
   if (!us.length) return "admin";                    /* no user list — the app behaves exactly as before */
   const u = fsWhoUser();
   if (!u || u.status !== "active") return "tech";    /* unlisted or disabled name — field work only */
+  /* V0.05: an account WITH a password only carries its role on a device that
+     actually signed in. Hand-editing localStorage["fs-user"] to the boss's name
+     now gets you a technician, not an admin. Forging the auth record still
+     works — this is a higher bar, not a wall. The wall is the backend. */
+  if (u.passHash && !fsAuthOk(u.name)) return "tech";
   return u.role;
 }
 const FS_ROLE_CAPS = { admin: { admin: 1, money: 1, field: 1 }, office: { money: 1 }, tech: { field: 1 } };
@@ -16196,18 +16408,23 @@ function fsRoleRefresh() {
   try { fsTestBtnRefresh(); } catch (e) {}
   try { if (typeof fsSite !== "undefined" && fsSite && typeof fsRenderSite === "function") fsRenderSite(); } catch (e) {}
 }
-/* per-user password — convenience gate, honesty-flagged. Blank hash = no prompt. */
+/* per-user password — masked, salted, and it upgrades a legacy hash on the way
+   through. Blank hash = nothing to ask. Returns true only on a real match. */
 async function fsWhoAuth(u) {
   if (!u || !u.passHash) return true;
-  const p = prompt("Password for " + u.name + ":");
+  const p = await fsAskPass("Password for " + u.name, {
+    sub: FS_ROLE_LABEL[u.role] || u.role, okLabel: "Sign in"
+  });
   if (p === null) return false;
-  if (await fsSha256(p) !== u.passHash) { alert("Wrong password."); return false; }
+  if (!(await fsPassVerify(p, u.passHash))) { alert("Wrong password."); return false; }
+  await fsPassUpgrade(u.name, p);
   return true;
 }
-function fsWhoSet(name) {
-  try { localStorage.setItem("fs-user", name); } catch (e) {}
+function fsWhoSet(name, stay) {
+  fsAuthSet(name, stay === undefined ? true : !!stay);
   try { const n = document.getElementById("fsSetName"); if (n) n.value = name; } catch (e) {}
   fsRoleRefresh();
+  try { fsSetSignedRefresh(); } catch (e) {}
 }
 function fsActLog(act, what) {
   try {
@@ -16217,43 +16434,213 @@ function fsActLog(act, what) {
     if (fsRegister.activity.length > 300) fsRegister.activity.length = 300;
   } catch (e) {}
 }
-function fsWhoCheck() {
+/* ===== The login ===========================================================
+   V0.05. What used to be here was a name PICKER: tap a name, become that person.
+   A password was optional and, when present, was asked for through prompt().
+
+   Now: choose or type who you are, then a masked password field. Admin and
+   office MUST have a password — if theirs is not set yet, the set-it flow runs
+   at their own first sign-in, so the app can never be locked out of itself.
+   Technicians can still be password-free; that is a van tablet, not a bank.
+   ========================================================================== */
+function fsLoginFailBump() {
   try {
-    if (document.getElementById("fsGate")) return;     /* gate first — the picker appears after unlock */
-    if (document.getElementById("fsWhoPick")) return;
-    const users = fsUsers().filter(u => u.status === "active");
-    if (!users.length || fsWho()) return;
-    const g = document.createElement("div");
-    g.id = "fsWhoPick";
-    g.style.cssText = "position:fixed;inset:0;z-index:150;background:rgba(10,14,18,.96);display:flex;align-items:center;justify-content:center;padding:20px";
-    let inner = '<div style="max-width:420px;width:100%;background:#20252b;border:1px solid #3a444d;border-radius:14px;padding:24px;text-align:left">';
-    inner += '<h2 style="font-size:20px;margin-bottom:6px">Who is using this device?</h2>';
-    inner += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:14px">Saves, tests and defects are stamped with this name so the office can see who did what. Change it any time in &#9881; Settings.</div>';
-    users.forEach((u, i) => {
-      inner += '<button class="btn fsWhoBtn" data-i="' + i + '" style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:8px;padding:12px;font-size:15px;font-weight:700"><span style="flex:1;min-width:0;text-align:left">' + fsEsc(u.name) + '</span>' +
-               '<span style="font-size:11px;font-weight:400;color:#93a4ab">' + fsEsc(FS_ROLE_LABEL[u.role] || u.role) + (u.passHash ? ' &#128273;' : '') + '</span></button>';
-    });
-    inner += '<div style="display:flex;gap:8px;margin-top:4px"><input id="fsWhoOther" placeholder="Someone else &mdash; type your name" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px"><button class="btn" id="fsWhoGo">OK</button></div>';
-    inner += '</div>';
-    g.innerHTML = inner;
-    document.body.appendChild(g);
-    const done = name => { if (!name) return; fsWhoSet(name); g.remove(); };
-    g.querySelectorAll(".fsWhoBtn").forEach(b => b.onclick = async () => {
-      const u = users[+b.dataset.i];
-      if (!(await fsWhoAuth(u))) return;
-      done(u.name);
-    });
-    document.getElementById("fsWhoGo").onclick = async () => {
-      const name = (document.getElementById("fsWhoOther").value || "").trim();
-      if (!name) return;
-      const match = users.find(u => u.name.toLowerCase() === name.toLowerCase());
-      if (match && !(await fsWhoAuth(match))) return;
-      done(match ? match.name : name);
-    };
-    document.getElementById("fsWhoOther").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("fsWhoGo").onclick(); });
+    const n = (+(sessionStorage.getItem("fs-login-fails") || 0) || 0) + 1;
+    if (n >= 5) {
+      sessionStorage.setItem("fs-login-until", String(Date.now() + 30000));
+      sessionStorage.setItem("fs-login-fails", "0");
+    } else {
+      sessionStorage.setItem("fs-login-fails", String(n));
+    }
   } catch (e) {}
 }
+function fsLoginLockLeft() {
+  try {
+    const t = +(sessionStorage.getItem("fs-login-until") || 0) || 0;
+    return Math.max(0, Math.ceil((t - Date.now()) / 1000));
+  } catch (e) { return 0; }
+}
+function fsLoginClearFails() {
+  try { sessionStorage.removeItem("fs-login-fails"); sessionStorage.removeItem("fs-login-until"); } catch (e) {}
+}
+function fsPassMinFor(role) { return FS_PASS_MIN[role] || 4; }
+/* An admin/office account with no password cannot be USED until one is set. */
+function fsUserNeedsPass(u) { return !!u && u.role !== "tech" && !u.passHash; }
 
+async function fsLoginSetPass(u) {
+  const min = fsPassMinFor(u.role);
+  const p = await fsAskPass("Set a password for " + u.name, {
+    confirm: true, min: min, okLabel: "Set password",
+    sub: (FS_ROLE_LABEL[u.role] || u.role) + " — a password is required for this role",
+    note: "At least " + min + " characters. It is stored in the company profile as a salted "
+        + "PBKDF2 hash, so it travels to other devices with the profile. It is not sent anywhere."
+  });
+  if (p === null) return false;
+  if (typeof fsProfile === "undefined" || !fsProfile || !Array.isArray(fsProfile.users)) {
+    alert("The user list isn't loaded — open the company profile first."); return false;
+  }
+  const rec = fsProfile.users.find(x => String((x && x.name) || "").toLowerCase() === u.name.toLowerCase());
+  if (!rec) { alert("That user is no longer in the profile."); return false; }
+  rec.passHash = await fsPassMake(p);
+  try { idbPut("fsProfile", fsProfile).catch(() => {}); } catch (e) {}
+  if (typeof fsRegister !== "undefined" && fsRegister) { fsRegister.profile = fsProfile; fsMarkDirty(); }
+  try { fsActLog("Password set", u.name); } catch (e) {}
+  return true;
+}
+
+function fsLoginShow(users) {
+  const g = document.createElement("div");
+  g.id = "fsLogin";
+  g.style.cssText = "position:fixed;inset:0;z-index:150;background:rgba(10,14,18,.97);"
+                  + "display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto";
+  document.body.appendChild(g);
+
+  const co = String((typeof fsProfile !== "undefined" && fsProfile && fsProfile.company && fsProfile.company.name) || "");
+  let step = "who", picked = null, err = "", busy = false;
+  let stay = true;
+  try { stay = localStorage.getItem("fs-login-stay") !== "0"; } catch (e) {}
+
+  const finish = name => {
+    fsAuthSet(name, stay);
+    try { localStorage.setItem("fs-login-stay", stay ? "1" : "0"); } catch (e) {}
+    fsLoginClearFails();
+    try { const n = document.getElementById("fsSetName"); if (n) n.value = name; } catch (e) {}
+    g.remove();
+    try { fsRoleRefresh(); } catch (e) {}
+    try { fsSetSignedRefresh(); } catch (e) {}
+    try { fsActLog("Signed in", name); } catch (e) {}
+  };
+
+  /* Every lookup is scoped to THIS overlay. Using document.getElementById here
+     was a real bug: a redraw fired by the cool-off timer after the overlay had
+     been replaced went looking in the document, found the OTHER overlay's
+     elements (or null) and threw. Scope it and the whole class goes away. */
+  const $ = sel => g.querySelector(sel);
+
+  const draw = () => {
+    const lock = fsLoginLockLeft();
+    let h = '<div style="max-width:420px;width:100%;background:#20252b;border:1px solid #3a444d;'
+          + 'border-radius:14px;padding:24px;text-align:left;margin:auto 0">';
+    if (co) h += '<div style="font-size:11.5px;letter-spacing:2px;color:var(--fs-accent,#2596ab);font-weight:800;margin-bottom:6px">'
+               + fsEsc(co.toUpperCase()) + '</div>';
+
+    if (step === "who") {
+      h += '<h2 style="font-size:20px;margin-bottom:6px">Sign in</h2>';
+      h += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:14px">Everything you save, test or raise is '
+         + 'stamped with this account, so the office can see who did what.</div>';
+      users.forEach((u, i) => {
+        h += '<button class="btn fsLgWho" data-i="' + i + '" style="display:flex;align-items:center;gap:8px;'
+           + 'width:100%;margin-bottom:8px;padding:12px;min-height:44px;font-size:15px;font-weight:700">'
+           + '<span style="flex:1;min-width:0;text-align:left">' + fsEsc(u.name) + '</span>'
+           + '<span style="font-size:11px;font-weight:400;color:#93a4ab">' + fsEsc(FS_ROLE_LABEL[u.role] || u.role)
+           + (u.passHash ? ' &#128273;' : (u.role === "tech" ? '' : ' &#9888;')) + '</span></button>';
+      });
+      h += '<div style="display:flex;gap:8px;margin-top:4px">'
+         + '<input id="fsLgOther" placeholder="Someone else &mdash; type your name" autocomplete="off" '
+         + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">'
+         + '<button class="btn" id="fsLgGo">OK</button></div>';
+      h += '<div style="font-size:11px;color:#78868d;margin-top:10px">A name that is not on the list signs in as a '
+         + 'technician: field work only, no money screens.</div>';
+    } else {
+      h += '<h2 style="font-size:20px;margin-bottom:4px">' + fsEsc(picked.name) + '</h2>';
+      h += '<div style="font-size:12px;color:#93a4ab;margin-bottom:14px">'
+         + fsEsc(FS_ROLE_LABEL[picked.role] || picked.role) + '</div>';
+      h += '<input id="fsLgPass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Password" '
+         + (lock ? 'disabled ' : '')
+         + 'style="width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #4a5057;'
+         + 'background:#12191c;color:#e8e8e8;font-size:15px;margin-bottom:10px">';
+    }
+
+    h += '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#a9b6bc;margin-top:12px;cursor:pointer">'
+       + '<input type="checkbox" id="fsLgStay"' + (stay ? " checked" : "") + '>Stay signed in on this device</label>';
+    h += '<div id="fsLgMsg" style="min-height:18px;font-size:12.5px;color:#ff8a80;margin-top:8px">'
+       + fsEsc(lock ? ("Too many wrong tries — wait " + lock + "s.") : err) + '</div>';
+    if (step !== "who") {
+      h += '<div style="display:flex;gap:8px;margin-top:4px">'
+         + '<button class="btn" id="fsLgBack">&#8592; Back</button><span style="flex:1"></span>'
+         + '<button class="btn" id="fsLgIn"' + (lock ? " disabled" : "")
+         + ' style="background:var(--fs-accent,#2596ab);border-color:var(--fs-accent,#2596ab);color:#08191d;font-weight:700">'
+         + (busy ? "Checking…" : "Sign in") + '</button></div>';
+    }
+    h += '<div style="font-size:10.5px;color:#5f6d74;margin-top:14px;border-top:1px solid #333b42;padding-top:9px">'
+       + 'Sign-in is checked on this device against the company profile stored on it. It controls what this app '
+       + 'shows you and whose name goes on the record. It is not cloud account security — that comes with the '
+       + 'backend.</div>';
+    h += '</div>';
+    g.innerHTML = h;
+
+    const stayEl = $("#fsLgStay");
+    if (stayEl) stayEl.onchange = () => { stay = stayEl.checked; };
+
+    if (step === "who") {
+      g.querySelectorAll(".fsLgWho").forEach(b => b.onclick = async () => {
+        const u = users[+b.dataset.i];
+        if (!u.passHash && u.role === "tech") { finish(u.name); return; }
+        if (fsUserNeedsPass(u)) {                       /* admin/office with none set yet */
+          if (await fsLoginSetPass(u)) finish(u.name);
+          return;
+        }
+        picked = u; err = ""; step = "pass"; draw();
+      });
+      const go = () => {
+        const name = ($("#fsLgOther").value || "").trim();
+        if (!name) return;
+        const match = users.find(u => u.name.toLowerCase() === name.toLowerCase());
+        if (!match) { finish(name); return; }            /* unlisted -> technician, as before */
+        const btn = g.querySelector('.fsLgWho[data-i="' + users.indexOf(match) + '"]');
+        if (btn) btn.click();
+      };
+      $("#fsLgGo").onclick = go;
+      $("#fsLgOther").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    } else {
+      const pw = $("#fsLgPass");
+      const trySignIn = async () => {
+        if (busy || fsLoginLockLeft()) return;
+        const p = pw.value || "";
+        if (!p) { err = "Type your password."; draw(); return; }
+        busy = true; draw();
+        const okPass = await fsPassVerify(p, picked.passHash);
+        busy = false;
+        if (!okPass) {
+          fsLoginFailBump();
+          err = "That password isn't right.";
+          draw();
+          return;
+        }
+        await fsPassUpgrade(picked.name, p);
+        finish(picked.name);
+      };
+      $("#fsLgIn").onclick = trySignIn;
+      $("#fsLgBack").onclick = () => { step = "who"; picked = null; err = ""; draw(); };
+      pw.addEventListener("keydown", e => { if (e.key === "Enter") trySignIn(); });
+      if (!("ontouchstart" in window)) setTimeout(() => { try { pw.focus(); } catch (e) {} }, 40);
+    }
+  };
+
+  draw();
+  /* Redraw once a second while a cool-off is running, so the countdown moves. */
+  const tick = setInterval(() => {
+    if (!g.isConnected) { clearInterval(tick); return; }   /* THIS overlay, not any overlay */
+    if (fsLoginLockLeft()) draw();
+  }, 1000);
+}
+
+function fsWhoCheck() {
+  try {
+    if (document.getElementById("fsGate")) return;     /* licence gate first — login comes after unlock */
+    if (document.getElementById("fsLogin")) return;
+    const users = fsUsers().filter(u => u.status === "active");
+    if (!users.length) return;                         /* no user list — app behaves exactly as before */
+    const who = fsWho();
+    if (who) {
+      const u = users.find(x => x.name.toLowerCase() === who.toLowerCase());
+      if (!u) return;                                  /* free-typed name: technician, nothing to verify */
+      if (!u.passHash) { if (u.role === "tech") return; }   /* admin/office must set one */
+      else if (fsAuthOk(u.name)) return;               /* already signed in on this device */
+    }
+    fsLoginShow(users);
+  } catch (e) {}
+}
 /* ---------- Users editor — the client's admin manages their own people (dashboard) ---------- */
 function fsUsersSave(list) {
   if (!fsProfile) return;
@@ -16279,7 +16666,7 @@ function fsUsersOpen() {
         '<input class="fsUsrName" data-i="' + i + '" value="' + fsEsc(u.name).replace(/"/g, "&quot;") + '" style="flex:1;min-width:120px;padding:7px;border-radius:7px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
         '<select class="fsUsrRole" data-i="' + i + '" style="padding:7px;border-radius:7px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
           ["admin", "office", "tech"].map(r => '<option value="' + r + '"' + (u.role === r ? " selected" : "") + '>' + FS_ROLE_LABEL[r] + '</option>').join("") + '</select>' +
-        '<button class="btn fsUsrPass" data-i="' + i + '" style="padding:6px 9px;font-size:12px" title="Optional — stops casual name-borrowing, not real security">' + (u.passHash ? "&#128273; Change" : "Password&hellip;") + '</button>' +
+        '<button class="btn fsUsrPass" data-i="' + i + '" style="padding:6px 9px;font-size:12px' + (fsUserNeedsPass(u) ? ';border-color:#b58900;color:#ffcf5c' : '') + '" title="' + (fsUserNeedsPass(u) ? "Required for this role" : "Sets or replaces this user\u2019s password") + '">' + (u.passHash ? (fsPassIsLegacy(u.passHash) ? "&#128273; Re-set" : "&#128273; Change") : (fsUserNeedsPass(u) ? "&#9888; Set password" : "Password&hellip;")) + '</button>' +
         (u.passHash ? '<button class="btn fsUsrPassX" data-i="' + i + '" style="padding:6px 8px;font-size:12px" title="Remove the password">&times;&#128273;</button>' : '') +
         '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="fsUsrOn" data-i="' + i + '"' + (u.status === "active" ? " checked" : "") + '>active</label>' +
         '<button class="btn fsUsrDel" data-i="' + i + '" style="padding:6px 9px;font-size:12px;color:#ff6b5e">Remove</button></div>';
@@ -16295,10 +16682,17 @@ function fsUsersOpen() {
     d.querySelectorAll(".fsUsrPass").forEach(b => b.onclick = async () => {
       sync();
       const u = list[+b.dataset.i];
-      const p1 = prompt("Password for " + (u.name || "this user") + " (4+ characters — convenience gate, not security):") || "";
-      if (!p1) return;
-      if (p1.length < 4) { alert("Too short — password not set."); return; }
-      u.passHash = await fsSha256(p1);
+      const min = fsPassMinFor(u.role);
+      const p1 = await fsAskPass("Password for " + (u.name || "this user"), {
+        confirm: true, min: min, okLabel: "Set password",
+        sub: FS_ROLE_LABEL[u.role] || u.role,
+        note: (u.role === "tech"
+                ? "At least 4 characters. Optional for a technician."
+                : "At least 8 characters. Required for " + (FS_ROLE_LABEL[u.role] || u.role) + " accounts.")
+            + " Stored as a salted PBKDF2 hash inside the profile — never in clear text, never sent anywhere."
+      });
+      if (p1 === null) return;
+      u.passHash = await fsPassMake(p1);
       render();
     });
     d.querySelectorAll(".fsUsrPassX").forEach(b => b.onclick = () => { sync(); list[+b.dataset.i].passHash = ""; render(); });
@@ -16327,6 +16721,12 @@ function fsUsersOpen() {
       if (named.length && !named.some(u => u.status === "active" && u.role === "admin")) {
         alert("Keep at least one ACTIVE Admin — otherwise nobody can manage users or get back in here."); return;
       }
+      /* Not a blocker: whoever it is will be asked to set one at their own first
+         sign-in. Saying so here stops it being a surprise. */
+      const noPass = named.filter(u => u.status === "active" && fsUserNeedsPass(u)).map(u => u.name);
+      if (noPass.length && !confirm("These need a password before they can sign in:\n\n  "
+            + noPass.join("\n  ")
+            + "\n\nThey will be asked to choose one the first time they sign in on their own device. Save anyway?")) return;
       fsUsersSave(named);
       d.classList.remove("show");
       alert("✓ Users saved into the profile. Save the register so other devices get the change.");
@@ -16368,7 +16768,7 @@ function fsGateShow(kind, a, extra) {
   if (go) go.onclick = async () => {
     const u = (document.getElementById("fsGateUser").value || "").trim().toLowerCase();
     const p = document.getElementById("fsGatePass").value || "";
-    if (u !== String(a.user || "").trim().toLowerCase() || (await fsSha256(p)) !== a.passHash) {
+    if (u !== String(a.user || "").trim().toLowerCase() || !(await fsPassVerify(p, a.passHash))) {
       document.getElementById("fsGateMsg").textContent = "That business name + password combination isn't right.";
       return;
     }
@@ -16379,9 +16779,9 @@ function fsGateShow(kind, a, extra) {
   if (pw) pw.addEventListener("keydown", e => { if (e.key === "Enter" && go) go.onclick(); });
   document.getElementById("fsGateAdmin").onclick = async () => {
     if (!fsRegister || !fsRegister.adminPin) { alert("Load a register with an admin passcode first."); return; }
-    const p = prompt("Admin passcode:");
+    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock" });
     if (p === null) return;
-    if (await fsSha256(p) !== fsRegister.adminPin) { alert("Wrong passcode."); return; }
+    if (!(await fsPassVerify(p, fsRegister.adminPin))) { alert("Wrong passcode."); return; }
     try { sessionStorage.setItem("fs-gate-admin", "1"); } catch (e) {}
     fsGateRemove();
   };
@@ -17041,7 +17441,7 @@ function fsBuilderRender() {
     if (st.access.mode !== "none") {
       const a = st.access;
       let passHash = a.passHash || "";
-      if (a.pass) passHash = await fsSha256(a.pass);
+      if (a.pass) passHash = await fsPassMake(a.pass);   /* salted from V0.05 - the client's app must be V0.05+ */
       if (a.user && !passHash) { alert("Set a password for the login (or clear the business name to skip the login gate)."); return; }
       out.access = { mode: a.mode, start: a.start || "", expiry: a.expiry || "", user: a.user || "", passHash: passHash, contact: a.contact || "" };
       if (a.mode === "trial" && !a.expiry) { alert("A trial needs an expiry date — use the 7 / 14 day buttons or pick one."); return; }
