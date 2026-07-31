@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.02 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.03 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Register file &mdash; load, company profile, export one client">&#128193; Register</button>
@@ -240,7 +240,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.02 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.03 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -8451,6 +8451,118 @@ function fsTaskLibLoad(key) {
 /* ===== end starter remedy-task libraries =================================== */
 
 
+
+/* ===== fsPick — one tappable list picker, used everywhere ===================
+   Replaces six numbered prompt() menus. A browser prompt() cannot be tapped,
+   caps out at 60 rows here (anything past that was UNREACHABLE), has no filter,
+   and the browser stamps its own origin across the top — "arcadapt.github.io
+   says" — which is unstylable and makes a product look like a web page.
+
+   fsPick(title, rows, opts) -> Promise that resolves with the chosen row, or
+   null if the user backed out.
+
+     rows : [{ k, label, sub }]   k = your id · label = the line · sub = grey
+                                  second line (optional)
+     opts : { confirm, note, empty, filter }
+
+   Rows are 44px minimum — this gets used on a tablet, in gloves, in a plant room. */
+function fsPick(title, rows, opts) {
+  opts = opts || {};
+  const all = (rows || []).slice();
+  return new Promise(resolve => {
+    if (!all.length) { alert(opts.empty || "There is nothing to choose from yet."); resolve(null); return; }
+    let view = all.slice(), sel = 0;
+
+    const d = document.createElement("div");
+    d.className = "modal show";
+    d.style.zIndex = "140";
+    d.innerHTML =
+      '<div class="modalbox" style="max-width:540px;width:94vw;display:flex;flex-direction:column;max-height:82vh;overflow:hidden">' +
+        '<h3 style="margin-bottom:6px"></h3>' +
+        '<div class="fsPkNote" style="font-size:12px;color:#9aa7ae;margin:0 0 10px;display:none"></div>' +
+        '<input type="text" class="fsPkFilter" placeholder="Type to filter…" autocomplete="off" spellcheck="false" style="margin-bottom:8px">' +
+        '<div class="fsPkList" style="flex:1;min-height:90px;overflow-y:auto;border:1px solid #444;border-radius:8px;background:#1a1d21;-webkit-overflow-scrolling:touch"></div>' +
+        '<div class="fsPkCount" style="font-size:11.5px;color:#8b979d;margin-top:7px"></div>' +
+        '<div class="row">' +
+          '<button class="btn fsPkCancel">Cancel</button>' +
+          '<button class="btn fsPkOk" style="background:var(--fs-accent,#2596ab);border-color:var(--fs-accent,#2596ab);color:#08191d;font-weight:700"></button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(d);
+
+    d.querySelector("h3").textContent = title || "Choose one";
+    const okBtn = d.querySelector(".fsPkOk");
+    okBtn.textContent = opts.confirm || "Next";
+    if (opts.note) {
+      const n = d.querySelector(".fsPkNote");
+      n.textContent = opts.note; n.style.display = "block";
+    }
+    const filt = d.querySelector(".fsPkFilter");
+    if (opts.filter === false || all.length < 8) filt.style.display = "none";
+
+    const listEl = d.querySelector(".fsPkList");
+    const countEl = d.querySelector(".fsPkCount");
+
+    const draw = () => {
+      listEl.innerHTML = view.length
+        ? view.map((r, i) =>
+            '<div class="fsPkRow" data-i="' + i + '" data-k="' + fsEsc(String(r.k == null ? i : r.k)) + '"' +
+            ' style="padding:11px 12px;min-height:44px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;' +
+            (i ? 'border-top:1px solid #33383f;' : '') +
+            (i === sel ? 'background:var(--fs-accent,#2596ab);color:#08191d;' : '') + '">' +
+              '<span style="font-size:13.5px;font-weight:' + (i === sel ? '700' : '600') + '">' + fsEsc(r.label) + '</span>' +
+              (r.sub ? '<span style="font-size:11.5px;opacity:.78;margin-top:2px">' + fsEsc(r.sub) + '</span>' : '') +
+            '</div>').join("")
+        : '<div style="padding:15px;font-size:13px;color:#8b979d">Nothing matches that.</div>';
+      /* Honest about what is on screen. The old prompt() silently hid row 61. */
+      countEl.textContent = view.length === all.length
+        ? all.length + (all.length === 1 ? " entry" : " entries")
+        : view.length + " of " + all.length + " shown";
+      okBtn.disabled = !view.length;
+      okBtn.style.opacity = view.length ? "1" : ".45";
+      listEl.querySelectorAll(".fsPkRow").forEach(el => {
+        el.onclick = () => { sel = +el.dataset.i; draw(); };
+        el.ondblclick = () => { sel = +el.dataset.i; done(view[sel]); };
+      });
+    };
+
+    const done = v => {
+      document.removeEventListener("keydown", onKey, true);
+      d.remove();
+      resolve(v || null);
+    };
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); done(null); return; }
+      if (e.key === "Enter") { e.preventDefault(); if (view.length) done(view[sel]); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!view.length) return;
+        sel = Math.min(view.length - 1, Math.max(0, sel + (e.key === "ArrowDown" ? 1 : -1)));
+        draw();
+        const row = listEl.querySelector('.fsPkRow[data-i="' + sel + '"]');
+        if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+
+    filt.oninput = () => {
+      const q = filt.value.trim().toLowerCase();
+      view = q ? all.filter(r => ((r.label || "") + " " + (r.sub || "")).toLowerCase().indexOf(q) >= 0) : all.slice();
+      sel = 0;
+      draw();
+    };
+    okBtn.onclick = () => { if (view.length) done(view[sel]); };
+    d.querySelector(".fsPkCancel").onclick = () => done(null);
+    d.onclick = e => { if (e.target === d) done(null); };
+
+    draw();
+    /* Focus the filter on a real keyboard only — on a tablet this would throw the
+       on-screen keyboard up over the list you are trying to look at. */
+    if (!("ontouchstart" in window) && filt.style.display !== "none") setTimeout(() => filt.focus(), 40);
+  });
+}
+/* ===== end fsPick ========================================================== */
+
 /* ===== Accounting handoff - embedded from money/accounting.js at patch time ==
    Single source of truth is money/accounting.js with its own test suite. Do not
    edit this copy by hand; re-run patch-handoff.py instead. */
@@ -8778,14 +8890,12 @@ function fsAcctSetup() {
   alert("✓ Saved. These travel with the register, so everyone using it exports the same way.");
 }
 
-function fsAcctExport(q) {
+async function fsAcctExport(q) {
   const list = FSAccounting.ADAPTERS;
-  const menu = list.map((a, i) => "  " + (i + 1) + ". " + a.label + "\n     " + a.note).join("\n\n");
-  const p = prompt("Hand this quote over to an accounting system:\n\n" + menu +
-    "\n\nArc Adapt writes the file. You import it — nothing is sent anywhere.\n\nType a number:");
-  if (p === null) return;
-  const a = list[parseInt(p, 10) - 1];
-  if (!a) { alert("No option with that number."); return; }
+  const a = await fsPick("Hand this quote over to an accounting system",
+    list.map(x => ({ k: x.k, label: x.label, sub: x.note })),
+    { confirm: "Next", note: "This app writes the file. You import it — nothing is sent anywhere." });
+  if (!a) return;
 
   const opts = Object.assign({}, fsAcctCfg());
   /* Xero's importer needs a number and will not make one up. Default to the
@@ -9243,15 +9353,13 @@ function fsBookRender() {
   const bkVOn = document.getElementById("fsBkVisitOn");
   if (bkVOn) bkVOn.onchange = () => { b.visitChargeOn = !!bkVOn.checked; fsMarkDirty(); fsBookRender(); };
   const bkVAdd = document.getElementById("fsBkVsAdd");
-  if (bkVAdd) bkVAdd.onclick = () => {
+  if (bkVAdd) bkVAdd.onclick = async () => {
     const list = fsQuoteSites();
-    if (!list.length) { alert("There are no sites in the register yet."); return; }
-    const menu = list.slice(0, 60).map((x, i) => "  " + (i + 1) + ". " + x.client + " — " + x.site).join("\n");
-    const p = prompt("Which site is priced differently?\n\n" + menu +
-      (list.length > 60 ? "\n  … and " + (list.length - 60) + " more" : "") + "\n\nType a number:");
-    if (p === null) return;
-    const x = list[parseInt(p, 10) - 1];
-    if (!x) { alert("No site with that number."); return; }
+    const hit = await fsPick("Which site is priced differently?",
+      list.map((x, i) => ({ k: i, label: x.site, sub: x.client })),
+      { confirm: "Price this site", empty: "There are no sites in the register yet." });
+    if (!hit) return;
+    const x = list[hit.k];
     x.s.visitRates = x.s.visitRates || {};
     fsMarkDirty(); fsBookRender();
   };
@@ -9293,14 +9401,12 @@ function fsBookRender() {
   bind("fsDtCl",   el => { const t = fsDefTypeFind(el.dataset.id); if (t) t.clause = el.value.trim(); });
   del("fsDtDel", fsDefTypes(), "defect type");
   const loadT = document.getElementById("fsBookLoadTasks");
-  if (loadT) loadT.onclick = () => {
-    const lines = FS_TASK_LIBS.map((l, i) => "  " + (i + 1) + ". " + l.label + " (" + l.tasks.length + " tasks)").join("\n");
-    const pick = prompt("Load a starter task list:\n\n" + lines +
-      "\n\nThese are a DRAFT to edit, not a finished list. The times are rough starting points, " +
-      "not measured figures \u2014 change anything that is wrong for your trade.\n\nType a number:");
-    if (pick === null) return;
-    const lib = FS_TASK_LIBS[parseInt(pick, 10) - 1];
-    if (!lib) { alert("No list with that number."); return; }
+  if (loadT) loadT.onclick = async () => {
+    const lib = await fsPick("Load a starter task list",
+      FS_TASK_LIBS.map(l => ({ k: l.key, label: l.label, sub: l.tasks.length + " tasks" })),
+      { confirm: "Load",
+        note: "A DRAFT to edit, not a finished list. The times are rough starting points, not measured figures \u2014 change anything that is wrong for your trade." });
+    if (!lib) return;
     const res = fsTaskLibLoad(lib.key);
     alert("\u2713 " + lib.label + "\n\n" + res.added + " task" + (res.added === 1 ? "" : "s") + " added." +
       (res.skipped ? "\n" + res.skipped + " already in your list and left exactly as you had " +
@@ -9881,18 +9987,14 @@ function fsQuoteSites() {
 }
 /* Returns the new quote, or null if the user backed out. Access difficulty is
    captured from the SITE at creation, exactly as it is for a defect quote. */
-function fsQuoteStart() {
+async function fsQuoteStart() {
   const list = fsQuoteSites();
-  if (!list.length) {
-    alert("There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later.");
-    return null;
-  }
-  const menu = list.slice(0, 60).map((x, i) => "  " + (i + 1) + ". " + x.client + " — " + x.site).join("\n");
-  const p = prompt("Which site is this quote for?\n\n" + menu +
-    (list.length > 60 ? "\n  … and " + (list.length - 60) + " more" : "") + "\n\nType a number:");
-  if (p === null) return null;
-  const x = list[parseInt(p, 10) - 1];
-  if (!x) { alert("No site with that number."); return null; }
+  const hit = await fsPick("Which site is this quote for?",
+    list.map((x, i) => ({ k: i, label: x.site, sub: x.client })),
+    { confirm: "Start quote",
+      empty: "There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later." });
+  if (!hit) return null;
+  const x = list[hit.k];
   const q = fsQuoteNew({ client: x.client, site: x.site, s: x.s, node: x.s });
   fsMarkDirty();
   return q;
@@ -9976,8 +10078,8 @@ function fsQuoteListRender() {
   wrap.innerHTML = html;
   document.getElementById("fsQlBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsQlAcct").onclick = fsAcctSetup;
-  document.getElementById("fsQlNew").onclick = () => {
-    const q = fsQuoteStart();
+  document.getElementById("fsQlNew").onclick = async () => {
+    const q = await fsQuoteStart();
     if (!q) return;
     fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsQuoteRender();
   };
@@ -10089,23 +10191,20 @@ function fsQuoteRender() {
     else { fsDashMode = "pipeline"; fsPipeRender(); }
   };
 
-  const pick = (title, list, fn) => {
-    if (!list.length) { alert("Nothing in the pricebook to add yet.\n\nOpen the Pricebook and add some first."); return; }
-    const lines = list.slice(0, 60).map((x, i) => "  " + (i + 1) + ". " + x.name).join("\n");
-    const p = prompt(title + "\n\n" + lines + (list.length > 60 ? "\n  … and " + (list.length - 60) + " more" : "") + "\n\nType a number:");
-    if (p === null) return;
-    const x = list[parseInt(p, 10) - 1];
-    if (!x) { alert("No entry with that number."); return; }
-    fn(x);
+  const pick = async (title, list, fn) => {
+    const hit = await fsPick(title, list.map((x, i) => ({ k: i, label: x.name, sub: x.code || "" })),
+      { confirm: "Add", empty: "Nothing in the pricebook to add yet.\n\nOpen the Pricebook and add some first." });
+    if (!hit) return;
+    fn(list[hit.k]);
     fsMarkDirty(); fsQuoteRender();
   };
   const addT = document.getElementById("fsQAddTask");
-  if (addT) addT.onclick = () => pick("Add a remedy task:", (b.tasks || []).filter(t => t.name), t => {
+  if (addT) addT.onclick = () => pick("Add a remedy task", (b.tasks || []).filter(t => t.name), t => {
     const n = fsQuoteAddTask(q, t.id);
     if (!n) alert("That task has no parts and no time set, so nothing was added.\n\nGive it a time in the Pricebook first.");
   });
   const addI = document.getElementById("fsQAddItem");
-  if (addI) addI.onclick = () => pick("Add an item:", (b.items || []).filter(x => x.name), x => fsQuoteAddItem(q, x.id));
+  if (addI) addI.onclick = () => pick("Add an item", (b.items || []).filter(x => x.name), x => fsQuoteAddItem(q, x.id));
   const addM = document.getElementById("fsQAddManual");
   if (addM) addM.onclick = () => {
     const d = prompt("Describe the line:");
@@ -11151,14 +11250,15 @@ function fsRenderTab() {
       fsDefPhotoTarget = d;
       document.getElementById("fsDefMorePhoto").click();
     });
-    document.querySelectorAll(".fsDefPh").forEach(im => im.onclick = () => {
+    document.querySelectorAll(".fsDefPh").forEach(im => im.onclick = async () => {
       const d = (s.defects || []).filter(x => x.id === im.dataset.id)[0];
       if (!d || !d.photos || !d.photos.length) return;
       let i = 0;
       if (d.photos.length > 1) {
-        const p = prompt("This defect has " + d.photos.length + " photos. Which one? (1-" + d.photos.length + ")", "1");
-        if (p === null) return;
-        i = Math.min(d.photos.length - 1, Math.max(0, (parseInt(p, 10) || 1) - 1));
+        const hit = await fsPick("This defect has " + d.photos.length + " photos",
+          d.photos.map((p, n) => ({ k: n, label: "Photo " + (n + 1) })), { confirm: "Open", filter: false });
+        if (!hit) return;
+        i = hit.k;
       }
       if (!confirm("Mark up this photo?\n\nOK to draw on it, Cancel to just look at it.")) {
         fsViewPhoto(d.photos[i]);
@@ -13122,7 +13222,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v5";
+const FS_BUILD = "aa-v6";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
