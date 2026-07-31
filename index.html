@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.03 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.04 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Register file &mdash; load, company profile, export one client">&#128193; Register</button>
@@ -240,7 +240,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.03 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.04 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -9899,6 +9899,7 @@ let fsDefPhotoTarget = null;
 
 let fsQuoteId = null;      /* the quote currently open in the editor */
 let fsQuoteBack = "pipe";  /* where the back link returns to */
+let fsQlShowScratch = false;  /* scratch quotes are hidden from the main list */
 
 const FS_QSTATUS = [
   { k: "draft",    label: "Draft",    col: "#7a7a7a" },
@@ -10000,9 +10001,45 @@ async function fsQuoteStart() {
   return q;
 }
 
+
+/* ---- the scratch quote ----------------------------------------------------
+   A quote you type from nothing: no defect, no register site, no pricebook.
+   Same object, same money core, same PDF writer — it just carries scratch:true
+   and gets an editor built for typing rather than picking.
+
+   It never takes a number off the main sequence. Q-1002 belongs to real work. */
+function fsQuoteScratch() {
+  const now = new Date().toISOString();
+  const q = {
+    id: fsBookId("q"), number: "", ref: "", scratch: true, status: "draft",
+    created: now, updated: now,
+    clientName: "", siteName: "", where: "",
+    defectId: "", defectDesc: "",
+    access: "normal",
+    lines: [], lineAmountsInclusive: false, currency: "AUD", notes: "",
+    sentAt: null, approvedAt: null, declinedAt: null
+  };
+  fsQuotes().push(q);
+  fsMarkDirty();
+  return q;
+}
+function fsScratchOnly(list) { return list.filter(q => !!q.scratch); }
+function fsRealOnly(list) { return list.filter(q => !q.scratch); }
+/* One blank line. Cents stay an INTEGER always — blank is priced:false, never
+   null, because the money core refuses a null and 0 is not the same as "unset". */
+function fsScratchAddLine(q) {
+  q.lines.push({ id: fsBookId("ql"), kind: "manual", description: "",
+                 qty: 1, unitPriceCents: 0, priced: false, taxCode: "" });
+  q.updated = new Date().toISOString();
+}
+function fsScratchUnpriced(q) { return q.lines.filter(l => l.priced === false).length; }
+
 /* What still stops this quote going out. Returned as a list so the UI can say
    exactly what to fix rather than just disabling a button. */
 function fsQuoteBlockers(q) {
+  /* A scratch quote never enters the pipeline, so it has no send gate. The
+     unpriced count is surfaced in its editor as information, not a blocker. */
+  if (q && q.scratch) return [];
   const out = [];
   if (!q.lines.length) out.push("It has no lines yet.");
   const unconf = q.lines.filter(l => l.kind === "labour" && l.suggested && !l.confirmed).length;
@@ -10026,7 +10063,9 @@ function fsQuoteSetStatus(q, k) {
   q.status = k;
   q.updated = new Date().toISOString();
   const now = q.updated;
-  if (k === "sent") { if (!q.number) q.number = fsQuoteAllocNumber(); q.sentAt = now; }
+  /* Never off the main sequence for a scratch quote — that number belongs to
+     real work. There is no send button on one; this is the second lock. */
+  if (k === "sent") { if (!q.number && !q.scratch) q.number = fsQuoteAllocNumber(); q.sentAt = now; }
   if (k === "approved") q.approvedAt = now;
   if (k === "declined") q.declinedAt = now;
   const map = { draft: null, sent: "quoted", approved: "approved", declined: "declined" };
@@ -10055,29 +10094,53 @@ function fsQuoteDefect(q) {
 /* ---------------------------------------------------------------- the list */
 function fsQuoteListRender() {
   const wrap = document.getElementById("fsDashView");
-  const qs = fsQuotes().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
+  const all = fsQuotes().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
+  /* Scratch quotes are kept but hidden, so the list of real work stays clean. */
+  const nScratch = fsScratchOnly(all).length;
+  const qs = fsQlShowScratch ? fsScratchOnly(all) : fsRealOnly(all);
   let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128195; Quotes</h2>' +
     '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>' +
+    '<button class="fsbtn" id="fsQlScratch">&#9998; Scratch quote</button>' +
     '<button class="fsbtn" id="fsQlSeq">&#128290; Numbering</button>' +
     '<button class="fsbtn" id="fsQlAcct">&#127974; Accounting setup</button></div>';
+  if (nScratch) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:10px">' +
+      '<a id="fsQlTog" style="cursor:pointer;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:13px;' +
+      (fsQlShowScratch ? 'background:#6b5ea8;color:#fff' : 'background:#1a1d21;color:var(--fs-sub);border:1px solid var(--fs-border)') +
+      '">&#9998; Scratch (' + nScratch + ')</a>' +
+      (fsQlShowScratch ? '<a id="fsQlTogBack" style="cursor:pointer;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:13px;background:#1a1d21;color:var(--fs-sub);border:1px solid var(--fs-border)">&#8592; Real quotes</a>' : '') +
+      '</div>';
+  }
   html += '<div class="fscard" style="padding:4px 14px">';
-  if (!qs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">No quotes yet. Start one from a defect on the Defect pipeline, or press &#65291; New quote for work that has no defect behind it.</div>';
+  if (!qs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">' +
+    (fsQlShowScratch
+      ? 'No scratch quotes.'
+      : 'No quotes yet. Start one from a defect on the Defect pipeline, press &#65291; New quote for work with no defect behind it, or &#9998; Scratch quote to type one from nothing.') + '</div>';
   qs.forEach((q, i) => {
     const st = fsQStat(q), tot = fsQuoteTotals(q);
     html += '<div class="fsQlRow" data-id="' + fsEsc(q.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.number || "Draft") + ' &middot; ' + fsEsc(q.defectDesc || (q.defectId ? "(no defect)" : "Quoted work")) + '</div>' +
+        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.scratch ? (q.ref || "Scratch quote") : (q.number || "Draft")) + ' &middot; ' +
+          fsEsc(q.scratch ? (q.clientName || "(no customer yet)") : (q.defectDesc || (q.defectId ? "(no defect)" : "Quoted work"))) + '</div>' +
         '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(q.siteName) + (q.where ? ' &middot; ' + fsEsc(q.where) : '') +
         ' &middot; ' + fsEsc(String(q.created).slice(0, 10)) + ' &middot; ' + q.lines.length + ' line' + (q.lines.length === 1 ? '' : 's') + '</div></div>' +
       '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span>' +
-      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(st.label) + '</span></div>';
+      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + (q.scratch ? '#6b5ea8' : st.col) + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(q.scratch ? "Scratch" : st.label) + '</span></div>';
   });
   html += '</div>';
   wrap.innerHTML = html;
   document.getElementById("fsQlBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsQlAcct").onclick = fsAcctSetup;
+  document.getElementById("fsQlScratch").onclick = () => {
+    const q = fsQuoteScratch();
+    fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsScratchRender(q);
+  };
+  const tog = document.getElementById("fsQlTog");
+  if (tog) tog.onclick = () => { fsQlShowScratch = !fsQlShowScratch; fsQuoteListRender(); };
+  const togB = document.getElementById("fsQlTogBack");
+  if (togB) togB.onclick = () => { fsQlShowScratch = false; fsQuoteListRender(); };
   document.getElementById("fsQlNew").onclick = async () => {
     const q = await fsQuoteStart();
     if (!q) return;
@@ -10107,6 +10170,9 @@ function fsQuoteRender() {
   const wrap = document.getElementById("fsDashView");
   const q = fsQuoteFind(fsQuoteId);
   if (!q) { fsDashMode = "quotes"; return fsQuoteListRender(); }
+  /* A scratch quote is a form, not a pipeline document. Separate RENDER only —
+     same object, same totals, same PDF writer underneath. */
+  if (q.scratch) return fsScratchRender(q);
   const b = fsBook(), st = fsQStat(q), tot = fsQuoteTotals(q), blockers = fsQuoteBlockers(q);
   const locked = q.status !== "draft";
 
@@ -10261,9 +10327,110 @@ function fsQuoteRender() {
   };
 }
 
+
+/* ---- the scratch editor ---------------------------------------------------
+   Inline fields, not a chain of prompt() dialogs. Money goes through the same
+   fsMoneyIn/fsMoneyOut pair the Pricebook editor uses, so cents stay integers. */
+function fsScratchRender(q) {
+  const wrap = document.getElementById("fsDashView");
+  const tot = fsQuoteTotals(q), unp = fsScratchUnpriced(q);
+  const txt = (cls, id, val, ph, extra) =>
+    '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' + fsEsc(val || "") +
+    '" placeholder="' + fsEsc(ph) + '" ' + (extra || '') +
+    ' style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 8px;font-size:13px;width:100%">';
+
+  let html = '<div style="margin-bottom:12px"><a id="fsQBack" class="fsCrumb">&#8592; Quotes</a></div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<h2 style="font-size:20px;flex:1;min-width:150px">' + fsEsc(q.ref || "Scratch quote") + '</h2>' +
+    '<span style="font-size:11px;font-weight:800;color:#fff;background:#6b5ea8;border-radius:11px;padding:2px 10px">Scratch</span></div>';
+
+  html += '<div class="fscard" style="padding:14px;margin-bottom:10px">' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<div style="flex:1;min-width:150px"><div style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:3px">Customer</div>' +
+        txt("fsScCli", q.id, q.clientName, "Who the quote is for") + '</div>' +
+      '<div style="flex:1;min-width:150px"><div style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:3px">Site or job</div>' +
+        txt("fsScSite", q.id, q.siteName, "Where the work is") + '</div>' +
+      '<div style="flex:1;min-width:120px"><div style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:3px">Your reference</div>' +
+        txt("fsScRef", q.id, q.ref, "optional") + '</div>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:9px">Typed by hand — no pricebook, no site record, and it takes no number off your quote sequence.</div></div>';
+
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<button class="fsbtnP" id="fsScAdd">&#65291; Add a line</button></div>';
+
+  html += '<div class="fscard" style="padding:4px 14px">';
+  if (!q.lines.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">Nothing on it yet. Press &#65291; Add a line and type what the job is.</div>';
+  q.lines.forEach((l, i) => {
+    const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
+    html += '<div style="padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + '">' +
+      '<div style="display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:160px">' + txt("fsScDesc", l.id, l.description, "What the line is for") + '</div>' +
+        '<div style="width:62px"><input type="text" class="fsScQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
+          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
+        '<div style="width:96px">' + fsMoneyIn("fsScPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
+        '<span style="width:84px;text-align:right;font-size:13.5px;font-weight:700;padding-top:7px;color:' + (l.priced === false ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
+          (l.priced === false ? '—' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
+        '<a class="fsScDel" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:7px">&#10005;</a>' +
+      '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
+    '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:14px;font-weight:700">Total excluding tax</span>' +
+    '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
+    (unp ? '<div style="font-size:12px;color:#ffd873;margin-top:6px">' + unp + ' line' + (unp === 1 ? ' has' : 's have') +
+           ' no price yet, so ' + (unp === 1 ? 'it is' : 'they are') + ' not in that total. Nothing is stopping you — it is just not counted.</div>' : '') +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">GST is not calculated here. Your accounting system applies the tax.</div></div>';
+
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">' +
+    '<button class="fsbtnP" id="fsScPdf">&#128196; PDF</button>' +
+    '<button class="fsbtn" id="fsScAcct">&#127974; Send to accounting</button>' +
+    '<button class="fsbtn" id="fsScDel2" style="color:#c62828">Delete</button></div>';
+  wrap.innerHTML = html;
+
+  document.getElementById("fsQBack").onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
+  const line = id => q.lines.filter(x => x.id === id)[0];
+  const on = (cls, fn) => wrap.querySelectorAll("." + cls).forEach(el => {
+    el.onchange = () => { fn(el); q.updated = new Date().toISOString(); fsMarkDirty(); fsScratchRender(q); };
+  });
+  on("fsScCli",  el => { q.clientName = el.value.trim(); });
+  on("fsScSite", el => { q.siteName = el.value.trim(); });
+  on("fsScRef",  el => { q.ref = el.value.trim(); });
+  on("fsScDesc", el => { const l = line(el.dataset.id); if (l) l.description = el.value.trim(); });
+  on("fsScQty",  el => {
+    const l = line(el.dataset.id); if (!l) return;
+    const v = Number(String(el.value).trim());
+    l.qty = (isFinite(v) && v >= 0) ? v : 1;
+  });
+  on("fsScPrice", el => {
+    const l = line(el.dataset.id); if (!l) return;
+    const c = fsMoneyOut(el);
+    /* Blank is "not priced yet", but the money core will not take a null, so the
+       cents stay a real 0 and the FLAG carries the meaning. */
+    l.priced = c != null;
+    l.unitPriceCents = c == null ? 0 : c;
+  });
+  wrap.querySelectorAll(".fsScDel").forEach(a => a.onclick = () => {
+    const l = line(a.dataset.id); if (!l) return;
+    q.lines.splice(q.lines.indexOf(l), 1);
+    fsMarkDirty(); fsScratchRender(q);
+  });
+  document.getElementById("fsScAdd").onclick = () => { fsScratchAddLine(q); fsMarkDirty(); fsScratchRender(q); };
+  document.getElementById("fsScPdf").onclick = () => fsQuotePdf(q);
+  document.getElementById("fsScAcct").onclick = () => fsAcctExport(q);
+  document.getElementById("fsScDel2").onclick = () => {
+    if (!confirm("Delete this scratch quote?\n\nNothing else is affected.")) return;
+    const arr = fsQuotes();
+    arr.splice(arr.indexOf(q), 1);
+    fsQuoteId = null; fsMarkDirty();
+    fsDashMode = "quotes"; fsQuoteListRender();
+  };
+}
 function fsQuotePdf(q) {
   const tot = fsQuoteTotals(q);
-  const L = [["h", "Quote " + (q.number || "(draft)")]];
+  /* A scratch quote has no sequence number by design — it prints whatever
+     reference was typed, or just "Quote". */
+  const L = [["h", q.scratch ? ("Quote" + (q.ref ? " " + q.ref : "")) : ("Quote " + (q.number || "(draft)"))]];
   L.push(["t", (q.clientName ? q.clientName + " — " : "") + q.siteName + (q.where ? " — " + q.where : "")]);
   L.push(["t", "Date: " + String(q.created).slice(0, 10) + "    Status: " + fsQStat(q).label]);
   if (q.defectDesc) { L.push(["b", "Defect"]); L.push(["t", q.defectDesc]); }
@@ -10278,8 +10445,8 @@ function fsQuotePdf(q) {
   L.push(["b", "Total excluding tax: " + FSMoney.fmt(tot.subtotalCents)]);
   L.push(["t", "GST is applied by our accounting system and shown on the tax invoice."]);
   if (q.notes) { L.push(["b", "Notes"]); String(q.notes).split("\n").forEach(x => L.push(["t", x])); }
-  fsLinesPdf(L, fsDocBrand() + " quote " + (q.number || "draft"),
-    "quote-" + (q.number || "draft") + ".pdf");
+  const stamp = q.scratch ? ((q.ref || "scratch").replace(/[^A-Za-z0-9_-]+/g, "-")) : (q.number || "draft");
+  fsLinesPdf(L, fsDocBrand() + " quote " + stamp, "quote-" + stamp + ".pdf");
 }
 /* ===== end quotes ========================================================== */
 
@@ -13222,7 +13389,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v6";
+const FS_BUILD = "aa-v7";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
