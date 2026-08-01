@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.05 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.06 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Register file &mdash; load, company profile, export one client">&#128193; Register</button>
@@ -192,7 +192,7 @@
       <button class="fsbtn" id="fsSettingsBtn" title="Settings">&#9881;</button>
       <button class="fsbtn" id="fsPlannerBtn" style="display:none" title="Monthly planner + day routes">&#128197; Planner</button>
       <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)">&#128202; Dashboard</button>
-      <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Download a copy</button>
+      <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Download a copy</button><button class="fsbtn" id="fsShareReg" style="display:none" title="A copy with passwords and the admin passcode removed - safe to send">&#128228; Share a copy</button>
     </div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
 
@@ -202,6 +202,7 @@
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="fsbtnP" id="fsImportBtn" style="padding:14px">&#128194; Load register file</button>
           <button class="fsbtn" id="fsDemoBtn" style="padding:14px">Try with synthetic demo data</button>
+        <button class="fsbtn" id="fsSetupBtn" style="padding:14px" title="A .json setup file from whoever set this up for you">&#128188; Load setup file from your provider</button>
         </div>
       </div>
       <input type="file" id="fsRegInput" style="display:none">
@@ -240,7 +241,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.05 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.06 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -6774,6 +6775,7 @@ function fsProfileFromFile(obj) {
   alert("Company profile loaded \u2713 \u2014 " + (fsCoName() || "unnamed") +
     (obj.checklists && obj.checklists.modes ? " (includes test checklists)" : "") +
     ". Cached on this device and saved into the register (export to share).");
+  try { fsWhoCheck(); } catch (e) {}   /* V0.06: sign in NOW, not next reload */
   return true;
 }
 
@@ -7118,6 +7120,48 @@ function fsSaveIsBundle() {
   if (fsRegFileHandle && fsRegFileHandle.name) return /\.fsbundle$/i.test(fsRegFileHandle.name);
   return fsBundleMode;
 }
+/* ===== Share vs backup =====================================================
+   V0.06, 1 Aug 2026.
+
+   A register carries its company profile, and that profile carries every user's
+   passHash. So handing a colleague a register hands them everyone's password
+   hash. PBKDF2 at 210k iterations does not save you when the minimum length is
+   4 — ten thousand candidates is minutes of laptop time. It is not the app that
+   suffers (the file-holder already has the data); it is the person, who has
+   almost certainly used that password somewhere that matters.
+
+   Two kinds of file from here on:
+
+     BACKUP  everything, credentials included. Your own disk. Never sent.
+     SHARE   no passHash, no adminPin. Anything that leaves the building.
+
+   The recipient is not locked out: an admin or office account with no hash is
+   routed through fsLoginSetPass at its first sign-in and MADE to choose one.
+   That is fsUserNeedsPass, which has been there since V0.05.
+
+   Deep-cloned through JSON on purpose — a shallow copy would strip the hash out
+   of the LIVE profile as a side effect and sign everybody out of their own app. */
+function fsShareStrip(o) {
+  if (!o || typeof o !== "object") return o;
+  var c;
+  try { c = JSON.parse(JSON.stringify(o)); } catch (e) { return o; }
+  var scrub = function (p) {
+    if (!p || typeof p !== "object") return false;
+    var hit = false;
+    if (Object.prototype.hasOwnProperty.call(p, "adminPin")) { delete p.adminPin; hit = true; }
+    if (Array.isArray(p.users)) p.users.forEach(function (u) {
+      if (u && typeof u === "object" && Object.prototype.hasOwnProperty.call(u, "passHash")) {
+        delete u.passHash; hit = true;
+      }
+    });
+    return hit;
+  };
+  scrub(c);                        /* a profile handed in directly */
+  if (c.profile) scrub(c.profile); /* a register carrying one */
+  c.credsStripped = 1;
+  return c;
+}
+
 async function fsRegisterBlob(asBundle) {
   return asBundle ? await fsBuildBundle(fsRegister)
                   : new Blob([JSON.stringify(fsRegister)], { type:"application/json" });
@@ -10915,6 +10959,8 @@ function fsStamp() {
     (fsDirty ? " · UNSAVED CHANGES — save when done" : "");
   const ex = document.getElementById("fsExportReg");
   ex.style.display = fsRegister ? "inline-block" : "none";
+  const sh = document.getElementById("fsShareReg");
+  if (sh) sh.style.display = fsRegister ? "inline-block" : "none";
   document.getElementById("fsPlannerBtn").style.display = (fsRegister && (typeof fsModOn !== "function" || fsModOn("planner"))) ? "inline-block" : "none";
   document.getElementById("fsDashBtn").style.display = (fsRegister && (typeof fsModOn !== "function" || fsModOn("dashboard")) && (typeof fsCan !== "function" || fsCan("money"))) ? "inline-block" : "none";
   /* This must never be labelled as saving THE register - it writes a LOCAL file and
@@ -12583,6 +12629,20 @@ document.getElementById("fsExportReg").onclick = async () => {
     });
   fsBackupSnapshot("saved");
 };
+document.getElementById("fsSetupBtn").onclick = () => {
+  document.getElementById("fsProfileInput").click();
+};
+document.getElementById("fsShareReg").onclick = async () => {
+  if (!fsRegister) return;
+  const safe = fsShareStrip(fsRegister);
+  const day = new Date().toISOString().slice(0, 10);
+  await deliverFile(new Blob([JSON.stringify(safe)], { type:"application/json" }),
+    "everdue-" + day + "-share.json", "application/json");
+  try { fsActLog("Shared a copy", "credentials removed"); } catch (e) {}
+  alert("✓ Share copy saved.\n\nPasswords and the admin passcode have been "
+      + "REMOVED from this file. Whoever opens it sets their own on first sign-in.\n\n"
+      + "Your own working copy is untouched.");
+};
 document.getElementById("fsThemeBtn").onclick = () => {
   const reg = document.getElementById("fsReg");
   reg.classList.toggle("fsdark");
@@ -13542,7 +13602,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v8";
+const FS_BUILD = "aa-v9";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -13815,7 +13875,7 @@ document.getElementById("fsProfLoad").onclick = () => {
 document.getElementById("fsProfExport").onclick = () => {
   if (!fsProfile) return;
   const nm = "arcadapt-profile-" + (fsCoName() || "company").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + new Date().toISOString().slice(0, 10) + ".json";
-  deliverFile(new Blob([JSON.stringify(fsProfile)], { type:"application/json" }), nm, "application/json");
+  deliverFile(new Blob([JSON.stringify(fsShareStrip(fsProfile))], { type:"application/json" }), nm, "application/json");
   document.getElementById("fsProfModal").classList.remove("show");
 };
 document.getElementById("fsProfUnload").onclick = () => {
