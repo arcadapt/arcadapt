@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.07 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.08 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
@@ -240,7 +240,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.07 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.08 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -888,7 +888,7 @@
     <div id="fsHmNote" style="font-size:12.5px;color:#999;margin-bottom:8px">For tests done on paper or missed in the app &mdash; sets the cycle dates. No checklist answers are attached.</div>
     <label>Test type</label><select id="fsHmMode" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px"></select>
     <label>Date done</label><input type="date" id="fsHmDate" style="max-width:180px">
-    <label>Technician</label><input type="text" id="fsHmTech" autocomplete="off">
+    <label>Done by</label><input type="text" id="fsHmTech" autocomplete="off">
     <label>Observations / comments</label><textarea id="fsHmObs" rows="2"></textarea>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsHmCancel">Cancel</button><button class="btn primary" id="fsHmSave">Save</button></div>
   </div>
@@ -8754,7 +8754,12 @@ function fsAskPass(title, opts) {
     d.querySelector(".fsApOk").onclick = submit;
     d.querySelector(".fsApCancel").onclick = () => done(null);
     d.onclick = e => { if (e.target === d) done(null); };
-    setTimeout(() => { try { p1.focus(); } catch (e) {} }, 40);
+    /* Autofocus, but never STEAL focus: if anything in the dialog already has
+       it, this timer arrived late and the user has moved on. Firing anyway put
+       their keystrokes in the first field while they were typing in the second. */
+    setTimeout(() => {
+      try { if (!d.contains(document.activeElement)) p1.focus(); } catch (e) {}
+    }, 40);
   });
 }
 /* ===== end fsAskPass ====================================================== */
@@ -12877,7 +12882,7 @@ function fsRenderTest() {
     const openDef = ((fsSite && fsSite.defects) || []).filter(d => !d.closed).length;
     let html = '<h3 style="margin-bottom:10px">Start test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>';
     if (openDef) html += '<div style="background:#3a2320;border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
-    html += '<label>Technician</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(localStorage.getItem("fs-user") || "") + '">';
+    html += '<label>Done by</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(localStorage.getItem("fs-user") || "") + '">';
     html += '<label style="margin-top:10px">Test type</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">';
     Object.entries((fsChecklists && fsChecklists.modes) || {}).filter(([m]) => typeof fsCycModeOn !== "function" || fsCycModeOn(m)).forEach(([m, md]) => {
       html += '<button class="btn fsModePick" data-mode="' + fsEsc(m) + '" style="flex:1;min-width:110px;padding:14px 8px;font-size:15px;font-weight:700">' + fsEsc((md && md.label) || m) + '</button>';
@@ -13603,7 +13608,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v11";
+const FS_BUILD = "aa-v12";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -14140,7 +14145,7 @@ function fsTestPdf(rec) {
   cx.fillText(siteName + (fsClient ? "  ·  " + fsClient.name : ""), M, 100);
   cx.fillStyle = "#b9c4cd"; cx.font = F(16);
   if (fsSite && fsSite.address) cx.fillText(fsSite.address, M, 138);
-  cx.fillText((rec.ref ? rec.ref + "   ·   " : "") + "Started " + dt16(rec.started) + "   ·   Finished " + dt16(rec.finished) + (rec.tech ? "   ·   Technician: " + rec.tech : ""), M, 168);
+  cx.fillText((rec.ref ? rec.ref + "   ·   " : "") + "Started " + dt16(rec.started) + "   ·   Finished " + dt16(rec.finished) + (rec.tech ? "   ·   Done by: " + rec.tech : ""), M, 168);
   cx.font = FB(20);
   const dstr = d10(rec.finished);
   const dw = cx.measureText(dstr).width + 36;
@@ -16612,10 +16617,20 @@ function fsLoginShow(users) {
            + '<span style="font-size:11px;font-weight:400;color:#93a4ab">' + fsEsc(FS_ROLE_LABEL[u.role] || u.role)
            + (u.passHash ? ' &#128273;' : '') + '</span></button>';
       });
-      h += '<div style="display:flex;gap:8px;margin-top:4px">'
-         + '<input id="fsLgOther" placeholder="Someone else &mdash; type your name" autocomplete="off" '
-         + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">'
-         + '<button class="btn" id="fsLgGo">OK</button></div>';
+      /* A company that HAS a user list gets a closed one. The name on a test
+         record is the record — free-typing let anyone stamp anyone's name onto a
+         PDF the client keeps for years. The box survives only for a caller with
+         no list at all (solo / demo); fsWhoCheck never calls in with an empty
+         one. Same carve-out as fsWhoRole(). */
+      if (!users.length) {
+        h += '<div style="display:flex;gap:8px;margin-top:4px">'
+           + '<input id="fsLgOther" placeholder="Someone else &mdash; type your name" autocomplete="off" '
+           + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">'
+           + '<button class="btn" id="fsLgGo">OK</button></div>';
+      } else {
+        h += '<div style="font-size:12px;color:#7d8b92;margin-top:10px">'
+           + 'Not on this list? Your admin adds people in Office &#8594; Users.</div>';
+      }
     } else {
       h += '<h2 style="font-size:20px;margin-bottom:4px">' + fsEsc(picked.name) + '</h2>';
       h += '<div style="font-size:12px;color:#93a4ab;margin-bottom:14px">'
@@ -16653,16 +16668,22 @@ function fsLoginShow(users) {
         }
         picked = u; err = ""; step = "pass"; draw();
       });
-      const go = () => {
-        const name = ($("#fsLgOther").value || "").trim();
-        if (!name) return;
-        const match = users.find(u => u.name.toLowerCase() === name.toLowerCase());
-        if (!match) { finish(name); return; }            /* unlisted -> technician, as before */
-        const btn = g.querySelector('.fsLgWho[data-i="' + users.indexOf(match) + '"]');
-        if (btn) btn.click();
-      };
-      $("#fsLgGo").onclick = go;
-      $("#fsLgOther").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+      /* B1 leaves the box out whenever there is a list, so this whole block has
+         to tolerate its absence — unguarded, `$("#fsLgGo").onclick` threw on null
+         and took the entire sign-in screen with it. */
+      const other = $("#fsLgOther");
+      if (other) {
+        const go = () => {
+          const name = (other.value || "").trim();
+          if (!name) return;
+          const match = users.find(u => u.name.toLowerCase() === name.toLowerCase());
+          if (!match) { finish(name); return; }          /* no list at all — as before */
+          const btn = g.querySelector('.fsLgWho[data-i="' + users.indexOf(match) + '"]');
+          if (btn) btn.click();
+        };
+        $("#fsLgGo").onclick = go;
+        other.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+      }
     } else {
       const pw = $("#fsLgPass");
       const trySignIn = async () => {
@@ -16705,8 +16726,14 @@ function fsWhoCheck() {
     const who = fsWho();
     if (who) {
       const u = users.find(x => x.name.toLowerCase() === who.toLowerCase());
-      if (!u) return;                                  /* free-typed name: technician, nothing to verify */
-      if (!u.passHash) { if (u.role === "tech") return; }   /* admin/office must set one */
+      /* A STORED name that is not on the company's list no longer walks in. Devices
+         that free-typed under an earlier build get the sign-in screen once and have
+         to pick a real account; the old auth record is dropped so it cannot vouch
+         for a name nobody issued. Do NOT call fsSignOut() here — it calls back into
+         fsWhoCheck. */
+      if (!u) {
+        try { ["fs-auth", "fs-user"].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); }); } catch (e) {}
+      } else if (!u.passHash) { if (u.role === "tech") return; }   /* admin/office must set one */
       else if (fsAuthOk(u.name)) return;               /* already signed in on this device */
     }
     fsLoginShow(users);
