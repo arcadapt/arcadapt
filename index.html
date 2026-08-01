@@ -182,17 +182,16 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.06 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.07 beta</span>
       <span id="fsCoBadge" style="display:none;font-size:12px;font-weight:600;color:#7c8a91;border:1px solid #d5dde1;border-radius:20px;padding:2px 10px"></span>
       <span style="flex:1"></span>
-      <button class="fsbtn" id="fsFileBtn" title="Register file &mdash; load, company profile, export one client">&#128193; Register</button>
+      <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
       <button class="fsbtn" id="fsProfileBtn" title="Load your company profile file (branding + equipment fields + test checklists)">&#127970; Profile</button>
       <button class="fsbtn" id="fsResBtn" title="Resources — tools &amp; library">&#128218; Resources</button>
       <button class="fsbtn" id="fsSettingsBtn" title="Settings">&#9881;</button>
       <button class="fsbtn" id="fsPlannerBtn" style="display:none" title="Monthly planner + day routes">&#128197; Planner</button>
-      <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)">&#128202; Dashboard</button>
-      <button class="fsbtn" id="fsExportReg" style="display:none">&#128190; Download a copy</button><button class="fsbtn" id="fsShareReg" style="display:none" title="A copy with passwords and the admin passcode removed - safe to send">&#128228; Share a copy</button>
+      <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)">&#128202; Office</button>
     </div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
 
@@ -241,7 +240,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.06 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.07 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -747,13 +746,15 @@
 </div>
 <div class="modal" id="fsFileModal" style="z-index:120">
   <div class="modalbox" style="max-width:430px;text-align:left">
-    <h3 style="margin-bottom:4px">&#128193; Register file</h3>
+    <h3 style="margin-bottom:4px">&#128193; Files</h3>
     <div style="font-size:12px;color:#999;margin-bottom:10px">One file holds everything &mdash; clients, sites, plans, tests and photos. Save after changes; share via OneDrive. Backups live in &#9881; Settings.</div>
     <div id="fsFileSlots" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
     <div class="fsFileGrp">WHERE THIS REGISTER LIVES</div>
     <button class="btn" id="fsMsBtn" style="width:100%;text-align:left;background:#0e7c8c;border-color:#0e7c8c;color:#fff;font-weight:700">&#9729; Microsoft OneDrive &mdash; open / save the central register&hellip;</button>
     <div class="fsFileNote">The one shared copy. Everyone opens and saves the same file.</div>
     <div class="fsFileGrp">KEEP A COPY</div>
+    <button class="btn" id="fsExportReg" style="display:none;width:100%;text-align:left">&#128190; Download a copy</button>
+    <button class="btn" id="fsShareReg" style="display:none;width:100%;text-align:left" title="A copy with passwords and the admin passcode removed - safe to send">&#128228; Share a copy</button>
     <button class="btn" id="fsSaveBundleBtn" style="width:100%;text-align:left">&#128230; Save a copy to this device (.fsbundle)&hellip;</button>
     <button class="btn" id="fsExpClientBtn" style="width:100%;text-align:left">&#128100; Copy of ONE client only&hellip;</button>
     <div class="fsFileNote">Copies do not sync back. Use them for working with no internet, or to hand a colleague a file.</div>
@@ -7718,7 +7719,7 @@ document.getElementById("fsDashBtn").onclick = async () => {
     alert("Passcode set \u2713 \u2014 Save the register so colleagues' copies use the same one.");
     fsDashUnlocked = true;
   } else if (!fsDashUnlocked) {
-    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock", sub: "All-sites dashboard" });
+    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock", sub: "Office" });
     if (p === null) return;
     if (!(await fsPassVerify(p, fsRegister.adminPin))) { alert("Wrong passcode."); return; }
     fsDashUnlocked = true;
@@ -9240,7 +9241,7 @@ function fsChargeListRender() {
   const all = fsCharges().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
   const open = all.filter(c => c.status !== "handed");
   const tot = fsChargeTotals(open);
-  let html = '<div style="margin-bottom:12px"><a id="fsScBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
+  let html = '<div style="margin-bottom:12px"><a id="fsScBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#129534; Service charges</h2>' +
     '<button class="fsbtn" id="fsScRates">&#128176; Visit prices</button>' +
@@ -9354,7 +9355,7 @@ function fsBookRender() {
   const wrap = document.getElementById("fsDashView");
   const b = fsBook();
   const st = FSMoney.bookStats(b);
-  let html = '<div style="margin-bottom:12px"><a id="fsBookBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
+  let html = '<div style="margin-bottom:12px"><a id="fsBookBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128176; Pricebook</h2>' +
     '<button class="fsbtn" id="fsBookCsvOut">&#128202; Export CSV</button>' +
@@ -10294,7 +10295,7 @@ function fsQuoteListRender() {
   /* Scratch quotes are kept but hidden, so the list of real work stays clean. */
   const nScratch = fsScratchOnly(all).length;
   const qs = fsQlShowScratch ? fsScratchOnly(all) : fsRealOnly(all);
-  let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
+  let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128195; Quotes</h2>' +
     '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>' +
@@ -10781,7 +10782,7 @@ function fsPipeRender() {
     : all.filter(r => (r.d.quoteStatus || "") === fsPipeFilterK);
   const unq = all.filter(r => !r.d.quoteStatus);
   const aged = unq.filter(r => r.days != null && r.days > 90);
-  let html = '<div style="margin-bottom:12px"><a id="fsPipeBack" class="fsCrumb">&#8592; Portfolio dashboard</a></div>';
+  let html = '<div style="margin-bottom:12px"><a id="fsPipeBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#129518; Defect pipeline</h2>' +
     '<button class="fsbtn" id="fsPipeCsvBtn">&#128202; CSV</button>' +
@@ -10908,7 +10909,7 @@ function fsDashRender() {
   const soon = rows.filter(r => r.days !== null && r.days >= 0 && r.days <= 30).length;
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Clients</a></div>';
-  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Portfolio dashboard</h2>' +
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Office</h2>' +
     '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
@@ -10966,7 +10967,7 @@ function fsStamp() {
   /* This must never be labelled as saving THE register - it writes a LOCAL file and
      is not the central OneDrive copy. The old label flipped between two names. */
   ex.innerHTML = "&#128190; " + ((typeof fsRegFileHandle !== "undefined" && fsRegFileHandle) ? "Save to file" : "Download a copy");
-  ex.title = "Writes a LOCAL file on this device \u2014 the whole register in one (client data + company profile + checklists). This is NOT the central register: for that use \ud83d\udcc1 Register file \u2192 Microsoft OneDrive.";
+  ex.title = "Writes a LOCAL file on this device \u2014 the whole register in one (client data + company profile + checklists). This is NOT the central register: for that use \ud83d\udcc1 Files \u2192 Microsoft OneDrive.";
 }
 
 function fsCycleStatus(site, cyc) {
@@ -11404,7 +11405,7 @@ function fsRenderTab() {
       });
       html += '</details>';
     }
-    html += '<div style="margin-top:12px;font-size:11.5px;color:var(--fs-faint)">Quote status is set by the office from the Portfolio dashboard. No prices are held in this app.</div>';
+    html += '<div style="margin-top:12px;font-size:11.5px;color:var(--fs-faint)">Quote status is set by the office from Office. No prices are held in this app.</div>';
     html += '</div>';
   }
   if (fsTab === "qr") {
@@ -13431,7 +13432,7 @@ async function fsStoreRender() {
     '<div style="margin-top:6px;color:#7ddb8f">As a .fsbundle this register would be about <b>' +
       fsMB(Math.round(cen.bytes * 0.75) + Math.max(0, JSON.stringify(fsRegister).length - cen.bytes)) +
       '</b> instead of ' + fsMB(JSON.stringify(fsRegister).length) +
-      ' &mdash; switch from &#128193; Register file.</div>';
+      ' &mdash; switch from &#128193; Files.</div>';
 
   const rows = [];
   (fsRegister.clients || []).forEach(c => (c.sites || []).forEach(s => {
@@ -13602,7 +13603,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v10";
+const FS_BUILD = "aa-v11";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -13874,6 +13875,12 @@ document.getElementById("fsProfLoad").onclick = () => {
 };
 document.getElementById("fsProfExport").onclick = () => {
   if (!fsProfile) return;
+  const pu = (fsProfile.users || []);
+  if (!pu.length) {
+    if (!confirm("This profile has NO users.\n\nWhoever loads it gets an app with no sign-in accounts and no admin. Add users first (Office \u2192 Users) unless that is deliberate.\n\nExport anyway?")) return;
+  } else if (!pu.some(u => u.role === "admin" && u.status !== "disabled")) {
+    if (!confirm("This profile has no ACTIVE Admin.\n\nThe client will not be able to manage their own users.\n\nExport anyway?")) return;
+  }
   const nm = "arcadapt-profile-" + (fsCoName() || "company").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + new Date().toISOString().slice(0, 10) + ".json";
   deliverFile(new Blob([JSON.stringify(fsShareStrip(fsProfile))], { type:"application/json" }), nm, "application/json");
   document.getElementById("fsProfModal").classList.remove("show");
@@ -16474,7 +16481,7 @@ function fsWhoRole() {
   return u.role;
 }
 const FS_ROLE_CAPS = { admin: { admin: 1, money: 1, field: 1 }, office: { money: 1 }, tech: { field: 1 } };
-const FS_ROLE_LABEL = { admin: "Admin", office: "Office", tech: "Technician" };
+const FS_ROLE_LABEL = { admin: "Admin", office: "Office", tech: "Field" };
 function fsCan(cap) { return !!(FS_ROLE_CAPS[fsWhoRole()] || {})[cap]; }
 function fsRoleRefresh() {
   try { fsStamp(); } catch (e) {}
@@ -16545,8 +16552,7 @@ async function fsLoginSetPass(u) {
   const p = await fsAskPass("Set a password for " + u.name, {
     confirm: true, min: min, okLabel: "Set password",
     sub: (FS_ROLE_LABEL[u.role] || u.role) + " — a password is required for this role",
-    note: "At least " + min + " characters. It is stored in the company profile as a salted "
-        + "PBKDF2 hash, so it travels to other devices with the profile. It is not sent anywhere."
+    note: "At least " + min + " characters."
   });
   if (p === null) return false;
   if (typeof fsProfile === "undefined" || !fsProfile || !Array.isArray(fsProfile.users)) {
@@ -16599,21 +16605,17 @@ function fsLoginShow(users) {
 
     if (step === "who") {
       h += '<h2 style="font-size:20px;margin-bottom:6px">Sign in</h2>';
-      h += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:14px">Everything you save, test or raise is '
-         + 'stamped with this account, so the office can see who did what.</div>';
       users.forEach((u, i) => {
         h += '<button class="btn fsLgWho" data-i="' + i + '" style="display:flex;align-items:center;gap:8px;'
            + 'width:100%;margin-bottom:8px;padding:12px;min-height:44px;font-size:15px;font-weight:700">'
            + '<span style="flex:1;min-width:0;text-align:left">' + fsEsc(u.name) + '</span>'
            + '<span style="font-size:11px;font-weight:400;color:#93a4ab">' + fsEsc(FS_ROLE_LABEL[u.role] || u.role)
-           + (u.passHash ? ' &#128273;' : (u.role === "tech" ? '' : ' &#9888;')) + '</span></button>';
+           + (u.passHash ? ' &#128273;' : '') + '</span></button>';
       });
       h += '<div style="display:flex;gap:8px;margin-top:4px">'
          + '<input id="fsLgOther" placeholder="Someone else &mdash; type your name" autocomplete="off" '
          + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">'
          + '<button class="btn" id="fsLgGo">OK</button></div>';
-      h += '<div style="font-size:11px;color:#78868d;margin-top:10px">A name that is not on the list signs in as a '
-         + 'technician: field work only, no money screens.</div>';
     } else {
       h += '<h2 style="font-size:20px;margin-bottom:4px">' + fsEsc(picked.name) + '</h2>';
       h += '<div style="font-size:12px;color:#93a4ab;margin-bottom:14px">'
@@ -16635,10 +16637,6 @@ function fsLoginShow(users) {
          + ' style="background:var(--fs-accent,#2596ab);border-color:var(--fs-accent,#2596ab);color:#08191d;font-weight:700">'
          + (busy ? "Checking…" : "Sign in") + '</button></div>';
     }
-    h += '<div style="font-size:10.5px;color:#5f6d74;margin-top:14px;border-top:1px solid #333b42;padding-top:9px">'
-       + 'Sign-in is checked on this device against the company profile stored on it. It controls what this app '
-       + 'shows you and whose name goes on the record. It is not cloud account security — that comes with the '
-       + 'backend.</div>';
     h += '</div>';
     g.innerHTML = h;
 
@@ -16733,7 +16731,7 @@ function fsUsersOpen() {
   const activeAdmins = () => list.filter(u => u.status === "active" && u.role === "admin").length;
   const render = () => {
     let h = '<div class="modalbox" style="max-width:580px;width:95vw;max-height:84vh;overflow-y:auto;text-align:left"><h3 style="margin-bottom:4px">&#128101; Users</h3>';
-    h += '<div style="font-size:11.5px;color:#999;margin-bottom:10px">Who can use this profile and what they can do. <b>Admin</b> &mdash; everything, including managing users. <b>Office</b> &mdash; dashboard, quotes and pricebook. <b>Technician</b> &mdash; field work: tests and defects. The list is saved into the company profile, so it travels with the register. A password stops casual name-borrowing on shared devices &mdash; it is NOT real account security; that comes with cloud accounts later.</div>';
+    h += '<div style="font-size:11.5px;color:#999;margin-bottom:10px">Who can use this profile and what they can do. <b>Admin</b> &mdash; everything, including managing users. <b>Office</b> &mdash; the Office screens: quotes and pricebook. <b>Field</b> &mdash; tests and defects on site. The list is saved into the company profile, so it travels with the register. A password stops casual name-borrowing on shared devices &mdash; it is NOT real account security; that comes with cloud accounts later.</div>';
     list.forEach((u, i) => {
       h += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;border-top:1px solid #3a4047;padding-top:6px">' +
         '<input class="fsUsrName" data-i="' + i + '" value="' + fsEsc(u.name).replace(/"/g, "&quot;") + '" style="flex:1;min-width:120px;padding:7px;border-radius:7px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
@@ -16760,9 +16758,9 @@ function fsUsersOpen() {
         confirm: true, min: min, okLabel: "Set password",
         sub: FS_ROLE_LABEL[u.role] || u.role,
         note: (u.role === "tech"
-                ? "At least 4 characters. Optional for a technician."
+                ? "At least 4 characters. Optional for a Field account."
                 : "At least 8 characters. Required for " + (FS_ROLE_LABEL[u.role] || u.role) + " accounts.")
-            + " Stored as a salted PBKDF2 hash inside the profile — never in clear text, never sent anywhere."
+            + ""
       });
       if (p1 === null) return;
       u.passHash = await fsPassMake(p1);
@@ -16818,8 +16816,7 @@ function fsGateShow(kind, a, extra) {
   inner += '<div style="font-size:12px;letter-spacing:2px;color:#2596ab;font-weight:800;margin-bottom:6px">' + co.toUpperCase() + '</div>';
   if (kind === "login") {
     inner += '<h2 style="font-size:21px;margin-bottom:4px">Unlock this app</h2>';
-    inner += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:16px">Enter the business name and password you were given. You only do this once on each device.</div>';
-    inner += '<input id="fsGateUser" placeholder="Business name" style="width:100%;padding:12px;border-radius:9px;border:1px solid #2e3a40;background:#12191c;color:#e8e8e8;font-size:15px;margin-bottom:8px">';
+    inner += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:16px">Enter the password you were given. You only do this once on each device.</div>';
     inner += '<input id="fsGatePass" type="password" placeholder="Password" style="width:100%;padding:12px;border-radius:9px;border:1px solid #2e3a40;background:#12191c;color:#e8e8e8;font-size:15px;margin-bottom:6px">';
     inner += '<div id="fsGateMsg" style="min-height:18px;font-size:12.5px;color:#ff8a80;margin-bottom:8px"></div>';
     inner += '<button id="fsGateGo" style="width:100%;padding:13px;border:none;border-radius:9px;background:#2596ab;color:#fff;font-size:15.5px;font-weight:700;cursor:pointer">Unlock</button>';
@@ -16839,10 +16836,9 @@ function fsGateShow(kind, a, extra) {
   document.body.appendChild(g);
   const go = document.getElementById("fsGateGo");
   if (go) go.onclick = async () => {
-    const u = (document.getElementById("fsGateUser").value || "").trim().toLowerCase();
     const p = document.getElementById("fsGatePass").value || "";
-    if (u !== String(a.user || "").trim().toLowerCase() || !(await fsPassVerify(p, a.passHash))) {
-      document.getElementById("fsGateMsg").textContent = "That business name + password combination isn't right.";
+    if (!(await fsPassVerify(p, a.passHash))) {
+      document.getElementById("fsGateMsg").textContent = "That password isn't right.";
       return;
     }
     try { localStorage.setItem("fs-unlock:" + a.passHash, "1"); } catch (e) {}
