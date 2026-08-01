@@ -13602,7 +13602,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v9";
+const FS_BUILD = "aa-v10";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -13893,7 +13893,20 @@ document.getElementById("fsProfileInput").addEventListener("change", e => {
   if (!file) return;
   const rd = new FileReader();
   rd.onload = () => {
-    try { if (fsProfileFromFile(JSON.parse(rd.result))) fsRenderTest(); }
+    try {
+      if (fsProfileFromFile(JSON.parse(rd.result))) {
+        fsRenderTest();
+        if (!fsRegister) {
+          /* aa-v10: provisioned fresh device — open an empty register so the app comes alive immediately */
+          fsLoadRegister({ app:"firespark-register", version:1, clients:[], profile: fsProfile });
+        } else {
+          /* aa-v10: mirror fsLoadRegister + the profile-unload handler so the visible view refreshes */
+          fsStamp();
+          fsRenderClients();
+          if (fsSite && fsTab === "equip") fsRenderTab();
+        }
+      }
+    }
     catch (err) { alert("Could not read that file: " + err.message); }
   };
   rd.readAsText(file);
