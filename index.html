@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.10 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.11 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.10 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.11 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -6765,7 +6765,10 @@ function fsApplyProfile() {
   const n = fsBrandName(), lg = fsBrandLogo();
   if (!n && !lg) { el.style.display = "none"; el.innerHTML = ""; return; }
   let h = "";
-  if (lg) h += '<img src="' + fsEsc(lg) + '" alt="" style="height:26px;max-width:120px;object-fit:contain;flex:none">';
+  /* 34px is the app icon's exact height in the wordmark beside it — the two
+     marks sit on one line rather than the client's reading as subordinate.
+     The width cap moves with it so a wide logo can actually reach 34px tall. */
+  if (lg) h += '<img src="' + fsEsc(lg) + '" alt="" style="height:34px;max-width:160px;object-fit:contain;flex:none">';
   if (n) h += '<span style="font-size:17px;font-weight:700;letter-spacing:.2px">' + fsEsc(n) + '</span>';
   el.innerHTML = h;
   el.style.display = "flex";
@@ -13641,7 +13644,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v14";
+const FS_BUILD = "aa-v15";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -16907,7 +16910,9 @@ function fsGateShow(kind, a, extra) {
   const co = fsEsc(fsBrandName() || "Arc Adapt");
   const coLogo = fsBrandLogo();
   let inner = '<div style="max-width:400px;width:100%;background:#1b2327;border:1px solid #2e3a40;border-radius:14px;padding:26px;text-align:center">';
-  if (coLogo) inner += '<div style="margin-bottom:10px"><img src="' + fsEsc(coLogo) + '" alt="" style="max-height:58px;max-width:210px;object-fit:contain"></div>';
+  /* The one screen whose whole job is "whose app is this". The card is 400px
+     wide with 26px padding, so 280px still leaves a comfortable margin. */
+  if (coLogo) inner += '<div style="margin-bottom:12px"><img src="' + fsEsc(coLogo) + '" alt="" style="max-height:92px;max-width:280px;object-fit:contain"></div>';
   inner += '<div style="font-size:' + (coLogo ? '17px' : '19px') + ';letter-spacing:' + (coLogo ? '.3px' : '1px') + ';color:#2596ab;font-weight:800;margin-bottom:10px">'
          + (coLogo ? co : co.toUpperCase()) + '</div>';
   if (kind === "login") {
