@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.12 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.13 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.12 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.13 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -11144,6 +11144,18 @@ function fsInfoPhotoHtml() {
   if (fsInfoEdit) {
     html += '<div class="fslabel">' + (fsParentSite ? 'Building name' : 'Site name') + '</div><input class="fsinput" id="fsSiteNameIn" autocomplete="off" value="' + fsEsc(s.name || "") + '">';
     html += '<div class="fslabel">Address (shown under the site name)</div><input class="fsinput" id="fsSiteAddrIn" autocomplete="off" value="' + fsEsc(s.address || "") + '">';
+    /* V0.13 — some sites have no findable address at all (a pump station on a
+       mine road, a lot with no street number). "Fix the address" is not advice
+       you can act on there. Show what IS stored — a wrong pin should be visible,
+       not invisible — and allow a pasted lat,lng. */
+    html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:11.5px;color:var(--fs-sub2)">'
+         + '<span id="fsSiteGeoTxt">' + (s.geo
+              ? 'Located at ' + (+s.geo.lat).toFixed(5) + ', ' + (+s.geo.lng).toFixed(5)
+                + (s.geo.manual ? ' (set by hand)' : (s.geo.approx ? ' (approx \u2014 matched "' + fsEsc(s.geo.approx) + '")' : ''))
+              : 'Not located yet \u2014 the planner cannot route to it') + '</span>'
+         + '<button class="fsbtn" id="fsSiteGeoBtn" style="padding:5px 10px;font-size:12px">\u2316 Set location</button>'
+         + (s.geo ? '<button class="fsbtn" id="fsSiteGeoClr" style="padding:5px 10px;font-size:12px">Clear</button>' : '')
+         + '</div>';
   }
   const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];   // isolation points row hidden 23 Jul pass (unused; data kept in s.isolations)
   infoRows.forEach(([label, key]) => {
@@ -11507,11 +11519,45 @@ function fsRenderTab() {
   if (fsTab === "qr") fsQrTabWire(s);
 
   if (fsTab === "overview") {
+    const geoBtn = document.getElementById("fsSiteGeoBtn");
+    if (geoBtn) geoBtn.onclick = () => {
+      const cur = s.geo ? (s.geo.lat + ", " + s.geo.lng) : "";
+      const v = window.prompt("Paste coordinates as  lat, lng\n\n(In Google Maps, long-press the spot \u2014 the numbers it shows are exactly this.)", cur);
+      if (v === null) return;
+      const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(v);
+      if (!m) { alert("That doesn't look like coordinates.\n\nExpected something like:  -32.8318, 151.4818"); return; }
+      const lat = +m[1], lng = +m[2];
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { alert("Those numbers are out of range for a latitude and longitude."); return; }
+      s.geo = { lat: lat, lng: lng, manual: true };
+      if (typeof fsRegister !== "undefined" && fsRegister) delete fsRegister.travel;   /* the matrix is now stale */
+      fsMarkDirty(); fsRenderTab();
+    };
+    const geoClr = document.getElementById("fsSiteGeoClr");
+    if (geoClr) geoClr.onclick = () => {
+      if (!confirm("Clear this site's stored location?\n\nThe planner will try to find it from the address again next time you plan.")) return;
+      delete s.geo;
+      if (typeof fsRegister !== "undefined" && fsRegister) delete fsRegister.travel;
+      fsMarkDirty(); fsRenderTab();
+    };
     document.getElementById("fsInfoEditBtn").onclick = () => {
       if (fsInfoEdit) {
         const nmIn = document.getElementById("fsSiteNameIn"), adIn = document.getElementById("fsSiteAddrIn");
         if (nmIn && nmIn.value.trim()) s.name = nmIn.value.trim();
-        if (adIn) s.address = adIn.value.trim();
+        if (adIn) {
+          /* V0.13 — a changed address MUST drop the old coordinates. Before this,
+             s.geo was only ever cleared by "Re-locate ALL sites", so a site that
+             geocoded once — even to the wrong town — ignored every later address
+             edit forever: fsPlEnsureTravel only looks at sites with NO geo. That
+             is exactly the "I've changed it multiple times and nothing happens"
+             symptom. The travel matrix goes with it, because it is indexed by
+             site id and still holds the OLD coordinates' driving times. */
+          const wasAddr = (s.address || "").trim(), nowAddr = adIn.value.trim();
+          s.address = nowAddr;
+          if (wasAddr !== nowAddr) {
+            delete s.geo;
+            if (typeof fsRegister !== "undefined" && fsRegister) delete fsRegister.travel;
+          }
+        }
         document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
         const vd = {}, vh = {}, vm2 = {};
         document.querySelectorAll(".fsVisD").forEach(f => { vd[f.dataset.key] = +f.value || 0; });
@@ -13644,7 +13690,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v16";
+const FS_BUILD = "aa-v17";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -14550,12 +14596,33 @@ function fsPlTravel(aGeo, aId, bGeo, bId) {  // driving minutes a->b: matrix fir
   if (aGeo && bGeo) return { min: Math.max(5, fsPlHavMin(aGeo, bGeo)), est: true };
   return null;
 }
-function fsPlMinsFor(s, month) {  // visit duration for the cycle actually due that month (annual > 6m > monthly)
+/* V0.13 — start at the cycle that is actually DUE, then cascade through the
+   others before giving up on 30.
+
+   Reece asked for a flat monthly -> 6-monthly -> annual order. Cycle-first won
+   the argument: an annual service takes longer than a monthly one, so a flat
+   order would quietly under-book every annual visit at any site that happens to
+   have a monthly figure filled in.
+
+   The defect this fixes is narrower than either: when the due cycle's own field
+   was blank the old code fell STRAIGHT to `+v.mins || 30` and skipped the rest,
+   so a site with no annual figure but a 90-minute six-monthly was booked for 30
+   minutes. A blank is a blank, not a zero — `+v.x || next` keeps 0 meaning
+   "not set", exactly as before. */
+function fsPlMinsForPlan(s, month, kept) {   /* a hand-set duration wins inside its own month */
+  if (kept && kept[s.id] > 0) return kept[s.id];
+  return fsPlMinsFor(s, month);
+}
+function fsPlMinsFor(s, month) {
   const v = s.visit || {};
   const keys = fsPlDueCycles(s, month).map(d => d.key);
-  if ((keys.indexOf("lastAnnual") >= 0 || keys.indexOf("last5y") >= 0) && +v.minsA) return +v.minsA;
-  if (keys.indexOf("last6m") >= 0 && +v.mins6) return +v.mins6;
-  return +v.mins || 30;
+  const annual = keys.indexOf("lastAnnual") >= 0 || keys.indexOf("last5y") >= 0;
+  const half = keys.indexOf("last6m") >= 0;
+  const order = annual ? ["minsA", "mins6", "mins"]
+              : half   ? ["mins6", "mins", "minsA"]
+                       : ["mins", "mins6", "minsA"];
+  for (let i = 0; i < order.length; i++) { const n = +v[order[i]]; if (n > 0) return n; }
+  return 30;
 }
 function fsPlFmtMins(t) {
   if (t >= 1440) { const d2 = Math.floor(t / 1440), r = t % 1440; return d2 + "d" + (r ? " " + fsPlFmtMins(r) : ""); }
@@ -14569,15 +14636,41 @@ async function fsPlGeocode(addr) {
     const j = await r.json();
     return j.length ? { lat: +j[0].lat, lng: +j[0].lon } : null;
   };
-  let g = await one(addr);
-  if (!g) {
-    const m = /\d.*/.exec(addr);   // "Building Name, 12 Example St..." -> retry as "12 Example St..."
-    if (m && m[0] !== addr) {
-      await new Promise(res => setTimeout(res, 1100));
-      g = await one(m[0]);
-    }
+  /* V0.13 — degrade toward LESS SPECIFIC, never toward a fragment.
+     The old single retry matched from the first DIGIT to the end of the string,
+     turns "Pelaw Main 1 WPS" into "1 WPS": it throws away the suburb (findable)
+     and keeps a site code (never findable). Measured 2 Aug 2026: "Pelaw Main
+     NSW" resolves, "Pelaw Main 1 WPS" and "1 WPS Pelaw Main" both return
+     nothing. Each rung below is a prefix or suffix of what was typed, so a hit
+     is always somewhere the user actually wrote. */
+  const parts = String(addr).split(",").map(s => s.trim()).filter(Boolean);
+  const tries = [addr];
+  const digits = /\d.*/.exec(addr);                       /* "Building Name, 12 X St" -> "12 X St" */
+  if (digits && digits[0] !== addr) tries.push(digits[0]);
+  if (parts.length > 3) tries.push(parts.slice(-3).join(", "));
+  if (parts.length > 2) tries.push(parts.slice(-2).join(", "));
+  if (parts.length > 1) tries.push(parts[parts.length - 1]);
+  /* Comma-less addresses are the common case for industrial sites — "Pelaw Main
+     1 WPS", "Kurri Kurri WPS 12A", "Sandgate Pump Station 4". None of the
+     comma rungs above fire on those, and the site-code regex only catches a
+     trailing run of 2-5 capitals, so it would miss "Pump Station 4" entirely.
+     Drop trailing words one at a time instead, down to a two-word floor: the
+     locality is almost always what is left, and a locality is enough to route
+     to the right town. */
+  const words = String(addr).trim().split(/\s+/);
+  for (let n = words.length - 1; n >= 2 && words.length - n <= 3; n--) {
+    tries.push(words.slice(0, n).join(" "));
   }
-  return g;
+  const seen = {};
+  for (let i = 0; i < tries.length; i++) {
+    const q = tries[i];
+    if (!q || seen[q]) continue;
+    seen[q] = 1;
+    if (i) await new Promise(res => setTimeout(res, 1100));   /* Nominatim fair use, 1 req/sec */
+    const g = await one(q);
+    if (g) { g.approx = q !== addr ? q : undefined; return g; }
+  }
+  return null;
 }
 async function fsPlEnsureTravel(status) {  // self-maintaining geo + matrix; safe to re-run any time
   const entries = fsPlSites().filter(e => (e.s.address || "").trim());
@@ -14724,6 +14817,15 @@ function fsPlAutoPlan(selIds, fromDk, toDk) {  // deterministic greedy day-fill;
     selIds.map(fsPlById).forEach(e => { if (e && e.s.geo) { la += e.s.geo.lat; ln += e.s.geo.lng; n++; } });
     fsPlSeedFrom = n ? { lat: la / n, lng: ln / n } : null;
   }
+  /* V0.13 — remember every hand-set duration in this month's plan BEFORE the
+     rebuild, so re-planning March does not silently undo an edit made on the
+     12th. Keyed by site only: this map never leaves fsPlAutoPlan and never
+     touches another month's plan object, which is what keeps "next month is
+     back to standard" true without any extra bookkeeping. */
+  const keptMins = {};
+  Object.keys(mo.days || {}).forEach(dk => (mo.days[dk] || []).forEach(x => {
+    if (x && x.minsSet && x.siteId) keptMins[x.siteId] = x.mins;
+  }));
   const plannedIds = {};
   workDates.forEach(dk => { if (mo.locked[dk]) (mo.days[dk] || []).forEach(x => { plannedIds[x.siteId] = 1; }); });
   let remaining = selIds.filter(id => !plannedIds[id]).map(fsPlById).filter(Boolean);
@@ -14755,7 +14857,7 @@ function fsPlAutoPlan(selIds, fromDk, toDk) {  // deterministic greedy day-fill;
       let best = null, bestKey = null;
       const dayEmpty = !mo.days[dk].length;
       remaining.forEach(e => {
-        const mins = fsPlMinsFor(e.s, fsPlMonth);
+        const mins = fsPlMinsForPlan(e.s, fsPlMonth, keptMins);
         const trv = cur ? fsPlTravel(cur.geo, cur.id, e.s.geo, e.s.id) : { min: 0, est: false };
         if (!trv) return;
         const arrive = t + trv.min;
@@ -14786,7 +14888,10 @@ function fsPlAutoPlan(selIds, fromDk, toDk) {  // deterministic greedy day-fill;
         carry = { e: best.e, remain: best.mins - dayCap };
         t = endM;
       } else {
-        mo.days[dk].push({ siteId: best.e.s.id, start: fsPlM2T(best.sM), mins: best.mins, done: false });
+        /* carry the hand-set flag through the rebuild so the ✎ marker and the next
+           re-plan both still know this duration was chosen, not computed */
+        mo.days[dk].push(Object.assign({ siteId: best.e.s.id, start: fsPlM2T(best.sM), mins: best.mins, done: false },
+                                       keptMins[best.e.s.id] > 0 ? { minsSet: true } : null));
         t = fsPlLunchEnd(best.sM, best.mins, lu) + buf;
       }
       cur = { geo: best.e.s.geo, id: best.e.s.id };
@@ -15457,6 +15562,8 @@ function fsPlDayHtml(dk) {
       ' &rarr; ' + endT + ' (' + fsPlFmtMins(x.mins) + ')' + luNote + (e && e.s.visit && e.s.visit.pref ? ' · pref ' + fsEsc(e.s.visit.pref) : '') + (e ? ' · ' + fsEsc(e.c.name) : (x.adhoc ? ' · ad-hoc job' : '')) +
       ((fsPlT2M(x.start) != null && fsPlT2M(x.start) < (fsPlT2M(fsPlLoadSettings().dayStart) || 420)) ? ' · <span style="color:#b45f00;font-weight:700">outside set hours</span>' : '') +
       (x.adhoc ? ' · <a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">rename</a>' : '') +
+      ' · <a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;text-decoration:underline"' +
+      (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'time</a>' +
       ' · <a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">move</a>' +
       ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
     prev = x;
@@ -15465,6 +15572,7 @@ function fsPlDayHtml(dk) {
     '<select id="fsPlAddSel" class="fsinput" style="flex:2;min-width:160px;padding:9px">' +
     fsPlSites().map(e => '<option value="' + fsEsc(e.s.id) + '">' + fsEsc(e.s.name) + ' (' + fsEsc(e.c.name) + ')</option>').join("") + '</select>' +
     '<input id="fsPlAddT" class="fsinput" type="time" style="width:110px">' +
+    '<input id="fsPlAddM" class="fsinput" type="number" min="5" step="5" placeholder="mins" title="Minutes on site. Leave blank to use this site\'s standard visit time." style="width:80px">' +
     '<button class="fsbtn" id="fsPlAddGo">&#65291; Add stop</button></div>' +
     '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">' +
     '<input id="fsPlAdhTtlIn" class="fsinput" placeholder="Ad-hoc job - free text, not a client site" style="flex:2;min-width:160px;padding:9px">' +
@@ -15515,6 +15623,21 @@ function fsPlWireDay() {
     if (!mo.days[dk].length) delete mo.days[dk];
     fsPlSavePlans(); fsPlRender();
   });
+  document.querySelectorAll(".fsPlMins").forEach(a => a.onclick = () => {
+    const arr = sorted(), x = arr[+a.dataset.i];
+    if (!x) return;
+    const e = x.adhoc ? null : fsPlById(x.siteId);
+    const std = e ? fsPlMinsFor(e.s, fsPlMonth) : null;
+    const v = window.prompt("Minutes on site for this day only"
+      + (std ? "\n\nThis site's standard visit is " + fsPlFmtMins(std) + ". Changing it here does NOT change the site register, and next month goes back to standard." : ""),
+      String(x.mins));
+    if (v === null) return;
+    const n = Math.round(+v);
+    if (!(n > 0)) { alert("Enter a number of minutes greater than zero."); return; }
+    x.mins = n;
+    if (std != null && n === std) delete x.minsSet; else x.minsSet = true;
+    fsPlSavePlans(); fsPlRender();
+  });
   const addGo = document.getElementById("fsPlAddGo");
   if (addGo) addGo.onclick = () => {
     const id = document.getElementById("fsPlAddSel").value;
@@ -15525,7 +15648,14 @@ function fsPlWireDay() {
       const last = sorted().slice(-1)[0];
       t = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+fsPlLoadSettings().buffer || 0) + 20) : fsPlLoadSettings().dayStart;
     }
-    stops().push({ siteId: id, start: t, mins: fsPlMinsFor(e.s, fsPlMonth), done: false });
+    /* V0.13 — a typed duration is for THIS stop on THIS day. `mins` was always
+       stored per stop, so it already cannot reach next month's plan or the site
+       register; minsSet only tells a re-plan of the SAME month not to recompute
+       it. Reece: "next time I plan waratah next month I want it to be 1 hour." */
+    const mOv = +(document.getElementById("fsPlAddM") || {}).value || 0;
+    const stop = { siteId: id, start: t, mins: mOv > 0 ? mOv : fsPlMinsFor(e.s, fsPlMonth), done: false };
+    if (mOv > 0) stop.minsSet = true;
+    stops().push(stop);
     mo.tray = (mo.tray || []).filter(x => x.siteId !== id);
     fsPlSavePlans(); fsPlRender();
   };
