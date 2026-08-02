@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.13 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.14 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.13 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.14 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -11104,6 +11104,39 @@ function fsClientRename(c) {
   fsMarkDirty();
   fsRenderClients();
 }
+/* V0.14 — plans live in IndexedDB keyed by month and reference sites by id, so
+   deleting a site (or a client, which was ALREADY true and already broken) left
+   orphaned stops behind: fsPlById returns null and the planner renders the raw
+   id where a name should be. Drop them at the source. Async-safe: it loads the
+   plans if they are not in memory yet, because a delete can happen long before
+   the planner has ever been opened this session. */
+async function fsPlForgetSites(ids) {
+  if (!ids || !ids.length) return;
+  const gone = {};
+  ids.forEach(id => { gone[id] = 1; });
+  try {
+    if (typeof fsPlLoadPlans === "function") await fsPlLoadPlans();
+    if (!fsPlPlans) return;
+    let touched = false;
+    Object.keys(fsPlPlans).forEach(mk => {
+      const mo = fsPlPlans[mk];
+      if (!mo) return;
+      Object.keys(mo.days || {}).forEach(dk => {
+        const before = mo.days[dk].length;
+        mo.days[dk] = mo.days[dk].filter(x => !(x && x.siteId && gone[x.siteId]));
+        if (mo.days[dk].length !== before) touched = true;
+        if (!mo.days[dk].length) delete mo.days[dk];
+      });
+      if (Array.isArray(mo.tray)) {
+        const before = mo.tray.length;
+        mo.tray = mo.tray.filter(x => !(x && x.siteId && gone[x.siteId]));
+        if (mo.tray.length !== before) touched = true;
+      }
+    });
+    if (touched && typeof fsPlSavePlans === "function") fsPlSavePlans();
+  } catch (e) {}
+}
+
 async function fsClientDelete(c) {
   const sites = c.sites || [];
   const blds = sites.reduce((n, s) => n + ((s.buildings || []).length), 0);
@@ -11115,9 +11148,43 @@ async function fsClientDelete(c) {
   if (typed == null) return;
   if (typed.trim() !== String(c.name).trim()) { alert("Name doesn't match — nothing was deleted."); return; }
   await fsBackupSnapshot("before deleting client " + c.name);
+  await fsPlForgetSites((c.sites || []).map(s => s.id).filter(Boolean));
   fsRegister.clients = (fsRegister.clients || []).filter(x => x !== c);
   fsMarkDirty();
   fsRenderClients();
+}
+
+/* V0.14 — sites were the one level with no rename and no delete. Same ceremony
+   as a client delete, because a site is not a small thing to lose: it takes its
+   buildings, equipment, test history, defects and floor plans with it. */
+function fsSiteRename(s) {
+  const nm = prompt("Rename site:", s.name);
+  if (nm == null) return;
+  const t = nm.trim();
+  if (!t || t === s.name) return;
+  const sibs = (fsClient && fsClient.sites) || [];
+  if (sibs.some(x => x !== s && String(x.name).trim().toLowerCase() === t.toLowerCase()) &&
+      !confirm('Another site here is already called "' + t + '". Rename anyway?')) return;
+  s.name = t;
+  fsMarkDirty();
+  fsRenderSites();
+}
+async function fsSiteDelete(s) {
+  const blds = (s.buildings || []).length;
+  const msg = 'Delete site "' + s.name + '"?\n\nThis removes:' +
+    (blds ? '\n\u2022 ' + blds + ' building' + (blds === 1 ? '' : 's') : '') +
+    '\n\u2022 all equipment, test history, defects and floor plans inside it' +
+    '\n\u2022 any planned visits to it\n\nA backup snapshot is kept on this device first ' +
+    '(Backups button), and register files already saved on disk or OneDrive are untouched.';
+  if (!confirm(msg)) return;
+  const typed = prompt('Type the site name to confirm the delete:');
+  if (typed == null) return;
+  if (typed.trim() !== String(s.name).trim()) { alert("Name doesn't match \u2014 nothing was deleted."); return; }
+  await fsBackupSnapshot("before deleting site " + s.name);
+  await fsPlForgetSites([s.id].filter(Boolean));
+  fsClient.sites = (fsClient.sites || []).filter(x => x !== s);
+  fsMarkDirty();
+  fsRenderSites();
 }
 function fsRenderSites() {
   document.getElementById("fsClientTitle").textContent = fsClient.name;
@@ -11127,9 +11194,18 @@ function fsRenderSites() {
     const row = document.createElement("div");
     row.className = "fscard";
     row.style.cssText += ";padding:14px 16px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:12px";
+    /* V0.14 — same furniture and the same tech gate as the client row, so a Field
+       user still cannot restructure the register. */
     row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
-      '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div><div style="color:var(--fs-faint)">&#9654;</div>';
+      '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div>' +
+      (fsWhoRole() !== "tech" ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
+        '<a class="fsSiteDel" title="Delete site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#128465;</a>' : '') +
+      '<div style="color:var(--fs-faint)">&#9654;</div>';
     row.onclick = () => { fsParentSite = null; fsSite = s; fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false; fsRenderSite(); fsShow("fsSiteView"); };
+    const sren = row.querySelector(".fsSiteRen");
+    if (sren) sren.onclick = ev => { ev.stopPropagation(); fsSiteRename(s); };
+    const sdel = row.querySelector(".fsSiteDel");
+    if (sdel) sdel.onclick = ev => { ev.stopPropagation(); fsSiteDelete(s); };
     wrap.appendChild(row);
   });
 }
@@ -11314,7 +11390,9 @@ function fsRenderTab() {
         '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">' + fsEsc(b.name) + '</div>' +
         (openDefB ? '<div style="font-size:12px;color:#c62828">' + openDefB + ' open defect' + (openDefB > 1 ? 's' : '') + '</div>' : '') + '</div>' +
         '<a class="fsBldRen" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Rename building">&#9998;</a>' +
-        '<a class="fsBldDel" data-i="' + bi + '" style="color:#c62828;cursor:pointer;font-size:14px;padding:4px 7px" title="Delete building">&#10005;</a>' +
+        /* V0.14: the client's wastebasket, not a red ✕. ✕ is the universal "close this" glyph;
+           using it for a destructive action is a mis-cue, and the red was compensating. */
+        '<a class="fsBldDel" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Delete building">&#128465;</a>' +
         '<div style="color:var(--fs-faint)">&#9654;</div></div>';
     });
     html += '</div>';
@@ -13690,7 +13768,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v17";
+const FS_BUILD = "aa-v18";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
