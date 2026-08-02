@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.14 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.15 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.14 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.15 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -13768,7 +13768,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v18";
+const FS_BUILD = "aa-v19";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -14702,6 +14702,47 @@ function fsPlMinsFor(s, month) {
   for (let i = 0; i < order.length; i++) { const n = +v[order[i]]; if (n > 0) return n; }
   return 30;
 }
+/* V0.15 — one duration field instead of a minutes-only box.
+   The site register has had days+hours+mins boxes all along and fsPlFmtMins
+   already PRINTS "1d 2h 30m", so the app was displaying hours back at you and
+   then refusing to accept them. This is the input side catching up. Storage is
+   untouched — `mins` stays a plain integer, so no saved plan changes shape.
+
+   Returns whole minutes, or null if it cannot read the input. The ONE rule that
+   matters: a bare number is still MINUTES, exactly as in V0.13, so an existing
+   habit of typing 90 keeps working. Hours need a unit. That rule is arbitrary
+   at the margin, which is why every caller shows the parse back through
+   fsPlFmtMins BEFORE it commits.
+   Accepts: 90 · 1h30 · 1h 30m · 1.5h · 2:30 · 90m · 1d · 1d 2h 30m */
+function fsPlParseDur(v) {
+  const s = String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, "");
+  if (!s) return null;
+  const clock = s.match(/^(\d+):([0-5]\d)$/);                       /* 2:30 */
+  if (clock) { const n = (+clock[1]) * 60 + (+clock[2]); return n > 0 ? n : null; }
+  if (/^\d+(\.\d+)?$/.test(s)) { const n = Math.round(parseFloat(s)); return n > 0 ? n : null; }
+  const U = { d: 1440, day: 1440, days: 1440, h: 60, hr: 60, hrs: 60, hour: 60, hours: 60,
+              m: 1, min: 1, mins: 1, minute: 1, minutes: 1 };
+  /* longest-first, or "1minutes" matches "min" and leaves "utes" behind */
+  const re = /(\d+(?:\.\d+)?)(days?|hours?|minutes?|hrs?|mins?|[dhm])/g;
+  let total = 0, consumed = 0, big = false, mm;
+  while ((mm = re.exec(s))) {
+    if (mm.index !== consumed) return null;                         /* junk between tokens */
+    consumed = re.lastIndex;
+    const mult = U[mm[2]];
+    if (mult > 1) big = true;
+    total += parseFloat(mm[1]) * mult;
+  }
+  if (!consumed) return null;
+  const tail = s.slice(consumed);
+  if (tail) {
+    if (big && /^\d+$/.test(tail)) total += +tail;                  /* "1h30" — a trailing bare number is minutes */
+    else return null;
+  }
+  const n = Math.round(total);
+  return n > 0 ? n : null;
+}
+/* the one sentence every duration field says when it cannot read you */
+const FS_DUR_HELP = "Type a time on site: 90, 1h30, 1h 30m, 1.5h, 2:30 or 1d 2h all work. A plain number means minutes.";
 function fsPlFmtMins(t) {
   if (t >= 1440) { const d2 = Math.floor(t / 1440), r = t % 1440; return d2 + "d" + (r ? " " + fsPlFmtMins(r) : ""); }
   return t >= 60 ? Math.floor(t / 60) + "h" + (t % 60 ? " " + (t % 60) + "m" : "") : t + "m";
@@ -15650,12 +15691,14 @@ function fsPlDayHtml(dk) {
     '<select id="fsPlAddSel" class="fsinput" style="flex:2;min-width:160px;padding:9px">' +
     fsPlSites().map(e => '<option value="' + fsEsc(e.s.id) + '">' + fsEsc(e.s.name) + ' (' + fsEsc(e.c.name) + ')</option>').join("") + '</select>' +
     '<input id="fsPlAddT" class="fsinput" type="time" style="width:110px">' +
-    '<input id="fsPlAddM" class="fsinput" type="number" min="5" step="5" placeholder="mins" title="Minutes on site. Leave blank to use this site\'s standard visit time." style="width:80px">' +
+    '<input id="fsPlAddM" class="fsinput" type="text" autocomplete="off" placeholder="1h 30m" title="Time on site &#8212; 90, 1h30, 1.5h, 2:30 or 1d 2h all work. A plain number means minutes. Leave blank to use this site\'s standard visit time." style="width:92px">' +
+    '<span id="fsPlAddMEcho" style="font-size:11.5px;color:var(--fs-sub2);min-width:62px"></span>' +
     '<button class="fsbtn" id="fsPlAddGo">&#65291; Add stop</button></div>' +
     '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">' +
     '<input id="fsPlAdhTtlIn" class="fsinput" placeholder="Ad-hoc job - free text, not a client site" style="flex:2;min-width:160px;padding:9px">' +
     '<input id="fsPlAdhTime" class="fsinput" type="time" style="width:110px">' +
-    '<input id="fsPlAdhMins" class="fsinput" type="number" min="5" step="5" value="60" title="Minutes on the job" style="width:80px">' +
+    '<input id="fsPlAdhMins" class="fsinput" type="text" autocomplete="off" value="1h" title="Time on the job &#8212; 90, 1h30, 1.5h, 2:30 or 1d 2h all work. A plain number means minutes." style="width:92px">' +
+    '<span id="fsPlAdhMinsEcho" style="font-size:11.5px;color:var(--fs-sub2);min-width:62px"></span>' +
     '<button class="fsbtn" id="fsPlAdhGo">&#65291; Add job</button></div></div>';
   return html;
 }
@@ -15706,16 +15749,41 @@ function fsPlWireDay() {
     if (!x) return;
     const e = x.adhoc ? null : fsPlById(x.siteId);
     const std = e ? fsPlMinsFor(e.s, fsPlMonth) : null;
-    const v = window.prompt("Minutes on site for this day only"
+    /* V0.15 — prefilled with the FORMATTED duration ("1h 30m"), which parses
+       straight back to the same number, so opening this and pressing OK is a
+       no-op. A prompt() cannot carry a live echo like the two boxes below it
+       can, but the stop re-renders with the parsed time immediately underneath
+       and it is one tap to redo. */
+    const v = window.prompt("Time on site for this day only\n\n" + FS_DUR_HELP
       + (std ? "\n\nThis site's standard visit is " + fsPlFmtMins(std) + ". Changing it here does NOT change the site register, and next month goes back to standard." : ""),
-      String(x.mins));
+      fsPlFmtMins(x.mins));
     if (v === null) return;
-    const n = Math.round(+v);
-    if (!(n > 0)) { alert("Enter a number of minutes greater than zero."); return; }
+    const n = fsPlParseDur(v);
+    if (!(n > 0)) { alert("Couldn't read \"" + v + "\" as a length of time.\n\n" + FS_DUR_HELP); return; }
     x.mins = n;
     if (std != null && n === std) delete x.minsSet; else x.minsSet = true;
     fsPlSavePlans(); fsPlRender();
   });
+  /* V0.15 — the live echo. A free-text duration can only be trusted if you can
+     see how it was read BEFORE you commit it, so every keystroke prints the
+     parse back through the same formatter the stop itself will use. Unreadable
+     input goes red rather than silently falling through to a default. This is
+     what makes "a bare number means minutes" safe to keep as the rule. */
+  const fsPlDurEcho = (inId, echoId, blankTxt) => {
+    const el = document.getElementById(inId), ec = document.getElementById(echoId);
+    if (!el || !ec) return;
+    const upd = () => {
+      const raw = (el.value || "").trim();
+      if (!raw) { ec.textContent = blankTxt; ec.style.color = "var(--fs-sub2)"; return; }
+      const n = fsPlParseDur(raw);
+      ec.textContent = n > 0 ? "= " + fsPlFmtMins(n) : "can't read that";
+      ec.style.color = n > 0 ? "var(--fs-sub2)" : "#c62828";
+    };
+    el.oninput = upd;
+    upd();
+  };
+  fsPlDurEcho("fsPlAddM", "fsPlAddMEcho", "= site standard");
+  fsPlDurEcho("fsPlAdhMins", "fsPlAdhMinsEcho", "= 1h");
   const addGo = document.getElementById("fsPlAddGo");
   if (addGo) addGo.onclick = () => {
     const id = document.getElementById("fsPlAddSel").value;
@@ -15730,7 +15798,11 @@ function fsPlWireDay() {
        stored per stop, so it already cannot reach next month's plan or the site
        register; minsSet only tells a re-plan of the SAME month not to recompute
        it. Reece: "next time I plan waratah next month I want it to be 1 hour." */
-    const mOv = +(document.getElementById("fsPlAddM") || {}).value || 0;
+    const mRaw = ((document.getElementById("fsPlAddM") || {}).value || "").trim();
+    const mOv = mRaw ? fsPlParseDur(mRaw) : 0;
+    /* unreadable input STOPS the add. Falling through to the site standard would
+       silently plan a different day's work than the one just typed. */
+    if (mRaw && !(mOv > 0)) { alert("Couldn't read \"" + mRaw + "\" as a length of time.\n\n" + FS_DUR_HELP); return; }
     const stop = { siteId: id, start: t, mins: mOv > 0 ? mOv : fsPlMinsFor(e.s, fsPlMonth), done: false };
     if (mOv > 0) stop.minsSet = true;
     stops().push(stop);
@@ -15746,7 +15818,10 @@ function fsPlWireDay() {
       const last = sorted().slice(-1)[0];
       t = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+fsPlLoadSettings().buffer || 0) + 20) : fsPlLoadSettings().dayStart;
     }
-    const mins = Math.max(5, +document.getElementById("fsPlAdhMins").value || 60);
+    const jRaw = (document.getElementById("fsPlAdhMins").value || "").trim();
+    const jPar = jRaw ? fsPlParseDur(jRaw) : 60;
+    if (jRaw && !(jPar > 0)) { alert("Couldn't read \"" + jRaw + "\" as a length of time.\n\n" + FS_DUR_HELP); return; }
+    const mins = Math.max(5, jPar || 60);
     stops().push({ adhoc: true, title: ttl, start: t, mins: mins, done: false });
     fsPlSavePlans(); fsPlRender();
   };
