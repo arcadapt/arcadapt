@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.15 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.16 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.15 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.16 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -13768,7 +13768,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v19";
+const FS_BUILD = "aa-v20";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -15024,7 +15024,20 @@ function fsPlAutoPlan(selIds, fromDk, toDk) {  // deterministic greedy day-fill;
   });
   if (carry) tray.push({ siteId: carry.e.s.id, reason: "multi-day visit runs past the planning window - the scheduled days are partial, extend the window and re-plan" });
   remaining.forEach(e => tray.push({ siteId: e.s.id, reason: "did not fit this month - place manually or widen the day hours in ⚙ settings" }));
-  mo.tray = tray;
+  /* V0.16 — the tray is no longer a rejects bin, it is the month's LIST. Keep
+     every id we were asked to plan; the ones that failed carry their reason, the
+     rest stay as "want" and derive as planned from mo.days. Sites already on the
+     list but not in this run's selection are kept too, so a scoped re-plan
+     (Day/Week) does not quietly empty the month's list. */
+  const unfit = {};
+  tray.forEach(t => { unfit[t.siteId] = t.reason; });
+  const asked = {};
+  selIds.forEach(id => { asked[id] = 1; });
+  const keep = (Array.isArray(mo.tray) ? mo.tray : []).filter(x => x && x.siteId && !asked[x.siteId])
+    .map(x => ({ siteId: x.siteId, src: x.src || (x.reason ? "unfit" : "want"), reason: x.reason || "" }));
+  mo.tray = keep.concat(selIds.map(id => unfit[id]
+    ? { siteId: id, src: "unfit", reason: unfit[id] }
+    : { siteId: id, src: "want" }));
   fsPlSavePlans();
 }
 
@@ -15049,73 +15062,285 @@ async function fsPlPlanClick() {
   if (res.offline) warn += "No internet (or the free route service is busy) - travel times for new sites will be rough estimates.\n\n";
   if (res.failed.length) warn += "Couldn't find these addresses on the map: " + res.failed.join(", ") + ".\n\n";
   if (warn && !confirm(warn + "Continue planning anyway?")) { fsPlRender(); return; }
-  fsPlPicker();
+  /* V0.16 — the list IS the selection. There is no confirm-the-ticks modal any
+     more; what you can see in the panel is what gets planned, which is the whole
+     point of making it persistent. Still ONE path into fsPlAutoPlan. */
+  const mo = fsPlMonthObj();
+  fsPlTraySeed(mo);
+  const ids = fsPlTrayNorm(mo).map(x => x.siteId);
+  if (!ids.length) { alert("Nothing on the list \u2014 use + Add client or + Add sites first."); fsPlRender(); return; }
+  const fromEl = document.getElementById("fsPlFrom"), toEl = document.getElementById("fsPlTo");
+  const r0 = fsPlScopeRange();
+  const from = (fromEl && fromEl.value) || r0.from, to = (toEl && toEl.value) || r0.to;
+  /* editing the dates in the panel writes BACK to the scope, or the glow on the
+     calendar and the range actually planned could silently disagree (A4, V0.12) */
+  if (from !== r0.from || to !== r0.to) fsPlScope = { mode: "custom", from: from, to: to };
+  try { localStorage.setItem("fs-plticks", JSON.stringify(ids)); } catch (e2) {}
+  fsPlAutoPlan(ids, from, to);
+  fsPlSelDay = null;
+  fsPlRender();
 }
 
-function fsPlPicker() {  // confirm/edit the month's to-do list before anything is scheduled
-  const d = document.createElement("div");
-  d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
-  // sites planned LAST month are assumed recurring - pre-ticked alongside due sites
+/* ===== V0.16 BLOCK 2 — the tray IS the month's list =========================
+   Before this pass `mo.tray` was write-only output: fsPlAutoPlan dumped what it
+   could not place, and a one-line orange strip showed the names. The intent
+   side lived in a modal tick-list that vanished the moment you planned. Two
+   halves of one idea, in two places, neither of which you could look at while
+   working the calendar.
+
+   Now there is one list. Entries are { siteId, src, reason? }:
+     src "want"  — on the list, put there by you or by the seed rule
+     src "unfit" — a plan run could not place it; `reason` says why
+   and a THIRD state, "planned", which is DERIVED from mo.days and never stored.
+   Storing it would let the day view and the list disagree: delete a stop and a
+   stored flag would still claim planned. Derived state cannot drift. ========= */
+
+function fsPlTrayNorm(mo) {
+  /* Every tray saved before V0.16 is { siteId, reason } with no src — which is
+     precisely an "unfit" entry. Read it as one. No migration pass, no write on
+     open, nothing to get wrong on a file that never gets re-saved. */
+  if (!Array.isArray(mo.tray)) { mo.tray = []; return mo.tray; }
+  mo.tray = mo.tray.filter(x => x && x.siteId).map(x =>
+    x.src ? x : { siteId: x.siteId, src: x.reason ? "unfit" : "want", reason: x.reason || "" });
+  return mo.tray;
+}
+
+function fsPlSeedIds() {
+  /* The picker's pre-tick rule, lifted out unchanged: due this month, ★ starred,
+     planned last month (assumed recurring), or ticked last time. This is the
+     behaviour that makes the planner feel like it already knows the job, and
+     losing it to an empty panel would have been the real regression in Block 2. */
   const pv = new Date(+fsPlMonth.slice(0, 4), +fsPlMonth.slice(5, 7) - 2, 1);
   const pvKey = pv.getFullYear() + "-" + String(pv.getMonth() + 1).padStart(2, "0");
   const prevIds = {};
-  Object.keys(((fsPlPlans[pvKey] || {}).days) || {}).forEach(dk2 => (fsPlPlans[pvKey].days[dk2] || []).forEach(x => { prevIds[x.siteId] = 1; }));
+  Object.keys(((fsPlPlans[pvKey] || {}).days) || {}).forEach(dk2 =>
+    (fsPlPlans[pvKey].days[dk2] || []).forEach(x => { if (x.siteId) prevIds[x.siteId] = 1; }));
   const stars = fsPlStars(), lastTicks = fsPlLastTicks();
-  let html = '<div class="fscard" style="padding:20px;max-width:540px;width:100%;max-height:88vh;overflow:auto">' +
-    '<div style="display:flex;align-items:flex-start;gap:8px"><h3 style="font-size:16.5px;font-weight:800;margin-bottom:2px;flex:1">Plan ' + fsPlMonthName() + '</h3><a id="fsPlPickX2" title="Close" style="font-size:24px;line-height:1;cursor:pointer;color:var(--fs-sub2);padding:2px 8px">&#10005;</a></div>' +
-    '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">Pre-ticked: due this month, &#9733; My clients, or ticked last time. Tap a star to keep a site on your list. Tick/untick anything, then Plan.</div>' +
-    '<input class="fsinput" id="fsPlPickSearch" placeholder="Search clients &amp; sites…" style="margin-bottom:6px;padding:9px">' +
-    '<div style="display:flex;gap:8px;margin-bottom:6px"><button class="fsbtn" id="fsPlTickMine" style="flex:1;padding:7px">&#9733; My clients</button><button class="fsbtn" id="fsPlTickAll" style="flex:1;padding:7px">All</button><button class="fsbtn" id="fsPlTickNone" style="flex:1;padding:7px">None</button></div>' +
-    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--fs-sub2)">Plan from' +
-    '<input class="fsinput" id="fsPlFrom" type="date" value="' + fsPlScopeRange().from + '" style="width:150px;padding:6px">to' +
-    '<input class="fsinput" id="fsPlTo" type="date" value="' + fsPlScopeRange().to + '" style="width:150px;padding:6px"></div>';
-  fsPlSites().forEach(e => {
-    const due = fsPlDueCycles(e.s, fsPlMonth);
-    const rec = prevIds[e.s.id] && !due.length;
-    const mins = fsPlMinsFor(e.s, fsPlMonth);
-    const pref = (e.s.visit && e.s.visit.pref) || "";
-    html += '<label class="fsPlRow" data-txt="' + fsEsc((e.s.name + " " + e.c.name).toLowerCase()) + '" style="display:flex;gap:9px;align-items:center;border-top:1px solid var(--fs-border);padding:8px 0;cursor:pointer">' +
-      '<input type="checkbox" class="fsPlPick" data-id="' + fsEsc(e.s.id) + '"' + ((due.length || prevIds[e.s.id] || stars.indexOf(e.s.id) >= 0 || lastTicks.indexOf(e.s.id) >= 0) ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--fs-accent)">' +
-      '<a class="fsPlStar" data-id="' + fsEsc(e.s.id) + '" title="My clients list" style="font-size:19px;line-height:1;cursor:pointer;color:' + (stars.indexOf(e.s.id) >= 0 ? '#e6a817' : 'var(--fs-faint)') + '">' + (stars.indexOf(e.s.id) >= 0 ? '&#9733;' : '&#9734;') + '</a>' +
-      '<span style="flex:1;min-width:0"><b style="font-size:14px">' + fsEsc(e.s.name) + '</b> <span style="color:var(--fs-sub2);font-size:12px">' + fsEsc(e.c.name) + '</span><br>' +
-      '<span style="font-size:11.5px;color:' + (due.length ? '#c62828' : 'var(--fs-faint)') + '">' + (due.length ? 'Due: ' + due.map(x => x.label).join(", ") : (rec ? 'planned last month' : 'nothing due')) + '</span>' +
-      '<span style="font-size:11.5px;color:var(--fs-sub2)"> · ' + fsPlFmtMins(mins) + (pref ? ' · pref ' + fsEsc(pref) : '') + (e.s.geo ? '' : ' · ⚠ not located yet') + '</span></span></label>';
+  return fsPlSites().filter(e =>
+    fsPlDueCycles(e.s, fsPlMonth).length || prevIds[e.s.id] ||
+    stars.indexOf(e.s.id) >= 0 || lastTicks.indexOf(e.s.id) >= 0).map(e => e.s.id);
+}
+
+function fsPlTraySeed(mo) {
+  /* Only ever fires on a month that is genuinely untouched — empty list AND an
+     empty calendar. A month you have already worked never gets sites pushed
+     back at you. */
+  fsPlTrayNorm(mo);
+  if (mo.tray.length || Object.keys(mo.days || {}).length) return mo.tray;
+  mo.tray = fsPlSeedIds().map(id => ({ siteId: id, src: "want" }));
+  return mo.tray;
+}
+
+function fsPlPlannedIds(mo) {
+  const out = {};
+  Object.keys(mo.days || {}).forEach(dk =>
+    (mo.days[dk] || []).forEach(x => { if (x && x.siteId) out[x.siteId] = (out[x.siteId] || 0) + 1; }));
+  return out;
+}
+
+function fsPlTrayAdd(mo, ids) {
+  fsPlTrayNorm(mo);
+  const have = {};
+  mo.tray.forEach(x => { have[x.siteId] = 1; });
+  ids.forEach(id => { if (id && !have[id]) { mo.tray.push({ siteId: id, src: "want" }); have[id] = 1; } });
+  fsPlSavePlans();
+}
+
+function fsPlTrayDel(mo, id) { mo.tray = fsPlTrayNorm(mo).filter(x => x.siteId !== id); fsPlSavePlans(); }
+
+function fsPlTraySorted(mo) {
+  /* client, then site — the ONE thing the flat <select> never did. */
+  return fsPlTrayNorm(mo).map(x => ({ x: x, e: fsPlById(x.siteId) }))
+    .sort((a, b) => {
+      const ac = a.e ? a.e.c.name : "￿", bc = b.e ? b.e.c.name : "￿";
+      if (ac !== bc) return ac.localeCompare(bc);
+      return (a.e ? a.e.s.name : a.x.siteId).localeCompare(b.e ? b.e.s.name : b.x.siteId);
+    });
+}
+
+function fsPlPanelHtml(mo) {
+  const rows = fsPlTraySorted(mo), planned = fsPlPlannedIds(mo);
+  const nWant = rows.filter(r => !planned[r.x.siteId] && r.x.src !== "unfit").length;
+  const nUnfit = rows.filter(r => !planned[r.x.siteId] && r.x.src === "unfit").length;
+  const nDone = rows.filter(r => planned[r.x.siteId]).length;
+  const scopeR = fsPlScopeRange();
+  let h = '<div class="fscard" id="fsPlPanel" style="padding:12px 14px;margin-bottom:10px">' +
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<b style="font-size:14.5px;flex:1;min-width:130px">This month’s list</b>' +
+    '<span style="font-size:11.5px;color:var(--fs-sub2)">' + nDone + ' planned · ' + nWant + ' to place' +
+    (nUnfit ? ' · <span style="color:#c62828">' + nUnfit + " wouldn’t fit</span>" : '') + '</span></div>' +
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<button class="fsbtn" id="fsPlAddClient" style="padding:7px 12px">&#65291; Add client</button>' +
+    '<button class="fsbtn" id="fsPlAddSites" style="padding:7px 12px">&#65291; Add sites</button>' +
+    '<button class="fsbtn" id="fsPlTrayClear" style="padding:7px 12px" title="Empty the list. Planned stops stay on the calendar.">Clear list</button></div>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:12px;color:var(--fs-sub2)">Plan from' +
+    '<input class="fsinput" id="fsPlFrom" type="date" value="' + fsEsc(scopeR.from) + '" style="width:150px;padding:6px">to' +
+    '<input class="fsinput" id="fsPlTo" type="date" value="' + fsEsc(scopeR.to) + '" style="width:150px;padding:6px"></div>';
+
+  if (!rows.length) {
+    h += '<div style="font-size:12.5px;color:var(--fs-faint);padding:8px 0">Nothing on the list yet — ' +
+         '<b>&#65291; Add client</b> or <b>&#65291; Add sites</b>, then <b>&#9889; Plan</b>.</div></div>';
+    return h;
+  }
+  h += '<div style="max-height:290px;overflow:auto;margin:0 -4px">';
+  let lastC = null;
+  rows.forEach(r => {
+    const e = r.e, cName = e ? e.c.name : "—";
+    if (cName !== lastC) {
+      lastC = cName;
+      h += '<div style="font-size:10.5px;letter-spacing:.8px;color:var(--fs-sub2);text-transform:uppercase;padding:9px 4px 3px;border-bottom:1px solid var(--fs-border)">' + fsEsc(cName) + '</div>';
+    }
+    const n = planned[r.x.siteId] || 0;
+    const unfit = !n && r.x.src === "unfit";
+    const due = e ? fsPlDueCycles(e.s, fsPlMonth) : [];
+    const mins = e ? fsPlMinsFor(e.s, fsPlMonth) : 0;
+    let state, col;
+    if (n) { state = "&#10003; planned" + (n > 1 ? " (" + n + " days)" : ""); col = "var(--fs-accent)"; }
+    else if (unfit) { state = "&#9888; wouldn’t fit"; col = "#c62828"; }
+    else { state = "to place"; col = "var(--fs-sub2)"; }
+    h += '<div class="fsPlTrayRow" data-id="' + fsEsc(r.x.siteId) + '" style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--fs-border)">' +
+      '<span style="flex:1;min-width:0">' +
+      '<b style="font-size:13.5px">' + fsEsc(e ? e.s.name : r.x.siteId) + '</b>' +
+      '<br><span style="font-size:11px;color:' + col + '">' + state + '</span>' +
+      '<span style="font-size:11px;color:var(--fs-sub2)"> · ' + fsPlFmtMins(mins) +
+      (due.length ? ' · due ' + fsEsc(due.map(x => x.label).join(", ")) : '') +
+      (e && !e.s.geo ? ' · <span style="color:#c62828">⚠ not located</span>' : '') + '</span>' +
+      (unfit && r.x.reason ? '<br><span style="font-size:11px;color:#c62828">' + fsEsc(r.x.reason) + '</span>' : '') +
+      '</span>' +
+      '<button class="fsbtn fsPlTrayPlace" data-id="' + fsEsc(r.x.siteId) + '" style="padding:5px 10px;font-size:11.5px" title="Place this on a day yourself">Place</button>' +
+      '<a class="fsPlTrayDel" data-id="' + fsEsc(r.x.siteId) + '" title="Take off the list" style="cursor:pointer;color:#c62828;font-size:14px;padding:3px 6px">&#128465;</a></div>';
   });
-  html += '<div style="display:flex;gap:8px;margin-top:14px"><button class="fsbtn" id="fsPlPickX" style="flex:1">Cancel</button><button class="fsbtnP" id="fsPlPickGo" style="flex:2">⚡ Plan</button></div></div>';
+  h += '</div></div>';
+  return h;
+}
+
+function fsPlAddChooser(mode) {
+  /* mode "client" adds every site of the clients you tick; "sites" adds the
+     individual sites you tick. Same list, two granularities — which is the whole
+     reason "Add client" and "Add sites" are separate buttons in Reece's spec. */
+  const mo = fsPlMonthObj();
+  const d = document.createElement("div");
+  d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
+  const have = {};
+  fsPlTrayNorm(mo).forEach(x => { have[x.siteId] = 1; });
+  const stars = fsPlStars();
+  const byClient = {};
+  fsPlSites().forEach(e => { (byClient[e.c.name] = byClient[e.c.name] || []).push(e); });
+  const cNames = Object.keys(byClient).sort((a, b) => a.localeCompare(b));
+  let html = '<div class="fscard" style="padding:20px;max-width:540px;width:100%;max-height:88vh;overflow:auto">' +
+    '<div style="display:flex;align-items:flex-start;gap:8px"><h3 style="font-size:16.5px;font-weight:800;flex:1">' +
+    (mode === "client" ? "Add a client’s sites" : "Add sites") + '</h3>' +
+    '<a id="fsPlChX2" title="Close" style="font-size:24px;line-height:1;cursor:pointer;color:var(--fs-sub2);padding:2px 8px">&#10005;</a></div>' +
+    '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' +
+    (mode === "client" ? "Ticking a client adds every one of its sites to the list." : "Tick the sites to add. Anything already on the list is greyed out.") +
+    ' Tap a star to keep a site on your ★ My clients list.</div>' +
+    '<input class="fsinput" id="fsPlChSearch" placeholder="Search clients &amp; sites…" style="margin-bottom:8px;padding:9px">';
+  cNames.forEach(cn => {
+    const sites = byClient[cn].slice().sort((a, b) => a.s.name.localeCompare(b.s.name));
+    const allIn = sites.every(e => have[e.s.id]);
+    html += '<div class="fsPlChGrp" data-txt="' + fsEsc(cn.toLowerCase()) + '" style="border-top:1px solid var(--fs-border);padding:8px 0">' +
+      '<label style="display:flex;gap:9px;align-items:center;cursor:pointer">' +
+      (mode === "client"
+        ? '<input type="checkbox" class="fsPlChC" data-c="' + fsEsc(cn) + '"' + (allIn ? " disabled" : "") + ' style="width:18px;height:18px;accent-color:var(--fs-accent)">'
+        : '<span style="width:18px"></span>') +
+      '<b style="font-size:14px;flex:1">' + fsEsc(cn) + '</b>' +
+      '<span style="font-size:11px;color:var(--fs-sub2)">' + sites.length + ' site' + (sites.length === 1 ? '' : 's') +
+      (allIn ? ' · all on the list' : '') + '</span></label>';
+    if (mode !== "client") {
+      sites.forEach(e => {
+        const due = fsPlDueCycles(e.s, fsPlMonth);
+        html += '<label class="fsPlChRow" data-txt="' + fsEsc((e.s.name + " " + cn).toLowerCase()) + '" style="display:flex;gap:9px;align-items:center;padding:6px 0 6px 27px;cursor:pointer' + (have[e.s.id] ? ";opacity:.45" : "") + '">' +
+          '<input type="checkbox" class="fsPlChS" data-id="' + fsEsc(e.s.id) + '"' + (have[e.s.id] ? " disabled" : "") + ' style="width:17px;height:17px;accent-color:var(--fs-accent)">' +
+          '<a class="fsPlChStar" data-id="' + fsEsc(e.s.id) + '" title="My clients list" style="font-size:17px;line-height:1;cursor:pointer;color:' + (stars.indexOf(e.s.id) >= 0 ? '#e6a817' : 'var(--fs-faint)') + '">' + (stars.indexOf(e.s.id) >= 0 ? '&#9733;' : '&#9734;') + '</a>' +
+          '<span style="flex:1;min-width:0"><span style="font-size:13.5px">' + fsEsc(e.s.name) + '</span>' +
+          '<span style="font-size:11px;color:' + (due.length ? '#c62828' : 'var(--fs-faint)') + '"> · ' + (due.length ? 'due ' + fsEsc(due.map(x => x.label).join(", ")) : 'nothing due') + '</span>' +
+          (e.s.geo ? '' : '<span style="font-size:11px;color:#c62828"> · ⚠ not located</span>') + '</span></label>';
+      });
+    }
+    html += '</div>';
+  });
+  html += '<div style="display:flex;gap:8px;margin-top:14px"><button class="fsbtn" id="fsPlChX" style="flex:1">Cancel</button>' +
+    '<button class="fsbtnP" id="fsPlChGo" style="flex:2">Add to list</button></div></div>';
   d.innerHTML = html;
   document.body.appendChild(d);
-  d.querySelector("#fsPlPickSearch").oninput = ev => {
+  d.querySelector("#fsPlChSearch").oninput = ev => {
     const q = ev.target.value.trim().toLowerCase();
-    d.querySelectorAll(".fsPlRow").forEach(row => { row.style.display = !q || row.dataset.txt.indexOf(q) >= 0 ? "flex" : "none"; });
+    d.querySelectorAll(".fsPlChGrp").forEach(g => {
+      const rowsIn = [...g.querySelectorAll(".fsPlChRow")];
+      let anyRow = false;
+      rowsIn.forEach(r => { const hit = !q || r.dataset.txt.indexOf(q) >= 0; r.style.display = hit ? "flex" : "none"; if (hit) anyRow = true; });
+      g.style.display = (!q || g.dataset.txt.indexOf(q) >= 0 || anyRow) ? "" : "none";
+    });
   };
-  d.querySelector("#fsPlPickX").onclick = () => d.remove();
-  d.querySelector("#fsPlPickX2").onclick = () => d.remove();
-  d.querySelectorAll(".fsPlStar").forEach(a => a.onclick = ev => {
-    ev.preventDefault(); ev.stopPropagation();   // the row is a <label> - don't toggle the tick
+  const close = () => d.remove();
+  d.querySelector("#fsPlChX").onclick = close;
+  d.querySelector("#fsPlChX2").onclick = close;
+  d.querySelectorAll(".fsPlChStar").forEach(a => a.onclick = ev => {
+    ev.preventDefault(); ev.stopPropagation();
     const arr = fsPlStars(), id = a.dataset.id, ix = arr.indexOf(id);
     if (ix >= 0) arr.splice(ix, 1); else arr.push(id);
     fsPlSaveStars(arr);
     a.style.color = ix >= 0 ? "var(--fs-faint)" : "#e6a817";
     a.innerHTML = ix >= 0 ? "&#9734;" : "&#9733;";
   });
-  d.querySelector("#fsPlTickMine").onclick = () => { const st2 = fsPlStars(); d.querySelectorAll(".fsPlPick").forEach(cb => { cb.checked = st2.indexOf(cb.dataset.id) >= 0; }); };
-  d.querySelector("#fsPlTickAll").onclick = () => d.querySelectorAll(".fsPlPick").forEach(cb => { cb.checked = true; });
-  d.querySelector("#fsPlTickNone").onclick = () => d.querySelectorAll(".fsPlPick").forEach(cb => { cb.checked = false; });
-  d.querySelector("#fsPlPickGo").onclick = () => {
-    const ids = [...d.querySelectorAll(".fsPlPick")].filter(cb => cb.checked).map(cb => cb.dataset.id);
-    try { localStorage.setItem("fs-plticks", JSON.stringify(ids)); } catch (e) {}   // remembered for next time
-    const from = d.querySelector("#fsPlFrom").value, to = d.querySelector("#fsPlTo").value;
-    d.remove();
-    if (!ids.length) { alert("Nothing ticked - nothing to plan."); return; }
-    /* A4: editing the dates in here is still allowed, and it writes BACK to the
-       scope. Without this the glow on the calendar and the range actually
-       planned could silently disagree, which is worse than having no glow. */
-    const r0 = fsPlScopeRange();
-    if (from !== r0.from || to !== r0.to) fsPlScope = { mode: "custom", from: from, to: to };
-    fsPlAutoPlan(ids, from, to);
-    fsPlSelDay = null;
+  d.querySelector("#fsPlChGo").onclick = () => {
+    let ids = [];
+    if (mode === "client") {
+      const picked = {};
+      [...d.querySelectorAll(".fsPlChC")].filter(cb => cb.checked).forEach(cb => { picked[cb.dataset.c] = 1; });
+      fsPlSites().forEach(e => { if (picked[e.c.name]) ids.push(e.s.id); });
+    } else {
+      ids = [...d.querySelectorAll(".fsPlChS")].filter(cb => cb.checked).map(cb => cb.dataset.id);
+    }
+    close();
+    if (!ids.length) return;
+    fsPlTrayAdd(mo, ids);
     fsPlRender();
   };
+}
+
+/* Placing from the list reuses the V1.30 tap-a-thing-then-tap-a-day mechanic
+   rather than inventing a second one — same banner, same Cancel, same day-click
+   commit, and the same locked[dk] = true so a hand placement survives a re-plan. */
+let fsPlPlaceArm = null;   // { siteId }
+
+function fsPlCommitPlace(dk) {
+  const arm = fsPlPlaceArm;
+  fsPlPlaceArm = null;
+  if (!arm || !dk) { fsPlRender(); return; }
+  const e = fsPlById(arm.siteId);
+  if (!e) { fsPlRender(); return; }
+  const mKey = dk.slice(0, 7);
+  fsPlPlans[mKey] = fsPlPlans[mKey] || { days: {}, locked: {}, tray: [] };
+  const day = (fsPlPlans[mKey].days[dk] = fsPlPlans[mKey].days[dk] || []);
+  const st = fsPlLoadSettings();
+  const last = day.slice().sort((a, b) => a.start.localeCompare(b.start))[day.length - 1];
+  const start = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+st.buffer || 0) + 20) : st.dayStart;
+  const stop = { siteId: arm.siteId, start: start, mins: arm.mins > 0 ? arm.mins : fsPlMinsFor(e.s, mKey), done: false };
+  if (arm.mins > 0) stop.minsSet = true;
+  day.push(stop);
+  fsPlPlans[mKey].locked = fsPlPlans[mKey].locked || {};
+  fsPlPlans[mKey].locked[dk] = true;
+  fsPlSavePlans();
+  fsPlSelDay = mKey === fsPlMonth ? dk : null;
+  fsPlRender();
+}
+
+/* V0.16 — hoisted out of fsPlWireDay so the placement banner can use the very
+   same echo. One implementation: if the parse ever disagrees with what the field
+   showed you, it disagrees in both places at once, which a test can catch. */
+function fsPlDurEchoWire(inId, echoId, blankTxt) {
+  const el = document.getElementById(inId), ec = document.getElementById(echoId);
+  if (!el || !ec) return;
+  const upd = () => {
+    const raw = (el.value || "").trim();
+    if (!raw) { ec.textContent = blankTxt; ec.style.color = "var(--fs-sub2)"; return; }
+    const n = fsPlParseDur(raw);
+    ec.textContent = n > 0 ? "= " + fsPlFmtMins(n) : "can't read that";
+    ec.style.color = n > 0 ? "var(--fs-sub2)" : "#c62828";
+  };
+  el.oninput = upd;
+  upd();
 }
 
 function fsPlMonthName() {
@@ -15401,6 +15626,17 @@ function fsPlRender() {
   html += '</div>';
   html += '<div style="font-size:11.5px;color:var(--fs-faint);margin-bottom:10px">' + tvNote + '</div>';
 
+  if (fsPlPlaceArm) {   // V0.16 place-from-the-list: same mechanic as tap-to-move
+    const pe = fsPlById(fsPlPlaceArm.siteId);
+    html += '<div style="background:rgba(14,124,140,.12);border:1px solid var(--fs-accent);border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+      '<span style="flex:1;min-width:170px"><b>Placing:</b> ' + fsEsc(pe ? pe.s.name : fsPlPlaceArm.siteId) + ' &mdash; tap the day to put it on (&#8249; &#8250; changes month)</span>' +
+      /* V0.15's duration box lives HERE now that the day-view add row is gone.
+         Same id, same parser, same live echo — set the time on site as you place. */
+      '<input id="fsPlAddM" class="fsinput" type="text" autocomplete="off" placeholder="1h 30m" title="Time on site &#8212; 90, 1h30, 1.5h, 2:30 or 1d 2h all work. A plain number means minutes. Leave blank to use this site\'s standard visit time." style="width:92px">' +
+      '<span id="fsPlAddMEcho" style="font-size:11.5px;color:var(--fs-sub2);min-width:62px"></span>' +
+      '<button class="fsbtn" id="fsPlPlaceX" style="padding:6px 12px">Cancel</button></div>';
+  }
+
   if (fsPlMoveStop) {   // V1.30 tap-to-move: pick the stop in the day view, tap the target day here
     const mvE = fsPlMoveStop.stop.adhoc ? null : fsPlById(fsPlMoveStop.stop.siteId);
     html += '<div style="background:rgba(14,124,140,.12);border:1px solid var(--fs-accent);border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
@@ -15427,12 +15663,11 @@ function fsPlRender() {
       '<button class="fsbtn" id="fsPlRelocate" title="Wipe all locations and re-find every site from its address">&#8634; Re-locate ALL sites</button></div></div>';
   }
 
-  const trayItems = mo.tray || [];
-  if (trayItems.length) {
-    html += '<div style="background:rgba(230,126,0,.09);border:1px solid rgba(230,126,0,.4);border-radius:9px;padding:8px 12px;font-size:12.5px;margin-bottom:10px"><b>Unplanned:</b> ' +
-      trayItems.map(x => { const e = fsPlById(x.siteId); return '<span title="' + fsEsc(x.reason) + '">' + fsEsc(e ? e.s.name : x.siteId) + '</span>'; }).join(" · ") +
-      '<br><span style="color:var(--fs-sub2)">tap a day below, then use + Add stop — or re-run Plan month</span></div>';
-  }
+  /* V0.16 — the one-line orange "Unplanned:" strip is gone. It could only ever
+     show names and a tooltip, and it had nowhere to put the intent half of the
+     same idea. The panel below carries both. */
+  fsPlTraySeed(mo);
+  html += fsPlPanelHtml(mo);
 
   html += '<div class="fscard" style="padding:8px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:640px">';
   html += '<tr>' + ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(d2 => '<th style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:1px;padding:4px;border-bottom:2px solid var(--fs-border)">' + d2 + '</th>').join("") + '</tr>';
@@ -15543,7 +15778,44 @@ function fsPlRender() {
   };
   const mvX = document.getElementById("fsPlMoveX");
   if (mvX) mvX.onclick = () => { fsPlMoveStop = null; fsPlRender(); };
-  document.querySelectorAll(".fsPlDay").forEach(td => td.onclick = () => { if (fsPlJustDragged) { fsPlJustDragged = false; return; } if (fsPlMoveStop) { fsPlCommitMove(td.dataset.dk); return; } fsPlSelDay = td.dataset.dk === fsPlSelDay ? null : td.dataset.dk; fsPlRender(); });
+  const plX = document.getElementById("fsPlPlaceX");
+  if (plX) plX.onclick = () => { fsPlPlaceArm = null; fsPlRender(); };
+  /* the placement banner's duration box — same helper the ad-hoc row uses */
+  if (fsPlPlaceArm && typeof fsPlDurEchoWire === "function") fsPlDurEchoWire("fsPlAddM", "fsPlAddMEcho", "= site standard");
+  const pAddC = document.getElementById("fsPlAddClient");
+  if (pAddC) pAddC.onclick = () => fsPlAddChooser("client");
+  const pAddS = document.getElementById("fsPlAddSites");
+  if (pAddS) pAddS.onclick = () => fsPlAddChooser("sites");
+  const pClr = document.getElementById("fsPlTrayClear");
+  if (pClr) pClr.onclick = () => {
+    if (!fsPlTrayNorm(mo).length) return;
+    if (!confirm("Empty this month's list?\n\nAnything already planned STAYS on the calendar \u2014 this only clears the list.")) return;
+    mo.tray = []; fsPlSavePlans(); fsPlRender();
+  };
+  document.querySelectorAll(".fsPlTrayPlace").forEach(b => b.onclick = () => {
+    /* read the duration box BEFORE re-render blows it away, so arming twice in a
+       row does not silently lose a typed time */
+    fsPlPlaceArm = { siteId: b.dataset.id, mins: 0 };
+    fsPlSelDay = null;
+    fsPlRender();
+  });
+  document.querySelectorAll(".fsPlTrayDel").forEach(a => a.onclick = () => {
+    const id = a.dataset.id, e = fsPlById(id), n = fsPlPlannedIds(mo)[id] || 0;
+    /* Taking a PLANNED site off the list would leave its stops behind with no
+       row explaining them — the same orphan shape V0.14 fixed for site delete.
+       So say what will happen and do both, or neither. */
+    if (n && !confirm((e ? e.s.name : id) + " has " + n + " stop" + (n === 1 ? "" : "s") +
+        " planned this month.\n\nTake it off the list AND remove those stops?")) return;
+    if (n) {
+      Object.keys(mo.days || {}).forEach(dk => {
+        mo.days[dk] = (mo.days[dk] || []).filter(x => x.siteId !== id);
+        if (!mo.days[dk].length) delete mo.days[dk];
+      });
+    }
+    fsPlTrayDel(mo, id);
+    fsPlRender();
+  });
+  document.querySelectorAll(".fsPlDay").forEach(td => td.onclick = () => { if (fsPlJustDragged) { fsPlJustDragged = false; return; } if (fsPlPlaceArm) { const mEl = document.getElementById("fsPlAddM"); const raw = ((mEl || {}).value || "").trim(); const pm = raw ? fsPlParseDur(raw) : 0; if (raw && !(pm > 0)) { alert("Couldn't read \"" + raw + "\" as a length of time.\n\n" + FS_DUR_HELP); return; } fsPlPlaceArm.mins = pm || 0; fsPlCommitPlace(td.dataset.dk); return; } if (fsPlMoveStop) { fsPlCommitMove(td.dataset.dk); return; } fsPlSelDay = td.dataset.dk === fsPlSelDay ? null : td.dataset.dk; fsPlRender(); });
   fsPlWireDayDrag();
   fsPlWireDay();
 }
@@ -15588,7 +15860,7 @@ function fsPlMoveDay(fromDk, toDk) {
   fsPlRender();
 }
 function fsPlWireDayDrag() {
-  if (fsPlMoveStop) return;   // move mode: day taps commit the move, no whole-day drag
+  if (fsPlMoveStop || fsPlPlaceArm) return;   // move/place mode: day taps commit, no whole-day drag
   const mo = fsPlMonthObj();
   let ghost = null;
   const killGhost = () => { if (ghost) { ghost.remove(); ghost = null; } document.querySelectorAll(".fsPlDay.fsPlDrop").forEach(t => t.classList.remove("fsPlDrop")); };
@@ -15687,13 +15959,12 @@ function fsPlDayHtml(dk) {
       ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
     prev = x;
   });
-  html += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">' +
-    '<select id="fsPlAddSel" class="fsinput" style="flex:2;min-width:160px;padding:9px">' +
-    fsPlSites().map(e => '<option value="' + fsEsc(e.s.id) + '">' + fsEsc(e.s.name) + ' (' + fsEsc(e.c.name) + ')</option>').join("") + '</select>' +
-    '<input id="fsPlAddT" class="fsinput" type="time" style="width:110px">' +
-    '<input id="fsPlAddM" class="fsinput" type="text" autocomplete="off" placeholder="1h 30m" title="Time on site &#8212; 90, 1h30, 1.5h, 2:30 or 1d 2h all work. A plain number means minutes. Leave blank to use this site\'s standard visit time." style="width:92px">' +
-    '<span id="fsPlAddMEcho" style="font-size:11.5px;color:var(--fs-sub2);min-width:62px"></span>' +
-    '<button class="fsbtn" id="fsPlAddGo">&#65291; Add stop</button></div>' +
+  /* V0.16 — the flat <select> is GONE. It listed every site in raw register
+     order with no sort, no grouping, no search and no filter, which was Reece's
+     loudest daily complaint. Sites now come off the month's list at the top of
+     the page: tap Place, then tap a day. The ad-hoc job row below is unchanged —
+     it is free text, not a site, so a chooser would not help it. */
+  html += '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:10px">Adding a site? Use <b>Place</b> on the month\u2019s list above, then tap a day.</div>' +
     '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">' +
     '<input id="fsPlAdhTtlIn" class="fsinput" placeholder="Ad-hoc job - free text, not a client site" style="flex:2;min-width:160px;padding:9px">' +
     '<input id="fsPlAdhTime" class="fsinput" type="time" style="width:110px">' +
@@ -15769,46 +16040,9 @@ function fsPlWireDay() {
      parse back through the same formatter the stop itself will use. Unreadable
      input goes red rather than silently falling through to a default. This is
      what makes "a bare number means minutes" safe to keep as the rule. */
-  const fsPlDurEcho = (inId, echoId, blankTxt) => {
-    const el = document.getElementById(inId), ec = document.getElementById(echoId);
-    if (!el || !ec) return;
-    const upd = () => {
-      const raw = (el.value || "").trim();
-      if (!raw) { ec.textContent = blankTxt; ec.style.color = "var(--fs-sub2)"; return; }
-      const n = fsPlParseDur(raw);
-      ec.textContent = n > 0 ? "= " + fsPlFmtMins(n) : "can't read that";
-      ec.style.color = n > 0 ? "var(--fs-sub2)" : "#c62828";
-    };
-    el.oninput = upd;
-    upd();
-  };
-  fsPlDurEcho("fsPlAddM", "fsPlAddMEcho", "= site standard");
-  fsPlDurEcho("fsPlAdhMins", "fsPlAdhMinsEcho", "= 1h");
-  const addGo = document.getElementById("fsPlAddGo");
-  if (addGo) addGo.onclick = () => {
-    const id = document.getElementById("fsPlAddSel").value;
-    const e = fsPlById(id);
-    if (!e) return;
-    let t = document.getElementById("fsPlAddT").value;
-    if (!t) {
-      const last = sorted().slice(-1)[0];
-      t = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+fsPlLoadSettings().buffer || 0) + 20) : fsPlLoadSettings().dayStart;
-    }
-    /* V0.13 — a typed duration is for THIS stop on THIS day. `mins` was always
-       stored per stop, so it already cannot reach next month's plan or the site
-       register; minsSet only tells a re-plan of the SAME month not to recompute
-       it. Reece: "next time I plan waratah next month I want it to be 1 hour." */
-    const mRaw = ((document.getElementById("fsPlAddM") || {}).value || "").trim();
-    const mOv = mRaw ? fsPlParseDur(mRaw) : 0;
-    /* unreadable input STOPS the add. Falling through to the site standard would
-       silently plan a different day's work than the one just typed. */
-    if (mRaw && !(mOv > 0)) { alert("Couldn't read \"" + mRaw + "\" as a length of time.\n\n" + FS_DUR_HELP); return; }
-    const stop = { siteId: id, start: t, mins: mOv > 0 ? mOv : fsPlMinsFor(e.s, fsPlMonth), done: false };
-    if (mOv > 0) stop.minsSet = true;
-    stops().push(stop);
-    mo.tray = (mo.tray || []).filter(x => x.siteId !== id);
-    fsPlSavePlans(); fsPlRender();
-  };
+  /* V0.16 — #fsPlAddM is no longer in the day view; it moved onto the placement
+     banner and is wired in fsPlRender. The ad-hoc row is unchanged. */
+  fsPlDurEchoWire("fsPlAdhMins", "fsPlAdhMinsEcho", "= 1h");
   const adhGo = document.getElementById("fsPlAdhGo");   // V1.30: manual ad-hoc job, free text
   if (adhGo) adhGo.onclick = () => {
     const ttl = (document.getElementById("fsPlAdhTtlIn").value || "").trim();
