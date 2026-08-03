@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.16 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.17 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.16 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.17 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -921,6 +921,15 @@
       <button class="btn" id="fsProfUnload" style="color:#ff8a80">&#10005; Unload profile from this device</button>
       <button class="btn" id="fsProfClose">Close</button>
     </div>
+  </div>
+</div>
+<div class="modal" id="fsShareModal" style="z-index:120">
+  <div class="modalbox" style="max-width:540px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
+    <h3 style="margin-bottom:4px">Share a copy of the register</h3>
+    <div id="fsShareWhat" style="font-size:13.5px;color:#aaa;margin-bottom:13px"></div>
+    <div id="fsShareCats" style="display:flex;flex-direction:column;gap:11px"></div>
+    <div id="fsShareAlways" style="font-size:12px;color:#8a8a8a;margin-top:13px;border-top:1px solid #333;padding-top:10px;line-height:1.55"></div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="fsShareCancel">Cancel</button><button class="btn primary" id="fsShareGo">Save share copy</button></div>
   </div>
 </div>
 <div class="modal" id="fsBakModal" style="z-index:120">
@@ -7176,7 +7185,7 @@ function fsSaveIsBundle() {
 
    Deep-cloned through JSON on purpose — a shallow copy would strip the hash out
    of the LIVE profile as a side effect and sign everybody out of their own app. */
-function fsShareStrip(o) {
+function fsShareStrip(o, opts) {
   if (!o || typeof o !== "object") return o;
   var c;
   try { c = JSON.parse(JSON.stringify(o)); } catch (e) { return o; }
@@ -7194,7 +7203,238 @@ function fsShareStrip(o) {
   scrub(c);                        /* a profile handed in directly */
   if (c.profile) scrub(c.profile); /* a register carrying one */
   c.credsStripped = 1;
+  /* V0.17: the second argument is OPTIONAL and everything below is inert
+     without it, so fsShareStrip(o) is byte-for-byte the V0.06 behaviour. That
+     matters — fsProfExport still calls it that way and must keep doing so. */
+  if (opts) {
+    if (opts.gateHash) {
+      /* The licence gate. scrub() only ever walked users[], so this hash
+         survived V0.06 while the comment above promised it would not.
+         Register share only: the profile export is how a client is handed a
+         working gate, and stripping it there breaks provisioning. */
+      if (c.access) delete c.access.passHash;
+      if (c.profile && c.profile.access) delete c.profile.access.passHash;
+    }
+    var dropped = [];
+    (opts.drop || []).forEach(function (k) {
+      var cat = fsShareCat(k);
+      if (!cat || dropped.indexOf(k) >= 0) return;
+      cat.strip(c);
+      dropped.push(k);
+    });
+    /* A receipt, so a recipient can tell pricing was REMOVED rather than never
+       present — and so Reece can tell six months later what he actually sent. */
+    if (dropped.length) c.sharedWithout = dropped;
+  }
   return c;
+}
+
+/* ===== V0.17 PASS 14 — what a share copy actually contains ==================
+   V0.06 split BACKUP from SHARE and took the credentials out. That was the
+   right first cut and it is why `credsStripped` exists. What it did NOT do is
+   change what a share copy still carries — and the dialog announcing it
+   ("Passwords and the admin passcode have been REMOVED from this file") reads
+   as a safety guarantee. It is not one. The file is the entire register:
+   photos and attached files inline as base64, per-client negotiated prices,
+   invoice amounts, the Xero/MYOB codes, the site-to-site travel matrix, and
+   300 activity entries stamped with who did what.
+
+   ONE TABLE drives the count, the checkboxes and the strip. A category that
+   shows in the dialog but is missing from the strip is a checkbox that lies,
+   which is precisely the failure this pass exists to close — so the three must
+   not be able to disagree. test_p14 asserts they read this table.
+
+   DEFAULTS. Commercial and personal categories are OFF: you opt IN to sending
+   your pricing. Photos are ON — they are most of the register and a share copy
+   without them is usually not worth sending — with the megabytes shown so it
+   is a decision rather than an accident. ==================================== */
+
+function fsShareNodes(reg) {
+  /* Every site AND every building. A building holds its own equipment, defects,
+     photos and files, so a walk that stops at sites misses half the register. */
+  var out = [];
+  (((reg || {}).clients) || []).forEach(function (c) {
+    (((c || {}).sites) || []).forEach(function (s) {
+      if (!s) return;
+      out.push(s);
+      (s.buildings || []).forEach(function (b) { if (b) out.push(b); });
+    });
+  });
+  return out;
+}
+
+function fsShareIsBlob(v) {
+  return typeof v === "string" && v.slice(0, 5) === "data:";
+}
+
+function fsShareMB(bytes) {
+  if (!bytes) return "";
+  var mb = bytes / 1048576;
+  return mb >= 1 ? (Math.round(mb * 10) / 10) + " MB"
+                 : Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+function fsShareOwned(reg) {
+  /* Subtrees whose blobs belong to a DIFFERENT category. Every blob must be
+     counted and removed by exactly one category — the most specific one that
+     owns it — or the dialog's numbers stop adding up and unticking one box
+     silently changes another box's meaning.
+
+     Found by test_p14 rather than by reading: dropping "money" also removed a
+     blob that "photos" had counted, because an attached invoice PDF lives at
+     projects[].invoice.file. An invoice attachment is an invoice, not a photo.
+     It goes with the money and the photo counter never claims it. */
+  var out = [];
+  (((reg || {}).projects) || []).forEach(function (p) {
+    if (p && p.invoice) out.push(p.invoice);
+  });
+  return out;
+}
+
+function fsShareMedia(root, kill, skip) {
+  /* Deep walk for data: URLs rather than a hard-coded path list. A path list
+     goes stale the moment anyone adds a photo field, and a media field the
+     strip does not know about is exactly the leak this pass closes. fsSplitReg
+     already walks the register this way for the bundle format.
+
+     Depth-capped rather than cycle-tracked: an `indexOf` on a seen-list is
+     quadratic and a big register would stall the dialog. A JSON clone is
+     acyclic by construction; the cap only exists so a live in-memory
+     back-reference cannot spin it. `skip` is one entry per job, so a linear
+     scan of it costs nothing. */
+  var n = 0, bytes = 0;
+  var walk = function (o, d) {
+    if (!o || typeof o !== "object" || d > 24) return;
+    if (skip && skip.length && skip.indexOf(o) >= 0) return;
+    if (Array.isArray(o)) {
+      for (var i = 0; i < o.length; i++) {
+        if (fsShareIsBlob(o[i])) { n++; bytes += o[i].length; if (kill) o[i] = ""; }
+        else walk(o[i], d + 1);
+      }
+      return;
+    }
+    Object.keys(o).forEach(function (k) {
+      if (fsShareIsBlob(o[k])) { n++; bytes += o[k].length; if (kill) delete o[k]; }
+      else walk(o[k], d + 1);
+    });
+  };
+  walk(root, 0);
+  return { n: n, bytes: bytes };
+}
+
+/* count(reg) -> {n, bytes}; strip(clone) mutates. Same key on both, always. */
+var FS_SHARE_CATS = [
+  { key: "money",
+    label: "Pricing, quotes, invoices and accounting codes",
+    note: "Includes per-client negotiated prices — one client could read another client's discount.",
+    def: 0,
+    count: function (r) {
+      var n = 0, pb = r.pricebook || {};
+      n += (pb.items || []).length + (pb.labourRates || []).length + (pb.clientPricing || []).length;
+      n += (r.quotes || []).length + (r.charges || []).length;
+      if (r.accounting && Object.keys(r.accounting).length) n += 1;
+      (r.projects || []).forEach(function (p) {
+        var iv = (p || {}).invoice || {};
+        if (iv.no || iv.amount) n++;
+      });
+      /* A defect carries its own quote state — ref, date and who set it. It is
+         commercial and it must be COUNTED, not merely stripped: mutate-p14 M3
+         removed three of those four deletes and nothing failed, because the
+         counter never looked at them. A category that strips more than it
+         counts cannot be verified by the round-trip. */
+      fsShareNodes(r).forEach(function (s) {
+        (s.defects || []).forEach(function (d) {
+          if (d && (d.quoteStatus || d.quoteRef || d.quoteAt || d.quoteBy)) n++;
+        });
+        if (s.visitRates && Object.keys(s.visitRates).length) n++;
+      });
+      return { n: n, bytes: 0 };
+    },
+    strip: function (c) {
+      delete c.pricebook; delete c.quotes; delete c.charges; delete c.accounting;
+      delete c.quoteSeq; delete c.quotePrefix;
+      (c.projects || []).forEach(function (p) { if (p) delete p.invoice; });
+      fsShareNodes(c).forEach(function (s) {
+        delete s.visitRates;
+        (s.defects || []).forEach(function (d) {
+          if (!d) return;
+          delete d.quoteStatus; delete d.quoteRef; delete d.quoteAt; delete d.quoteBy;
+        });
+      });
+    } },
+
+  { key: "contacts",
+    label: "Phone numbers, emails and contact blocks",
+    note: "Site contact blocks, job customer phone and email, and the lockout contact line.",
+    def: 0,
+    count: function (r) {
+      var n = 0;
+      fsShareNodes(r).forEach(function (s) { if (String(s.contacts || "").trim()) n++; });
+      (r.projects || []).forEach(function (p) {
+        var cu = (p || {}).customer || {};
+        if (String(cu.phone || "").trim() || String(cu.email || "").trim()) n++;
+      });
+      var ac = ((r.profile || {}).access) || {};
+      if (String(ac.contact || "").trim()) n++;
+      return { n: n, bytes: 0 };
+    },
+    strip: function (c) {
+      fsShareNodes(c).forEach(function (s) { delete s.contacts; });
+      (c.projects || []).forEach(function (p) {
+        if (p && p.customer) { delete p.customer.phone; delete p.customer.email; }
+      });
+      if (c.profile && c.profile.access) delete c.profile.access.contact;
+    } },
+
+  { key: "activity",
+    label: "Activity log",
+    note: "Entries stamped with who did what and when, plus who last saved the register.",
+    def: 0,
+    /* savedBy is counted as well as stripped, for the same reason as the defect
+       quote fields above: mutate-p14 M6 kept it and no test noticed. It is one
+       name, but it is the name of the person the file came from. */
+    count: function (r) { return { n: (r.activity || []).length + (r.savedBy ? 1 : 0), bytes: 0 }; },
+    strip: function (c) { delete c.activity; delete c.savedBy; } },
+
+  { key: "travel",
+    label: "Driving-time matrix",
+    note: "Travel minutes between every site — the shape of your whole client base.",
+    def: 0,
+    count: function (r) { return { n: (((r.travel || {}).ids) || []).length, bytes: 0 }; },
+    strip: function (c) { delete c.travel; } },
+
+  { key: "media",
+    label: "Photos, floor plans and attached files",
+    note: "Kept by default — usually the point of sharing. Also most of the file size.",
+    def: 1,
+    count: function (r) { return fsShareMedia(r, false, fsShareOwned(r)); },
+    strip: function (c) { fsShareMedia(c, true, fsShareOwned(c)); } }
+];
+
+function fsShareCat(key) {
+  for (var i = 0; i < FS_SHARE_CATS.length; i++) if (FS_SHARE_CATS[i].key === key) return FS_SHARE_CATS[i];
+  return null;
+}
+
+function fsShareScan(reg) {
+  /* Pure. The modal calls it on the live register, the test calls it on a
+     fixture, and neither is allowed a different answer. */
+  var r = reg || {}, sites = 0;
+  (r.clients || []).forEach(function (c) {
+    ((c || {}).sites || []).forEach(function (s) {
+      if (!s) return;
+      sites += 1 + ((s.buildings || []).length);
+    });
+  });
+  return {
+    clients: (r.clients || []).length,
+    sites: sites,
+    cats: FS_SHARE_CATS.map(function (cat) {
+      var got = cat.count(r) || { n: 0, bytes: 0 };
+      return { key: cat.key, label: cat.label, note: cat.note, def: cat.def,
+               n: got.n || 0, bytes: got.bytes || 0 };
+    })
+  };
 }
 
 async function fsRegisterBlob(asBundle) {
@@ -12796,16 +13036,66 @@ document.getElementById("fsExportReg").onclick = async () => {
 document.getElementById("fsSetupBtn").onclick = () => {
   document.getElementById("fsProfileInput").click();
 };
-document.getElementById("fsShareReg").onclick = async () => {
+function fsShareRender() {
+  var sc = fsShareScan(fsRegister);
+  document.getElementById("fsShareWhat").innerHTML =
+    "This file will contain <b>" + sc.clients + "</b> client" + (sc.clients === 1 ? "" : "s") +
+    " and <b>" + sc.sites + "</b> site" + (sc.sites === 1 ? "" : "s") +
+    " \u2014 names, addresses, equipment, test history and defect records." +
+    "<div style=\"margin-top:5px\">Anything left ticked below goes with it.</div>";
+  var h = "";
+  sc.cats.forEach(function (c) {
+    var has = c.n > 0;
+    h += '<label style="display:flex;gap:9px;align-items:flex-start;cursor:' + (has ? "pointer" : "default") +
+      ';opacity:' + (has ? "1" : ".45") + '">' +
+      '<input type="checkbox" class="fsShareCat" data-k="' + c.key + '"' +
+      (c.def && has ? " checked" : "") + (has ? "" : " disabled") + ' style="margin-top:3px;flex:0 0 auto">' +
+      '<span><span style="font-weight:700">' + fsEsc(c.label) + '</span>' +
+      '<span style="color:var(--fs-accent)"> \u00b7 ' +
+      (has ? (c.n + (c.bytes ? " \u00b7 " + fsShareMB(c.bytes) : "")) : "none in this register") + '</span>' +
+      '<div style="font-size:12px;color:#999;margin-top:1px">' + fsEsc(c.note) + '</div></span></label>';
+  });
+  document.getElementById("fsShareCats").innerHTML = h;
+  document.getElementById("fsShareAlways").innerHTML =
+    "<b>Always removed:</b> every password hash, the admin passcode, and the licence-gate hash. " +
+    "Whoever opens the file sets their own password on first sign-in.<br>" +
+    "<b>Always kept:</b> client and site names, addresses, equipment, test history, defects, and " +
+    "the staff name on each record \u2014 that is the compliance record, and a copy without it is worth less, not safer.";
+}
+
+function fsShareDrops() {
+  var drop = [];
+  Array.prototype.forEach.call(document.querySelectorAll("#fsShareCats .fsShareCat"), function (b) {
+    if (!b.disabled && !b.checked) drop.push(b.getAttribute("data-k"));
+  });
+  return drop;
+}
+
+document.getElementById("fsShareReg").onclick = () => {
   if (!fsRegister) return;
-  const safe = fsShareStrip(fsRegister);
+  fsShareRender();
+  document.getElementById("fsShareModal").classList.add("show");
+};
+document.getElementById("fsShareCancel").onclick = () => {
+  document.getElementById("fsShareModal").classList.remove("show");
+};
+document.getElementById("fsShareGo").onclick = async () => {
+  if (!fsRegister) return;
+  const drop = fsShareDrops();
+  const safe = fsShareStrip(fsRegister, { gateHash: 1, drop: drop });
   const day = new Date().toISOString().slice(0, 10);
-  await deliverFile(new Blob([JSON.stringify(safe)], { type:"application/json" }),
-    "everdue-" + day + "-share.json", "application/json");
-  try { fsActLog("Shared a copy", "credentials removed"); } catch (e) {}
-  alert("✓ Share copy saved.\n\nPasswords and the admin passcode have been "
-      + "REMOVED from this file. Whoever opens it sets their own on first sign-in.\n\n"
-      + "Your own working copy is untouched.");
+  const nm = "arcadapt-" + day + "-share.json";
+  document.getElementById("fsShareModal").classList.remove("show");
+  await deliverFile(new Blob([JSON.stringify(safe)], { type:"application/json" }), nm, "application/json");
+  try { fsActLog("Shared a copy", drop.length ? "removed: " + drop.join(", ") : "credentials only"); } catch (e) {}
+  const kept = FS_SHARE_CATS.filter(function (c) { return drop.indexOf(c.key) < 0; })
+                            .map(function (c) { return c.label.toLowerCase(); });
+  alert("\u2713 Saved " + nm + "\n\n"
+      + "REMOVED \u2014 passwords, admin passcode, licence-gate hash"
+      + (drop.length ? ", " + drop.map(function (k) { return (fsShareCat(k) || {}).label.toLowerCase(); }).join(", ") : "")
+      + ".\n\nSTILL IN THE FILE \u2014 client and site names, addresses, equipment, test history, defects"
+      + (kept.length ? ", " + kept.join(", ") : "")
+      + ".\n\nYour own working copy is untouched.");
 };
 document.getElementById("fsThemeBtn").onclick = () => {
   const reg = document.getElementById("fsReg");
@@ -13768,7 +14058,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v20";
+const FS_BUILD = "aa-v21";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
