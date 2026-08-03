@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.19 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.20 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.19 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.20 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -7533,8 +7533,27 @@ function fsShareContactWalk(root, kill) {
     }
     Object.keys(o).forEach(function (k) {
       var v = o[k];
-      if (FS_SHARE_CONTACT_KEYS.indexOf(k) >= 0 && typeof v === "string") {
-        if (v.trim()) { n++; if (kill) delete o[k]; }
+      if (FS_SHARE_CONTACT_KEYS.indexOf(k) >= 0) {
+        /* V0.20: matched by NAME and by nothing else. This used to also require
+           `typeof v === "string"`, and the day `contacts` became an array of
+           {pos, name, num} that test stopped matching: the walk fell through to
+           the generic free-text scan, redacted the NUMBER, and left the NAME and
+           POSITION in a file whose dialog says contact fields were removed.
+           Measured on the deployed V0.19 build, not reasoned about.
+
+           Matching on the key name rather than on the shape is also why this
+           does not list `name`/`num`/`pos` — that would work today and break the
+           day somebody adds `role`. */
+        if (typeof v === "string") {
+          if (v.trim()) { n++; if (kill) delete o[k]; }
+          return;
+        }
+        if (v && typeof v === "object") {
+          if (Array.isArray(v) ? v.length : Object.keys(v).length) {
+            n++; if (kill) delete o[k];
+          }
+          return;
+        }
         return;
       }
       if (typeof v === "string") {
@@ -7668,6 +7687,176 @@ async function fsHealRun() {
       + removed + " hidden field" + (removed === 1 ? "" : "s")
       + " across " + c.sites + " site" + (c.sites === 1 ? "" : "s") + ".\n\n"
       + "Save the register now to keep it. A backup from before this is in ⚙ Settings → Register backups.");
+}
+
+/* ===== V0.20 PASS 17 — structured contacts ==================================
+   Position / Name / Number, position optional, as many per site as you like.
+
+   ONE SOURCE OF TRUTH, NORMALISED ON READ. `s.contacts` is either the legacy
+   free-text string or the new array; fsCtList() returns an array either way, so
+   nothing on disk is rewritten until that site is edited. This is V0.16's tray
+   rule — and a bulk rewrite of 31 sites is precisely how `_migr` happened.
+
+   THE OLD STRING IS NOT AUTO-PARSED. It is carried into the Name box verbatim
+   and a Split button offers a proposed split he can look at first. V0.15: a
+   wrong rejection is loud, a wrong acceptance is silent. ==================== */
+
+function fsCtList(s) {
+  var v = (s || {}).contacts;
+  if (Array.isArray(v)) {
+    return v.filter(function (c) { return c && typeof c === "object"; })
+            .map(function (c) {
+              return { pos: c.pos || "", name: c.name || "", num: c.num || "" };
+            })
+            .filter(function (c) { return c.pos || c.name || c.num; });
+  }
+  if (typeof v === "string" && v.trim()) return [{ pos: "", name: v.trim(), num: "" }];
+  return [];
+}
+
+function fsCtIsLegacy(s) {
+  return typeof ((s || {}).contacts) === "string" && !!String(s.contacts).trim();
+}
+
+/* A tel: target. Digits and a single leading + only — a href carrying spaces
+   and brackets is the difference between a dial and nothing happening. */
+function fsCtTel(num) {
+  var t = String(num || "").replace(/[^\d+]/g, "");
+  t = t.charAt(0) + t.slice(1).replace(/\+/g, "");
+  return /\d/.test(t) ? t : "";
+}
+
+function fsCtLabel(c) {
+  var bits = [];
+  if (c.pos) bits.push(c.pos);
+  if (c.name) bits.push(c.name);
+  return bits.join(" · ");
+}
+
+/* The first contact that can actually be rung. A contact with a name and no
+   number is worth storing and is not worth putting a Call button on. */
+function fsCtPrimary(s) {
+  var l = fsCtList(s);
+  for (var i = 0; i < l.length; i++) if (fsCtTel(l[i].num)) return l[i];
+  return null;
+}
+
+/* One line for a run sheet, a PDF or a calendar entry. */
+function fsCtOneLine(s) {
+  var c = fsCtPrimary(s) || fsCtList(s)[0];
+  if (!c) return "";
+  var lbl = fsCtLabel(c);
+  return (lbl ? lbl + (c.num ? " " : "") : "") + (c.num || "");
+}
+
+/* PROPOSED split of a legacy free-text line. Only ever runs from a button the
+   user taps, and only ever fills the boxes — it never writes to the register.
+   Reuses the V0.18 phone pattern, which is measured (41 of 41 real numbers on
+   Reece's register, zero false positives on 76 loose candidates) rather than
+   guessed. Position is left blank on purpose: it is not reliably in the string,
+   and inventing one would be the silent acceptance this is avoiding. */
+function fsCtSplit(str) {
+  var s = String(str || "");
+  var m = s.match(FS_RE_PHONE);
+  var num = m && m.length ? String(m[0]).trim() : "";
+  var name = num ? s.replace(num, " ") : s;
+  name = name.replace(/[·|,;]+/g, " ").replace(/\s+-\s+/g, " ").replace(/\s+/g, " ").trim();
+  return { pos: "", name: name, num: num };
+}
+
+function fsCtRowHtml(c, showSplit) {
+  return '<div class="fsCtRow" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">' +
+    '<input class="fsinput fsCtPos" placeholder="Position (optional)" autocomplete="off" value="' + fsEsc(c.pos || "") + '" style="flex:1;min-width:110px">' +
+    '<input class="fsinput fsCtName" placeholder="Name" autocomplete="off" value="' + fsEsc(c.name || "") + '" style="flex:1.2;min-width:110px">' +
+    '<input class="fsinput fsCtNum" placeholder="Number" autocomplete="off" inputmode="tel" value="' + fsEsc(c.num || "") + '" style="flex:1;min-width:110px">' +
+    (showSplit ? '<button class="fsbtn fsCtSplitB" title="Suggest a split of the old free-text line into Name and Number. Nothing is saved until you press Save." style="padding:7px 9px;font-size:12px">Split</button>' : '') +
+    '<a class="fsCtDel" title="Remove this contact" style="color:#c62828;cursor:pointer;padding:6px 8px">&#10005;</a></div>';
+}
+
+function fsCtCardHtml(s) {
+  var list = fsCtList(s);
+  var h = "";
+  if (fsInfoEdit) {
+    var legacy = fsCtIsLegacy(s);
+    h += '<div class="fslabel">Contacts &mdash; position is optional, and you can add as many as you need</div>';
+    if (legacy) h += '<div style="font-size:11.5px;color:#e0a53d;margin-bottom:6px">This site still has the old single-line contact. ' +
+      '<b>Split</b> suggests how it breaks up &mdash; check it before you save.</div>';
+    h += '<div id="fsCtRows">';
+    var rows = list.length ? list : [{ pos: "", name: "", num: "" }];
+    rows.forEach(function (c, i) { h += fsCtRowHtml(c, legacy && i === 0); });
+    h += '</div><button class="fsbtn" id="fsCtAdd" style="margin-top:2px">&#65291; Add contact</button>';
+  } else if (list.length) {
+    h += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0">' +
+         '<div style="width:38%;color:var(--fs-sub);font-size:13.5px">Contacts</div><div style="flex:1">';
+    list.forEach(function (c) {
+      var tel = fsCtTel(c.num);
+      var lbl = fsCtLabel(c);
+      h += '<div style="margin-bottom:3px">' +
+        (lbl ? '<span style="font-weight:600;font-size:14px">' + fsEsc(lbl) + '</span>' : '') +
+        (tel ? (lbl ? ' &nbsp;' : '') + '<a href="tel:' + fsEsc(tel) + '" class="fsCtCall" style="color:var(--fs-accent);font-weight:700;text-decoration:none">&#128222;&nbsp;' + fsEsc(c.num) + '</a>'
+             : (c.num ? ' <span style="font-size:14px">' + fsEsc(c.num) + '</span>' : '')) +
+        '</div>';
+    });
+    h += '</div></div>';
+  }
+  return h;
+}
+
+/* Read the editor back into an array. Blank rows are dropped rather than stored
+   — an empty {pos:"",name:"",num:""} would count as a contact in the share
+   pre-flight and show as a blank line on a run sheet. */
+function fsCtRead() {
+  var out = [];
+  Array.prototype.forEach.call(document.querySelectorAll("#fsCtRows .fsCtRow"), function (r) {
+    var c = { pos: (r.querySelector(".fsCtPos") || {}).value || "",
+              name: (r.querySelector(".fsCtName") || {}).value || "",
+              num: (r.querySelector(".fsCtNum") || {}).value || "" };
+    c.pos = c.pos.trim(); c.name = c.name.trim(); c.num = c.num.trim();
+    if (c.pos || c.name || c.num) out.push(c);
+  });
+  return out;
+}
+
+function fsCtWire(s) {
+  var add = document.getElementById("fsCtAdd");
+  if (add) add.onclick = function () {
+    var box = document.getElementById("fsCtRows");
+    if (!box) return;
+    var d = document.createElement("div");
+    d.innerHTML = fsCtRowHtml({ pos: "", name: "", num: "" }, false);
+    box.appendChild(d.firstChild);
+    fsCtWire(s);
+    var rows = box.querySelectorAll(".fsCtRow");
+    var last = rows[rows.length - 1];
+    if (last) { var f = last.querySelector(".fsCtPos"); if (f) f.focus(); }
+  };
+  Array.prototype.forEach.call(document.querySelectorAll(".fsCtDel"), function (a) {
+    a.onclick = function () {
+      var row = a.closest(".fsCtRow");
+      var box = document.getElementById("fsCtRows");
+      if (!row || !box) return;
+      row.parentNode.removeChild(row);
+      if (!box.querySelector(".fsCtRow")) {
+        var d = document.createElement("div");
+        d.innerHTML = fsCtRowHtml({ pos: "", name: "", num: "" }, false);
+        box.appendChild(d.firstChild);
+      }
+      fsCtWire(s);
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".fsCtSplitB"), function (b) {
+    b.onclick = function () {
+      var row = b.closest(".fsCtRow");
+      if (!row) return;
+      var nameIn = row.querySelector(".fsCtName");
+      var numIn = row.querySelector(".fsCtNum");
+      var g = fsCtSplit(nameIn ? nameIn.value : "");
+      if (!g.num) { alert("No phone number found in that line, so there is nothing to split.\n\nType the number in yourself, or leave it as it is."); return; }
+      if (nameIn) nameIn.value = g.name;
+      if (numIn) numIn.value = g.num;
+      b.parentNode.removeChild(b);
+    };
+  });
 }
 
 async function fsRegisterBlob(asBundle) {
@@ -11706,7 +11895,11 @@ function fsInfoPhotoHtml() {
          + (s.geo ? '<button class="fsbtn" id="fsSiteGeoClr" style="padding:5px 10px;font-size:12px">Clear</button>' : '')
          + '</div>';
   }
-  const infoRows = [["Access requirements", "access"], ["Contacts", "contacts"], ["Further information", "furtherInfo"]];   // isolation points row hidden 23 Jul pass (unused; data kept in s.isolations)
+  /* V0.20: Contacts LEFT this table. It is no longer one free-text field but a
+     list of {pos, name, num} with its own editor — and the generic save at the
+     bottom of the Edit handler does `s[f.dataset.key] = f.value.trim()` for
+     every .fsInfoField, which would write a STRING straight over the array. */
+  const infoRows = [["Access requirements", "access"], ["Further information", "furtherInfo"]];   // isolation points row hidden 23 Jul pass (unused; data kept in s.isolations)
   infoRows.forEach(([label, key]) => {
     if (fsInfoEdit) {
       html += '<div class="fslabel">' + label + '</div><textarea class="fsinput fsInfoField" data-key="' + key + '" rows="2">' + fsEsc(s[key] || "") + '</textarea>';
@@ -11714,6 +11907,7 @@ function fsInfoPhotoHtml() {
       html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">' + label + '</div><div style="flex:1;font-weight:600;font-size:14px;white-space:pre-wrap">' + fsEsc(s[key]) + '</div></div>';
     }
   });
+  html += fsCtCardHtml(s);
   if (fsInfoEdit) html += '<div class="fslabel">Google Maps link (Maps &rarr; Share &rarr; Copy link) &mdash; adds an "Open in maps" button next to Open Site Workspace</div>' +
     '<input class="fsinput fsInfoField" data-key="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." value="' + fsEsc(s.mapUrl || "") + '">';
   if (fsInfoEdit) html += '<div class="fslabel">Coordinates (lat, lng) &mdash; adds a &#128205; Coordinates button that opens maps at the EXACT spot (remote sites / gates where the address only gets you so far)</div>' +
@@ -11741,7 +11935,7 @@ function fsInfoPhotoHtml() {
     html += '<div style="display:flex;border-top:1px solid var(--fs-border);padding:11px 0"><div style="width:38%;color:var(--fs-sub);font-size:13.5px">Routine test</div>' +
       '<div style="flex:1;font-weight:600;font-size:14px">' + bits.join(" &middot; ") + '</div></div>';
   }
-  if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k])) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
+  if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k]) && !fsCtList(s).length) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
   html += '</div>';
 
   // site photo card — main photo + any extras
@@ -12070,6 +12264,7 @@ function fsRenderTab() {
   if (fsTab === "qr") fsQrTabWire(s);
 
   if (fsTab === "overview") {
+    fsCtWire(s);
     const geoBtn = document.getElementById("fsSiteGeoBtn");
     if (geoBtn) geoBtn.onclick = () => {
       const cur = s.geo ? (s.geo.lat + ", " + s.geo.lng) : "";
@@ -12110,6 +12305,13 @@ function fsRenderTab() {
           }
         }
         document.querySelectorAll(".fsInfoField").forEach(f => { s[f.dataset.key] = f.value.trim(); });
+        /* V0.20 — contacts have their own shape, so their own save. An empty
+           list DELETES the key rather than storing [], so a site with no
+           contacts serialises exactly as it did before this pass. */
+        if (document.getElementById("fsCtRows")) {
+          const ct = fsCtRead();
+          if (ct.length) s.contacts = ct; else delete s.contacts;
+        }
         const vd = {}, vh = {}, vm2 = {};
         document.querySelectorAll(".fsVisD").forEach(f => { vd[f.dataset.key] = +f.value || 0; });
         document.querySelectorAll(".fsVisH").forEach(f => { vh[f.dataset.key] = +f.value || 0; });
@@ -14331,7 +14533,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v23";
+const FS_BUILD = "aa-v24";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -15925,7 +16127,7 @@ function fsPlIcs(dates, fname) {
       "DTEND:" + dk.replace(/-/g, "") + "T" + endT.replace(":", "") + "00",
       "SUMMARY:" + fsPlIcsEsc(x.adhoc ? (x.title || "Job") : (e.s.name + " - routine test")),
       "LOCATION:" + fsPlIcsEsc(e ? (e.s.address || "") : ""),
-      "DESCRIPTION:" + fsPlIcsEsc(x.adhoc ? "Ad-hoc job (Arc Adapt planner)" : ("Client: " + e.c.name + " (Arc Adapt planner)")),
+      "DESCRIPTION:" + fsPlIcsEsc(x.adhoc ? "Ad-hoc job (Arc Adapt planner)" : ("Client: " + e.c.name + (fsCtOneLine(e.s) ? "\nContact: " + fsCtOneLine(e.s) : "") + " (Arc Adapt planner)")),
       "END:VEVENT");
   }));
   L.push("END:VCALENDAR");
@@ -15950,6 +16152,9 @@ function fsPlPdf() {
       if (spans) luDone = true;
       const e = fsPlById(x.siteId);
       lines.push(["t", "  " + x.start + "  " + fsPlStopName(x, e) + "  (" + x.mins + " min)" + (spans ? "  · incl. " + luP.mins + " min lunch" : "") + (e ? "  · " + e.c.name : (x.adhoc ? "  · ad-hoc job" : ""))]);
+      /* V0.20 — the run sheet is read in a plant room with no signal. A site
+         contact that only exists inside the app is no use there. */
+      if (e) { const ctl = fsCtOneLine(e.s); if (ctl) lines.push(["t", "        contact: " + ctl]); }
     });
   });
   (mo.tray || []).forEach(x => {
@@ -16563,6 +16768,15 @@ function fsPlDayHtml(dk) {
       (x.adhoc ? ' · <a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">rename</a>' : '') +
       ' · <a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;text-decoration:underline"' +
       (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'time</a>' +
+      /* V0.20 — tap-to-call from the stop. Only rendered when there is a number
+         that can actually be dialled: a contact with a name and no number is
+         worth storing and is not worth a dead Call link. */
+      ((function () {
+        var ct = e ? fsCtPrimary(e.s) : null;
+        if (!ct) return '';
+        return ' · <a href="tel:' + fsEsc(fsCtTel(ct.num)) + '" class="fsPlCall" style="text-decoration:underline;color:var(--fs-accent);font-weight:700">&#128222; ' +
+               fsEsc(fsCtLabel(ct) || ct.num) + '</a>';
+      })()) +
       ' · <a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">move</a>' +
       ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
     prev = x;
