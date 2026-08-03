@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.18 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.19 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.18 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.19 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -744,6 +744,12 @@
       <div id="fsShrinkEst" style="font-size:12.5px;color:#bbb;margin-bottom:10px"></div>
       <div id="fsShrinkProg" style="font-size:12.5px;color:#7ddb8f;margin-bottom:10px;display:none"></div>
       <button class="btn" id="fsShrinkRun" style="width:100%;text-align:center;background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">Shrink all photos</button>
+    </div>
+    <div style="border-top:1px solid #3a4047;margin-top:14px;padding-top:12px" id="fsHealBox">
+      <div style="font-weight:700;font-size:13px;color:#e0a53d;margin-bottom:6px">HIDDEN DATA</div>
+      <div id="fsHealCount" style="font-size:13px;margin-bottom:6px"></div>
+      <div style="font-size:12px;color:#999;margin-bottom:10px">An old upgrade copied some site details into fields this app can no longer show or edit. You have never seen them, but they are in every backup and every copy you send. Removing them does not touch anything you can see — your sites, contacts, equipment, test records and defects all stay. A backup is taken first.</div>
+      <button class="btn" id="fsHealRun" style="width:100%;text-align:center;background:#8a5a1b;border-color:#c08a2f;color:#fff;font-weight:700">Remove hidden data</button>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsStoreClose">Close</button></div>
   </div>
@@ -7542,6 +7548,128 @@ function fsShareContactWalk(root, kill) {
   return n;
 }
 
+/* ===== V0.19 PASS 16 — healing the LIVE register ============================
+   V0.18 removed the four dead keys from a SHARE COPY and stopped there on
+   purpose: silently deleting a user's data to fix our own migration is not a
+   call to make without asking. This asks.
+
+   Reece's register, measured (structure only — no values were ever read):
+   31 of 61 site/building nodes carry `_migr` and with it `fields`,
+   `panelInstructions`, `additionalInfo`. 20 of his 41 phone numbers are in
+   there. The app has ZERO references to any of the four, so nothing here can
+   be seen, edited or deleted from the UI — but all of it is in every backup
+   and every copy he sends.
+
+   ORDER: count -> confirm -> snapshot -> drop -> dirty -> save.
+   The snapshot is before any mutation, which is what matters. It is AFTER the
+   confirm because fsBackupSnapshot keeps only the last five, so snapshotting
+   on every dismissed dialog would evict the backup he actually wanted.
+
+   WHAT IS NOT TOUCHED: `contacts`. That field is read, shown and edited by
+   this app — it is live data, not a shadow, and this button is not allowed to
+   have an opinion about it. Exactly four keys go, and nothing else. ======== */
+
+function fsHealCensus(reg) {
+  /* Four numbers, because they answer four different questions:
+       sites    — how many SITES are affected. The headline. A building's
+                  shadow data counts against its parent site, so the word
+                  "sites" in the dialog is literally true. fsShareNodes()
+                  flattens sites and buildings together and cannot tell you
+                  this, which is why this walks the tree itself.
+       nodes    — site + building nodes touched (used for nothing user-facing,
+                  kept because it is the number the V0.18 measurement used)
+       keys     — how many of the four keys exist in total (what gets removed)
+       contacts — how many contact-bearing strings sit INSIDE that dead data,
+                  which is the number that means something to a person.
+
+     The contact count runs fsShareContactWalk with kill=0 over a CLONE of the
+     dead subtrees only. Two reasons it is a clone and it is scoped: a count
+     must never be able to mutate the live register, and counting the whole
+     register would include the live `contacts` field, which this heal does
+     NOT remove — reporting a number the button will not change is the same
+     class of lie as V0.17's tick-box. */
+  var sites = 0, nodes = 0, keys = 0, contacts = 0, dead = [];
+  var count = function (s) {
+    var hit = 0;
+    FS_SHARE_DEAD.forEach(function (k) {
+      if (s && Object.prototype.hasOwnProperty.call(s, k)) { keys++; hit = 1; dead.push(s[k]); }
+    });
+    if (hit) nodes++;
+    return hit;
+  };
+  (((reg || {}).clients) || []).forEach(function (c) {
+    (((c || {}).sites) || []).forEach(function (s) {
+      if (!s) return;
+      var hit = count(s);
+      (s.buildings || []).forEach(function (b) { if (b && count(b)) hit = 1; });
+      if (hit) sites++;
+    });
+  });
+  if (dead.length) {
+    try { contacts = fsShareContactWalk(JSON.parse(JSON.stringify({ d: dead })), 0); }
+    catch (e) { contacts = 0; }
+  }
+  return { sites: sites, nodes: nodes, keys: keys, contacts: contacts };
+}
+
+function fsHealText(c) {
+  return c.sites + (c.sites === 1 ? " site carries" : " sites carry") + " hidden duplicate data"
+       + (c.contacts ? ", " + c.contacts + " contact" + (c.contacts === 1 ? "" : "s") : "");
+}
+
+function fsHealDropDead(reg) {
+  /* Returns what was ACTUALLY removed, so the receipt reports the event and
+     not the prediction that preceded it. */
+  var n = 0;
+  fsShareNodes(reg).forEach(function (s) {
+    FS_SHARE_DEAD.forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(s, k)) { delete s[k]; n++; }
+    });
+  });
+  return n;
+}
+
+function fsHealRender() {
+  /* The count is on screen BEFORE anything is clicked. A number that first
+     appears inside a confirm dialog is a number nobody reads. */
+  var box = document.getElementById("fsHealBox");
+  var el = document.getElementById("fsHealCount");
+  var btn = document.getElementById("fsHealRun");
+  if (!box || !el || !btn) return;
+  if (!fsRegister) { box.style.display = "none"; return; }
+  box.style.display = "";
+  var c = fsHealCensus(fsRegister);
+  if (!c.keys) {
+    el.innerHTML = '<span style="color:#7ddb8f">No hidden data in this register.</span>';
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
+  el.innerHTML = "<b>" + fsEsc(fsHealText(c)) + "</b>";
+}
+
+async function fsHealRun() {
+  if (!fsRegister) return;
+  var c = fsHealCensus(fsRegister);
+  if (!c.keys) { alert("Nothing to clean up — this register carries no hidden data."); return; }
+  if (!confirm("Remove hidden data from this register?\n\n"
+      + fsHealText(c) + ", left behind by an old upgrade.\n\n"
+      + "This app cannot show or edit those fields, so you have never seen them — "
+      + "but they are in every backup and every copy you send.\n\n"
+      + "NOT touched: your site details, contacts, equipment, test records and defects.\n\n"
+      + "A backup is taken first. Save the register afterwards to keep the change.")) return;
+  await fsBackupSnapshot("before removing hidden data");
+  var removed = fsHealDropDead(fsRegister);
+  fsMarkDirty();
+  await fsPersistReg(true);
+  try { fsActLog("Removed hidden data", c.sites + " sites, " + removed + " fields"); } catch (e) {}
+  try { await fsStoreRender(); } catch (e) {}
+  alert("✓ Hidden data removed.\n\n"
+      + removed + " hidden field" + (removed === 1 ? "" : "s")
+      + " across " + c.sites + " site" + (c.sites === 1 ? "" : "s") + ".\n\n"
+      + "Save the register now to keep it. A backup from before this is in ⚙ Settings → Register backups.");
+}
+
 async function fsRegisterBlob(asBundle) {
   return asBundle ? await fsBuildBundle(fsRegister)
                   : new Blob([JSON.stringify(fsRegister)], { type:"application/json" });
@@ -13999,6 +14127,7 @@ async function fsShrinkAll() {
 async function fsStoreRender() {
   const stats = document.getElementById("fsStoreStats");
   const sitesBox = document.getElementById("fsStoreSites");
+  fsHealRender();   /* before the early return — an empty drawer must not leave a stale count on screen */
   if (!fsRegister) { stats.textContent = "Load a register first."; sitesBox.innerHTML = ""; return; }
   const cen = fsImageCensus(fsRegister);
   let blobBytes = 0, blobN = 0, planBytes = 0, planN = 0, idxBytes = 0;
@@ -14056,6 +14185,10 @@ document.getElementById("fsResStore").onclick = async () => {
 };
 document.getElementById("fsStoreClose").onclick = () => document.getElementById("fsStoreModal").classList.remove("show");
 document.getElementById("fsShrinkRun").onclick = () => fsShrinkAll();
+/* V0.19: mutate 15 killed fsQiRollback's CALL SITE and every rollback test still
+   passed, because they all called the helper directly. A helper that works and is
+   never wired is exactly the V0.17 shape. test_p16 clicks this button. */
+document.getElementById("fsHealRun").onclick = () => fsHealRun();
 document.querySelectorAll('input[name="fsShrinkLvl"]').forEach(r => r.onchange = () => { fsShrinkPreview(); fsShrinkEstimate(); });
 
 
@@ -14198,7 +14331,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v22";
+const FS_BUILD = "aa-v23";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
