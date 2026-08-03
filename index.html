@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.17 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.18 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.17 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.18 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -7215,6 +7215,11 @@ function fsShareStrip(o, opts) {
       if (c.access) delete c.access.passHash;
       if (c.profile && c.profile.access) delete c.profile.access.passHash;
     }
+    /* V0.18 — the four legacy keys the app cannot read. Not a category and
+       not optional: the UI cannot show them, so there is nothing to consent
+       to. This is inside the opts branch so fsShareStrip(o) stays exactly the
+       V0.06 behaviour that fsProfExport depends on. */
+    fsShareDropDead(c);
     var dropped = [];
     (opts.drop || []).forEach(function (k) {
       var cat = fsShareCat(k);
@@ -7325,8 +7330,8 @@ function fsShareMedia(root, kill, skip) {
 /* count(reg) -> {n, bytes}; strip(clone) mutates. Same key on both, always. */
 var FS_SHARE_CATS = [
   { key: "money",
-    label: "Pricing, quotes, invoices and accounting codes",
-    note: "Includes per-client negotiated prices — one client could read another client's discount.",
+    label: "Your prices, quotes and invoices",
+    note: "Includes what you charge each client — one client could read another one's discount.",
     def: 0,
     count: function (r) {
       var n = 0, pb = r.pricebook || {};
@@ -7364,31 +7369,15 @@ var FS_SHARE_CATS = [
     } },
 
   { key: "contacts",
-    label: "Phone numbers, emails and contact blocks",
-    note: "Site contact blocks, job customer phone and email, and the lockout contact line.",
+    label: "Phone numbers and email addresses",
+    note: "Contact fields anywhere in the register, plus any number or address typed into a note.",
     def: 0,
-    count: function (r) {
-      var n = 0;
-      fsShareNodes(r).forEach(function (s) { if (String(s.contacts || "").trim()) n++; });
-      (r.projects || []).forEach(function (p) {
-        var cu = (p || {}).customer || {};
-        if (String(cu.phone || "").trim() || String(cu.email || "").trim()) n++;
-      });
-      var ac = ((r.profile || {}).access) || {};
-      if (String(ac.contact || "").trim()) n++;
-      return { n: n, bytes: 0 };
-    },
-    strip: function (c) {
-      fsShareNodes(c).forEach(function (s) { delete s.contacts; });
-      (c.projects || []).forEach(function (p) {
-        if (p && p.customer) { delete p.customer.phone; delete p.customer.email; }
-      });
-      if (c.profile && c.profile.access) delete c.profile.access.contact;
-    } },
+    count: function (r) { return { n: fsShareContactWalk(r, false), bytes: 0 }; },
+    strip: function (c) { fsShareContactWalk(c, true); } },
 
   { key: "activity",
-    label: "Activity log",
-    note: "Entries stamped with who did what and when, plus who last saved the register.",
+    label: "Who did what, and when",
+    note: "The activity log, and the name of whoever last saved the register.",
     def: 0,
     /* savedBy is counted as well as stripped, for the same reason as the defect
        quote fields above: mutate-p14 M6 kept it and no test noticed. It is one
@@ -7397,15 +7386,15 @@ var FS_SHARE_CATS = [
     strip: function (c) { delete c.activity; delete c.savedBy; } },
 
   { key: "travel",
-    label: "Driving-time matrix",
-    note: "Travel minutes between every site — the shape of your whole client base.",
+    label: "Drive times between your sites",
+    note: "Shows how your whole run fits together — effectively a map of your client base.",
     def: 0,
     count: function (r) { return { n: (((r.travel || {}).ids) || []).length, bytes: 0 }; },
     strip: function (c) { delete c.travel; } },
 
   { key: "media",
     label: "Photos, floor plans and attached files",
-    note: "Kept by default — usually the point of sharing. Also most of the file size.",
+    note: "Ticked by default — usually the whole point of sending it. Also nearly all of the file size.",
     def: 1,
     count: function (r) { return fsShareMedia(r, false, fsShareOwned(r)); },
     strip: function (c) { fsShareMedia(c, true, fsShareOwned(c)); } }
@@ -7435,6 +7424,122 @@ function fsShareScan(reg) {
                n: got.n || 0, bytes: got.bytes || 0 };
     })
   };
+}
+
+/* ===== V0.18 PASS 15 — the shadow copy ======================================
+   V0.17 gave the share copy a pre-flight and a tick-box that said contacts
+   were removed. Reece unticked it, saved, opened the file and found a client's
+   mobile. The strip was correct and the file still leaked, because his
+   register carries the SAME contact twice:
+
+     sites[].contacts          — what the app reads, shows and edits
+     sites[].fields[].value    — the pre-migration copy, left behind by a
+                                 migration that copied instead of moving
+
+   31 of his 61 site nodes carry `_migr` and with it `fields`,
+   `panelInstructions` and `additionalInfo`. This app reads NONE of those four
+   — zero references anywhere — so they cannot be seen, edited or deleted from
+   the UI, and they ride along in every register, backup and share copy. 20 of
+   his 41 phone numbers are in there.
+
+   Same shape as V0.16's "planned is DERIVED, never stored": two sources of
+   truth, and the one nobody looks at is the one that bites. The difference is
+   that here the app built the second source itself.
+
+   FS_SHARE_DEAD is removed ALWAYS, never as a tick-box: a field the UI cannot
+   show is one the user cannot meaningfully consent about, so offering a choice
+   would be theatre. It is removed from the SHARE COPY only — the live register
+   is not rewritten, because silently deleting a user's data to fix our own
+   migration is not a call to make without asking. ========================== */
+
+var FS_SHARE_DEAD = ["fields", "_migr", "panelInstructions", "additionalInfo"];
+
+function fsShareDeadCount(reg) {
+  var n = 0;
+  fsShareNodes(reg).forEach(function (s) {
+    FS_SHARE_DEAD.forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(s, k)) n++;
+    });
+  });
+  return n;
+}
+
+function fsShareDropDead(c) {
+  fsShareNodes(c).forEach(function (s) {
+    FS_SHARE_DEAD.forEach(function (k) { delete s[k]; });
+  });
+}
+
+/* A path list can only remove what it knows the NAME of, and 2 of Reece's 41
+   numbers were in free text — a panel-instructions note and an equipment note.
+   Next week one goes in Access Requirements, because in the moment that is
+   where it belongs. So the text gets scanned.
+
+   The phone pattern is deliberately NARROW: ten digits starting 0, or +61 then
+   nine. It does NOT match a bare eight-digit local landline, and that is a
+   considered trade rather than an oversight — "1851-2012" (the AS standard
+   stamped on every checklist record) and "20260802" are both eight digits, and
+   redacting the standard reference off every test record would be a worse bug
+   than the one being fixed. Measured on the real register: 76 loose candidates,
+   41 true numbers, all ten-digit leading-0, and this rule takes all 41 with
+   nothing false. The eight-digit local form is a KNOWN GAP, on the backlog.
+
+   One source string per pattern, compiled once. Both carry /g and everything
+   goes through .replace() — never .test(), which is stateful with /g and would
+   return alternating answers on identical input. */
+var FS_SHARE_PAT = {
+  email: "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}",
+  phone: "(?:\\+?61[\\s.()-]{0,2}|\\b0)(?:[\\s.()-]{0,2}\\d){9}\\b"
+};
+var FS_RE_EMAIL = new RegExp(FS_SHARE_PAT.email, "g");
+var FS_RE_PHONE = new RegExp(FS_SHARE_PAT.phone, "g");
+
+function fsShareRedact(v) {
+  return String(v).replace(FS_RE_EMAIL, "[email removed]").replace(FS_RE_PHONE, "[number removed]");
+}
+function fsShareHasContact(v) {
+  if (typeof v !== "string" || !v) return false;
+  if (v.slice(0, 5) === "data:") return false;      /* a base64 blob is not prose */
+  return fsShareRedact(v) !== v;
+}
+
+/* Structured contact fields, by key name at ANY depth. A field called
+   "contacts" holding just "Dave" has no number to redact but is still a
+   contact, so these are deleted whole rather than scanned. Matching on the key
+   name rather than a path also picks up legacy shapes nobody has met yet,
+   which is the entire lesson of this pass. */
+var FS_SHARE_CONTACT_KEYS = ["contacts", "contact", "phone", "mobile", "email"];
+
+function fsShareContactWalk(root, kill) {
+  /* ONE walk, and every string is counted at most once — a string is either a
+     structured contact field (deleted) or free text (scanned), never both, so
+     the dialog's number is a count of places and not of rules that fired. */
+  var n = 0;
+  var walk = function (o, d) {
+    if (!o || typeof o !== "object" || d > 24) return;
+    if (Array.isArray(o)) {
+      for (var i = 0; i < o.length; i++) {
+        if (typeof o[i] === "string") {
+          if (fsShareHasContact(o[i])) { n++; if (kill) o[i] = fsShareRedact(o[i]); }
+        } else walk(o[i], d + 1);
+      }
+      return;
+    }
+    Object.keys(o).forEach(function (k) {
+      var v = o[k];
+      if (FS_SHARE_CONTACT_KEYS.indexOf(k) >= 0 && typeof v === "string") {
+        if (v.trim()) { n++; if (kill) delete o[k]; }
+        return;
+      }
+      if (typeof v === "string") {
+        if (fsShareHasContact(v)) { n++; if (kill) o[k] = fsShareRedact(v); }
+        return;
+      }
+      walk(v, d + 1);
+    });
+  };
+  walk(root, 0);
+  return n;
 }
 
 async function fsRegisterBlob(asBundle) {
@@ -12389,7 +12494,34 @@ function fsQrItemOpen(s, item) {
   document.getElementById("fsQiPhotoRemove").style.display = item && item.photo ? "inline-block" : "none";
   document.getElementById("fsQrItemModal").classList.add("show");
 }
-document.getElementById("fsQiCancel").onclick = () => { document.getElementById("fsQrItemModal").classList.remove("show"); fsQiSite = null; fsQiItem = null; };
+/* V0.18 — Cancel means cancel. dQrCreate writes the tag, marks the register
+   dirty and autosaves it to IndexedDB BEFORE this modal opens, so until now
+   "Cancel" only hid the box: the tag stayed, the device stayed linked, and the
+   panel kept showing a tag id the user had never asked for. pushUndo() was no
+   help either — it snapshots `objects` only, so an undo restored the device's
+   missing qid and left the qrItems row orphaned.
+   Note the two DESTRUCTIVE actions in this same feature (fsQrDel, dQrUnlink)
+   have always confirmed before writing. The create path was the odd one out. */
+var fsQiPending = null;
+function fsQiRollback() {
+  const p = fsQiPending;
+  fsQiPending = null;
+  if (!p || !p.site) return false;
+  const arr = p.site.qrItems || [];
+  const ix = arr.indexOf(p.item);
+  if (ix >= 0) arr.splice(ix, 1);
+  if (!arr.length) delete p.site.qrItems;
+  if (p.minted && p.obj) delete p.obj.qid;
+  fsMarkDirty();
+  try { if (typeof autosaveDirty !== "undefined") { autosaveDirty = true; scheduleAutosave(); } } catch (e) {}
+  try { if (p.syms) fsDetQrRender(p.syms); } catch (e) {}
+  try { if (typeof draw === "function") draw(); } catch (e) {}
+  try {
+    if (document.getElementById("fsReg").style.display !== "none" && typeof fsTab !== "undefined" && fsTab === "qr" && typeof fsSite !== "undefined" && fsSite) fsRenderSite();
+  } catch (e) {}
+  return true;
+}
+document.getElementById("fsQiCancel").onclick = () => { fsQiRollback(); document.getElementById("fsQrItemModal").classList.remove("show"); fsQiSite = null; fsQiItem = null; };
 document.getElementById("fsQiPhotoAdd").onclick = () => document.getElementById("fsQiPhotoInput").click();
 document.getElementById("fsQiPhotoInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
@@ -12428,6 +12560,7 @@ document.getElementById("fsQiSave").onclick = () => {
   it.info = document.getElementById("fsQiInfo").value.trim();
   if (fsQiPhoto !== undefined) { if (fsQiPhoto === null) delete it.photo; else it.photo = fsQiPhoto; }
   if (!fsQiItem) { fsQiSite.qrItems = fsQiSite.qrItems || []; fsQiSite.qrItems.push(it); }
+  fsQiPending = null;        /* saved on purpose — nothing to roll back */
   fsMarkDirty();
   document.getElementById("fsQrItemModal").classList.remove("show");
   fsQiSite = null; fsQiItem = null;
@@ -12542,6 +12675,11 @@ function fsDetQrRender(syms) {
   const cr = document.getElementById("dQrCreate");
   if (cr) cr.onclick = () => {
     pushUndo();
+    /* V0.18 — remember enough to UNDO this if the modal is cancelled. The row
+       below is written and autosaved before the modal opens, so without this
+       "Cancel" left a tag in the register that the user never agreed to and
+       had never scanned anything to earn. */
+    const hadQid = !!o.qid;
     if (!o.qid) o.qid = fsQrNewId();
     const ni = {
       qid: o.qid, t: Date.now(), barcode: "",
@@ -12556,6 +12694,7 @@ function fsDetQrRender(syms) {
     autosaveDirty = true; scheduleAutosave();
     fsDetQrRender(syms);
     draw();
+    fsQiPending = { site: s, item: ni, obj: o, minted: !hadQid, syms: syms };
     fsQrItemOpen(s, ni);
   };
   const ls = document.getElementById("dQrLinkSel");
@@ -13041,8 +13180,8 @@ function fsShareRender() {
   document.getElementById("fsShareWhat").innerHTML =
     "This file will contain <b>" + sc.clients + "</b> client" + (sc.clients === 1 ? "" : "s") +
     " and <b>" + sc.sites + "</b> site" + (sc.sites === 1 ? "" : "s") +
-    " \u2014 names, addresses, equipment, test history and defect records." +
-    "<div style=\"margin-top:5px\">Anything left ticked below goes with it.</div>";
+    " \u2014 names, addresses, equipment, test records and defects." +
+    "<div style=\"margin-top:5px\">Tick something and it goes in the file. Leave it unticked and it doesn't.</div>";
   var h = "";
   sc.cats.forEach(function (c) {
     var has = c.n > 0;
@@ -13057,10 +13196,11 @@ function fsShareRender() {
   });
   document.getElementById("fsShareCats").innerHTML = h;
   document.getElementById("fsShareAlways").innerHTML =
-    "<b>Always removed:</b> every password hash, the admin passcode, and the licence-gate hash. " +
-    "Whoever opens the file sets their own password on first sign-in.<br>" +
-    "<b>Always kept:</b> client and site names, addresses, equipment, test history, defects, and " +
-    "the staff name on each record \u2014 that is the compliance record, and a copy without it is worth less, not safer.";
+    "<b>Always removed \u2014 no choice, and you don't need one:</b> passwords, the admin passcode, " +
+    "the licence key, and old hidden fields left behind by an upgrade. Whoever opens the file picks " +
+    "their own password the first time they sign in.<br>" +
+    "<b>Always kept:</b> your clients, sites, addresses, equipment, test records and defects, and the " +
+    "name of whoever did each test. That is the paperwork \u2014 a copy without it is worth less, not safer.";
 }
 
 function fsShareDrops() {
@@ -14058,7 +14198,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v21";
+const FS_BUILD = "aa-v22";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -15891,12 +16031,15 @@ function fsPlRender() {
   if (unlocated.length) tvNote += '<br><span style="color:#c62828">Not located (fix the address, then ⟳ Update travel times in ⚙): ' + unlocated.map(fsEsc).join(", ") + '</span>';
 
   let html = '<div style="margin-bottom:12px"><a id="fsPlBack" class="fsCrumb">&#8592; Dashboard</a></div>';
-  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
-    '<h2 style="font-size:20px;flex:1;min-width:150px">&#128197; ' + fsPlMonthName() + '</h2>' +
-    '<button class="fsbtn" id="fsPlPrev">&#8249;</button><button class="fsbtn" id="fsPlNext">&#8250;</button>' +
-    '<button class="fsbtnP" id="fsPlGo">&#9889; Plan ' + fsEsc(fsPlScopeLabel()) + '</button>' +
-    '<button class="fsbtn" id="fsPlCfg" title="Working hours, base, buffer">&#9881;</button>' +
-    '<button class="fsbtn" id="fsPlExpBtn" title="Calendar &amp; run sheet exports">&#128228; Export</button></div>';
+  /* V0.18 — the month name and the ‹ › arrows used to sit at the very top,
+     with the whole month's-list panel between them and the calendar they drive.
+     Reece: "they should be right above the calendar, since that's what they're
+     controlling." The same row also needed ~590px to fit on one line, so on a
+     phone in portrait (~390-430px) it wrapped and the gear and Export landed on
+     a second line under the heading — he had to turn the phone sideways to find
+     them. Both complaints are the same fix: put the controls on the thing they
+     control. The title stays up here so the page still says what it is. */
+  html += '<h2 style="font-size:20px;margin-bottom:8px">&#128197; Planner</h2>';
   /* V0.12 — scope chips. Presets first: no trade scheduler documents drag-a-range
      on a calendar grid, and the UX literature specifies preset/click over drag.
      The glow below is FEEDBACK for what is in scope, not the way to set it. */
@@ -15959,6 +16102,25 @@ function fsPlRender() {
   fsPlTraySeed(mo);
   html += fsPlPanelHtml(mo);
 
+  /* The control row, directly on top of the grid it drives.
+     Reece's rules, in his words: the gear is "always the furthest one to the
+     right"; the arrows do not need to flank the month, because that leaves them
+     "really far away from each other" — they belong together, where the gear
+     used to sit; and Plan "doesn't need to be so wide". So the month is a plain
+     heading, the arrows are a pair, Plan takes its natural width, and the two
+     controls that are not about THIS month — Export and Clear month — sit
+     between them and the gear. Clear month stays away from Plan on purpose: it
+     is the destructive one and should not be shoulder to shoulder with the
+     button that gets pressed every week. */
+  html += '<h2 style="font-size:19px;margin:14px 0 6px">' + fsPlMonthName() + '</h2>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">' +
+    '<button class="fsbtnP" id="fsPlGo">&#9889; Plan ' + fsEsc(fsPlScopeLabel()) + '</button>' +
+    '<button class="fsbtn" id="fsPlPrev" title="Previous month">&#8249;</button>' +
+    '<button class="fsbtn" id="fsPlNext" title="Next month">&#8250;</button>' +
+    '<span style="flex:1"></span>' +
+    '<button class="fsbtn" id="fsPlExpBtn" title="Calendar &amp; run sheet exports">&#128228; Export</button>' +
+    '<button class="fsbtn" id="fsPlClrMonth" title="Remove every planned stop this month" style="color:#c62828">&#128465; Clear month</button>' +
+    '<button class="fsbtn" id="fsPlCfg" title="Working hours, base, buffer">&#9881;</button></div>';
   html += '<div class="fscard" style="padding:8px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:640px">';
   html += '<tr>' + ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(d2 => '<th style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:1px;padding:4px;border-bottom:2px solid var(--fs-border)">' + d2 + '</th>').join("") + '</tr>';
   let day = 1;
@@ -16022,7 +16184,29 @@ function fsPlRender() {
   wrap.innerHTML = html;
 
   document.getElementById("fsPlBack").onclick = () => fsShow("fsClientsView");
-  document.getElementById("fsPlPrev").onclick = () => { fsPlShiftMonth(-1); };
+  const clrM = document.getElementById("fsPlClrMonth");
+  if (clrM) clrM.onclick = () => {
+    const mo2 = fsPlMonthObj();
+    let n = 0, days = 0, locked = 0;
+    Object.keys(mo2.days || {}).forEach(dk2 => {
+      const arr = mo2.days[dk2] || [];
+      if (!arr.length) return;
+      days++; n += arr.length;
+      if (mo2.locked && mo2.locked[dk2]) locked++;
+    });
+    if (!n) { alert("Nothing planned this month \u2014 there is nothing to clear."); return; }
+    /* Says the blast radius BEFORE the question, and names the locked days
+       rather than silently ignoring them — the V0.16 lesson about a confirm
+       whose wording does not match what it does. */
+    if (!confirm("Remove ALL " + n + " stop" + (n === 1 ? "" : "s") + " planned across " + days +
+        " day" + (days === 1 ? "" : "s") + " in " + fsPlMonthName() + "?" +
+        (locked ? "\n\nThis includes " + locked + " day" + (locked === 1 ? "" : "s") + " you have LOCKED." : "") +
+        "\n\nThe sites go back on the month's list as \"to place\". Nothing is deleted from the register.")) return;
+    mo2.days = {};
+    fsPlSavePlans();
+    fsPlRender();
+  };
+  document.getElementById("fsPlPrev").onclick = () => fsPlShiftMonth(-1);
   document.getElementById("fsPlNext").onclick = () => { fsPlShiftMonth(1); };
   document.getElementById("fsPlGo").onclick = fsPlPlanClick;
   document.getElementById("fsPlCfg").onclick = () => { fsPlShowSettings = !fsPlShowSettings; fsPlRender(); };
@@ -16212,7 +16396,8 @@ function fsPlDayHtml(dk) {
   let html = '<div class="fscard" style="padding:16px;margin-top:12px">';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="font-size:16px;font-weight:800;flex:1">' + dt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) + '</h3>' +
     '<button class="fsbtn fsPlLock">' + (mo.locked[dk] ? '&#128274; Locked' : '&#128275; Lock day') + '</button>' +
-    '<button class="fsbtn fsPlDayIcs" title="Opens in Apple / Google / Samsung Calendar">&#128242; Add day to phone calendar</button></div>';
+    '<button class="fsbtn fsPlDayIcs" title="Opens in Apple / Google / Samsung Calendar">&#128242; Add day to phone calendar</button>' +
+    (stops.length ? '<button class="fsbtn fsPlClrDay" title="Remove every stop on this day">&#128465; Clear day</button>' : '') + '</div>';
   if (!stops.length) html += '<div style="color:var(--fs-faint);font-size:13px">No stops planned this day.</div>';
   const luD = fsPlLunch(fsPlLoadSettings());
   let luShown = !luD || !stops.length;
@@ -16271,6 +16456,16 @@ function fsPlWireDay() {
   const sorted = () => stops().slice().sort((a, b) => a.start.localeCompare(b.start));
   document.querySelectorAll(".fsPlLock").forEach(b => b.onclick = () => { mo.locked[dk] = !mo.locked[dk]; fsPlSavePlans(); fsPlRender(); });
   document.querySelectorAll(".fsPlDayIcs").forEach(b => b.onclick = () => fsPlIcs([dk], "plan-" + dk + ".ics"));
+  document.querySelectorAll(".fsPlClrDay").forEach(b => b.onclick = () => {
+    const arr = mo.days[dk] || [];
+    if (!arr.length) return;
+    if (!confirm("Remove all " + arr.length + " stop" + (arr.length === 1 ? "" : "s") + " from this day?" +
+        (mo.locked[dk] ? "\n\nThis day is LOCKED." : "") +
+        "\n\nThe sites go back on the month's list as \"to place\".")) return;
+    delete mo.days[dk];
+    fsPlSavePlans();
+    fsPlRender();
+  });
   document.querySelectorAll(".fsPlNavB").forEach(b => b.onclick = () => { const x = sorted()[+b.dataset.i]; const e = x && fsPlById(x.siteId); if (e) fsPlNav(e.s); });
   document.querySelectorAll(".fsPlDone").forEach(cb => cb.onchange = () => { const x = sorted()[+cb.dataset.i]; if (x) { x.done = cb.checked; fsPlSavePlans(); fsPlRender(); } });
   document.querySelectorAll(".fsPlTime").forEach(a => a.onclick = () => {
