@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.20 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.21 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.20 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.21 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -7859,6 +7859,97 @@ function fsCtWire(s) {
   });
 }
 
+/* ===== V0.21 PASS 18 — the planner, after a human drove it ================== */
+
+/* Does [sM, sM+mins) collide with anything already on this day? Used by the
+   hand-placement path to decide whether a preferred start can be honoured. */
+function fsPlSlotFree(day, sM, mins) {
+  var eM = sM + mins;
+  return !(day || []).some(function (x) {
+    var xs = fsPlT2M(x.start);
+    if (xs == null) return false;
+    return sM < xs + x.mins && xs < eM;
+  });
+}
+
+/* WHY THIS DOES NOT TRY TO BE CLEVER.
+
+   Reece exported a plan on his iPad and got a file he could not open. The cause
+   is real: `.ics` is not among the file types the Web Share API accepts, so
+   `navigator.canShare({files})` returns false, `deliverFile` falls back to a
+   download, and iOS drops it in Files with no route into Calendar.
+
+   The obvious fix — open a `data:text/calendar` URL instead — was written,
+   tested, and then thrown away. **Top-frame navigation to a data: URL is
+   removed in Chrome and restricted in every other engine.** It would have
+   swapped a clunky path that works for a blank tab that does not, and the
+   routing test would have gone green while the outcome got worse. That is the
+   V0.17 mistake exactly: proving the mechanism instead of the result.
+
+   So the file still goes out the same way it always did, and the app stops
+   pretending the user knows what to do with it. There is no browser API that
+   writes to a calendar; the honest move is to say so and give the two routes
+   that do work — the Files tap-through, and the per-stop Google link. */
+function fsIcsDeliver(text, fname) {
+  /* Promise.resolve() around the call, not `.then` straight onto it: deliverFile
+     returns a promise today, and an export that breaks outright the day it does
+     not is a bad trade for one saved wrapper. test_planner2 stubs it with a
+     function that returns undefined and found this immediately. */
+  return Promise.resolve(deliverFile(new Blob([text], { type: "text/calendar" }), fname, "text/calendar"))
+    .then(function (how) {
+      if (how === "downloaded" && isMobileShare()) {
+        alert("Calendar file saved as " + fname + ".\n\n"
+            + "A web page cannot put events straight into your calendar \u2014 no browser allows it \u2014 "
+            + "so on an iPad or iPhone:\n\n"
+            + "Files \u2192 Downloads \u2192 tap " + fname + " \u2192 Add All.\n\n"
+            + "For a single visit it is quicker to use the \ud83d\udcc5 Google link on the stop itself.");
+      }
+      return how;
+    });
+}
+
+/* A Google Calendar template URL for ONE stop. The only route that puts an
+   appointment in a calendar without handing over a file first. */
+function fsPlGcalUrl(dk, x, e) {
+  var d = dk.replace(/-/g, "");
+  var s = d + "T" + String(x.start).replace(":", "") + "00";
+  var en = d + "T" + fsPlM2T(fsPlT2M(x.start) + x.mins).replace(":", "") + "00";
+  var title = x.adhoc ? (x.title || "Job") : (e ? e.s.name + " - routine test" : "Job");
+  var det = e ? ("Client: " + e.c.name + (fsCtOneLine(e.s) ? "\nContact: " + fsCtOneLine(e.s) : ""))
+              : "Ad-hoc job";
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE"
+       + "&text=" + encodeURIComponent(title)
+       + "&dates=" + s + "/" + en
+       + "&details=" + encodeURIComponent(det)
+       + "&location=" + encodeURIComponent(e ? (e.s.address || "") : "");
+}
+
+/* The drive leg into a stop. A hand-set value lives on the STOP (`trvSet`) and
+   never in fsRegister.travel — V0.13 deletes that whole matrix whenever a site
+   address is edited, so an override stored there would evaporate silently the
+   next time he fixed a typo. */
+function fsPlLegMins(prev, x, pe, e) {
+  if (typeof x.trvSet === "number") return { min: x.trvSet, est: false, set: true };
+  if (pe && e) {
+    var t = fsPlTravel(pe.s.geo, pe.s.id, e.s.geo, e.s.id);
+    if (t) return { min: t.min, est: t.est, set: false };
+  }
+  return null;
+}
+
+function fsPlLegText(leg) {
+  if (!leg) return "drive time not known — tap to set";
+  return (leg.set ? "" : (leg.est ? "~" : "")) + leg.min + " min drive" + (leg.set ? " (set by hand)" : "");
+}
+
+/* Grid width, in px. table-layout:fixed turns this into a column width: the
+   pills already truncate, they just never got the chance under auto layout. */
+function fsPlGridPx(st) {
+  var w = +((st || {}).gridW);
+  if (!(w >= 400)) w = 640;
+  return Math.min(2400, Math.round(w));
+}
+
 async function fsRegisterBlob(asBundle) {
   return asBundle ? await fsBuildBundle(fsRegister)
                   : new Blob([JSON.stringify(fsRegister)], { type:"application/json" });
@@ -14533,7 +14624,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v24";
+const FS_BUILD = "aa-v25";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -16079,9 +16170,21 @@ function fsPlCommitPlace(dk) {
   fsPlPlans[mKey] = fsPlPlans[mKey] || { days: {}, locked: {}, tray: [] };
   const day = (fsPlPlans[mKey].days[dk] = fsPlPlans[mKey].days[dk] || []);
   const st = fsPlLoadSettings();
+  const mins = arm.mins > 0 ? arm.mins : fsPlMinsFor(e.s, mKey);
   const last = day.slice().sort((a, b) => a.start.localeCompare(b.start))[day.length - 1];
-  const start = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+st.buffer || 0) + 20) : st.dayStart;
-  const stop = { siteId: arm.siteId, start: start, mins: arm.mins > 0 ? arm.mins : fsPlMinsFor(e.s, mKey), done: false };
+  const seq = last ? fsPlM2T(fsPlT2M(last.start) + last.mins + (+st.buffer || 0) + 20) : st.dayStart;
+  /* V0.21 — fsPlAutoPlan treats a preferred start as a HARD constraint that beats
+     the lunch window, and this path ignored it completely, so a hand-placed site
+     landed at the day start. Reece found it by putting one in at 07:00 that should
+     have been 09:00. He asked for a warning; the app already knows the answer, so
+     it uses it — and only speaks when it cannot. */
+  const prefM = fsPlT2M(e.s.visit && e.s.visit.pref);
+  let start = seq, clash = false;
+  if (prefM != null) {
+    if (fsPlSlotFree(day, prefM, mins)) start = fsPlM2T(prefM);
+    else clash = true;
+  }
+  const stop = { siteId: arm.siteId, start: start, mins: mins, done: false };
   if (arm.mins > 0) stop.minsSet = true;
   day.push(stop);
   fsPlPlans[mKey].locked = fsPlPlans[mKey].locked || {};
@@ -16089,6 +16192,12 @@ function fsPlCommitPlace(dk) {
   fsPlSavePlans();
   fsPlSelDay = mKey === fsPlMonth ? dk : null;
   fsPlRender();
+  /* Silent when it worked. A dialog that fires on the happy path is a dialog
+     people learn to dismiss without reading. */
+  if (clash) {
+    alert(e.s.name + " prefers a " + e.s.visit.pref + " start, but that time is already booked on this day.\n\n"
+        + "It has gone in at " + start + " instead.\n\nTap the time on the stop to change it.");
+  }
 }
 
 /* V0.16 — hoisted out of fsPlWireDay so the placement banner can use the very
@@ -16122,6 +16231,10 @@ function fsPlIcs(dates, fname) {
     n++;
     const endT = fsPlM2T(fsPlT2M(x.start) + x.mins);
     L.push("BEGIN:VEVENT",
+      /* V0.21: RFC 5545 requires DTSTAMP in every VEVENT and it was missing.
+         Apple and Google forgive it; Outlook and several Android importers do
+         not, and the symptom is an import that silently does nothing. */
+      "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z",
       "UID:" + dk + "-" + i + "-" + (x.adhoc ? "adhoc" : x.siteId) + "@firespark",
       "DTSTART:" + dk.replace(/-/g, "") + "T" + x.start.replace(":", "") + "00",
       "DTEND:" + dk.replace(/-/g, "") + "T" + endT.replace(":", "") + "00",
@@ -16132,7 +16245,7 @@ function fsPlIcs(dates, fname) {
   }));
   L.push("END:VCALENDAR");
   if (!n) { alert("No planned stops to export."); return; }
-  deliverFile(new Blob([L.join("\r\n")], { type: "text/calendar" }), fname, "text/calendar");
+  fsIcsDeliver(L.join("\r\n"), fname);
 }
 function fsPlPdf() {
   const mo = fsPlMonthObj();
@@ -16424,7 +16537,8 @@ function fsPlRender() {
       '<label style="font-size:11.5px;color:var(--fs-sub2)">Day end<br><input class="fsinput" id="fsPlCfgE" type="time" value="' + fsEsc(st.dayEnd) + '" style="width:110px"></label>' +
       '<label style="font-size:11.5px;color:var(--fs-sub2)">Buffer min/stop<br><input class="fsinput" id="fsPlCfgB" type="number" min="0" step="5" value="' + fsEsc(st.buffer) + '" style="width:90px"></label>' +
       '<label style="font-size:11.5px;color:var(--fs-sub2)" title="0 = no lunch break">Lunch break (min)<br><input class="fsinput" id="fsPlCfgLu" type="number" min="0" step="5" value="' + fsEsc(st.lunch) + '" style="width:90px"></label>' +
-      '<label style="font-size:11.5px;color:var(--fs-sub2)">Lunch around<br><input class="fsinput" id="fsPlCfgLuAt" type="time" value="' + fsEsc(st.lunchAt) + '" style="width:110px"></label></div>' +
+      '<label style="font-size:11.5px;color:var(--fs-sub2)">Lunch around<br><input class="fsinput" id="fsPlCfgLuAt" type="time" value="' + fsEsc(st.lunchAt) + '" style="width:110px"></label>' +
+      '<label style="font-size:11.5px;color:var(--fs-sub2)" title="How wide the month grid is. Wider shows more of each site name and scrolls sideways; narrower fits the whole month on screen.">Calendar width (px)<br><input class="fsinput" id="fsPlCfgGW" type="number" min="400" max="2400" step="40" value="' + fsEsc(fsPlGridPx(st)) + '" style="width:110px"></label></div>' +
       '<div style="margin:10px 0 4px;font-size:11.5px;color:var(--fs-sub2)">Work days</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
       dows.map((d2, i) => '<label style="font-size:13px;display:flex;gap:4px;align-items:center"><input type="checkbox" class="fsPlCfgD" data-d="' + i + '"' + (st.workDays.indexOf(i) >= 0 ? ' checked' : '') + '>' + d2 + '</label>').join("") + '</div>' +
       '<div style="margin:10px 0 4px;font-size:11.5px;color:var(--fs-sub2)">Optional start/finish base (home or depot) - blank = day starts at the first site</div>' +
@@ -16459,7 +16573,14 @@ function fsPlRender() {
     '<button class="fsbtn" id="fsPlExpBtn" title="Calendar &amp; run sheet exports">&#128228; Export</button>' +
     '<button class="fsbtn" id="fsPlClrMonth" title="Remove every planned stop this month" style="color:#c62828">&#128465; Clear month</button>' +
     '<button class="fsbtn" id="fsPlCfg" title="Working hours, base, buffer">&#9881;</button></div>';
-  html += '<div class="fscard" style="padding:8px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:640px">';
+  /* V0.21 — table-layout:fixed is the whole of the "planner gets too wide" fix.
+     The pills have always carried nowrap + overflow:hidden + text-overflow:
+     ellipsis, but under the DEFAULT auto layout a column is as wide as its widest
+     un-wrappable child, so the longest site name set the column width and the
+     ellipsis never fired. Fixed layout gives each column its share, names
+     truncate, and the wrapper's existing overflow-x:auto turns the width setting
+     into a column width you drag — Reece's Excel analogy, exactly. */
+  html += '<div class="fscard" style="padding:8px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:' + fsPlGridPx(st) + 'px">';
   html += '<tr>' + ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(d2 => '<th style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:1px;padding:4px;border-bottom:2px solid var(--fs-border)">' + d2 + '</th>').join("") + '</tr>';
   let day = 1;
   const todayK = new Date().toISOString().slice(0, 10);
@@ -16475,7 +16596,11 @@ function fsPlRender() {
         const e = fsPlById(x.siteId);
         const outside = fsPlT2M(x.start) != null && fsPlT2M(x.start) < startM;   // amber = starts before set hours
         const col = outside ? "#b45f00" : (x.adhoc ? "#5a6570" : FSPL_COLS[(e ? e.ci : 0) % FSPL_COLS.length]);
-        cell += '<div style="background:' + col + ';color:#fff;border-radius:5px;font-size:10px;font-weight:700;padding:1px 4px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"' + (outside ? ' title="Starts before your set day start"' : (x.adhoc ? ' title="Ad-hoc job"' : '')) + '>' + fsEsc(x.start) + ' ' + fsEsc(x.adhoc ? (x.title || "Job") : (e ? e.s.name : "?")) + '</div>';
+        const pillNm = x.adhoc ? (x.title || "Job") : (e ? e.s.name : "?");
+        /* the FULL name is always in the tooltip — truncation must never be the
+           only copy of something */
+        const pillTip = pillNm + (outside ? " \u00b7 starts before your set day start" : "") + (x.adhoc ? " \u00b7 ad-hoc job" : "");
+        cell += '<div title="' + fsEsc(pillTip) + '" style="background:' + col + ';color:#fff;border-radius:5px;font-size:10px;font-weight:700;padding:1px 4px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(x.start) + ' ' + fsEsc(pillNm) + '</div>';
       });
       if (stops.length) {
         /* V0.12 — this bar existed at 3px and clamped to 100%, which meant an
@@ -16492,7 +16617,11 @@ function fsPlRender() {
         const tip = fsEsc(st.dayStart) + "\u2013" + fsPlM2T(lastEnd) + " \u00b7 "
                   + fsPlFmtMins(used) + " of " + fsPlFmtMins(span)
                   + (over ? " \u00b7 OVER by " + fsPlFmtMins(lastEnd - endM) : "");
-        cell += '<div title="' + tip + '" style="display:flex;height:7px;border-radius:3px;background:var(--fs-border);margin-top:3px;overflow:hidden">'
+        /* V0.21 — the capacity bar gets a CLASS. test_p9 selected it as "the first
+           div carrying a title inside the day cell", and this pass put a title on
+           the stop pill, which sits above it. The test was right to break; the
+           fragility was the positional selector, so the fix is a name. */
+        cell += '<div class="fsPlCap" title="' + tip + '" style="display:flex;height:7px;border-radius:3px;background:var(--fs-border);margin-top:3px;overflow:hidden">'
               + '<div style="height:7px;width:' + fill + '%;background:' + col + '"></div>'
               + (over ? '<div style="height:7px;flex:1;background:repeating-linear-gradient(45deg,#8e1616,#8e1616 3px,#c62828 3px,#c62828 6px)"></div>' : '')
               + '</div>';
@@ -16581,6 +16710,7 @@ function fsPlRender() {
     st2.buffer = +document.getElementById("fsPlCfgB").value || 0;
     st2.lunch = Math.max(0, +document.getElementById("fsPlCfgLu").value || 0);
     st2.lunchAt = document.getElementById("fsPlCfgLuAt").value || "12:00";
+    st2.gridW = fsPlGridPx({ gridW: document.getElementById("fsPlCfgGW").value });
     st2.workDays = [...document.querySelectorAll(".fsPlCfgD")].filter(cb => cb.checked).map(cb => +cb.dataset.d);
     const nb = document.getElementById("fsPlCfgBase").value.trim();
     if (nb !== (st2.baseAddr || "")) { st2.baseAddr = nb; st2.baseGeo = null; }   // re-geocode on next Plan month
@@ -16749,10 +16879,17 @@ function fsPlDayHtml(dk) {
       luShown = true;
     }
     if (luSpan) luShown = true;
-    if (prev && !prev.adhoc && !x.adhoc) {   // no drive leg to/from an ad-hoc job - its location is free text
-      const pe = fsPlById(prev.siteId);
-      const trv = (pe && e) ? fsPlTravel(pe.s.geo, pe.s.id, e.s.geo, e.s.id) : null;
-      html += '<div style="font-size:11.5px;color:var(--fs-faint);padding:2px 0 2px 14px">&#8595; ' + (trv ? (trv.est ? '~' : '') + trv.min + ' min drive' : 'drive time unknown') + '</div>';
+    /* V0.21 — the leg is now drawn for EVERY gap, including to and from an ad-hoc
+       job. An ad-hoc job has no location, so nothing can be computed for it — but
+       "nothing can be computed" and "there is no drive" are different statements,
+       and the old code made the second one by staying silent. Tap to set. */
+    if (prev) {
+      const pe = prev.adhoc ? null : fsPlById(prev.siteId);
+      const leg = fsPlLegMins(prev, x, pe, e);
+      html += '<div style="font-size:11.5px;color:var(--fs-faint);padding:2px 0 2px 14px">&#8595; ' +
+        '<a class="fsPlTrv" data-i="' + i + '" style="cursor:pointer;text-decoration:underline"' +
+        (leg && leg.set ? ' title="Set by hand for this day"' : '') + '>' +
+        fsEsc(fsPlLegText(leg)) + '</a></div>';
     }
     const endT = fsPlM2T(fsPlLunchEnd(fsPlT2M(x.start), x.mins, luD));
     const luNote = luSpan ? ' &middot; <span style="color:var(--fs-sub2)">&#129386; incl. ' + luD.mins + ' min lunch</span>' : '';
@@ -16777,6 +16914,7 @@ function fsPlDayHtml(dk) {
         return ' · <a href="tel:' + fsEsc(fsCtTel(ct.num)) + '" class="fsPlCall" style="text-decoration:underline;color:var(--fs-accent);font-weight:700">&#128222; ' +
                fsEsc(fsCtLabel(ct) || ct.num) + '</a>';
       })()) +
+      ' · <a class="fsPlGcal" href="' + fsEsc(fsPlGcalUrl(dk, x, e)) + '" target="_blank" rel="noopener" style="text-decoration:underline">📅 Google</a>' +
       ' · <a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">move</a>' +
       ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
     prev = x;
@@ -16803,6 +16941,24 @@ function fsPlWireDay() {
   const sorted = () => stops().slice().sort((a, b) => a.start.localeCompare(b.start));
   document.querySelectorAll(".fsPlLock").forEach(b => b.onclick = () => { mo.locked[dk] = !mo.locked[dk]; fsPlSavePlans(); fsPlRender(); });
   document.querySelectorAll(".fsPlDayIcs").forEach(b => b.onclick = () => fsPlIcs([dk], "plan-" + dk + ".ics"));
+  document.querySelectorAll(".fsPlTrv").forEach(a => a.onclick = () => {
+    const x = sorted()[+a.dataset.i];
+    if (!x) return;
+    const cur = (typeof x.trvSet === "number") ? String(x.trvSet) : "";
+    const v = window.prompt("Driving time to this stop, in minutes.\n\n"
+      + "Leave it EMPTY to go back to the calculated time.", cur);
+    if (v === null) return;
+    const t = v.trim();
+    if (!t) delete x.trvSet;
+    else {
+      const n2 = parseInt(t, 10);
+      /* A wrong rejection is loud; a wrong acceptance is silent (V0.15). */
+      if (!(n2 >= 0) || !/^\d+$/.test(t)) { alert("That is not a number of minutes.\n\nType a whole number, or leave it empty to go back to the calculated time."); return; }
+      x.trvSet = n2;
+    }
+    fsPlSavePlans();
+    fsPlRender();
+  });
   document.querySelectorAll(".fsPlClrDay").forEach(b => b.onclick = () => {
     const arr = mo.days[dk] || [];
     if (!arr.length) return;
