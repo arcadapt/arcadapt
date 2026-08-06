@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.21 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.22 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.21 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.22 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -670,11 +670,13 @@
 </div>
 <div class="modal" id="timerModal" style="z-index:121">
   <div class="modalbox" style="max-width:380px;text-align:center">
-    <h3>Timer</h3>
-    <div id="timerLive" style="font-size:46px;font-weight:800;margin:6px 0">--:--</div>
+    <h3>Timers</h3>
+    <div id="timerList" style="margin:8px 0 2px;text-align:left"></div>
     <label style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:#aaa;margin:2px 0 6px"><input type="checkbox" id="timerBadgeOn" checked style="width:17px;height:17px"> Show mini timer on screen</label>
     <div id="timerIdle">
-      <label style="text-align:left">Countdown minutes (emergency light test = 90)</label>
+      <label style="text-align:left">Circuit / name (rides on the alert — blank = "Timer")</label>
+      <input type="text" id="timerName" placeholder="e.g. L2 East" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
+      <label style="text-align:left;margin-top:8px;display:block">Countdown minutes (emergency light test = 90)</label>
       <input type="text" id="timerMins" inputmode="numeric" value="90" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
       <label style="text-align:left;margin-top:8px;display:block">Warn me before the end (minutes, blank = off)</label>
       <input type="text" id="timerWarnMins" inputmode="numeric" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
@@ -686,7 +688,7 @@
       </div>
     </div>
     <div class="row" style="justify-content:center">
-      <button class="btn danger" id="timerStop" style="display:none">&#9632; Stop</button>
+      <button class="btn danger" id="timerStop" style="display:none">&#9632; Stop all</button>
       <button class="btn" id="timerClose">Close</button>
     </div>
   </div>
@@ -3979,6 +3981,46 @@ function ensurePdfJs() {
   return pdfjsReady;
 }
 
+/* V0.22 PASS 19 — trim the white page margin off an imported PDF page.
+   Bounding box of non-white pixels (threshold 250) + 10px pad, computed on
+   the CANVAS before toDataURL, so JPEG artefacts never enter the scan and
+   one helper covers all three doors (first plan / add level / insert as
+   object). Import-time ONLY: a level created here has objects:[], so nothing
+   placed can move. Reversible via the confirm — Cancel keeps the full page;
+   nothing is stored twice. A bounding box can only OVER-include (a faint
+   border makes the crop a no-op); it cannot cut the building off. */
+function fsPdfTrim(c) {
+  try {
+    const w = c.width, h = c.height;
+    const d = c.getContext("2d").getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) {
+      const off = y * w * 4;
+      for (let x = 0; x < w; x++) {
+        const i = off + x * 4;
+        if (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return c;                              // blank page — nothing to crop to
+    const pad = 10;
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    const saved = 1 - (cw * ch) / (w * h);
+    if (saved < 0.05) return c;                          // full-bleed page — not worth asking
+    if (!window.confirm("Trimmed " + Math.round(saved * 100) + "% white margin off the page.\n\nOK = keep the crop · Cancel = keep the full page")) return c;
+    const c2 = document.createElement("canvas");
+    c2.width = cw; c2.height = ch;
+    c2.getContext("2d").drawImage(c, minX, minY, cw, ch, 0, 0, cw, ch);
+    return c2;
+  } catch (e) { return c; }
+}
+
 function loadPdfFile(file, asObject) {
   statusEl.textContent = "Opening PDF…";
   ensurePdfJs()
@@ -4001,7 +4043,7 @@ function loadPdfFile(file, asObject) {
       cx2.fillStyle = "#ffffff";
       cx2.fillRect(0, 0, c.width, c.height);
       await page.render({ canvasContext: cx2, viewport: vp }).promise;
-      const dataUrl = c.toDataURL("image/jpeg", 0.92);
+      const dataUrl = fsPdfTrim(c).toDataURL("image/jpeg", 0.92);
       if (asObject && img) {
         insertImageFromDataUrl(dataUrl, c.width, c.height);
         updateStatus();
@@ -4593,7 +4635,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         const cx2 = c.getContext("2d");
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
         await page.render({ canvasContext: cx2, viewport: vp }).promise;
-        addLevelFromDataUrl(nm.trim() || "Level", c.toDataURL("image/jpeg", 0.92));
+        addLevelFromDataUrl(nm.trim() || "Level", fsPdfTrim(c).toDataURL("image/jpeg", 0.92));
       })
       .catch(() => alert("Couldn't open that PDF."));
   } else {
@@ -4604,7 +4646,82 @@ document.getElementById("levelInput").addEventListener("change", e => {
 });
 
 /* ================= Timer ================= */
-let timerInterval = null, timerEndsAt = null, timerStartedAt = null, timerWarnAt = null, timerWarned = false;
+/* V0.22 PASS 19 — timers are a LIST, not a singleton.
+   { id, name, endsAt, startedAt, warnAt, warned }
+   endsAt set    -> countdown (persisted since forever)
+   startedAt set -> stopwatch (persisted from V0.22 — it used to die on reload)
+   ONE badge shows the next-to-finish. The name rides on the alert, the
+   notification and the badge. */
+let timerInterval = null, timers = [];
+
+function timersSave() {
+  try {
+    if (timers.length) localStorage.setItem("bpm-timer", JSON.stringify(timers.map(t =>
+      ({ id: t.id, name: t.name, endsAt: t.endsAt, startedAt: t.startedAt, warnAt: t.warnAt, warned: t.warned }))));
+    else localStorage.removeItem("bpm-timer");
+  } catch (e) {}
+}
+function timersLoad() {
+  let raw = null;
+  try { raw = localStorage.getItem("bpm-timer"); } catch (e) { return []; }
+  if (!raw) return [];
+  let list = null;
+  if (raw.charAt(0) === "[") { try { list = JSON.parse(raw); } catch (e) { list = null; } }
+  if (!Array.isArray(list)) {
+    /* pre-V0.22 shape: a bare epoch-ms integer, the warn in its own key.
+       Normalised on READ — nothing is rewritten until the list next changes,
+       so a rollback to V0.21 mid-countdown still finds a parsable value. */
+    const saved = parseInt(raw, 10);
+    let w = null;
+    try { const wsv = +localStorage.getItem("bpm-timer-warn"); if (wsv > Date.now()) w = wsv; } catch (e) {}
+    try { localStorage.removeItem("bpm-timer-warn"); } catch (e) {}
+    list = saved ? [{ id: "t" + saved, name: "", endsAt: saved, startedAt: null, warnAt: w, warned: false }] : [];
+  }
+  /* a countdown that expired while the app was closed is over — same rule as
+     V0.21. A stopwatch has no end, so it survives any absence. */
+  return list.filter(t => t && (t.startedAt || (t.endsAt && t.endsAt > Date.now())));
+}
+function timerLabel(t) { return (t.name || "").trim() || "Timer"; }
+function timerNext() {
+  let best = null;
+  timers.forEach(t => { if (t.endsAt && (!best || t.endsAt < best.endsAt)) best = t; });
+  return best || timers[0] || null;
+}
+function timerRender() {
+  const box = document.getElementById("timerList");
+  box.innerHTML = "";
+  timers.forEach(t => {
+    const row = document.createElement("div");
+    row.className = "timerRow";
+    row.dataset.tid = t.id;
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:5px 0;padding:7px 9px;border:1px solid #3a3f45;border-radius:8px;background:#1a1d21";
+    const nm = document.createElement("div");
+    nm.className = "timerRowName";
+    nm.style.cssText = "flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    nm.textContent = "⏱ " + timerLabel(t);
+    nm.title = timerLabel(t) + (t.endsAt ? " — countdown" : " — stopwatch");
+    const tm = document.createElement("div");
+    tm.className = "timerRowTime";
+    tm.style.cssText = "font-variant-numeric:tabular-nums;font-weight:800;font-size:19px";
+    tm.textContent = "--:--";
+    const st = document.createElement("button");
+    st.className = "btn danger timerRowStop";
+    st.textContent = "■ Stop";
+    st.onclick = () => timerHalt(t.id);
+    row.appendChild(nm); row.appendChild(tm); row.appendChild(st);
+    box.appendChild(row);
+  });
+  /* "Stop all" only earns its place when there is more than one thing to stop */
+  document.getElementById("timerStop").style.display = timers.length > 1 ? "inline-block" : "none";
+}
+function timerRunUi() {
+  document.getElementById("timerBadge").style.display = document.getElementById("timerBadgeOn").checked ? "block" : "none";
+  if (!timerInterval) timerInterval = setInterval(timerTick, 500);
+}
+function timerStopUi() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  document.getElementById("timerBadge").style.display = "none";
+}
 
 function fmtClock(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -4612,36 +4729,50 @@ function fmtClock(ms) {
   return (hh ? hh + ":" : "") + String(mm).padStart(hh ? 2 : 1, "0") + ":" + String(ss).padStart(2, "0");
 }
 function timerTick() {
-  const badge = document.getElementById("timerBadge");
-  let text;
-  if (timerEndsAt) {
-    const left = timerEndsAt - Date.now();
-    if (left <= 0) {
-      timerHalt();
-      try { localStorage.removeItem("bpm-timer"); } catch (e) {}
-      if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
-      fsBeepPlay();
-      try { if ("Notification" in window && Notification.permission === "granted") new Notification("\u23f1 Timer finished", { body: "Time is up \u2014 check the lights!" }); } catch (e) {}
-      alert("⏱ Time is up — check the lights!");
-      return;
-    }
-    if (timerWarnAt && !timerWarned && Date.now() >= timerWarnAt) {
-      timerWarned = true;
-      try { localStorage.removeItem("bpm-timer-warn"); } catch (e) {}
-      const mmLeft = Math.max(1, Math.round(left / 60000));
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      fsBeepPlay(2);
-      try { if ("Notification" in window && Notification.permission === "granted") new Notification("\u23f1 " + mmLeft + " min left", { body: "Pre-warning \u2014 do your checks now." }); } catch (e) {}
-      alert("\u23f1 " + mmLeft + " min left \u2014 pre-warning: do your checks now.");
-    }
-    text = fmtClock(left);
-  } else {
-    text = fmtClock(Date.now() - timerStartedAt);
+  const now = Date.now();
+  const done = [], warnNow = [];
+  timers.forEach(t => {
+    if (!t.endsAt) return;
+    if (now >= t.endsAt) { done.push(t); return; }
+    if (t.warnAt && !t.warned && now >= t.warnAt) { t.warned = true; warnNow.push(t); }
+  });
+  if (done.length) {
+    timers = timers.filter(t => done.indexOf(t) < 0);
+    timersSave();
+    timerRender();
+    if (!timers.length) timerStopUi();
+  } else if (warnNow.length) {
+    timersSave();
   }
-  badge.textContent = "⏱ " + text;
-  const live = document.getElementById("timerLive");
-  if (document.getElementById("timerModal").classList.contains("show")) live.textContent = text;
+  const box = document.getElementById("timerList");
+  for (let i = 0; i < box.children.length; i++) {
+    const row = box.children[i];
+    const t = timers.find(x => x.id === row.dataset.tid);
+    if (!t) continue;
+    row.querySelector(".timerRowTime").textContent = fmtClock(t.endsAt ? t.endsAt - now : now - t.startedAt);
+  }
+  const nx = timerNext();
+  if (nx) {
+    let nm = timerLabel(nx);
+    if (nm.length > 12) nm = nm.slice(0, 11) + "…";
+    document.getElementById("timerBadge").textContent =
+      "⏱ " + (nx.name ? nm + " " : "") + fmtClock(nx.endsAt ? nx.endsAt - now : now - nx.startedAt);
+  }
+  warnNow.forEach(t => {
+    const mmLeft = Math.max(1, Math.round((t.endsAt - now) / 60000));
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    fsBeepPlay(2);
+    try { if ("Notification" in window && Notification.permission === "granted") new Notification("⏱ " + timerLabel(t) + " — " + mmLeft + " min left", { body: "Pre-warning — do your checks now." }); } catch (e) {}
+    alert("⏱ " + timerLabel(t) + " — " + mmLeft + " min left — pre-warning: do your checks now.");
+  });
+  done.forEach(t => {
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+    fsBeepPlay();
+    try { if ("Notification" in window && Notification.permission === "granted") new Notification("⏱ " + timerLabel(t) + " finished", { body: "Time is up — check the lights!" }); } catch (e) {}
+    alert("⏱ " + timerLabel(t) + " — time is up! Check the lights.");
+  });
 }
+
 let fsBeepCtx = null;
 function fsBeepPrep() {
   try {
@@ -4666,43 +4797,37 @@ function fsBeepPlay(nBeeps) {
   } catch (e) {}
 }
 function timerBegin(down, minutes) {
-  timerHalt();
   if (down) {
     fsBeepPrep();   // audio context needs a user gesture — grab it now for the finish beep
     try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch (e) {}
   }
+  const nmEl = document.getElementById("timerName");
+  const t = { id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+              name: nmEl ? nmEl.value.trim() : "",
+              endsAt: null, startedAt: null, warnAt: null, warned: false };
   if (down) {
-    timerEndsAt = Date.now() + minutes * 60000;
-    timerStartedAt = null;
-    try { localStorage.setItem("bpm-timer", String(timerEndsAt)); } catch (e) {}
+    t.endsAt = Date.now() + minutes * 60000;
     const wmEl = document.getElementById("timerWarnMins");
     const wm = wmEl ? parseFloat(wmEl.value) : 0;
-    timerWarnAt = wm > 0 && wm < minutes ? timerEndsAt - wm * 60000 : null;
-    timerWarned = false;
-    try {
-      if (timerWarnAt) localStorage.setItem("bpm-timer-warn", String(timerWarnAt)); else localStorage.removeItem("bpm-timer-warn");
-      if (wm > 0) localStorage.setItem("bpm-timer-warnmins", String(wm)); else localStorage.removeItem("bpm-timer-warnmins");
-    } catch (e) {}
+    if (wm > 0 && wm < minutes) t.warnAt = t.endsAt - wm * 60000;
+    try { if (wm > 0) localStorage.setItem("bpm-timer-warnmins", String(wm)); else localStorage.removeItem("bpm-timer-warnmins"); } catch (e) {}
   } else {
-    timerStartedAt = Date.now();
-    timerEndsAt = null;
+    t.startedAt = Date.now();
   }
-  document.getElementById("timerBadge").style.display = document.getElementById("timerBadgeOn").checked ? "block" : "none";
-  document.getElementById("timerStop").style.display = "inline-block";
-  document.getElementById("timerIdle").style.display = "none";
-  timerInterval = setInterval(timerTick, 500);
+  timers.push(t);
+  timersSave();
+  if (nmEl) nmEl.value = "";
+  timerRender();
+  timerRunUi();
   timerTick();
 }
-function timerHalt() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  timerEndsAt = null; timerStartedAt = null; timerWarnAt = null; timerWarned = false;
-  try { localStorage.removeItem("bpm-timer-warn"); } catch (e) {}
-  document.getElementById("timerBadge").style.display = "none";
-  document.getElementById("timerStop").style.display = "none";
-  document.getElementById("timerIdle").style.display = "";
-  document.getElementById("timerLive").textContent = "--:--";
-  try { localStorage.removeItem("bpm-timer"); } catch (e) {}
+function timerHalt(id) {
+  timers = id ? timers.filter(t => t.id !== id) : [];
+  timersSave();
+  timerRender();
+  if (timers.length) timerTick(); else timerStopUi();
 }
+
 /* ---------- QR asset tags: printable labels + camera scan ---------- */
 const FS_QR_SKIP = { campin:1, door:1, dbldoor:1, sldoor:1, rldoor:1, window:1, opening:1, stair:1, lstair:1 };
 function fsQrDevices() {
@@ -4919,18 +5044,11 @@ tbOn.onchange = () => {
   try { localStorage.setItem("bpm-timer-badge", tbOn.checked ? "1" : "0"); } catch (e) {}
   if (timerInterval) document.getElementById("timerBadge").style.display = tbOn.checked ? "block" : "none";
 };
-// resume countdown after reload
-try {
-  const saved = parseInt(localStorage.getItem("bpm-timer"), 10);
-  if (saved && saved > Date.now()) {
-    timerEndsAt = saved;
-    try { const wsv = +localStorage.getItem("bpm-timer-warn"); if (wsv > Date.now()) { timerWarnAt = wsv; timerWarned = false; } } catch (e) {}
-    document.getElementById("timerBadge").style.display = document.getElementById("timerBadgeOn").checked ? "block" : "none";
-    document.getElementById("timerStop").style.display = "inline-block";
-    document.getElementById("timerIdle").style.display = "none";
-    timerInterval = setInterval(timerTick, 500);
-  } else if (saved) { localStorage.removeItem("bpm-timer"); }
-} catch (e) {}
+// resume timers after reload — countdowns since forever, stopwatches and names from V0.22
+timers = timersLoad();
+if (timers.length) { timerRender(); timerRunUi(); timerTick(); }
+else timersSave();   // clears an expired/unparsable leftover, same as V0.21 did
+
 
 /* ================= Details photo viewer / draw ================= */
 let photoViewTarget = null, photoDrawing = false, photoLast = null, photoDirty = false;
@@ -14624,7 +14742,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v25";
+const FS_BUILD = "aa-v26";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
