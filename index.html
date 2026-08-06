@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.22 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.23 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.22 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.23 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -694,6 +694,22 @@
   </div>
 </div>
 
+<div class="modal" id="fsRgnModal" style="z-index:130">
+  <div class="modalbox" style="max-width:960px;width:94vw;text-align:center">
+    <h3 id="fsRgnTitle">Keep which part?</h3>
+    <p style="font-size:13px;color:#aaa;margin:4px 0 8px">Drag a box around the building you want &mdash; edges don't need to be exact, the white margin is trimmed off automatically.</p>
+    <div id="fsRgnWrap" style="position:relative;display:inline-block;max-width:100%">
+      <canvas id="fsRgnCanvas" style="max-width:100%;max-height:58vh;height:auto;border:1px solid #444;touch-action:none;cursor:crosshair;background:#fff"></canvas>
+      <div id="fsRgnBox" style="display:none;position:absolute;border:2px dashed #ff9800;background:rgba(255,152,0,.15);pointer-events:none"></div>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button class="btn primary" id="fsRgnKeep" disabled>&#10003; Keep selection</button>
+      <button class="btn" id="fsRgnAll">Keep whole page</button>
+      <button class="btn" id="fsRgnCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="fsTestModal">
   <div class="modalbox" style="max-width:600px;width:94vw;max-height:84vh;overflow-y:auto;text-align:left">
     <div id="fsTestBody"></div>
@@ -970,6 +986,7 @@
   <div class="modalbox" style="max-width:380px">
     <h3>Add photo</h3>
     <p style="font-size:13px;color:#ccc;margin-bottom:12px">A plan is already loaded. What should this photo do?</p>
+    <p style="font-size:12px;color:#8a8a8a;margin-bottom:10px">Stitching sheets? Add the next sheet onto the plan, drag it into place, then <b>Flatten</b> to burn it in.</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="btn primary" id="photoAdd">&#128444; Add onto current plan (moveable image)</button>
       <button class="btn" id="photoReplace">&#8635; Replace the plan</button>
@@ -3915,7 +3932,19 @@ function loadImageFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
     const im = new Image();
-    im.onload = () => setImage(im, reader.result, false);
+    im.onload = async () => {
+      const c0 = document.createElement("canvas");
+      c0.width = im.naturalWidth; c0.height = im.naturalHeight;
+      const cx0 = c0.getContext("2d");
+      cx0.fillStyle = "#ffffff"; cx0.fillRect(0, 0, c0.width, c0.height);
+      cx0.drawImage(im, 0, 0);
+      const cc = await fsRegionPick(c0);
+      if (!cc) { updateStatus(); return; }
+      const dataUrl = cc.toDataURL("image/jpeg", 0.92);
+      const im2 = new Image();
+      im2.onload = () => setImage(im2, dataUrl, false);
+      im2.src = dataUrl;
+    };
     im.src = reader.result;
   };
   reader.readAsDataURL(file);
@@ -3989,7 +4018,7 @@ function ensurePdfJs() {
    placed can move. Reversible via the confirm — Cancel keeps the full page;
    nothing is stored twice. A bounding box can only OVER-include (a faint
    border makes the crop a no-op); it cannot cut the building off. */
-function fsPdfTrim(c) {
+function fsPdfTrim(c, auto) {
   try {
     const w = c.width, h = c.height;
     const d = c.getContext("2d").getImageData(0, 0, w, h).data;
@@ -4012,13 +4041,93 @@ function fsPdfTrim(c) {
     maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
     const cw = maxX - minX + 1, ch = maxY - minY + 1;
     const saved = 1 - (cw * ch) / (w * h);
-    if (saved < 0.05) return c;                          // full-bleed page — not worth asking
-    if (!window.confirm("Trimmed " + Math.round(saved * 100) + "% white margin off the page.\n\nOK = keep the crop · Cancel = keep the full page")) return c;
+    if (saved < (auto ? 0.002 : 0.05)) return c;         // full-bleed page — not worth asking (auto: the box was the consent)
+    if (!auto && !window.confirm("Trimmed " + Math.round(saved * 100) + "% white margin off the page.\n\nOK = keep the crop · Cancel = keep the full page")) return c;
     const c2 = document.createElement("canvas");
     c2.width = cw; c2.height = ch;
     c2.getContext("2d").drawImage(c, minX, minY, cw, ch, 0, 0, cw, ch);
     return c2;
   } catch (e) { return c; }
+}
+
+/* V0.23 PASS 20 — pick the part of an imported sheet you actually want.
+   Real drawings carry several buildings + legend + titles per page, and a
+   bounding box can only OVER-include (the V0.22 lesson, met in the wild on
+   the Hunter Health sheet). The sheet renders here, you drag a box around
+   the one building, everything outside is discarded, and fsPdfTrim in AUTO
+   mode (the box IS the consent — no second dialog) shaves the white inside
+   the box so the selection never needs to be precise.
+   "Keep whole page" is one tap and is byte-for-byte the V0.22 behaviour.
+   Cancel aborts the import. Import-time only — objects:[] still holds. */
+function fsRegionPick(srcCanvas, forObject) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("fsRgnModal");
+    const disp = document.getElementById("fsRgnCanvas");
+    const box = document.getElementById("fsRgnBox");
+    const keep = document.getElementById("fsRgnKeep");
+    const k = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
+    disp.width = Math.max(1, Math.round(srcCanvas.width * k));
+    disp.height = Math.max(1, Math.round(srcCanvas.height * k));
+    disp.getContext("2d").drawImage(srcCanvas, 0, 0, disp.width, disp.height);
+    let sel = null, dragging = false;
+    box.style.display = "none";
+    keep.disabled = true;
+    const pos = e => {
+      const r = disp.getBoundingClientRect();
+      return { x: Math.max(0, Math.min(disp.width, (e.clientX - r.left) * (disp.width / r.width))),
+               y: Math.max(0, Math.min(disp.height, (e.clientY - r.top) * (disp.height / r.height))) };
+    };
+    const show = () => {
+      if (!sel) { box.style.display = "none"; return; }
+      const r = disp.getBoundingClientRect(), host = disp.parentElement.getBoundingClientRect();
+      const sx = r.width / disp.width, sy = r.height / disp.height;
+      box.style.left = (r.left - host.left + Math.min(sel.x1, sel.x2) * sx) + "px";
+      box.style.top = (r.top - host.top + Math.min(sel.y1, sel.y2) * sy) + "px";
+      box.style.width = (Math.abs(sel.x2 - sel.x1) * sx) + "px";
+      box.style.height = (Math.abs(sel.y2 - sel.y1) * sy) + "px";
+      box.style.display = "block";
+    };
+    disp.onpointerdown = e => {
+      try { disp.setPointerCapture(e.pointerId); } catch (err) {}
+      const p = pos(e);
+      dragging = true;
+      sel = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+      keep.disabled = true;
+      show();
+      e.preventDefault();
+    };
+    disp.onpointermove = e => { if (!dragging) return; const p = pos(e); sel.x2 = p.x; sel.y2 = p.y; show(); };
+    disp.onpointerup = () => {
+      dragging = false;
+      /* a sub-8px "box" is a stray tap, not intent */
+      if (sel && Math.abs(sel.x2 - sel.x1) > 8 && Math.abs(sel.y2 - sel.y1) > 8) keep.disabled = false;
+      else { sel = null; keep.disabled = true; show(); }
+    };
+    const finish = out => {
+      disp.onpointerdown = disp.onpointermove = disp.onpointerup = null;
+      keep.onclick = null;
+      modal.classList.remove("show");
+      resolve(out);
+    };
+    keep.onclick = () => {
+      let x = Math.round(Math.min(sel.x1, sel.x2) / k), y = Math.round(Math.min(sel.y1, sel.y2) / k);
+      let w = Math.round(Math.abs(sel.x2 - sel.x1) / k), h = Math.round(Math.abs(sel.y2 - sel.y1) / k);
+      x = Math.max(0, Math.min(srcCanvas.width - 1, x));
+      y = Math.max(0, Math.min(srcCanvas.height - 1, y));
+      w = Math.max(1, Math.min(srcCanvas.width - x, w));
+      h = Math.max(1, Math.min(srcCanvas.height - y, h));
+      const c2 = document.createElement("canvas");
+      c2.width = w; c2.height = h;
+      const cx2 = c2.getContext("2d");
+      cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
+      cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+      finish(fsPdfTrim(c2, true));
+    };
+    document.getElementById("fsRgnAll").onclick = () => finish(fsPdfTrim(srcCanvas));
+    document.getElementById("fsRgnCancel").onclick = () => finish(null);
+    document.getElementById("fsRgnTitle").textContent = forObject ? "Keep which part of this sheet?" : "Keep which part?";
+    modal.classList.add("show");
+  });
 }
 
 function loadPdfFile(file, asObject) {
@@ -4043,10 +4152,14 @@ function loadPdfFile(file, asObject) {
       cx2.fillStyle = "#ffffff";
       cx2.fillRect(0, 0, c.width, c.height);
       await page.render({ canvasContext: cx2, viewport: vp }).promise;
-      const dataUrl = fsPdfTrim(c).toDataURL("image/jpeg", 0.92);
+      const cc = await fsRegionPick(c, asObject);
+      if (!cc) { updateStatus(); return; }
+      const dataUrl = cc.toDataURL("image/jpeg", 0.92);
       if (asObject && img) {
-        insertImageFromDataUrl(dataUrl, c.width, c.height);
+        insertImageFromDataUrl(dataUrl, cc.width, cc.height, true);
         updateStatus();
+        /* AFTER updateStatus, which rewrites the status line */
+        statusEl.textContent = "Sheet placed at true size — drag/rotate it into place (the transparency slider helps line up an overlap), then Flatten to stitch it into the plan.";
         return;
       }
       const im = new Image();
@@ -4225,11 +4338,14 @@ document.getElementById("projInput").addEventListener("change", e => {
   e.target.value = "";
 });
 
-function insertImageFromDataUrl(src, iw, ih) {
+function insertImageFromDataUrl(src, iw, ih, native) {
   const r = stage.getBoundingClientRect();
   const centre = toImage(r.width / 2, r.height / 2);
-  const w = img.naturalWidth * 0.35;
-  const hh = w * (ih / iw);
+  /* V0.23: a PDF sheet lands at its TRUE rendered size — both sheets go
+     through the same render pipeline, so 1:1 pixels IS the right relative
+     scale for a uniform drawing set. Photos keep the 35% insert. */
+  const w = native ? iw : img.naturalWidth * 0.35;
+  const hh = native ? ih : w * (ih / iw);
   pushUndo();
   const o = { kind:"img", src:src, x:centre.x - w / 2, y:centre.y - hh / 2, w:w, h:hh };
   objects.push(o);
@@ -4635,12 +4751,25 @@ document.getElementById("levelInput").addEventListener("change", e => {
         const cx2 = c.getContext("2d");
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
         await page.render({ canvasContext: cx2, viewport: vp }).promise;
-        addLevelFromDataUrl(nm.trim() || "Level", fsPdfTrim(c).toDataURL("image/jpeg", 0.92));
+        const cc = await fsRegionPick(c);
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", cc.toDataURL("image/jpeg", 0.92));
       })
       .catch(() => alert("Couldn't open that PDF."));
   } else {
     const reader = new FileReader();
-    reader.onload = () => addLevelFromDataUrl(nm.trim() || "Level", reader.result);
+    reader.onload = () => {
+      const im = new Image();
+      im.onload = async () => {
+        const c0 = document.createElement("canvas");
+        c0.width = im.naturalWidth; c0.height = im.naturalHeight;
+        const cx0 = c0.getContext("2d");
+        cx0.fillStyle = "#ffffff"; cx0.fillRect(0, 0, c0.width, c0.height);
+        cx0.drawImage(im, 0, 0);
+        const cc = await fsRegionPick(c0);
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", cc.toDataURL("image/jpeg", 0.92));
+      };
+      im.src = reader.result;
+    };
     reader.readAsDataURL(f);
   }
 });
@@ -8019,7 +8148,8 @@ function fsIcsDeliver(text, fname) {
         alert("Calendar file saved as " + fname + ".\n\n"
             + "A web page cannot put events straight into your calendar \u2014 no browser allows it \u2014 "
             + "so on an iPad or iPhone:\n\n"
-            + "Files \u2192 Downloads \u2192 tap " + fname + " \u2192 Add All.\n\n"
+            + "Email the file to yourself and open it in Mail \u2014 the events appear with an Add All button.\n"
+            + "(Tapping it in Files does nothing \u2014 measured on an iPad, 6 Aug 2026.)\n\n"
             + "For a single visit it is quicker to use the \ud83d\udcc5 Google link on the stop itself.");
       }
       return how;
@@ -14742,7 +14872,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v26";
+const FS_BUILD = "aa-v27";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
