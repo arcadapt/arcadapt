@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.24 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.25 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.24 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.25 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -700,7 +700,12 @@
     <div class="row" style="justify-content:center;gap:6px;margin:2px 0 0">
       <button class="btn primary" id="fsRgnModeBox">&#9645; Box</button>
       <button class="btn" id="fsRgnModePoly">&#11040; Outline</button>
-      <button class="btn" id="fsRgnModeLasso">&#9998; Lasso</button>
+      <span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px">
+        <button class="btn" id="fsRgnZoomOut" title="Zoom out">&minus;</button>
+        <span id="fsRgnZoomLbl" style="font-size:12px;color:#aaa;min-width:44px;display:inline-block">100%</span>
+        <button class="btn" id="fsRgnZoomIn" title="Zoom in">+</button>
+        <button class="btn" id="fsRgnZoomFit" title="Fit the whole sheet">&#10530; Fit</button>
+      </span>
     </div>
     <p id="fsRgnHint" style="font-size:13px;color:#aaa;margin:4px 0 8px">Drag a box around the building you want &mdash; edges don't need to be exact, the white margin is trimmed off automatically.</p>
     <div id="fsRgnWrap" style="position:relative;display:inline-block;max-width:100%">
@@ -709,7 +714,9 @@
     </div>
     <div class="row" style="justify-content:center">
       <button class="btn primary" id="fsRgnKeep" disabled>&#10003; Keep selection</button>
-      <button class="btn" id="fsRgnUndo" style="display:none">&#8630; Undo point</button>
+      <button class="btn" id="fsRgnUndo" style="display:none">&#8630; Undo</button>
+      <button class="btn" id="fsRgnRedo" style="display:none">&#8631; Redo</button>
+      <button class="btn" id="fsRgnReset" style="display:none">&#10226; Start again</button>
       <button class="btn" id="fsRgnAll">Keep whole page</button>
       <button class="btn" id="fsRgnCancel">Cancel</button>
     </div>
@@ -4058,11 +4065,19 @@ function fsPdfTrim(c, auto) {
   } catch (e) { return c; }
 }
 
-/* V0.24 PASS 21 — the picker learns shapes: box, polygon, freehand lasso.
+/* V0.25 PASS 22 — the picker keeps two shapes: box and outline.
    An L-shaped building beside a title block is exactly where a rectangle
    over-includes (Reece, 6 Aug, on the Hunter Health sheet) — so trace it:
-   Outline = tap corner by corner, tap your first point again to close;
-   Lasso = one continuous stroke, the loop closes when you let go.
+   Outline = tap corner by corner, tap your first point again to close.
+   Freehand LASSO shipped in V0.24 and was cut in V0.25 — "way too difficult
+   and impractical to use" on a tablet in the field (Reece, 7 Aug). It was
+   only ever a third way to fill pts[]; Outline inherits everything below.
+   V0.25 also reworked Outline itself (item 10): the sheet zooms 1x-6x and
+   pans by dragging, every placed point is a draggable knob that stays
+   draggable AFTER the loop closes, undo/redo/start-again run off a snapshot
+   stack, and the line is solid and haloed instead of thin and dashed.
+   A point is placed on pointer UP, which is what makes pan and knob-drag
+   distinguishable from a tap at all — see the block at disp.onpointerdown.
    Everything outside the closed path is filled white and discarded, then
    fsPdfTrim in AUTO mode tightens the frame — the V0.23 plumbing all
    reuses; the path replaces the box, nothing else moved.
@@ -4081,24 +4096,61 @@ function fsRegionPick(srcCanvas, forObject) {
     const undo = document.getElementById("fsRgnUndo");
     const hint = document.getElementById("fsRgnHint");
     const modeBtns = { box: document.getElementById("fsRgnModeBox"),
-                       poly: document.getElementById("fsRgnModePoly"),
-                       lasso: document.getElementById("fsRgnModeLasso") };
+                       poly: document.getElementById("fsRgnModePoly") };
+    const redo = document.getElementById("fsRgnRedo");
+    const reset = document.getElementById("fsRgnReset");
+    const zIn = document.getElementById("fsRgnZoomIn");
+    const zOut = document.getElementById("fsRgnZoomOut");
+    const zFit = document.getElementById("fsRgnZoomFit");
+    const zLbl = document.getElementById("fsRgnZoomLbl");
     const HINTS = {
       box: "Drag a box around the building you want — edges don't need to be exact, the white margin is trimmed off automatically.",
-      poly: "Tap corner by corner around the building — tap your first point again to close the loop (✓ Keep also closes it).",
-      lasso: "Draw around the building in one continuous stroke — let go and the loop closes itself."
+      poly: "Tap corner by corner around the building — tap your first point again to close the loop. Drag any dot to move it, even after the loop closes. Zoom in and drag the sheet to aim; ✓ Keep is the last word."
     };
     const k = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
     disp.width = Math.max(1, Math.round(srcCanvas.width * k));
     disp.height = Math.max(1, Math.round(srcCanvas.height * k));
     const dcx = disp.getContext("2d");
-    const blit = () => dcx.drawImage(srcCanvas, 0, 0, disp.width, disp.height);
     let mode = "box", sel = null, pts = [], closed = false, dragging = false;
+    /* PASS 22 item 10 — picker zoom. `pts` stay in UNZOOMED display-canvas
+       coordinates; only blit(), the overlay transform, pos() and show() know
+       zoom exists. That is deliberate: paint()'s evenodd wash, keep.onclick's
+       bounding box and the clip path all keep working unchanged, so the
+       winding fix does not have to be re-proved against a second coordinate
+       space. {vx, vy} is the top-left of the visible region IN DISP COORDS. */
+    let vz = 1, vx = 0, vy = 0;
+    const VZMIN = 1, VZMAX = 6;
+    const clampView = () => {
+      const w = disp.width / vz, h = disp.height / vz;
+      vx = Math.max(0, Math.min(Math.max(0, disp.width - w), vx));
+      vy = Math.max(0, Math.min(Math.max(0, disp.height - h), vy));
+    };
+    const blit = () => {
+      dcx.setTransform(1, 0, 0, 1, 0, 0);
+      dcx.drawImage(srcCanvas,
+                    vx / k, vy / k, disp.width / (vz * k), disp.height / (vz * k),
+                    0, 0, disp.width, disp.height);
+    };
+    /* undo/redo: snapshots of the WHOLE shape, pushed before every mutation.
+       A knob drag is one step (pushed on pointerdown), not one per move. */
+    const hist = [], future = [];
+    const shot = () => ({ pts: pts.map(q => ({ x: q.x, y: q.y })), closed: closed });
+    const put = st => { pts = st.pts.map(q => ({ x: q.x, y: q.y })); closed = st.closed; };
+    const snapshot = () => {
+      hist.push(shot());
+      if (hist.length > 80) hist.shift();
+      future.length = 0;          /* a new edit invalidates the redo branch */
+    };
     const paint = () => {
       blit();
       if (!pts.length) return;
+      dcx.save();
+      /* everything below is drawn in DISP coords; the view does the zoom */
+      dcx.setTransform(vz, 0, 0, vz, -vx * vz, -vy * vz);
       if (closed) {
-        /* wash out what the path will discard — the preview IS the contract */
+        /* wash out what the path will discard — the preview IS the contract.
+           MUST stay "evenodd" and MUST stay in step with cx2.clip("evenodd")
+           in keep.onclick; see the note there before touching either. */
         dcx.save();
         dcx.beginPath();
         dcx.rect(0, 0, disp.width, disp.height);
@@ -4109,46 +4161,116 @@ function fsRegionPick(srcCanvas, forObject) {
         dcx.fill("evenodd");
         dcx.restore();
       }
-      dcx.save();
-      dcx.strokeStyle = "#ff9800"; dcx.lineWidth = 2; dcx.setLineDash([6, 4]);
+      /* PASS 22 item 10 — "I can hardly see it" (Reece, 7 Aug). A 2px dashed
+         line spends half its length on gaps and reads thinner than it
+         measures at arm's length on a tablet in daylight, so: solid, 3px,
+         over a dark halo so it survives both a white sheet and a dark scan.
+         Widths are divided by vz so the line does not fatten with the zoom. */
+      const lw = 3 / vz, hr = 7 / vz;
+      dcx.lineJoin = "round"; dcx.lineCap = "round";
       dcx.beginPath();
       dcx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < pts.length; i++) dcx.lineTo(pts[i].x, pts[i].y);
       if (closed) dcx.closePath();
-      dcx.stroke();
-      dcx.setLineDash([]);
-      if (mode === "poly" && !closed) {
-        dcx.fillStyle = "#ff9800";
+      dcx.strokeStyle = "rgba(0,0,0,.6)"; dcx.lineWidth = lw + 2.5 / vz; dcx.stroke();
+      dcx.strokeStyle = "#ff9800"; dcx.lineWidth = lw; dcx.stroke();
+      /* every placed point is a grab knob, closed loop or not — a shape you
+         cannot nudge after closing it is one bad tap away from starting over */
+      for (let i = 0; i < pts.length; i++) {
         dcx.beginPath();
-        dcx.arc(pts[0].x, pts[0].y, 5, 0, Math.PI * 2);
+        dcx.arc(pts[i].x, pts[i].y, hr, 0, Math.PI * 2);
+        dcx.fillStyle = (i === 0 && !closed) ? "#ffffff" : "#ff9800";
         dcx.fill();
+        dcx.lineWidth = 2 / vz;
+        dcx.strokeStyle = "rgba(0,0,0,.7)";
+        dcx.stroke();
       }
       dcx.restore();
+      dcx.setTransform(1, 0, 0, 1, 0, 0);
+    };
+    const setZoom = (z, ax, ay) => {
+      const nz = Math.max(VZMIN, Math.min(VZMAX, z));
+      if (ax === undefined) { ax = vx + disp.width / (2 * vz); ay = vy + disp.height / (2 * vz); }
+      const sx = (ax - vx) * vz, sy = (ay - vy) * vz;   /* hold the anchor still */
+      vz = nz;
+      vx = ax - sx / vz; vy = ay - sy / vz;
+      clampView();
+      zLbl.textContent = Math.round(vz * 100) + "%";
+      zOut.disabled = vz <= VZMIN;
+      zIn.disabled = vz >= VZMAX;
+      paint();
+    };
+    /* poly-only arming, in one place. Box mode manages keep.disabled itself
+       from the drag, and must not have it stamped on by a shared helper. */
+    const arm = () => {
+      if (mode !== "poly") return;
+      keep.disabled = pts.length < 3;
+      undo.style.display = hist.length ? "" : "none";
+      redo.style.display = future.length ? "" : "none";
+      reset.style.display = pts.length ? "" : "none";
     };
     const setMode = m => {
       mode = m;
-      sel = null; pts = []; closed = false; dragging = false;
+      sel = null; pts = []; closed = false; dragging = false; press = null;
+      hist.length = 0; future.length = 0;
       box.style.display = "none";
       keep.disabled = true;
       undo.style.display = "none";
+      redo.style.display = "none";
+      reset.style.display = "none";
       hint.textContent = HINTS[m];
       for (const key in modeBtns) modeBtns[key].classList.toggle("primary", key === m);
-      blit();
+      /* zoom survives a mode switch on purpose — he lines the sheet up once
+         and then decides whether a box or an outline suits it */
+      setZoom(vz);
+    };
+    /* raw() is canvas pixels ignoring the view — what a pan is measured in.
+       pos() is the same point in DISP coords, which is what pts[] holds. */
+    const raw = e => {
+      const r = disp.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (disp.width / r.width),
+               y: (e.clientY - r.top) * (disp.height / r.height) };
     };
     const pos = e => {
-      const r = disp.getBoundingClientRect();
-      return { x: Math.max(0, Math.min(disp.width, (e.clientX - r.left) * (disp.width / r.width))),
-               y: Math.max(0, Math.min(disp.height, (e.clientY - r.top) * (disp.height / r.height))) };
+      const r0 = raw(e);
+      return { x: Math.max(0, Math.min(disp.width, vx + r0.x / vz)),
+               y: Math.max(0, Math.min(disp.height, vy + r0.y / vz)) };
     };
+    /* CSS pixels per disp unit — the conversion that lets a 14px finger and a
+       6px slop threshold mean the same thing at 100% and at 600% */
+    const cssPer = () => (disp.getBoundingClientRect().width / disp.width) * vz;
     const show = () => {
       if (!sel) { box.style.display = "none"; return; }
       const r = disp.getBoundingClientRect(), host = disp.parentElement.getBoundingClientRect();
-      const sx = r.width / disp.width, sy = r.height / disp.height;
-      box.style.left = (r.left - host.left + Math.min(sel.x1, sel.x2) * sx) + "px";
-      box.style.top = (r.top - host.top + Math.min(sel.y1, sel.y2) * sy) + "px";
+      const sx = (r.width / disp.width) * vz, sy = (r.height / disp.height) * vz;
+      box.style.left = (r.left - host.left + (Math.min(sel.x1, sel.x2) - vx) * sx) + "px";
+      box.style.top = (r.top - host.top + (Math.min(sel.y1, sel.y2) - vy) * sy) + "px";
       box.style.width = (Math.abs(sel.x2 - sel.x1) * sx) + "px";
       box.style.height = (Math.abs(sel.y2 - sel.y1) * sy) + "px";
       box.style.display = "block";
+    };
+    /* PASS 22 item 10 — ONE pointer state machine, and the change everything
+       else in this item hangs off: an outline point is placed on pointer UP.
+
+       On pointerDOWN a tap and the first frame of a drag are the same event,
+       so V0.24 had no gesture budget left over — it could only place. On
+       pointerup the press has a history: it moved more than MOVEPX CSS px
+       (a pan of a zoomed sheet, or a knob being dragged) or it did not (a
+       tap, which places a point or closes the loop). Zoom, live knobs and
+       drag-to-pan are all that one distinction, spent three ways.
+
+       Both thresholds are CSS px converted through cssPer(), so a finger
+       means a finger at 100% and at 600%. */
+    let press = null;
+    const HITPX = 14, MOVEPX = 6;
+    const hitKnob = p => {
+      const rr = HITPX / cssPer();
+      /* newest first: the point just placed wins a tie against an older one
+         sitting under the same finger. Runs whether or not the loop is
+         closed — adjusting a closed outline is the whole ask (Reece, 7 Aug). */
+      for (let i = pts.length - 1; i >= 0; i--)
+        if (Math.hypot(p.x - pts[i].x, p.y - pts[i].y) <= rr) return i;
+      return -1;
     };
     disp.onpointerdown = e => {
       try { disp.setPointerCapture(e.pointerId); } catch (err) {}
@@ -4159,57 +4281,76 @@ function fsRegionPick(srcCanvas, forObject) {
         keep.disabled = true;
         show();
       } else if (mode === "poly") {
-        if (!closed) {
-          /* 14 CSS px around the first point closes the loop — a finger, not a pixel */
-          const closeR = 14 * (disp.width / disp.getBoundingClientRect().width);
-          if (pts.length >= 3 && Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= closeR) closed = true;
-          else pts.push(p);
-          keep.disabled = pts.length < 3;
-          undo.style.display = pts.length ? "" : "none";
-          paint();
-        }
-      } else {
-        dragging = true;
-        closed = false;
-        pts = [p];
-        keep.disabled = true;
-        paint();
+        const kb = hitKnob(p);
+        if (kb >= 0) snapshot();     /* the whole drag is ONE undo step */
+        const r0 = raw(e);
+        press = { rx: r0.x, ry: r0.y, vx: vx, vy: vy, moved: false, knob: kb };
       }
       e.preventDefault();
     };
     disp.onpointermove = e => {
-      if (!dragging) return;
-      const p = pos(e);
-      if (mode === "box") { sel.x2 = p.x; sel.y2 = p.y; show(); }
-      else if (mode === "lasso") {
-        const last = pts[pts.length - 1];
-        if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) { pts.push(p); paint(); }
-      }
-    };
-    disp.onpointerup = () => {
-      if (!dragging) return;
-      dragging = false;
       if (mode === "box") {
-        /* a sub-8px "box" is a stray tap, not intent */
-        if (sel && Math.abs(sel.x2 - sel.x1) > 8 && Math.abs(sel.y2 - sel.y1) > 8) keep.disabled = false;
-        else { sel = null; keep.disabled = true; show(); }
-      } else if (mode === "lasso") {
-        /* a sub-8px scribble is a stray tap, not a lasso */
-        let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
-        for (let i = 0; i < pts.length; i++) {
-          if (pts[i].x < mnx) mnx = pts[i].x;
-          if (pts[i].x > mxx) mxx = pts[i].x;
-          if (pts[i].y < mny) mny = pts[i].y;
-          if (pts[i].y > mxy) mxy = pts[i].y;
-        }
-        if (pts.length >= 3 && mxx - mnx > 8 && mxy - mny > 8) { closed = true; keep.disabled = false; }
-        else { pts = []; keep.disabled = true; }
+        if (!dragging) return;
+        const p = pos(e);
+        sel.x2 = p.x; sel.y2 = p.y; show();
+        return;
+      }
+      if (!press) return;
+      const r1 = raw(e);
+      if (Math.hypot(r1.x - press.rx, r1.y - press.ry) * (cssPer() / vz) > MOVEPX) press.moved = true;
+      if (press.knob >= 0) {
+        pts[press.knob] = pos(e);
+        paint();
+      } else if (press.moved) {
+        vx = press.vx - (r1.x - press.rx) / vz;
+        vy = press.vy - (r1.y - press.ry) / vz;
+        clampView();
         paint();
       }
     };
+    disp.onpointerup = e => {
+      if (mode === "box") {
+        if (!dragging) return;
+        dragging = false;
+        /* a sub-8px "box" is a stray tap, not intent */
+        if (sel && Math.abs(sel.x2 - sel.x1) > 8 && Math.abs(sel.y2 - sel.y1) > 8) keep.disabled = false;
+        else { sel = null; keep.disabled = true; show(); }
+        return;
+      }
+      if (!press) return;
+      const pr = press;
+      press = null;
+      if (pr.knob >= 0) {
+        if (!pr.moved) {
+          hist.pop();              /* a tap is not an edit — do not leave a no-op on the stack */
+          /* tapping the FIRST knob still closes the loop: that is the gesture
+             the hint has promised since V0.24, and HITPX is the same 14 px
+             radius that used to do it */
+          if (!closed && pr.knob === 0 && pts.length >= 3) { snapshot(); closed = true; }
+        }
+        arm();
+        paint();
+        return;
+      }
+      if (pr.moved) return;        /* that was a pan, not a placement */
+      if (closed) return;          /* taps stop at the close; knobs do not */
+      snapshot();
+      pts.push(pos(e));
+      arm();
+      paint();
+    };
+    /* same leak class as workspace item 4: a press that never lifts on this
+       element would otherwise keep panning the sheet on the next move */
+    disp.onpointercancel = () => { press = null; dragging = false; };
     const finish = out => {
       disp.onpointerdown = disp.onpointermove = disp.onpointerup = null;
-      keep.onclick = undo.onclick = null;
+      disp.onpointercancel = null;
+      keep.onclick = undo.onclick = redo.onclick = reset.onclick = null;
+      zIn.onclick = zOut.onclick = zFit.onclick = null;
+      /* the picker is reused across imports — leave no control armed and no
+         control disabled from the last visit */
+      undo.style.display = redo.style.display = reset.style.display = "none";
+      zIn.disabled = zOut.disabled = false;
       for (const key in modeBtns) modeBtns[key].onclick = null;
       modal.classList.remove("show");
       resolve(out);
@@ -4248,28 +4389,60 @@ function fsRegionPick(srcCanvas, forObject) {
       c2.width = w; c2.height = h;
       const cx2 = c2.getContext("2d");
       cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
-      /* clip to the path: inside = the sheet, outside = the white just laid */
+      /* Clip to the path: inside = the sheet, outside = the white just laid.
+         "evenodd" is NOT decoration — it must match the preview wash's fill
+         rule at dcx.fill("evenodd") above. With the default NONZERO rule a
+         same-direction re-entrant trace keeps its doubly-wound patch here
+         while the preview washed it away, so white the user cut out came
+         back inside the trim bbox (Reece, field, 7 Aug). The preview is what
+         the user consented to when they pressed Keep, so the crop follows the
+         preview. Change one of these two and you must change the other —
+         tests/test_p22_outline.py fails loudly if they drift apart. */
       cx2.save();
       cx2.beginPath();
       cx2.moveTo(pts[0].x / k - x, pts[0].y / k - y);
       for (let i = 1; i < pts.length; i++) cx2.lineTo(pts[i].x / k - x, pts[i].y / k - y);
       cx2.closePath();
-      cx2.clip();
+      cx2.clip("evenodd");
       cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
       cx2.restore();
       finish(fsPdfTrim(c2, true));
     };
+    /* PASS 22 item 10 — undo is a stack now, not a pop. The V0.24 version
+       walked the shape backwards by hand and could only ever go one way;
+       with snapshots, "undo after closing re-opens the loop" falls out for
+       free (the snapshot taken before closing IS the open loop) and redo
+       becomes possible at all. Redo dies on the next edit — snapshot()
+       clears it — which is the behaviour every editor has and nobody
+       notices until it is missing. */
     undo.onclick = () => {
+      if (mode !== "poly" || !hist.length) return;
+      future.push(shot());
+      put(hist.pop());
+      arm();
+      paint();
+    };
+    redo.onclick = () => {
+      if (mode !== "poly" || !future.length) return;
+      hist.push(shot());
+      put(future.pop());
+      arm();
+      paint();
+    };
+    reset.onclick = () => {
       if (mode !== "poly" || !pts.length) return;
-      if (closed) closed = false;   /* first undo after closing re-opens the loop */
-      else pts.pop();
-      keep.disabled = pts.length < 3;
-      undo.style.display = pts.length ? "" : "none";
+      snapshot();            /* "start again" is itself undoable — a mis-tap
+                                on it must not cost the whole outline */
+      pts = [];
+      closed = false;
+      arm();
       paint();
     };
     modeBtns.box.onclick = () => setMode("box");
     modeBtns.poly.onclick = () => setMode("poly");
-    modeBtns.lasso.onclick = () => setMode("lasso");
+    zIn.onclick = () => setZoom(vz * 1.5);
+    zOut.onclick = () => setZoom(vz / 1.5);
+    zFit.onclick = () => { vx = 0; vy = 0; setZoom(VZMIN); };
     /* V0.24: whole page means the WHOLE page — no trim, no dialog (the picker
        is the main door; Reece's verdict 7 Aug). Resurrect the V0.22 pass with
        finish(fsPdfTrim(srcCanvas)) if a real single-drawing sheet misses it. */
@@ -5682,7 +5855,11 @@ const SHAPE_TOOLS = ["line", "brk", "arrow", "rect", "ellipse", "cloud", "callou
 
 cv.addEventListener("pointerdown", e => {
   if (!img) return;
-  cv.setPointerCapture(e.pointerId);
+  /* setPointerCapture throws NotFoundError when the pointer is already gone
+     — real on iPad when the system claims a gesture, or when a slow frame
+     delays dispatch past the lift. Unguarded, the throw aborted this whole
+     handler. fsRegionPick has always wrapped its copy; this never did. */
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   const p = localXY(e);
   pointers.set(e.pointerId, p);
   moved = false;
@@ -6189,6 +6366,38 @@ function endPointer(e) {
 }
 cv.addEventListener("pointerup", endPointer);
 cv.addEventListener("pointercancel", endPointer);
+/* PASS 22 item 4 — the gesture wedge. ONE entry left behind in `pointers`
+   is unrecoverable without a reload: size never returns to 0, so the next
+   single finger reads as size 2 and takes the PINCH branch (the plan zooms
+   instead of panning), while a genuine two-finger pinch reads as size 3 and
+   no branch claims it. Measured, not guessed. That is the field report
+   exactly — "broke finger pan + pinch-zoom entirely; only a full app restart
+   fixed it (autosave survived fine)".
+
+   An entry leaks whenever the lift never reaches cv: capture refused or lost
+   and the finger came up over another element, or the tab went away
+   mid-gesture. CAPTURE phase on window, so a lift that something else stops
+   propagating still retires its pointer. endPointer ignores ids it does not
+   know, so the duplicate call on cv's own events costs nothing.
+
+   NOTE: neither a whole-plan selection nor a base-raster hit causes this —
+   both were tested and cleared in Pass 22. Do not "fix" the marquee. */
+window.addEventListener("pointerup", endPointer, true);
+window.addEventListener("pointercancel", endPointer, true);
+function fsResetGesture() {
+  if (!pointers.size && dragMode === null) return;
+  pointers.clear();
+  dragMode = null;
+  pinchStart = null;
+  panStart = null;
+  marquee = null;
+  draw();
+}
+/* the lift that never fires at all: app backgrounded mid-gesture */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") fsResetGesture();
+});
+window.addEventListener("blur", fsResetGesture);
 
 cv.addEventListener("wheel", e => {
   if (!img) return;
@@ -12437,7 +12646,8 @@ function fsInfoPhotoHtml() {
   if (!spAll.length) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
-    html += '<img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
+      '<div class="fsSpDel" data-i="0" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:#c62828;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Remove this photo">&#10005;</div></div>';
     if (spAll.length > 1) {
       html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
       spAll.slice(1).forEach((p, i) => {
@@ -12825,7 +13035,18 @@ function fsRenderTab() {
     document.querySelectorAll(".fsSpDel").forEach(b => {
       b.onclick = () => {
         if (!confirm("Remove this photo from the site photos?")) return;
-        s.photoExtra.splice(+b.dataset.i - 1, 1);
+        /* index 0 is s.photo, NOT photoExtra[-1]. Before Pass 22 the main
+           tile carried no delete badge at all, so a site whittled down to
+           one photo could never lose it (Reece, 7 Aug). Promote the first
+           extra so the card never blanks while photos remain. */
+        const spi = +b.dataset.i;
+        if (spi === 0) {
+          const spx = s.photoExtra || [];
+          if (spx.length) { s.photo = spx.shift(); s.photoExtra = spx; }
+          else delete s.photo;
+        } else {
+          s.photoExtra.splice(spi - 1, 1);
+        }
         fsMarkDirty();
         fsRenderTab();
       };
@@ -15023,7 +15244,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v28";
+const FS_BUILD = "aa-v29";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
