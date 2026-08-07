@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.23 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.24 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.23 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.24 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -697,13 +697,19 @@
 <div class="modal" id="fsRgnModal" style="z-index:130">
   <div class="modalbox" style="max-width:960px;width:94vw;text-align:center">
     <h3 id="fsRgnTitle">Keep which part?</h3>
-    <p style="font-size:13px;color:#aaa;margin:4px 0 8px">Drag a box around the building you want &mdash; edges don't need to be exact, the white margin is trimmed off automatically.</p>
+    <div class="row" style="justify-content:center;gap:6px;margin:2px 0 0">
+      <button class="btn primary" id="fsRgnModeBox">&#9645; Box</button>
+      <button class="btn" id="fsRgnModePoly">&#11040; Outline</button>
+      <button class="btn" id="fsRgnModeLasso">&#9998; Lasso</button>
+    </div>
+    <p id="fsRgnHint" style="font-size:13px;color:#aaa;margin:4px 0 8px">Drag a box around the building you want &mdash; edges don't need to be exact, the white margin is trimmed off automatically.</p>
     <div id="fsRgnWrap" style="position:relative;display:inline-block;max-width:100%">
       <canvas id="fsRgnCanvas" style="max-width:100%;max-height:58vh;height:auto;border:1px solid #444;touch-action:none;cursor:crosshair;background:#fff"></canvas>
       <div id="fsRgnBox" style="display:none;position:absolute;border:2px dashed #ff9800;background:rgba(255,152,0,.15);pointer-events:none"></div>
     </div>
     <div class="row" style="justify-content:center">
       <button class="btn primary" id="fsRgnKeep" disabled>&#10003; Keep selection</button>
+      <button class="btn" id="fsRgnUndo" style="display:none">&#8630; Undo point</button>
       <button class="btn" id="fsRgnAll">Keep whole page</button>
       <button class="btn" id="fsRgnCancel">Cancel</button>
     </div>
@@ -4015,8 +4021,10 @@ function ensurePdfJs() {
    the CANVAS before toDataURL, so JPEG artefacts never enter the scan and
    one helper covers all three doors (first plan / add level / insert as
    object). Import-time ONLY: a level created here has objects:[], so nothing
-   placed can move. Reversible via the confirm — Cancel keeps the full page;
-   nothing is stored twice. A bounding box can only OVER-include (a faint
+   placed can move. V0.24: every live caller passes auto=true (the region
+   picker is the consent) — the confirm branch below is DORMANT, kept
+   intact so a one-argument call can resurrect the V0.22 whole-page trim.
+   A bounding box can only OVER-include (a faint
    border makes the crop a no-op); it cannot cut the building off. */
 function fsPdfTrim(c, auto) {
   try {
@@ -4050,14 +4058,19 @@ function fsPdfTrim(c, auto) {
   } catch (e) { return c; }
 }
 
-/* V0.23 PASS 20 — pick the part of an imported sheet you actually want.
-   Real drawings carry several buildings + legend + titles per page, and a
-   bounding box can only OVER-include (the V0.22 lesson, met in the wild on
-   the Hunter Health sheet). The sheet renders here, you drag a box around
-   the one building, everything outside is discarded, and fsPdfTrim in AUTO
-   mode (the box IS the consent — no second dialog) shaves the white inside
-   the box so the selection never needs to be precise.
-   "Keep whole page" is one tap and is byte-for-byte the V0.22 behaviour.
+/* V0.24 PASS 21 — the picker learns shapes: box, polygon, freehand lasso.
+   An L-shaped building beside a title block is exactly where a rectangle
+   over-includes (Reece, 6 Aug, on the Hunter Health sheet) — so trace it:
+   Outline = tap corner by corner, tap your first point again to close;
+   Lasso = one continuous stroke, the loop closes when you let go.
+   Everything outside the closed path is filled white and discarded, then
+   fsPdfTrim in AUTO mode tightens the frame — the V0.23 plumbing all
+   reuses; the path replaces the box, nothing else moved.
+   "Keep whole page" now means LITERALLY the whole page — the V0.22
+   "Trimmed N%" confirm on that button died this pass (with the picker as
+   the main door it was redundant noise — Reece's verdict, 7 Aug). The
+   confirm branch in fsPdfTrim is kept intact and dormant; resurrect with
+   finish(fsPdfTrim(srcCanvas)) below if field use disagrees.
    Cancel aborts the import. Import-time only — objects:[] still holds. */
 function fsRegionPick(srcCanvas, forObject) {
   return new Promise(resolve => {
@@ -4065,13 +4078,63 @@ function fsRegionPick(srcCanvas, forObject) {
     const disp = document.getElementById("fsRgnCanvas");
     const box = document.getElementById("fsRgnBox");
     const keep = document.getElementById("fsRgnKeep");
+    const undo = document.getElementById("fsRgnUndo");
+    const hint = document.getElementById("fsRgnHint");
+    const modeBtns = { box: document.getElementById("fsRgnModeBox"),
+                       poly: document.getElementById("fsRgnModePoly"),
+                       lasso: document.getElementById("fsRgnModeLasso") };
+    const HINTS = {
+      box: "Drag a box around the building you want — edges don't need to be exact, the white margin is trimmed off automatically.",
+      poly: "Tap corner by corner around the building — tap your first point again to close the loop (✓ Keep also closes it).",
+      lasso: "Draw around the building in one continuous stroke — let go and the loop closes itself."
+    };
     const k = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
     disp.width = Math.max(1, Math.round(srcCanvas.width * k));
     disp.height = Math.max(1, Math.round(srcCanvas.height * k));
-    disp.getContext("2d").drawImage(srcCanvas, 0, 0, disp.width, disp.height);
-    let sel = null, dragging = false;
-    box.style.display = "none";
-    keep.disabled = true;
+    const dcx = disp.getContext("2d");
+    const blit = () => dcx.drawImage(srcCanvas, 0, 0, disp.width, disp.height);
+    let mode = "box", sel = null, pts = [], closed = false, dragging = false;
+    const paint = () => {
+      blit();
+      if (!pts.length) return;
+      if (closed) {
+        /* wash out what the path will discard — the preview IS the contract */
+        dcx.save();
+        dcx.beginPath();
+        dcx.rect(0, 0, disp.width, disp.height);
+        dcx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) dcx.lineTo(pts[i].x, pts[i].y);
+        dcx.closePath();
+        dcx.fillStyle = "rgba(255,255,255,.72)";
+        dcx.fill("evenodd");
+        dcx.restore();
+      }
+      dcx.save();
+      dcx.strokeStyle = "#ff9800"; dcx.lineWidth = 2; dcx.setLineDash([6, 4]);
+      dcx.beginPath();
+      dcx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) dcx.lineTo(pts[i].x, pts[i].y);
+      if (closed) dcx.closePath();
+      dcx.stroke();
+      dcx.setLineDash([]);
+      if (mode === "poly" && !closed) {
+        dcx.fillStyle = "#ff9800";
+        dcx.beginPath();
+        dcx.arc(pts[0].x, pts[0].y, 5, 0, Math.PI * 2);
+        dcx.fill();
+      }
+      dcx.restore();
+    };
+    const setMode = m => {
+      mode = m;
+      sel = null; pts = []; closed = false; dragging = false;
+      box.style.display = "none";
+      keep.disabled = true;
+      undo.style.display = "none";
+      hint.textContent = HINTS[m];
+      for (const key in modeBtns) modeBtns[key].classList.toggle("primary", key === m);
+      blit();
+    };
     const pos = e => {
       const r = disp.getBoundingClientRect();
       return { x: Math.max(0, Math.min(disp.width, (e.clientX - r.left) * (disp.width / r.width))),
@@ -4090,42 +4153,130 @@ function fsRegionPick(srcCanvas, forObject) {
     disp.onpointerdown = e => {
       try { disp.setPointerCapture(e.pointerId); } catch (err) {}
       const p = pos(e);
-      dragging = true;
-      sel = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
-      keep.disabled = true;
-      show();
+      if (mode === "box") {
+        dragging = true;
+        sel = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+        keep.disabled = true;
+        show();
+      } else if (mode === "poly") {
+        if (!closed) {
+          /* 14 CSS px around the first point closes the loop — a finger, not a pixel */
+          const closeR = 14 * (disp.width / disp.getBoundingClientRect().width);
+          if (pts.length >= 3 && Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= closeR) closed = true;
+          else pts.push(p);
+          keep.disabled = pts.length < 3;
+          undo.style.display = pts.length ? "" : "none";
+          paint();
+        }
+      } else {
+        dragging = true;
+        closed = false;
+        pts = [p];
+        keep.disabled = true;
+        paint();
+      }
       e.preventDefault();
     };
-    disp.onpointermove = e => { if (!dragging) return; const p = pos(e); sel.x2 = p.x; sel.y2 = p.y; show(); };
+    disp.onpointermove = e => {
+      if (!dragging) return;
+      const p = pos(e);
+      if (mode === "box") { sel.x2 = p.x; sel.y2 = p.y; show(); }
+      else if (mode === "lasso") {
+        const last = pts[pts.length - 1];
+        if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) { pts.push(p); paint(); }
+      }
+    };
     disp.onpointerup = () => {
+      if (!dragging) return;
       dragging = false;
-      /* a sub-8px "box" is a stray tap, not intent */
-      if (sel && Math.abs(sel.x2 - sel.x1) > 8 && Math.abs(sel.y2 - sel.y1) > 8) keep.disabled = false;
-      else { sel = null; keep.disabled = true; show(); }
+      if (mode === "box") {
+        /* a sub-8px "box" is a stray tap, not intent */
+        if (sel && Math.abs(sel.x2 - sel.x1) > 8 && Math.abs(sel.y2 - sel.y1) > 8) keep.disabled = false;
+        else { sel = null; keep.disabled = true; show(); }
+      } else if (mode === "lasso") {
+        /* a sub-8px scribble is a stray tap, not a lasso */
+        let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+        for (let i = 0; i < pts.length; i++) {
+          if (pts[i].x < mnx) mnx = pts[i].x;
+          if (pts[i].x > mxx) mxx = pts[i].x;
+          if (pts[i].y < mny) mny = pts[i].y;
+          if (pts[i].y > mxy) mxy = pts[i].y;
+        }
+        if (pts.length >= 3 && mxx - mnx > 8 && mxy - mny > 8) { closed = true; keep.disabled = false; }
+        else { pts = []; keep.disabled = true; }
+        paint();
+      }
     };
     const finish = out => {
       disp.onpointerdown = disp.onpointermove = disp.onpointerup = null;
-      keep.onclick = null;
+      keep.onclick = undo.onclick = null;
+      for (const key in modeBtns) modeBtns[key].onclick = null;
       modal.classList.remove("show");
       resolve(out);
     };
     keep.onclick = () => {
-      let x = Math.round(Math.min(sel.x1, sel.x2) / k), y = Math.round(Math.min(sel.y1, sel.y2) / k);
-      let w = Math.round(Math.abs(sel.x2 - sel.x1) / k), h = Math.round(Math.abs(sel.y2 - sel.y1) / k);
-      x = Math.max(0, Math.min(srcCanvas.width - 1, x));
-      y = Math.max(0, Math.min(srcCanvas.height - 1, y));
-      w = Math.max(1, Math.min(srcCanvas.width - x, w));
-      h = Math.max(1, Math.min(srcCanvas.height - y, h));
+      if (mode === "box") {
+        let x = Math.round(Math.min(sel.x1, sel.x2) / k), y = Math.round(Math.min(sel.y1, sel.y2) / k);
+        let w = Math.round(Math.abs(sel.x2 - sel.x1) / k), h = Math.round(Math.abs(sel.y2 - sel.y1) / k);
+        x = Math.max(0, Math.min(srcCanvas.width - 1, x));
+        y = Math.max(0, Math.min(srcCanvas.height - 1, y));
+        w = Math.max(1, Math.min(srcCanvas.width - x, w));
+        h = Math.max(1, Math.min(srcCanvas.height - y, h));
+        const c2 = document.createElement("canvas");
+        c2.width = w; c2.height = h;
+        const cx2 = c2.getContext("2d");
+        cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
+        cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+        finish(fsPdfTrim(c2, true));
+        return;
+      }
+      if (pts.length < 3) return;
+      closed = true;              /* ✓ Keep closes an open outline */
+      let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+      for (let i = 0; i < pts.length; i++) {
+        const px = pts[i].x / k, py = pts[i].y / k;
+        if (px < mnx) mnx = px;
+        if (px > mxx) mxx = px;
+        if (py < mny) mny = py;
+        if (py > mxy) mxy = py;
+      }
+      let x = Math.max(0, Math.min(srcCanvas.width - 1, Math.round(mnx)));
+      let y = Math.max(0, Math.min(srcCanvas.height - 1, Math.round(mny)));
+      const w = Math.max(1, Math.min(srcCanvas.width - x, Math.round(mxx) - x));
+      const h = Math.max(1, Math.min(srcCanvas.height - y, Math.round(mxy) - y));
       const c2 = document.createElement("canvas");
       c2.width = w; c2.height = h;
       const cx2 = c2.getContext("2d");
       cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
+      /* clip to the path: inside = the sheet, outside = the white just laid */
+      cx2.save();
+      cx2.beginPath();
+      cx2.moveTo(pts[0].x / k - x, pts[0].y / k - y);
+      for (let i = 1; i < pts.length; i++) cx2.lineTo(pts[i].x / k - x, pts[i].y / k - y);
+      cx2.closePath();
+      cx2.clip();
       cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+      cx2.restore();
       finish(fsPdfTrim(c2, true));
     };
-    document.getElementById("fsRgnAll").onclick = () => finish(fsPdfTrim(srcCanvas));
+    undo.onclick = () => {
+      if (mode !== "poly" || !pts.length) return;
+      if (closed) closed = false;   /* first undo after closing re-opens the loop */
+      else pts.pop();
+      keep.disabled = pts.length < 3;
+      undo.style.display = pts.length ? "" : "none";
+      paint();
+    };
+    modeBtns.box.onclick = () => setMode("box");
+    modeBtns.poly.onclick = () => setMode("poly");
+    modeBtns.lasso.onclick = () => setMode("lasso");
+    /* V0.24: whole page means the WHOLE page — no trim, no dialog (the picker
+       is the main door; Reece's verdict 7 Aug). Resurrect the V0.22 pass with
+       finish(fsPdfTrim(srcCanvas)) if a real single-drawing sheet misses it. */
+    document.getElementById("fsRgnAll").onclick = () => finish(srcCanvas);
     document.getElementById("fsRgnCancel").onclick = () => finish(null);
     document.getElementById("fsRgnTitle").textContent = forObject ? "Keep which part of this sheet?" : "Keep which part?";
+    setMode("box");
     modal.classList.add("show");
   });
 }
@@ -14872,7 +15023,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v27";
+const FS_BUILD = "aa-v28";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
