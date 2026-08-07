@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.26 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.27 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.26 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.27 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -381,6 +381,29 @@
     <label>Loop</label><input type="text" id="dLoop" autocomplete="off">
     <label>Device number</label><input type="text" id="dDev" autocomplete="off">
     <label>Other info</label><input type="text" id="dInfo" autocomplete="off">
+    <!-- PASS 24 items 5 + 14. Brand/Model/Serial sit together because they come
+         off one label and, with OCR, off one photo. The scan button is hidden
+         until ./ocr/ answers, so EverDue (which ships no ocr/) shows the three
+         boxes and no dead control. -->
+    <div id="idWrap" style="display:none">
+      <label>Brand</label><input type="text" id="dBrand" autocomplete="off">
+      <label>Model</label><input type="text" id="dModel" autocomplete="off">
+      <label>Serial</label><input type="text" id="dSerial" autocomplete="off">
+      <button class="btn" id="dScanBtn" type="button" style="display:none;margin-top:8px">&#128247; Scan label</button>
+    </div>
+    <!-- PASS 24 item 6. Checkbox look, radio behaviour, one value box each,
+         both defaulting to 60 degC with Rate of rise ticked. -->
+    <div id="thWrap" style="display:none">
+      <label>Thermal type</label>
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8;margin-bottom:6px">
+        <label style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:17px;height:17px">Rate of rise</label>
+        <input type="text" id="dThRorV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
+        <label style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:17px;height:17px">Fixed</label>
+        <input type="text" id="dThFixV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
+      </div>
+    </div>
     <div id="dbaFields" style="display:none">
       <label>A = (dBA, ambient — lowest reading)</label>
       <div style="display:flex;gap:6px"><input type="text" id="dVa" autocomplete="off" style="flex:1"><button class="btn" id="mA" type="button">Measure</button></div>
@@ -1058,6 +1081,32 @@
   </div>
 </div>
 
+<!-- PASS 24 item 14 — the OCR sheet.
+
+     The design point worth defending: it does NOT just dump its best guess
+     into three boxes. Label OCR on a scuffed detector in bad light is wrong
+     often enough that silent autofill would put wrong data in a register and
+     look confident doing it. So recognition produces LINES, the lines are
+     shown, keyword hits (BRAND/MODEL/SERIAL/SN) are pre-assigned, and every
+     line carries B/M/S buttons so a wrong guess is one tap to fix and a
+     missed one is one tap to add. Nothing reaches the details fields until
+     Use these is pressed. -->
+<div class="modal" id="ocrModal">
+  <div class="modalbox" style="max-width:560px">
+    <h3>Scan a label</h3>
+    <div style="font-size:13px;color:#999;margin-bottom:8px">Runs on this device. The photo never leaves the tablet.</div>
+    <input type="file" id="ocrFile" accept="image/*" capture="environment" style="width:100%;font-size:14px">
+    <div id="ocrStatus" style="font-size:13px;color:#4caf50;min-height:18px;margin-top:8px"></div>
+    <div id="ocrPick" style="max-height:38vh;overflow:auto;margin-top:8px"></div>
+    <div style="margin-top:10px;font-size:14px;color:#e8e8e8">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Brand</span><input type="text" id="ocrBrand" autocomplete="off" style="flex:1;margin:0"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Model</span><input type="text" id="ocrModel" autocomplete="off" style="flex:1;margin:0"></div>
+      <div style="display:flex;gap:6px;align-items:center"><span style="width:56px;color:#999">Serial</span><input type="text" id="ocrSerial" autocomplete="off" style="flex:1;margin:0"></div>
+    </div>
+    <div class="row"><button class="btn" id="ocrCancel">Cancel</button><button class="btn" id="ocrUse">Use these</button></div>
+  </div>
+</div>
+
 <div class="modal" id="findModal">
   <div class="modalbox" style="max-width:500px">
     <h3>Find device</h3>
@@ -1088,6 +1137,14 @@ const TYPES = [
   { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2" },
   { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a" },
   { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000" },
+  /* PASS 24 item 7 — VAD, Visual Alarm Device. Reece called it a "visual alarm
+     detector"; the standard term is device and the label follows the standard,
+     because the label is what lands in a register a third party reads. Round
+     like the other detectors so it reads as one at a glance, V in the middle,
+     pink by default, and sound-wave arcs either side because a VAD sounds as
+     well as flashes. Arc style only from refs/pass22-soundwave-ref-fire-bell
+     .jpg — the bell symbol itself is not copied. */
+  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c" },
   { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
   { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f" },
   { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f" },
@@ -1219,8 +1276,55 @@ const ctx = cv.getContext("2d");
 const stage = document.getElementById("stage");
 const statusEl = document.getElementById("status");
 const sizeSlider = document.getElementById("sizeSlider");
-function sizeVal() { return Math.max(2, Math.round(12 * Math.pow(10, (+sizeSlider.value) / 100))); }
-function sliderFromSize(s) { return Math.max(-60, Math.min(150, Math.round(100 * Math.log10(Math.max(2, s) / 12)))); }
+/* PASS 24 item 12 — dialled back. Reece drove the V0.24-era widening and said
+   it was better but overshot "a little"; asked which end, he said both, a bit.
+   Divisor 100 -> 107 does both at once and does each of them slightly:
+
+     top of travel   379 px -> 302 px      (-20%)
+     span            126x   -> 91x         (-7% per unit of thumb travel)
+     bottom          3.0 px -> 3.3 px
+
+   107 is the divisor that lands the top of the travel on 300 px rather than a
+   number chosen by feel, so if it is still wrong there is exactly one number to
+   move. Both functions carry it: an inverse that disagreed with the forward
+   would make the slider jump the moment a symbol was selected.
+
+   The clamp in sliderFromSize is a CONTROL clamp, not a data clamp. A symbol
+   already saved at 379 px keeps 379 px and merely pins the thumb at the top —
+   objects are data, and a pass that resized existing devices to suit a slider
+   would be a pass that edited the register. */
+function sizeVal() { return Math.max(2, Math.round(12 * Math.pow(10, (+sizeSlider.value) / 107))); }
+/* PASS 24 item 11 — per-type sticky size.
+
+   "I don't want all of my smoke detectors to look different sizes." The memory
+   and the slider are deliberately the SAME state rather than two: picking a
+   type snaps the slider to that type's remembered size (symSizeSnap, called
+   from setTool), and placing or resizing writes it back (symSizeRemember). A
+   hidden memory that silently overrode the slider would leave the control
+   reading 36 while the symbol landed at 52, and a control that lies about what
+   it is about to do is worse than no control at all.
+
+   localStorage is wrapped the same way "bpm-viewmarkups" is: Safari private
+   mode throws on setItem, and a thrown quota error must never be the reason a
+   symbol failed to land. A miss just means no memory yet, which is the same
+   behaviour as V0.26. */
+const SYMSIZE_KEY = "aa-symsize";
+let symSizes = {};
+try { symSizes = JSON.parse(localStorage.getItem(SYMSIZE_KEY) || "{}") || {}; } catch (e) { symSizes = {}; }
+function symSizeFor(typeId) {
+  const v = symSizes[typeId];
+  return (typeof v === "number" && v >= 2 && v <= 400) ? v : sizeVal();
+}
+function symSizeRemember(typeId, px) {
+  if (!TYPE_MAP[typeId] || !(px >= 2 && px <= 400)) return;
+  symSizes[typeId] = px;
+  try { localStorage.setItem(SYMSIZE_KEY, JSON.stringify(symSizes)); } catch (e) {}
+}
+function symSizeSnap(typeId) {
+  const v = symSizes[typeId];
+  if (typeof v === "number" && v >= 2 && v <= 400) sizeSlider.value = sliderFromSize(v);
+}
+function sliderFromSize(s) { return Math.max(-60, Math.min(150, Math.round(107 * Math.log10(Math.max(2, s) / 12)))); }
 
 /* ================= Canvas sizing / coords ================= */
 function resizeCanvas() {
@@ -1302,6 +1406,7 @@ function symDims(o) {   // image-space width/height (before rotation)
   else if (t.glyph === "datap") { w = s * (t.dbl ? 1.25 : 0.95); h = s * 1.1; }
   else if (t.glyph === "msensor") { w = s * 1.5; h = s * 1.5; }
   else if (t.glyph === "hreel") { w = s * 1.35; h = s * 1.2; }
+  else if (t.glyph === "vad") { w = s * 1.9; h = s; }
   else if (t.glyph === "exting") { w = s * 0.98; h = s * 1.25; }
   const rr = ((o.rot || 0) % 360) * Math.PI / 180;
   if (rr) {
@@ -1622,25 +1727,66 @@ function drawSym(c, o, scale) {
     c.fill();
     c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.stroke();
   } else if (t.glyph === "hreel") {
-    // C17: spiral hose reel with top-right nozzle (clean vector from the reference; default red)
-    const r = s * 0.48;
-    c.strokeStyle = col; c.lineWidth = Math.max(1.4, s * 0.085); c.lineCap = "round"; c.lineJoin = "round";
+    /* PASS 24 item 8 — redrawn against refs/pass22-firehose-reel-correct.jpg.
+       Reece: "still broken/wrong, missing a line". At 6x the reference is
+       unambiguous about which line. The COIL is a single spiral, but the hose
+       LEAVING the coil is a tube drawn with two parallel edges, and the nozzle
+       is an outlined collar / taper / tip ferrule. V0.26 drew one line out of
+       the coil and filled the nozzle solid, which at plan scale read as a
+       black blob with a whisker. Everything here is stroked, nothing is
+       filled, and the tube's lower edge is the spiral's own outer end running
+       on — which is what makes it read as one continuous hose. */
+    const cx = -s * 0.16, cy = s * 0.10, r = s * 0.44;
+    const hw = s * 0.10;                    // hose width, = the tube's two edges apart
+    c.strokeStyle = col; c.lineWidth = Math.max(1.1, s * 0.055);
+    c.lineCap = "round"; c.lineJoin = "round";
+    /* the coil: 3.4 turns in to a tight centre curl, starting at the top so the
+       free end is already pointing at the nozzle */
     c.beginPath();
-    for (let k = -6; k <= 96; k++) {
-      const tt = k / 96;
-      const a = -Math.PI / 2 + tt * Math.PI * 2 * 2.6;
-      const rr = r * (1 - 0.82 * tt);
-      const px = Math.cos(a) * rr, py = Math.sin(a) * rr + s * 0.06;
+    for (let k = 0; k <= 120; k++) {
+      const tt = k / 120;
+      const a = -Math.PI / 2 + tt * Math.PI * 2 * 3.4;
+      const rr = r * (1 - 0.88 * tt);
+      const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
       if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
     }
     c.stroke();
-    const ny = -r + s * 0.06;
-    c.beginPath(); c.moveTo(0, ny - s * 0.12); c.lineTo(0, ny + s * 0.08); c.stroke();
+    /* the tube out to the nozzle — the lower edge continues the coil, the upper
+       edge is the line that was missing, and a cap closes them at the coil end */
+    const yLo = cy - r, yHi = yLo - hw, xN = s * 0.30;
     c.beginPath();
-    c.moveTo(s * 0.04, ny - s * 0.10); c.lineTo(s * 0.58, ny - s * 0.035);
-    c.lineTo(s * 0.58, ny + s * 0.035); c.lineTo(s * 0.04, ny + s * 0.07);
-    c.closePath(); c.fillStyle = col; c.fill();
-    c.beginPath(); c.moveTo(s * 0.62, ny - s * 0.055); c.lineTo(s * 0.62, ny + s * 0.02); c.stroke();
+    c.moveTo(cx, yLo); c.lineTo(xN, yLo);
+    c.moveTo(cx + s * 0.02, yHi); c.lineTo(xN, yHi);
+    c.moveTo(cx, yLo); c.lineTo(cx + s * 0.02, yHi);
+    c.stroke();
+    /* nozzle: collar band, taper, tip ferrule — all outline, per the reference */
+    const xC = s * 0.36, xT = s * 0.60, xE = s * 0.66, tHi = s * 0.018;
+    const yMid = (yLo + yHi) / 2;
+    c.beginPath();
+    c.rect(xN, yHi, xC - xN, hw);
+    c.moveTo(xC, yHi); c.lineTo(xT, yMid - tHi);
+    c.moveTo(xC, yLo); c.lineTo(xT, yMid + tHi);
+    c.moveTo(xT, yMid - tHi); c.lineTo(xT, yMid + tHi);
+    c.rect(xT, yMid - s * 0.05, xE - xT, s * 0.10);
+    c.stroke();
+  } else if (t.glyph === "vad") {
+    /* PASS 24 item 7 — VAD. The circle is the same construction as every other
+       detector (fill, white ring, letter) so it sits in a row of them without
+       looking imported. The arcs are drawn OUTSIDE the ring in the symbol
+       colour: three a side, growing outward, swept +/-38 degrees about the
+       horizontal so they read as sound leaving the device rather than as a
+       decorative halo. Style taken from the bell reference, geometry is ours. */
+    const r = s / 2;
+    c.fillStyle = col; c.strokeStyle = "#ffffff";
+    c.lineWidth = Math.max(1, r * 0.12);
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.strokeStyle = col; c.lineWidth = Math.max(1, r * 0.14); c.lineCap = "round";
+    const sw = 38 * Math.PI / 180;
+    [1.28, 1.56, 1.84].forEach(m => {
+      c.beginPath(); c.arc(0, 0, r * m, -sw, sw); c.stroke();
+      c.beginPath(); c.arc(0, 0, r * m, Math.PI - sw, Math.PI + sw); c.stroke();
+    });
+    if (t.text) glyphText(t.text, s * 0.55);
   } else if (t.glyph === "exting") {
     // C17: extinguisher - body in symbol colour, black top hardware + horn,
     // band colour set by the Details "Type" selector (o.xt, see XT_BANDS)
@@ -3010,11 +3156,19 @@ document.getElementById("btnSame").onclick = () => {
 };
 
 sizeSlider.addEventListener("input", () => {
-  if (!selection.length) return;
+  /* PASS 24 item 11: dragging the slider with a symbol type armed but nothing
+     selected still teaches the memory. Without this branch the only way to set
+     a type's size would be to place one at the wrong size and fix it, which is
+     the exact fiddling the item exists to remove. */
+  if (!selection.length) {
+    if (TYPE_MAP[activeTool]) symSizeRemember(activeTool, sizeVal());
+    return;
+  }
   const v = sizeVal();
   selection.forEach(o => {
     if (o.kind === "ink" || o.kind === "shape") o.width = v / 8;
     else if (o.kind === "sym" || o.kind === "text" || o.kind === "callout") o.size = v;
+    if (o.kind === "sym") symSizeRemember(o.type, v);
   });
   draw();
 });
@@ -3516,6 +3670,9 @@ function updateTestCounter() {
 }
 function setTool(id) {
   activeTool = id;
+  /* PASS 24 item 11 — snap the slider to this type's remembered size, so the
+     control reads what the next placement will actually be. */
+  if (TYPE_MAP[id]) symSizeSnap(id);
   if (!viewMarkups && (id === "hatch" || MARKUP_TOOLS.some(m => m.id === id))) {
     viewMarkups = true; try { localStorage.setItem("bpm-viewmarkups", "1"); } catch (e) {}
     if (activeTab === "views") buildPalette();
@@ -6482,7 +6639,15 @@ function endPointer(e) {
   if (dragMode === "placeOrPan") {
     if (!moved && TYPE_MAP[activeTool]) {
       pushUndo();
-      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:sizeVal(), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      /* PASS 24 item 11: the remembered size for THIS type, falling back to the
+         slider the first time a type is ever placed. setTool has already
+         snapped the slider to the same number, so the two agree.
+         PASS 24 item 6: a thermal is born Rate of rise at 60 degC, which is
+         what Reece asked for and also what makes the selector's defaults true
+         of every device rather than only of the ones he happens to open. */
+      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:symSizeFor(activeTool), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      if (activeTool === "thermal" || activeTool === "cthermal") { m.thm = "ror"; m.thv = "60"; }
+      symSizeRemember(activeTool, m.size);
       const az = zoneAt(ip.x, ip.y);
       if (az) m.zone = String(az.zn);
       objects.push(m);
@@ -6572,6 +6737,164 @@ let detailsPhoto = undefined;   // undefined = unchanged, null = removed, string
 let failedTouched = false;
 let yearsTouched = {};
 
+/* ================= PASS 24 item 14 — on-device OCR =================
+
+   Everything below runs on the tablet. tesseract is loaded from OUR origin
+   (./ocr/), recognises inside a Web Worker, and the result never leaves the
+   device — rule #1 is not merely respected here, there is no request that
+   could carry a photo anywhere.
+
+   The assets are absent by design until deploy time: patch scripts write text
+   and 5.7 MB of WASM does not belong in one. tests/fetch-ocr-assets.sh puts
+   them in arcadapt/ocr/. Until they exist, fsOcrProbe fails and the button
+   stays hidden, which is also exactly the behaviour EverDue wants for ever. */
+const FS_OCR_BASE = "./ocr/";
+/* ABSOLUTE, and it has to be. Everything below "./ocr/" is loaded from inside
+   a Web Worker, and a relative path there resolves against the WORKER's base,
+   not the document's. Measured: with a relative corePath the worker got as far
+   as the loader and then emscripten died on
+   `XMLHttpRequest: Invalid URL` trying to fetch the .wasm beside it. */
+function fsOcrUrl(f) { return new URL(FS_OCR_BASE + (f || ""), location.href).href; }
+let fsOcrOk = null;          // null = not probed yet, then true/false
+let fsOcrWorkerP = null;
+let fsOcrTargetFields = null;
+
+function fsOcrProbe() {
+  if (fsOcrOk !== null) return Promise.resolve(fsOcrOk);
+  return fetch(FS_OCR_BASE + "tesseract.min.js", { method: "HEAD" })
+    .then(r => { fsOcrOk = !!r.ok; return fsOcrOk; })
+    .catch(() => { fsOcrOk = false; return false; });
+}
+function fsOcrSyncButton() {
+  const b = document.getElementById("dScanBtn");
+  if (!b) return;
+  fsOcrProbe().then(ok => { b.style.display = ok ? "inline-block" : "none"; });
+}
+function fsOcrLoadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error("load " + src));
+    document.head.appendChild(s);
+  });
+}
+/* corePath NAMES A FILE, and that is the whole trick. Given a DIRECTORY,
+   tesseract.js feature-detects and asks for whatever the engine supports —
+   which on this Chromium meant `tesseract-core-relaxedsimd-lstm.wasm.js`, a
+   file we do not ship, and the worker died on importScripts. Measured, not
+   guessed: the first build of this pass did exactly that.
+
+   Naming the file means no probe, so exactly one core has to be shipped and
+   it is always the one that arrives. Plain SIMD rather than relaxed SIMD is
+   deliberately the CONSERVATIVE pick: SIMD has been in iPadOS since 16.4
+   (March 2023), relaxed SIMD is years newer, and a fire tech's tablet is not
+   a machine anyone upgrades for fun.
+
+   THE DEADLINE IS NOT BELT AND BRACES. When emscripten cannot instantiate the
+   module it calls abort(), which surfaces as an uncaught error on the worker
+   and NEVER settles the promise createWorker returned. Measured: the failing
+   build sat on "Initializing tesseract…" for 108 seconds and would have sat
+   there all day. A catch cannot save you from a promise that never rejects,
+   so the race is what turns a hang into a sentence the user can act on. 75 s
+   is generous — a cold start on a real iPad measures well under that, and
+   this only fires when something is actually wrong. */
+const FS_OCR_DEADLINE_MS = 75000;
+function fsOcrWorker(onProg) {
+  if (fsOcrWorkerP) return fsOcrWorkerP;
+  const build = fsOcrLoadScript(fsOcrUrl("tesseract.min.js"))
+    .then(() => Tesseract.createWorker("eng", 1, {
+      workerPath: fsOcrUrl("worker.min.js"),
+      corePath: fsOcrUrl("tesseract-core-simd-lstm.wasm.js"),
+      langPath: fsOcrUrl(),
+      gzip: true,
+      logger: m => { if (onProg) onProg(m); }
+    }));
+  fsOcrWorkerP = Promise.race([
+    build,
+    new Promise((_, rej) => setTimeout(
+      () => rej(new Error("the recogniser did not start in time")), FS_OCR_DEADLINE_MS))
+  ]).catch(e => { fsOcrWorkerP = null; throw e; });
+  return fsOcrWorkerP;
+}
+/* Keyword assignment. Deliberately conservative — it pre-fills only when a line
+   actually says which field it is. Everything else is offered as a choice. */
+function fsOcrGuess(lines) {
+  const out = { brand:"", model:"", serial:"" };
+  const pat = [
+    ["serial", /\b(serial(\s*(no|number))?|s\/?n)\b[:.\s-]*(.+)$/i],
+    ["model",  /\b(model|mdl|type|part(\s*no)?|p\/?n)\b[:.\s-]*(.+)$/i],
+    ["brand",  /\b(brand|make|manufacturer)\b[:.\s-]*(.+)$/i]
+  ];
+  lines.forEach(L => {
+    pat.forEach(([k, re]) => {
+      if (out[k]) return;
+      const m = L.match(re);
+      if (m) {
+        const v = (m[m.length - 1] || "").trim();
+        if (v && v.length <= 40) out[k] = v;
+      }
+    });
+  });
+  /* No brand keyword on most labels — the maker's name is just the biggest
+     word on the sticker. The first line that is mostly letters is the least
+     bad guess, and it is a GUESS the user can see and overwrite, not a silent
+     write into the register. */
+  if (!out.brand) {
+    const cand = lines.find(L => /^[A-Za-z][A-Za-z .&'-]{2,24}$/.test(L.trim()));
+    if (cand) out.brand = cand.trim();
+  }
+  return out;
+}
+function fsOcrRenderPick(lines) {
+  const box = document.getElementById("ocrPick");
+  if (!lines.length) {
+    box.innerHTML = '<div style="font-size:13px;color:#999">Nothing readable. Try again closer, straighter, or with more light \u2014 or just type it in below.</div>';
+    return;
+  }
+  box.innerHTML = lines.map((L, i) =>
+    '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">'
+    + '<div style="flex:1;font-size:13px;color:#e8e8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(L) + '</div>'
+    + '<button class="btn ocrAssign" data-i="' + i + '" data-f="brand" type="button" style="padding:2px 8px">B</button>'
+    + '<button class="btn ocrAssign" data-i="' + i + '" data-f="model" type="button" style="padding:2px 8px">M</button>'
+    + '<button class="btn ocrAssign" data-i="' + i + '" data-f="serial" type="button" style="padding:2px 8px">S</button>'
+    + '</div>').join("");
+  box.querySelectorAll(".ocrAssign").forEach(b => {
+    b.onclick = () => {
+      const f = b.getAttribute("data-f");
+      document.getElementById("ocr" + f.charAt(0).toUpperCase() + f.slice(1)).value = lines[+b.getAttribute("data-i")];
+    };
+  });
+}
+function fsOcrOpen() {
+  ["ocrBrand", "ocrModel", "ocrSerial"].forEach(id => { document.getElementById(id).value = ""; });
+  document.getElementById("ocrPick").innerHTML = "";
+  document.getElementById("ocrStatus").textContent = "";
+  document.getElementById("ocrFile").value = "";
+  fsOcrTargetFields = { brand:"dBrand", model:"dModel", serial:"dSerial" };
+  document.getElementById("ocrModal").classList.add("show");
+}
+function fsOcrRun(file) {
+  const st = document.getElementById("ocrStatus");
+  st.textContent = "Loading the recogniser (one-off, about 5 MB)\u2026";
+  return fsOcrWorker(m => {
+    if (m && m.status === "recognizing text") st.textContent = "Reading\u2026 " + Math.round((m.progress || 0) * 100) + "%";
+    else if (m && m.status) st.textContent = String(m.status).charAt(0).toUpperCase() + String(m.status).slice(1) + "\u2026";
+  })
+    .then(w => w.recognize(file))
+    .then(res => {
+      const lines = String(((res || {}).data || {}).text || "")
+        .split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 1).slice(0, 24);
+      st.textContent = lines.length ? "Read " + lines.length + " line" + (lines.length === 1 ? "" : "s") + " \u2014 check them before using." : "";
+      const g = fsOcrGuess(lines);
+      document.getElementById("ocrBrand").value = g.brand;
+      document.getElementById("ocrModel").value = g.model;
+      document.getElementById("ocrSerial").value = g.serial;
+      fsOcrRenderPick(lines);
+    })
+    .catch(e => {
+      st.style.color = "#e07b00";
+      st.textContent = "On-device reading is not available here (" + ((e && e.message) || e) + "). Type the details in instead.";
+    });
+}
 function openDetails() {
   const syms = selection.filter(o => o.kind === "sym");
   // single text/callout: open the text editor instead
@@ -6588,9 +6911,12 @@ function openDetails() {
   document.getElementById("detailsTitle").textContent = multi
     ? syms.length + " devices — filled fields apply to all"
     : (t ? t.label : "Device") + " details";
-  ["dZone", "dLoop", "dDev", "dInfo", "dVa", "dVe"].forEach(id => {
+  /* PASS 24 item 5 — Brand/Model/Serial join the plain-text fields, so they
+     inherit multi-select's "leave blank to keep" semantics for free rather
+     than growing a second, subtly different rule. */
+  ["dZone", "dLoop", "dDev", "dInfo", "dVa", "dVe", "dBrand", "dModel", "dSerial"].forEach(id => {
     const el = document.getElementById(id);
-    el.value = multi ? "" : (syms[0][{ dZone:"zone", dLoop:"loop", dDev:"dev", dInfo:"info", dVa:"va", dVe:"ve" }[id]] || "");
+    el.value = multi ? "" : (syms[0][{ dZone:"zone", dLoop:"loop", dDev:"dev", dInfo:"info", dVa:"va", dVe:"ve", dBrand:"brand", dModel:"model", dSerial:"serial" }[id]] || "");
     el.placeholder = multi ? "(leave blank to keep)" : "";
   });
   document.getElementById("dbaFields").style.display = syms.some(o => o.type === "dba") ? "block" : "none";
@@ -6607,6 +6933,30 @@ function openDetails() {
   if (xtTargets.length) {
     const xv = xtTargets[0].xt || "";
     document.getElementById("dXtype").value = xtTargets.every(o => (o.xt || "") === xv) ? xv : "";
+  }
+  /* PASS 24 item 5: every symbol type gets Brand/Model/Serial except the photo
+     pin, which is a marker rather than a piece of equipment. */
+  document.getElementById("idWrap").style.display = syms.some(o => o.type !== "campin") ? "block" : "none";
+  fsOcrSyncButton();
+  /* PASS 24 item 6 */
+  const thTargets = syms.filter(o => o.type === "thermal" || o.type === "cthermal");
+  document.getElementById("thWrap").style.display = thTargets.length ? "block" : "none";
+  if (thTargets.length) {
+    const mv = thTargets[0].thm === "fixed" ? "fixed" : "ror";
+    const same = thTargets.every(o => (o.thm === "fixed" ? "fixed" : "ror") === mv);
+    document.getElementById("dThRor").checked = same && mv === "ror";
+    document.getElementById("dThFix").checked = same && mv === "fixed";
+    document.getElementById("dThRorV").value = (mv === "ror" && same && thTargets[0].thv) ? thTargets[0].thv : "60";
+    document.getElementById("dThFixV").value = (mv === "fixed" && same && thTargets[0].thv) ? thTargets[0].thv : "60";
+    /* radio behaviour with a checkbox look: ticking one unticks the other, and
+       untickable-to-nothing is not offered because a thermal is always one or
+       the other and a blank selector would just be a third state to handle */
+    document.querySelectorAll(".dTh").forEach(cb => {
+      cb.onchange = () => {
+        document.querySelectorAll(".dTh").forEach(x => { x.checked = (x === cb); });
+        cb.checked = true;
+      };
+    });
   }
   const msTargets = syms.filter(o => o.type === "msensor");
   document.getElementById("msWrap").style.display = msTargets.length ? "block" : "none";
@@ -6647,6 +6997,22 @@ function openDetails() {
   detailsModal.classList.add("show");
 }
 document.getElementById("btnDetails").onclick = openDetails;
+/* PASS 24 item 14 — wiring. The sheet writes into the DETAILS inputs, not into
+   the objects: Save on the details modal is still the only thing that commits,
+   so a scan can be abandoned exactly like a typo can. */
+document.getElementById("dScanBtn").onclick = fsOcrOpen;
+document.getElementById("ocrFile").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) fsOcrRun(f);
+});
+document.getElementById("ocrCancel").onclick = () => { document.getElementById("ocrModal").classList.remove("show"); };
+document.getElementById("ocrUse").onclick = () => {
+  ["brand", "model", "serial"].forEach(k => {
+    const v = document.getElementById("ocr" + k.charAt(0).toUpperCase() + k.slice(1)).value.trim();
+    if (v) document.getElementById((fsOcrTargetFields || {})[k] || ("d" + k)).value = v;
+  });
+  document.getElementById("ocrModal").classList.remove("show");
+};
 document.getElementById("mA").onclick = () => dbaMeasureToggle("a");
 document.getElementById("mE").onclick = () => dbaMeasureToggle("e");
 function stopDbaMeasure() {
@@ -6705,6 +7071,12 @@ document.getElementById("detailsSave").onclick = () => {
           if (wasDefCol && TYPE_MAP[nt].color) o0.color = TYPE_MAP[nt].color;
           if (nt !== "exting") delete o0.xt; else document.getElementById("dXtype").value = (o0.xt || "");
           if (nt !== "msensor") delete o0.cov; else document.getElementById("dMsCov").value = (o0.cov || "360");
+          /* PASS 24 item 6: changing away from a thermal drops its setting, and
+             changing TO one gives it the default rather than nothing. A stale
+             thm on a smoke detector would be invisible and would surface later
+             in an export as a device that claims a rate-of-rise threshold. */
+          if (nt !== "thermal" && nt !== "cthermal") { delete o0.thm; delete o0.thv; }
+          else if (!o0.thm) { o0.thm = "ror"; o0.thv = o0.thv || "60"; }
         }
       }
     }
@@ -6714,6 +7086,9 @@ document.getElementById("detailsSave").onclick = () => {
       loop: document.getElementById("dLoop").value.trim(),
       dev:  document.getElementById("dDev").value.trim(),
       info: document.getElementById("dInfo").value.trim(),
+      brand:  document.getElementById("dBrand").value.trim(),
+      model:  document.getElementById("dModel").value.trim(),
+      serial: document.getElementById("dSerial").value.trim(),
       va:   document.getElementById("dVa").value.trim(),
       ve:   document.getElementById("dVe").value.trim()
     };
@@ -6732,6 +7107,28 @@ document.getElementById("detailsSave").onclick = () => {
       }
       if (o.type === "msensor") {
         o.cov = document.getElementById("dMsCov").value === "180" ? "180" : "360";
+      }
+      /* PASS 24 item 6 — mutually exclusive, so exactly one of thm is stored and
+         thv is the value of the box that belongs to it. Storing the unselected
+         box too would be storing a number the user cannot see.
+
+         The visibility guard is not defensive dressing, it is a bug test_p24
+         F18 found before this shipped. The selector is only populated by
+         openDetails when a thermal is among the targets. Open a SMOKE detector,
+         change its type to thermal, and this branch would otherwise read
+         checkboxes that were never reset — the last thermal's Fixed / 72 degC,
+         from a dialog this user never saw — and write them onto the new device.
+         When the selector was not on screen the user expressed no preference,
+         so the default set by the change-type block above stands. */
+      if (o.type === "thermal" || o.type === "cthermal") {
+        if (document.getElementById("thWrap").style.display !== "none") {
+          const fixed = document.getElementById("dThFix").checked;
+          o.thm = fixed ? "fixed" : "ror";
+          const raw = (fixed ? document.getElementById("dThFixV") : document.getElementById("dThRorV")).value.trim();
+          o.thv = /^[0-9]{1,3}$/.test(raw) ? raw : "60";
+        } else if (!o.thm) {
+          o.thm = "ror"; o.thv = "60";
+        }
       }
       if (!multi || failedTouched) o.failed = failed;
       document.querySelectorAll(".dYear").forEach(cb => {
@@ -15397,7 +15794,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v30";
+const FS_BUILD = "aa-v31";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
