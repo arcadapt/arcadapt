@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.25 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.26 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -244,7 +244,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.25 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.26 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -1002,6 +1002,7 @@
     <p style="font-size:12px;color:#8a8a8a;margin-bottom:10px">Stitching sheets? Add the next sheet onto the plan, drag it into place, then <b>Flatten</b> to burn it in.</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="btn primary" id="photoAdd">&#128444; Add onto current plan (moveable image)</button>
+      <button class="btn" id="photoCrop">&#9986; Cut a shape out of it first, then add it</button>
       <button class="btn" id="photoReplace">&#8635; Replace the plan</button>
       <button class="btn" id="photoCancel">Cancel</button>
     </div>
@@ -2873,7 +2874,9 @@ function rasterTransform(o, mode) {
     if (mode === "h") { cx.scale(-1, 1); cx.drawImage(el, -c.width, 0); }
     else { cx.scale(1, -1); cx.drawImage(el, 0, -c.height); }
   }
-  o.src = c.toDataURL("image/jpeg", 0.9);
+  /* keep an alpha-capable sheet alpha-capable — a rotate must not flatten an
+     outlined import's notch into a black block on the way through JPEG */
+  o.src = fsReEncodePlan(c, o.src, 0.9);
 }
 
 function rotObj(o) {
@@ -3953,7 +3956,7 @@ function loadImageFile(file) {
       cx0.drawImage(im, 0, 0);
       const cc = await fsRegionPick(c0);
       if (!cc) { updateStatus(); return; }
-      const dataUrl = cc.toDataURL("image/jpeg", 0.92);
+      const dataUrl = fsEncodePlan(cc, 0.92);
       const im2 = new Image();
       im2.onload = () => setImage(im2, dataUrl, false);
       im2.src = dataUrl;
@@ -3979,6 +3982,16 @@ function pendingIsPdf() {
 document.getElementById("photoAdd").onclick = () => {
   document.getElementById("photoModal").classList.remove("show");
   if (pendingPhoto) { if (pendingIsPdf()) loadPdfFile(pendingPhoto, true); else insertImageObject(pendingPhoto); }
+  pendingPhoto = null;
+};
+/* PASS 23 — the third door. Reece, 7 Aug: "I would like this option if I was
+   importing a photo too... it's the same premises." He already had it on the
+   two routes where a photo IS the plan; this is the one where it sits on top
+   of one, and where Pass 20 deliberately withheld it because most such photos
+   are evidence. Offering it rather than forcing it keeps both decisions. */
+document.getElementById("photoCrop").onclick = () => {
+  document.getElementById("photoModal").classList.remove("show");
+  if (pendingPhoto) { if (pendingIsPdf()) loadPdfFile(pendingPhoto, true); else insertImageObject(pendingPhoto, true); }
   pendingPhoto = null;
 };
 document.getElementById("photoReplace").onclick = () => {
@@ -4033,6 +4046,43 @@ function ensurePdfJs() {
    intact so a one-argument call can resurrect the V0.22 whole-page trim.
    A bounding box can only OVER-include (a faint
    border makes the crop a no-op); it cannot cut the building off. */
+/* PASS 23 — encoding a plan, now that an outlined one can carry alpha.
+
+   fsJpegFlat is the ONLY way a plan should ever reach JPEG. JPEG has no
+   alpha channel and Chrome encodes transparent pixels BLACK, so a canvas
+   holding an outlined import must be composited onto white first. Measured,
+   not assumed: toDataURL("image/jpeg") on a transparent region returns
+   rgb(0,0,0). Routing every flatten through one function is what stops a
+   future export path reopening this by accident.
+
+   fsEncodePlan keeps alpha when there is alpha to keep. Plans are line art,
+   so the lossless formats are not the expensive choice here — on a 2400x3106
+   sheet, JPEG q0.92 measures 379 KB, PNG 169 KB and WebP q0.92 48 KB. WebP
+   is tried first and PROBED rather than assumed: engines that cannot encode
+   it silently hand back a PNG data URL, so the prefix is the test.
+
+   fsReEncodePlan is for a canvas being rewritten from an existing source —
+   a rotate, a flip, a resize. It keeps an alpha-capable source alpha-capable.
+   Without it the first ninety-degree turn of an outlined sheet would flatten
+   its notch to a black block. */
+function fsJpegFlat(c, q) {
+  const f = document.createElement("canvas");
+  f.width = c.width; f.height = c.height;
+  const fx = f.getContext("2d");
+  fx.fillStyle = "#ffffff"; fx.fillRect(0, 0, f.width, f.height);
+  fx.drawImage(c, 0, 0);
+  return f.toDataURL("image/jpeg", q == null ? 0.92 : q);
+}
+function fsAlphaUrl(c) {
+  const w = c.toDataURL("image/webp", 0.92);
+  return w.indexOf("data:image/webp") === 0 ? w : c.toDataURL("image/png");
+}
+function fsEncodePlan(c, q) {
+  return c.__fsAlpha ? fsAlphaUrl(c) : fsJpegFlat(c, q);
+}
+function fsReEncodePlan(c, src, q) {
+  return /^data:image\/(png|webp)/.test(src || "") ? fsAlphaUrl(c) : fsJpegFlat(c, q);
+}
 function fsPdfTrim(c, auto) {
   try {
     const w = c.width, h = c.height;
@@ -4042,7 +4092,11 @@ function fsPdfTrim(c, auto) {
       const off = y * w * 4;
       for (let x = 0; x < w; x++) {
         const i = off + x * 4;
-        if (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250) {
+        /* PASS 23: a fully transparent pixel is BLANK, not ink. It reads
+           (0,0,0,0), and the old RGB-only test saw 0 < 250 and counted it as
+           content — which would have made an outlined import untrimmable the
+           moment its outside stopped being white. Alpha is checked first. */
+        if (d[i + 3] !== 0 && (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250)) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -4105,7 +4159,7 @@ function fsRegionPick(srcCanvas, forObject) {
     const zLbl = document.getElementById("fsRgnZoomLbl");
     const HINTS = {
       box: "Drag a box around the building you want — edges don't need to be exact, the white margin is trimmed off automatically.",
-      poly: "Tap corner by corner around the building — tap your first point again to close the loop. Drag any dot to move it, even after the loop closes. Zoom in and drag the sheet to aim; ✓ Keep is the last word."
+      poly: "Tap corner by corner around the building — tap your first point again to close the loop. Drag any dot to move it, even after the loop closes. Pinch or use ＋/－ to zoom, drag the sheet to aim; ✓ Keep is the last word."
     };
     const k = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
     disp.width = Math.max(1, Math.round(srcCanvas.width * k));
@@ -4157,7 +4211,13 @@ function fsRegionPick(srcCanvas, forObject) {
         dcx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) dcx.lineTo(pts[i].x, pts[i].y);
         dcx.closePath();
-        dcx.fillStyle = "rgba(255,255,255,.72)";
+        /* PASS 23 — the wash is the workspace background (#1a1d21), not white.
+           A white wash over a white sheet is invisible, which is exactly how
+           Reece pressed Keep twice on a notch he could not see. The area
+           being discarded is now shown in the colour it will actually be
+           after Keep — transparent, over the workspace — so the preview goes
+           back to being the contract it claims to be. */
+        dcx.fillStyle = "rgba(26,29,33,.82)";
         dcx.fill("evenodd");
         dcx.restore();
       }
@@ -4263,6 +4323,52 @@ function fsRegionPick(srcCanvas, forObject) {
        means a finger at 100% and at 600%. */
     let press = null;
     const HITPX = 14, MOVEPX = 6;
+    /* PASS 23 — pinch to zoom. Pass 22 shipped buttons and left pinch out on
+       purpose: a second gesture handler is the same failure class as the
+       workspace wedge in that same pass. Reece drove it and called the
+       buttons "quite fiddly", so it is in — with that pass's leak guard
+       attached from the start rather than after a field report.
+
+       pk holds every live pointer on the canvas. It is emptied from a
+       window-level CAPTURE-phase listener, which fires BEFORE the canvas's
+       own handlers: that ordering is deliberate and load-bearing twice over.
+       It retires a finger that lifts outside the canvas (the leak that wedged
+       the workspace), and it nulls `press` on the way out, so the second
+       finger coming off a pinch cannot land as a tap and drop a stray vertex
+       into the outline. */
+    const pk = new Map();
+    let pinch = null;
+    const pkPair = () => { const v = []; pk.forEach(p => v.push(p)); return v; };
+    const pinchStart = () => {
+      const v = pkPair();
+      pinch = { d0: Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y) || 1, vz0: vz,
+                mx: (v[0].x + v[1].x) / 2, my: (v[0].y + v[1].y) / 2,
+                vx0: vx, vy0: vy };
+    };
+    const pinchStep = () => {
+      const v = pkPair();
+      const d1 = Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y);
+      const mx = (v[0].x + v[1].x) / 2, my = (v[0].y + v[1].y) / 2;
+      /* the sheet point that was under the midpoint when the pinch began is
+         held under the midpoint now — so the sheet tracks the fingers and
+         zoom and two-finger pan come out of the same arithmetic */
+      const ax = pinch.vx0 + pinch.mx / pinch.vz0, ay = pinch.vy0 + pinch.my / pinch.vz0;
+      vz = Math.max(VZMIN, Math.min(VZMAX, pinch.vz0 * (d1 / pinch.d0)));
+      vx = ax - mx / vz; vy = ay - my / vz;
+      clampView();
+      zLbl.textContent = Math.round(vz * 100) + "%";
+      zOut.disabled = vz <= VZMIN;
+      zIn.disabled = vz >= VZMAX;
+      paint();
+    };
+    const pkEnd = e => {
+      const wasPinch = !!pinch;
+      pk.delete(e.pointerId);
+      if (pk.size < 2) pinch = null;
+      if (wasPinch) { press = null; dragging = false; }
+    };
+    window.addEventListener("pointerup", pkEnd, true);
+    window.addEventListener("pointercancel", pkEnd, true);
     const hitKnob = p => {
       const rr = HITPX / cssPer();
       /* newest first: the point just placed wins a tie against an older one
@@ -4274,6 +4380,15 @@ function fsRegionPick(srcCanvas, forObject) {
     };
     disp.onpointerdown = e => {
       try { disp.setPointerCapture(e.pointerId); } catch (err) {}
+      pk.set(e.pointerId, raw(e));
+      if (pk.size >= 2) {
+        /* a second finger cancels whatever the first one was starting: no
+           half-drawn box, no vertex placed, no knob dragged */
+        if (pk.size === 2) pinchStart();
+        press = null; dragging = false;
+        e.preventDefault();
+        return;
+      }
       const p = pos(e);
       if (mode === "box") {
         dragging = true;
@@ -4289,6 +4404,8 @@ function fsRegionPick(srcCanvas, forObject) {
       e.preventDefault();
     };
     disp.onpointermove = e => {
+      if (pk.has(e.pointerId)) pk.set(e.pointerId, raw(e));
+      if (pinch) { if (pk.size >= 2) pinchStep(); return; }
       if (mode === "box") {
         if (!dragging) return;
         const p = pos(e);
@@ -4341,10 +4458,14 @@ function fsRegionPick(srcCanvas, forObject) {
     };
     /* same leak class as workspace item 4: a press that never lifts on this
        element would otherwise keep panning the sheet on the next move */
-    disp.onpointercancel = () => { press = null; dragging = false; };
+    disp.onpointercancel = e => { pk.delete(e.pointerId); pinch = null; press = null; dragging = false; };
     const finish = out => {
       disp.onpointerdown = disp.onpointermove = disp.onpointerup = null;
       disp.onpointercancel = null;
+      window.removeEventListener("pointerup", pkEnd, true);
+      window.removeEventListener("pointercancel", pkEnd, true);
+      pk.clear();
+      pinch = null;
       keep.onclick = undo.onclick = redo.onclick = reset.onclick = null;
       zIn.onclick = zOut.onclick = zFit.onclick = null;
       /* the picker is reused across imports — leave no control armed and no
@@ -4388,10 +4509,21 @@ function fsRegionPick(srcCanvas, forObject) {
       const c2 = document.createElement("canvas");
       c2.width = w; c2.height = h;
       const cx2 = c2.getContext("2d");
-      cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
-      /* Clip to the path: inside = the sheet, outside = the white just laid.
+      /* NO white fill here, and that is the point of Pass 23. The output
+         canvas is still a rectangle — that is physics, a canvas has corners —
+         but everything outside the path is now NOTHING rather than white, so
+         a non-convex building's notch shows the workspace through it and does
+         not paint over a sheet stitched underneath. Reece reported the white
+         notch twice, against V0.24 and again against V0.25, because an
+         L-shaped building can never fit a rectangle and the preview washes
+         white over white so it could not warn him. See tests/_probe_notch.py.
+         The box branch above still fills white: a box has no notch. */
+      /* Clip to the path: inside = the sheet, outside = left transparent.
          "evenodd" is NOT decoration — it must match the preview wash's fill
-         rule at dcx.fill("evenodd") above. With the default NONZERO rule a
+         rule at dcx.fill("evenodd") above (still true, still load-bearing:
+         Pass 22 measured a self-crossing trace keeping a patch the preview
+         had discarded — a REAL bug, just not the one Reece was hitting).
+         With the default NONZERO rule a
          same-direction re-entrant trace keeps its doubly-wound patch here
          while the preview washed it away, so white the user cut out came
          back inside the trim bbox (Reece, field, 7 Aug). The preview is what
@@ -4406,7 +4538,12 @@ function fsRegionPick(srcCanvas, forObject) {
       cx2.clip("evenodd");
       cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
       cx2.restore();
-      finish(fsPdfTrim(c2, true));
+      /* fsPdfTrim hands back a NEW canvas when it crops, so the flag has to
+         ride on the result, not on c2 — it is what tells the encoder to keep
+         alpha instead of flattening the notch to white (or, on JPEG, black) */
+      const cut = fsPdfTrim(c2, true);
+      cut.__fsAlpha = true;
+      finish(cut);
     };
     /* PASS 22 item 10 — undo is a stack now, not a pop. The V0.24 version
        walked the shape backwards by hand and could only ever go one way;
@@ -4478,7 +4615,7 @@ function loadPdfFile(file, asObject) {
       await page.render({ canvasContext: cx2, viewport: vp }).promise;
       const cc = await fsRegionPick(c, asObject);
       if (!cc) { updateStatus(); return; }
-      const dataUrl = cc.toDataURL("image/jpeg", 0.92);
+      const dataUrl = fsEncodePlan(cc, 0.92);
       if (asObject && img) {
         insertImageFromDataUrl(dataUrl, cc.width, cc.height, true);
         updateStatus();
@@ -4678,17 +4815,31 @@ function insertImageFromDataUrl(src, iw, ih, native) {
   draw();
 }
 
-function insertImageObject(f) {
+function insertImageObject(f, pick) {
   if (!f || !img) { if (!img) alert("Load a block plan first."); return; }
   const reader = new FileReader();
   reader.onload = () => {
     const im = new Image();
-    im.onload = () => {
+    im.onload = async () => {
       const mx = 1400;
       const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
       const c = document.createElement("canvas");
       c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
-      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      const icx = c.getContext("2d");
+      if (pick) { icx.fillStyle = "#ffffff"; icx.fillRect(0, 0, c.width, c.height); }
+      icx.drawImage(im, 0, 0, c.width, c.height);
+      /* PASS 23 — `pick` is opt-in from the Add photo modal's third button.
+         Without it this is exactly the Pass 20 behaviour: no picker, 35%,
+         because most photos dropped on a plan are evidence, not sheets. With
+         it, the photo goes through the outline and keeps its alpha, which is
+         what the stitch case actually needs — a rectangular white block over
+         a sheet you are trying to line up is the worst possible outcome. */
+      if (pick) {
+        const cc = await fsRegionPick(c, true);
+        if (!cc) return;
+        insertImageFromDataUrl(fsEncodePlan(cc, 0.85), cc.width, cc.height);
+        return;
+      }
       insertImageFromDataUrl(c.toDataURL("image/jpeg", 0.85), c.width, c.height);
     };
     im.src = reader.result;
@@ -5076,7 +5227,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
         await page.render({ canvasContext: cx2, viewport: vp }).promise;
         const cc = await fsRegionPick(c);
-        if (cc) addLevelFromDataUrl(nm.trim() || "Level", cc.toDataURL("image/jpeg", 0.92));
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92));
       })
       .catch(() => alert("Couldn't open that PDF."));
   } else {
@@ -5090,7 +5241,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         cx0.fillStyle = "#ffffff"; cx0.fillRect(0, 0, c0.width, c0.height);
         cx0.drawImage(im, 0, 0);
         const cc = await fsRegionPick(c0);
-        if (cc) addLevelFromDataUrl(nm.trim() || "Level", cc.toDataURL("image/jpeg", 0.92));
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92));
       };
       im.src = reader.result;
     };
@@ -7151,7 +7302,9 @@ function renderExportCanvasInner() {
 
 /* ---- minimal single-page PDF wrapping a JPEG ---- */
 function canvasToPdfBlob(canvas) {
-  const jpegB64 = canvas.toDataURL("image/jpeg", 0.92).split(",")[1];
+  /* the single flatten point for export: a PDF page is opaque, and a raw
+     JPEG encode of a transparent notch would print it BLACK */
+  const jpegB64 = fsJpegFlat(canvas, 0.92).split(",")[1];
   const bin = atob(jpegB64);
   const jpeg = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) jpeg[i] = bin.charCodeAt(i);
@@ -15244,7 +15397,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v29";
+const FS_BUILD = "aa-v30";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
