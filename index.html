@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.30 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.31 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -248,7 +248,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.30 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.31 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -388,13 +388,19 @@
          on the first is what a technician fills in while standing at it. -->
     <div id="detTabs" style="display:flex;gap:6px;margin:-2px 0 12px">
       <button class="btn" id="detTab1" type="button" style="flex:1">Details</button>
-      <button class="btn" id="detTab2" type="button" style="flex:1">ID &amp; tag</button>
+      <button class="btn" id="detTab2" type="button" style="flex:1">QR tag &amp; Specs</button>
     </div>
     <div id="detPane1">
-    <label>Zone</label><input type="text" id="dZone" autocomplete="off">
-    <label>Loop</label><input type="text" id="dLoop" autocomplete="off">
-    <label>Device number</label><input type="text" id="dDev" autocomplete="off">
-    <label>Other info</label><input type="text" id="dInfo" autocomplete="off">
+    <!-- PASS 27b item 4 — Zone, Loop and Device number on ONE row. Confirmed
+         off the rendered mockup: one row, not two. Narrow boxes, 5 digits max.
+         These are short codes and three full-width boxes were costing three
+         rows of a sheet Reece had already called too long. "Other info" moves
+         below the item-specific options and is renamed there. -->
+    <div id="dZlRow" style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1;min-width:0"><label>Zone</label><input type="text" id="dZone" autocomplete="off" maxlength="5" style="width:100%"></div>
+      <div style="flex:1;min-width:0"><label>Loop</label><input type="text" id="dLoop" autocomplete="off" maxlength="5" style="width:100%"></div>
+      <div style="flex:1;min-width:0"><label>Device number</label><input type="text" id="dDev" autocomplete="off" maxlength="5" style="width:100%"></div>
+    </div>
     <!-- PASS 26 item 15: idWrap moved to the second pane, below. -->
     <!-- PASS 24 item 6. Checkbox look, radio behaviour, one value box each,
          both defaulting to 60 degC with Rate of rise ticked. -->
@@ -444,20 +450,18 @@
         <option value="180">180&deg; &mdash; half</option>
       </select>
     </div>
-    <div id="ctWrap" style="display:none">
-      <label>Change type &mdash; keeps ID, zone/loop/device no., test history, QR link and photo</label>
+    <!-- PASS 27b item 4 — the picker itself stays here and stays hidden; the
+         footer button reveals it. Keeping the <select> in the pane rather than
+         building a second modal means multi-select, the type list and the
+         existing save path are all untouched. -->
+    <div id="ctWrap" style="display:none;margin-top:12px">
+      <label>Change item type &mdash; keeps ID, zone/loop/device no., test history, QR link and photo</label>
       <select id="dChgType" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px"></select>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;color:#e8e8e8">
-      <input type="checkbox" id="dFailed" style="width:18px;height:18px"> Failed
-    </label>
-    <label>Year tested</label>
-    <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:#e8e8e8">
-      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2026" style="width:17px;height:17px">2026</label>
-      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2027" style="width:17px;height:17px">2027</label>
-      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2028" style="width:17px;height:17px">2028</label>
-      <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2029" style="width:17px;height:17px">2029</label>
-    </div>
+    <!-- PASS 27b item 4 — renamed from "Other info". Keeps its full width: a
+         description may go here, and it is the one free-text box on the sheet.
+         It sits BELOW the item-specific options now, per the mockup. -->
+    <label>Further Information</label><input type="text" id="dInfo" autocomplete="off">
     <div id="photoWrap" style="margin-top:10px">
       <label>Photo</label>
       <img id="dPhotoPreview" style="display:none;max-width:120px;max-height:120px;border:1px solid #555;border-radius:6px;margin:4px 0">
@@ -466,6 +470,28 @@
         <button class="btn" id="dPhotoRemove" style="display:none">Remove</button>
       </div>
       <input type="file" id="dPhotoInput" accept="image/*">
+    </div>
+    <!-- PASS 27b item 4 — TESTING. Failed, the years row and Raise-a-defect
+         are one job done standing at the device, so they are one block.
+         The 2026-2029 CHECKBOX ROW IS KEPT. Reece: "easy to see and use, only
+         takes up one row." Do not turn it into a select or a year picker. -->
+    <div id="dTestWrap" style="margin-top:16px;border-top:1px solid #333;padding-top:10px">
+      <div style="font-size:12px;letter-spacing:.09em;color:#9aa7ad;font-weight:700;margin-bottom:6px">TESTING</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
+        <input type="checkbox" id="dFailed" style="width:18px;height:18px"> Failed
+      </label>
+      <label>Year tested</label>
+      <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:#e8e8e8">
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2026" style="width:17px;height:17px">2026</label>
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2027" style="width:17px;height:17px">2027</label>
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2028" style="width:17px;height:17px">2028</label>
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2029" style="width:17px;height:17px">2029</label>
+      </div>
+      <!-- moved here from tab 2 by item 4. Wired in 27a where it already sat;
+           this pass moves it and keeps it working. -->
+      <div id="dRaiseWrap" style="display:none;margin-top:10px">
+        <button class="btn" id="dRaiseDefect" type="button" style="width:100%">&#9888; Raise a defect on this device</button>
+      </div>
     </div>
     </div><!-- /detPane1 -->
     <div id="detPane2" style="display:none">
@@ -485,9 +511,41 @@
         Nothing to identify on this item type &mdash; no label fields and no QR tag.
       </div>
     </div>
-    <div class="row">
+    <!-- PASS 27b item 4 — [Change item type] bottom-LEFT, level with Cancel and
+         Save, same shape as Save, OUTLINED red on transparent.
+
+         NOT solid, and this is a decision rather than an oversight: solid
+         #c62828 next to Save's #f4623a is two warm buttons at opposite ends of
+         one row, which on a bright screen with gloves works against the whole
+         reason the control was moved down here. Outline reads as "think
+         first", solid reads as "commit". Reece chose outlined. -->
+    <div class="row" id="detFooter" style="align-items:center">
+      <button class="btn" id="dChangeTypeBtn" type="button" style="display:none;margin-right:auto;border:1px solid #c62828;background:transparent;color:#ef6a6a">Change item type</button>
       <button class="btn" id="detailsCancel">Cancel</button>
       <button class="btn primary" id="detailsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASS 27b item 2 — the ONE camera. Reece's standing rule: any feature that
+     uses the camera gets zoom. The frame is a clipping window so a digital
+     zoom crops rather than overflowing the sheet. -->
+<div class="modal" id="fsCamModal" style="z-index:215">
+  <div class="modalbox">
+    <h3 id="fsCamTitle">Camera</h3>
+    <div id="fsCamFrame" style="position:relative;overflow:hidden;border-radius:10px;background:#000;min-height:220px">
+      <video id="fsCamVideo" playsinline muted style="width:100%;display:block;background:#000;min-height:220px;touch-action:none;transform-origin:50% 50%"></video>
+    </div>
+    <div id="fsCamZoomRow" style="display:none;align-items:center;gap:9px;margin-top:9px">
+      <button class="btn" id="fsCamZoomOut" type="button" style="min-width:38px;padding:4px 10px;font-size:17px;line-height:1.2" title="Zoom out" aria-label="Zoom out">&minus;</button>
+      <input id="fsCamZoom" type="range" min="1" max="4" step="0.1" value="1" style="flex:1" aria-label="Camera zoom">
+      <button class="btn" id="fsCamZoomIn" type="button" style="min-width:38px;padding:4px 10px;font-size:17px;line-height:1.2" title="Zoom in" aria-label="Zoom in">&plus;</button>
+      <span id="fsCamZoomVal" style="font-size:12.5px;color:#aaa;min-width:62px;text-align:right">1.0&times;</span>
+    </div>
+    <div id="fsCamStatus" style="font-size:13px;color:#aaa;margin-top:8px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="fsCamClose" type="button">Close</button>
+      <button class="btn primary" id="fsCamShot" type="button" style="display:none">&#128247; Take photo</button>
     </div>
   </div>
 </div>
@@ -5984,6 +6042,9 @@ async function fsQrScan() {
   }
   vid.srcObject = fsQrStream;
   await vid.play().catch(() => {});
+  /* PASS 27b item 2 — the scanner no longer owns a zoom. It borrows the shared
+     one, pointed at its own <video>. Two copies of a pinch handler is how the
+     V0.25 pointer leak happened; one component means one teardown path. */
   fsQrZoomInit(fsQrStream);
   st.textContent = "Point the camera at an Arc Adapt QR label. Pinch or drag the slider to zoom in.";
   const cv2 = document.createElement("canvas");
@@ -7104,20 +7165,241 @@ function fsOcrWorker(onProg) {
    HOCHIKI TOKYO JAPAN, MADE IN JAPAN 2-8-000-8439-152. The OCR did its job.
    This function did not: Brand came out "FF r RAR Res", Model "DCD-A > |",
    Serial empty. Three fixes below, cheapest first. */
-/* WORMALD IS DELIBERATELY NOT IN THIS LIST, and must not be added back.
+/* ONE MAKER NAMED IN PASS-27-START.md IS DELIBERATELY ABSENT FROM THIS LIST
+   and must not be added back. It is also the name of a real client, and this
+   file is served to every OTHER client, so naming it here — in the list or in
+   this comment — is the thing rule #1 exists to prevent. See the private
+   working notes for which one; it is not written down in shipped code.
 
-   PASS-27-START.md names it, and it is a plausible thing to read off a label.
-   It is also the name of a real client, and test_regress asserts that no
-   client name appears anywhere in the shipped shell — rule #1, client data is
-   never public. Adding it here failed that assertion in both apps on the first
-   run of this pass. A maker list is not worth putting a client's name into a
-   file served to every other client. */
+   A maker list is not worth putting a client's name into a public file. */
 const FS_OCR_BRANDS = ["Hochiki", "Apollo", "System Sensor", "Chubb",
   "Tyco", "Simplex", "Notifier", "Vigilant", "Ampac", "Pertronic", "Bosch",
   "Honeywell"];
 /* tesseract furniture: pipes, slashes, guillemets, stray stops and dashes that
    ride along on the ends of an otherwise clean line. "MODEL DCD-A > |" is the
    whole reason Model came back with punctuation attached. */
+/* ==========================================================================
+   PASS 27b item 2 — ONE in-app camera, with zoom, used everywhere.
+
+   Reece, standing rule: "if there's any feature that requires camera, I would
+   want the zoom in and out feature included."
+
+   Two mechanisms, and everything downstream follows whichever is live:
+
+     optical   track.getCapabilities().zoom + applyConstraints. The sensor
+               really zooms and every pixel handed on is a real one.
+     crop      no zoom capability on the track (iPad Safari usually) — the
+               canvas is sized to the CENTRE REGION and drawImage copies that
+               region 1:1. A crop, not an upscale.
+
+   THE CROP IS THE WHOLE POINT AND IT APPLIES TO STILLS TOO. A zoom that only
+   enlarges the preview fixes the complaint he can see and not the one he has:
+   the recogniser is handed the same pixels it already failed on, while the
+   picture looks closer. fsCamGrab() is the single place that decides this, and
+   both callers go through it — the QR scan loop and the Scan label shutter.
+   ========================================================================== */
+let fsCamZ = null, fsCamStream = null, fsCamRaf = null, fsCamJob = null;
+
+function fsCamZoomKind() { return fsCamZ && fsCamZ.optical ? "optical" : "digital"; }
+
+function fsCamZoomApply(v) {
+  if (!fsCamZ) return;
+  v = Math.max(fsCamZ.min, Math.min(fsCamZ.max, +v || 1));
+  fsCamZ.val = v;
+  const sl = document.getElementById("fsCamZoom");
+  const lab = document.getElementById("fsCamZoomVal");
+  if (sl && String(+sl.value) !== String(v)) sl.value = v;
+  if (lab) lab.textContent = v.toFixed(1) + "×" + (fsCamZ.optical ? "" : " digital");
+  if (fsCamZ.optical && fsCamZ.track) {
+    /* A track can refuse a constraint at any time — the OS may hand the camera
+       to another app mid-scan. Never let that reject take the session down;
+       the crop path still works, so fall back to it rather than dying. */
+    try {
+      Promise.resolve(fsCamZ.track.applyConstraints({ advanced: [{ zoom: v }] })).catch(function () {
+        fsCamZ.optical = false;
+        fsCamZoomApply(v);
+      });
+    } catch (e) { fsCamZ.optical = false; fsCamZoomApply(v); }
+  }
+  const vid = document.getElementById("fsCamVideo");
+  /* Optical zoom already arrives zoomed in the frames, so scaling the preview
+     as well would double it and show a crop nothing downstream is reading. */
+  if (vid) vid.style.transform = fsCamZ.optical ? "" : ("scale(" + v + ")");
+}
+
+/* Bounded on purpose. The V0.25 leak was a stuck pointer entry that wedged the
+   workspace until the app was restarted, so a pinch handler starts with a debt
+   to pay: these listeners live on #fsCamVideo and nowhere else, they come off
+   in fsCamClose, and the Map is cleared on up, on cancel AND on stop. */
+function fsCamZoomBind(vid) {
+  if (!fsCamZ) return;
+  const pts = fsCamZ.pts;
+  const dist = () => {
+    const a = [...pts.values()];
+    return a.length < 2 ? 0 : Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+  };
+  const down = e => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { fsCamZ.d0 = dist(); fsCamZ.v0 = fsCamZ.val; } };
+  const move = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && fsCamZ.d0 > 0) { e.preventDefault(); fsCamZoomApply(fsCamZ.v0 * (dist() / fsCamZ.d0)); }
+  };
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) fsCamZ.d0 = 0; };
+  fsCamZ.off = () => {
+    vid.removeEventListener("pointerdown", down);
+    vid.removeEventListener("pointermove", move);
+    vid.removeEventListener("pointerup", up);
+    vid.removeEventListener("pointercancel", up);
+    vid.removeEventListener("pointerleave", up);
+    pts.clear();
+  };
+  vid.addEventListener("pointerdown", down);
+  vid.addEventListener("pointermove", move, { passive: false });
+  vid.addEventListener("pointerup", up);
+  vid.addEventListener("pointercancel", up);
+  vid.addEventListener("pointerleave", up);
+}
+
+function fsCamZoomInit(stream) {
+  const vid = document.getElementById("fsCamVideo");
+  const row = document.getElementById("fsCamZoomRow");
+  const sl = document.getElementById("fsCamZoom");
+  const track = (stream && stream.getVideoTracks && stream.getVideoTracks()[0]) || null;
+  let caps = null;
+  /* getCapabilities is absent on Firefox and throws on some Android builds
+     rather than returning nothing. Either way the answer is "no optical". */
+  try { caps = track && track.getCapabilities ? track.getCapabilities() : null; } catch (e) { caps = null; }
+  const oz = caps && caps.zoom && caps.zoom.max > (caps.zoom.min || 1);
+  fsCamZ = {
+    track: track, optical: !!oz, pts: new Map(), d0: 0, v0: 1,
+    min: oz ? (caps.zoom.min || 1) : 1,
+    max: oz ? caps.zoom.max : 4,
+    val: oz ? (caps.zoom.min || 1) : 1,
+    off: null
+  };
+  if (sl) {
+    sl.min = fsCamZ.min;
+    sl.max = fsCamZ.max;
+    sl.step = oz ? (caps.zoom.step || 0.1) : 0.1;
+    sl.value = fsCamZ.val;
+    sl.oninput = () => fsCamZoomApply(sl.value);
+  }
+  const nudge = d => () => fsCamZoomApply(fsCamZ.val + d * (fsCamZ.max - fsCamZ.min) / 12);
+  const zi = document.getElementById("fsCamZoomIn"), zo = document.getElementById("fsCamZoomOut");
+  if (zi) zi.onclick = nudge(1);
+  if (zo) zo.onclick = nudge(-1);
+  if (row) row.style.display = "flex";
+  if (vid) fsCamZoomBind(vid);
+  fsCamZoomApply(fsCamZ.val);
+}
+
+/* THE crop. Returns a canvas holding the centre region at 1:1 sensor pixels
+   when zooming digitally, and the whole frame when the sensor did the zoom
+   itself. Nothing here ever upscales — an upscaled still is interpolated mush
+   and it is precisely what made the serial unreadable on the 8 Aug re-drive. */
+function fsCamGrab(vid, cv) {
+  cv = cv || document.createElement("canvas");
+  const z = (fsCamZ && !fsCamZ.optical && fsCamZ.val > 1) ? fsCamZ.val : 1;
+  const sw = Math.max(16, Math.round(vid.videoWidth / z));
+  const sh = Math.max(16, Math.round(vid.videoHeight / z));
+  const sx = Math.round((vid.videoWidth - sw) / 2), sy = Math.round((vid.videoHeight - sh) / 2);
+  cv.width = sw; cv.height = sh;
+  cv.getContext("2d", { willReadFrequently: true }).drawImage(vid, sx, sy, sw, sh, 0, 0, sw, sh);
+  return cv;
+}
+
+/* The shutter, as a named function rather than a closure inside fsCamOpen.
+
+   It is separate for one reason: mutate-p27b M4 makes the STILL path skip the
+   crop while the scan loop keeps it. The QR scanner then works perfectly and
+   Scan label — the entire reason item 2 exists — is back to handing tesseract
+   a full-frame photo. M4 SURVIVED the first mutation run, because the suite
+   was testing fsCamGrab directly and nothing was exercising the path that
+   calls it. A primitive that is correct and a caller that does not use it is
+   the same bug as a primitive that is wrong. */
+function fsCamShoot(vid) {
+  if (!vid || !vid.videoWidth) return null;
+  const cv = fsCamGrab(vid);
+  const fn = fsCamJob && fsCamJob.onShot;
+  fsCamClose();
+  if (fn) fn(cv);
+  return cv;
+}
+
+function fsCamStatus(msg) {
+  const st = document.getElementById("fsCamStatus");
+  if (st) st.textContent = msg == null ? "" : String(msg);
+}
+
+function fsCamClose() {
+  if (fsCamRaf) cancelAnimationFrame(fsCamRaf);
+  fsCamRaf = null;
+  if (fsCamStream) { fsCamStream.getTracks().forEach(t => t.stop()); fsCamStream = null; }
+  /* Tear the zoom down with the camera. Listeners off, map cleared, preview
+     transform reset, row hidden: reopening must start at 1.0x on a clean
+     element, not inherit the last session's state. */
+  if (fsCamZ && fsCamZ.off) { try { fsCamZ.off(); } catch (e) {} }
+  fsCamZ = null;
+  fsCamJob = null;
+  const v = document.getElementById("fsCamVideo");
+  if (v) { v.style.transform = ""; try { v.srcObject = null; } catch (e) {} }
+  const r = document.getElementById("fsCamZoomRow");
+  if (r) r.style.display = "none";
+  const sh = document.getElementById("fsCamShot");
+  if (sh) sh.style.display = "none";
+  const m = document.getElementById("fsCamModal");
+  if (m) m.classList.remove("show");
+}
+
+/* job = { mode:"scan"|"shot", title, hint, onFrame(canvas), onShot(canvas) }
+   onFrame returns truthy to stop the loop. Resolves false when the camera
+   could not be opened, so a caller can fall back rather than dead-end. */
+async function fsCamOpen(job) {
+  fsCamJob = job || {};
+  const modal = document.getElementById("fsCamModal");
+  const vid = document.getElementById("fsCamVideo");
+  const shot = document.getElementById("fsCamShot");
+  if (!modal || !vid) return false;
+  document.getElementById("fsCamTitle").textContent = fsCamJob.title || "Camera";
+  modal.classList.add("show");
+  fsCamStatus("Starting camera…");
+  try {
+    fsCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+  } catch (e) {
+    /* Not a dead end. The caller decides — Scan label drops back to the file
+       input, which is the behaviour every build before this one had. */
+    fsCamStatus("Camera not available.");
+    fsCamClose();
+    return false;
+  }
+  vid.srcObject = fsCamStream;
+  await vid.play().catch(() => {});
+  fsCamZoomInit(fsCamStream);
+  fsCamStatus(fsCamJob.hint || "Pinch or drag the slider to zoom in.");
+  if (fsCamJob.mode === "shot") {
+    if (shot) {
+      shot.style.display = "";
+      shot.onclick = () => fsCamShoot(vid);
+    }
+  } else {
+    const cv = document.createElement("canvas");
+    const loop = () => {
+      if (!fsCamStream) return;
+      if (vid.videoWidth) {
+        const res = fsCamJob && fsCamJob.onFrame ? fsCamJob.onFrame(fsCamGrab(vid, cv)) : false;
+        if (res === "stop") { fsCamClose(); return; }
+      }
+      fsCamRaf = requestAnimationFrame(loop);
+    };
+    fsCamRaf = requestAnimationFrame(loop);
+  }
+  return true;
+}
+(function () {
+  const c = document.getElementById("fsCamClose");
+  if (c) c.onclick = fsCamClose;
+})();
+
 function fsOcrTrim(v) {
   return String(v == null ? "" : v)
     .replace(/^[\s|/\\;:.,«»<>*_+~^'"`-]+/, "")
@@ -7205,10 +7487,50 @@ function fsOcrGuess(lines) {
       if (cand) out.brand = cand.trim();
     }
   }
-  /* FIX 3 — no SER or S/N anywhere on this label, so the keyword pass found
-     nothing and there was no fallback at all. Longest run of digits and dashes
-     carrying at least six digits: "2-8-000-8439-152" clears it, a year or a
-     temperature does not. */
+  /* PASS 27b — THE SERIAL DEFINITION WAS WRONG AND 27a BUILT TO IT.
+
+     Reece photographed the label. It has a dedicated field:
+
+         DATE          SER.NO.
+         2025          50820098      TOKYO JAPAN
+                                     2-8-000-8439-152
+
+     50820098 is the serial. 2-8-000-8439-152 is a catalogue/part code printed
+     under TOKYO JAPAN, and 27a's "prefer a long digit-and-dash run" was aimed
+     straight at it — so the app confidently filled in the wrong number, which
+     is worse than leaving it blank.
+
+     This is a definition change, not a tuning change. Order is now:
+
+       1  the value after SER.NO. / SER NO / S/N / SERIAL on the same line
+       2  the digits on the NEXT line under such a header — which is how this
+          label is actually printed, and the case the 27a regex could not see
+          because it only ever looked to the right of the keyword
+       3  and ONLY if neither exists, the old digit-and-dash run
+
+     Note the header regex tolerates the stop inside "SER.NO." and the space in
+     "SER NO". fsOcrTrim has already taken the punctuation off the ends. */
+  const SER_HDR = /\b(ser\s*[.\s]?\s*no|serial(\s*(no|number))?|s\s*\/?\s*n)\b/i;
+  if (!out.serial) {
+    for (let i = 0; i < clean.length && !out.serial; i++) {
+      const m = String(clean[i]).match(/\b(?:ser\s*[.\s]?\s*no|serial(?:\s*(?:no|number))?|s\s*\/?\s*n)\b[:.\s-]*(\S.*)$/i);
+      const v = m ? fsOcrTrim(m[1] || "") : "";
+      /* a bare header line ("DATE SER.NO.") captures the next COLUMN heading,
+         not a value — anything without a digit in it is not a serial */
+      if (v && v.length <= 40 && /[0-9]/.test(v)) out.serial = v.split(/\s{2,}/)[0].trim();
+    }
+  }
+  if (!out.serial) {
+    for (let i = 0; i < clean.length - 1 && !out.serial; i++) {
+      if (!SER_HDR.test(clean[i])) continue;
+      /* the value sits under the header, and the DATE column sits beside it —
+         take the LAST number on the row, and require 5+ digits so a year
+         (2025) cannot win against a serial (50820098) */
+      const nums = String(clean[i + 1]).match(/[0-9][0-9\/-]{3,}/g) || [];
+      const pick = nums.filter(n => (n.match(/[0-9]/g) || []).length >= 5).pop();
+      if (pick) out.serial = pick;
+    }
+  }
   if (!out.serial) {
     let best = "";
     clean.forEach(L => {
@@ -7217,6 +7539,18 @@ function fsOcrGuess(lines) {
       });
     });
     if (best) out.serial = best;
+  }
+  /* PASS 27b — the trailing token. Model came out "DCD-A 9": fsOcrTrim strips
+     symbols and not digits, so a stray short numeric token tesseract invented
+     at the end of the line rides straight through.
+
+     Guarded two ways so it cannot eat a real model: only when what precedes it
+     already contains a letter, and only for a token of one or two digits. A
+     model that is legitimately all digits, or ends in a long number, is left
+     exactly as it was. */
+  if (out.model) {
+    const mm = String(out.model).match(/^(.*[A-Za-z].*?)\s+([0-9]{1,2})$/);
+    if (mm) out.model = fsOcrTrim(mm[1]);
   }
   return out;
 }
@@ -7240,6 +7574,42 @@ function fsOcrRenderPick(lines) {
     };
   });
 }
+/* PASS 27b item 2 — the ONE way this app opens a camera at a label.
+
+   Before this, Scan label handed off to iOS's own camera through
+   capture="environment". We do not own that UI, which is why the answer to
+   "can I zoom in on the label" was no, and why the serial went unread on the
+   8 Aug re-drive.
+
+   MUST BE CALLED SYNCHRONOUSLY FROM A TAP. getUserMedia is gesture-gated the
+   same way input.click() is, and this function issues it before its first
+   await — so calling it from inside an onclick works and scheduling it in a
+   setTimeout does not. That is the same trap PASS 26 item 14b fixed for the
+   file input; test_p26 B2 pins it.
+
+   ON FAILURE, DO NOT PRETEND. A deferred .click() on the file input is exactly
+   what iOS ignores, so a promise-tail fallback would LOOK like a safety net
+   and be one only on desktop. It is attempted, because on desktop it is free,
+   but the thing actually relied on is the message plus the two visible buttons
+   already sitting in the sheet. */
+function fsOcrShoot() {
+  const p = fsCamOpen({
+    mode: "shot",
+    title: "Scan label",
+    hint: "Fill the frame with the label. Pinch or drag the slider to zoom in — the zoom CROPS rather than enlarging, so the recogniser is handed real pixels.",
+    onShot: cv => { try { cv.toBlob(b => { if (b) fsOcrRun(b); }, "image/jpeg", 0.92); } catch (e) { fsOcrRun(cv); } }
+  });
+  Promise.resolve(p).then(ok => {
+    if (ok) return;
+    const st = document.getElementById("ocrStatus");
+    if (st) {
+      st.style.color = "#e0a03a";
+      st.textContent = "Camera not available — use “Choose a photo you already have”, or allow camera access for this app and tap Take a photo again.";
+    }
+    try { document.getElementById("ocrFile").click(); } catch (e) {}
+  });
+  return p;
+}
 function fsOcrOpen() {
   ["ocrBrand", "ocrModel", "ocrSerial"].forEach(id => { document.getElementById(id).value = ""; });
   document.getElementById("ocrPick").innerHTML = "";
@@ -7261,7 +7631,7 @@ function fsOcrOpen() {
      If a browser refuses anyway, nothing is lost — the big button is sitting
      right there behind this. Belt and braces on purpose; the failure mode of
      the auto-fire is invisible, so it cannot be the only route. */
-  try { document.getElementById("ocrFile").click(); } catch (e) {}
+  fsOcrShoot();
 }
 function fsOcrRun(file) {
   const st = document.getElementById("ocrStatus");
@@ -7314,6 +7684,30 @@ function fsDetTab(n) {
     const anything = (idW && idW.style.display !== "none") || (qrW && qrW.style.display !== "none");
     if (empty) empty.style.display = anything ? "none" : "";
   }
+  /* PASS 27b item 4 — the footer is shared markup, so without this the Change
+     item type button appears under QR tag & Specs, where it reads oddly. It is
+     a tab-1 control; it belongs to what tab 1 is showing. */
+  const ctb = document.getElementById("dChangeTypeBtn");
+  if (ctb) ctb.style.display = (n !== 2 && fsDetCtOk) ? "" : "none";
+}
+/* Whether THIS sheet may change type at all — single non-photo-pin device.
+   Held on the side because both fsDetTab and openDetails need the answer and
+   they run in that order. */
+let fsDetCtOk = false;
+/* PASS 27b item 4 — Raise a defect, moved to Testing on tab 1.
+
+   The gate is unchanged from where it sat on tab 2: workspace app, one device,
+   a site open, not a photo pin. What changed is that the button is now static
+   markup, so it is wired here rather than rebuilt inside fsDetQrRender. */
+function fsDetRaiseSync(syms) {
+  const wrap = document.getElementById("dRaiseWrap");
+  const btn = document.getElementById("dRaiseDefect");
+  if (!wrap || !btn) return;
+  const s = (typeof fsSite !== "undefined") ? fsSite : null;
+  const ok = typeof fsDefFormOpen === "function" && FS_WS_APP && syms && syms.length === 1
+    && s && typeof fsSiteCtx !== "undefined" && fsSiteCtx && syms[0].type !== "campin";
+  wrap.style.display = ok ? "" : "none";
+  btn.onclick = ok ? (() => fsDefFormOpen(s, { qid: syms[0].qid || "", node: syms[0] })) : null;
 }
 function openDetails() {
   fsDetTab(1);
@@ -7386,7 +7780,14 @@ function openDetails() {
     document.getElementById("dMsCov").value = msTargets.every(o => (o.cov || "360") === mv) ? mv : "360";
   }
   const ctOk = !multi && syms[0].type !== "campin";
-  document.getElementById("ctWrap").style.display = ctOk ? "block" : "none";
+  /* PASS 27b item 4 — the picker starts CLOSED behind the footer button. It
+     was a permanently-open select in the middle of the sheet, which is both a
+     row of height on every open and an easy mis-tap on a control that rewrites
+     the device. */
+  fsDetCtOk = ctOk;
+  document.getElementById("ctWrap").style.display = "none";
+  const ctb0 = document.getElementById("dChangeTypeBtn");
+  if (ctb0) ctb0.style.display = ctOk ? "" : "none";
   if (ctOk) {
     const tabNames = { fire:"Fire", exit:"Exit", elec:"Electrical", bldg:"Building", tools:"Tools" };
     document.getElementById("dChgType").innerHTML = TYPES.filter(x => x.id !== "campin").map(x =>
@@ -7415,6 +7816,8 @@ function openDetails() {
   document.getElementById("dPhotoRemove").style.display = photo ? "inline-block" : "none";
   document.getElementById("photoWrap").style.display = multi ? "none" : "block";
   fsDetQrRender(syms);
+  fsDetRaiseSync(syms);
+  fsDetTab(1);
   detailsModal.classList.add("show");
 }
 document.getElementById("btnDetails").onclick = openDetails;
@@ -7425,6 +7828,38 @@ document.getElementById("dScanBtn").onclick = fsOcrOpen;
 /* PASS 26 item 15 */
 document.getElementById("detTab1").onclick = () => fsDetTab(1);
 document.getElementById("detTab2").onclick = () => fsDetTab(2);
+/* PASS 27b item 4 — the confirm names what is CLEARED and what is KEPT, built
+   from the type actually being left rather than a generic warning. A generic
+   "are you sure?" teaches people to tap through it; naming the four settings
+   about to disappear does not. */
+(function () {
+  const btn = document.getElementById("dChangeTypeBtn");
+  const wrap = document.getElementById("ctWrap");
+  if (!btn || !wrap) return;
+  btn.onclick = () => {
+    if (wrap.style.display !== "none") { wrap.style.display = "none"; return; }
+    const syms = (typeof detailsTargets !== "undefined" && detailsTargets) || [];
+    const cur = syms.length === 1 ? TYPE_MAP[syms[0].type] : null;
+    const loses = {
+      thermal: "rate of rise, fixed and their temperatures",
+      cthermal: "rate of rise, fixed and their temperatures",
+      exting: "the extinguisher type and its band colour",
+      dba: "the A and E sound readings",
+      bglass: "the break-glass colour",
+      msensor: "the coverage angle"
+    }[syms.length === 1 ? syms[0].type : ""] || "";
+    const msg = cur
+      ? ("This device is a " + cur.label + "."
+         + (loses ? " Changing its type will clear the settings that only belong to a "
+                    + cur.label.toLowerCase() + " — " + loses + "." : "")
+         + " Zone, loop, device number, photo and QR tag are kept.")
+      : "Change this device's type? Zone, loop, device number, photo and QR tag are kept.";
+    if (!confirm(msg)) return;
+    wrap.style.display = "block";
+    const sel = document.getElementById("dChgType");
+    if (sel) { try { sel.focus(); } catch (e) {} }
+  };
+})();
 document.getElementById("ocrFile").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (f) fsOcrRun(f);
@@ -7436,11 +7871,11 @@ document.getElementById("ocrFile").addEventListener("change", e => {
    handsome buttons that did nothing and the ONLY working route was the
    auto-fire on open. On a browser that refuses the auto-fire that is the
    reported bug again, with a nicer-looking dead end in front of it. */
-document.getElementById("ocrShoot").onclick = () => {
-  const f = document.getElementById("ocrFile");
-  f.setAttribute("capture", "environment");
-  f.click();
-};
+/* PASS 27b item 2 — the hero button opens OUR camera, not the OS one. Leaving
+   it on the file input would have left a second, zoom-less route to the same
+   job, which is worse than not having built the camera: whichever one Reece
+   happened to tap would decide whether he had a zoom. */
+document.getElementById("ocrShoot").onclick = () => { fsOcrShoot(); };
 document.getElementById("ocrPickFile").onclick = () => {
   /* the library route: drop `capture` so iOS offers the photo picker rather
      than going straight to the lens */
@@ -10097,8 +10532,8 @@ async function fsSha256(t) {
 document.getElementById("fsDashBtn").onclick = async () => {
   if (!fsRegister) return;
   if (!fsRegister.adminPin) {
-    if (!confirm("No admin passcode is set for this register yet.\nThe dashboard is an all-sites management view \u2014 set a passcode now?")) return;
-    const p1 = await fsAskPass("Choose an admin passcode", {
+    if (!confirm("No Office passcode is set for this register yet.\nThe dashboard is an all-sites management view \u2014 set a passcode now?")) return;
+    const p1 = await fsAskPass("Choose an Office passcode", {
       confirm: true, min: 4, okLabel: "Set passcode",
       note: "It is stored in the register file, so colleagues' copies use the same one. Save the register afterwards."
     });
@@ -10108,7 +10543,12 @@ document.getElementById("fsDashBtn").onclick = async () => {
     alert("Passcode set \u2713 \u2014 Save the register so colleagues' copies use the same one.");
     fsDashUnlocked = true;
   } else if (!fsDashUnlocked) {
-    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock", sub: "Office" });
+    /* PASS 27b ride-along — the button says Office, so the prompt says Office.
+       "Admin" appeared nowhere the user had been. Office stays as the name;
+       confirmed 8 Aug. The share-warning copy that lists what is stripped from
+       an exported register is deliberately NOT touched — it describes the
+       field, and rewording a disclosure for tidiness is not a reason. */
+    const p = await fsAskPass("Office passcode", { okLabel: "Unlock", sub: "Office" });
     if (p === null) return;
     if (!(await fsPassVerify(p, fsRegister.adminPin))) { alert("Wrong passcode."); return; }
     fsDashUnlocked = true;
@@ -14688,10 +15128,10 @@ function fsDetQrRender(syms) {
   const o = syms[0];
   const items = s.qrItems || [];
   const it = o.qid ? items.find(x => x.qid === o.qid) : null;
+  /* PASS 27b item 4 — Raise a defect is NOT built here any more. It moved to
+     Testing on tab 1 and is driven by fsDetRaiseSync. Tab 2 is QR tag & Specs;
+     a defect button under the specs was the odd one out. */
   let h = '';
-  if (typeof fsDefFormOpen === "function") {
-    h += '<div style="margin-bottom:10px"><button class="btn" id="dRaiseDefect" type="button" style="width:100%">&#9888; Raise a defect on this device</button></div>';
-  }
   h += '<label>QR tag</label>';
   if (it) {
     h += '<div style="font-size:13px;color:#e8e8e8;margin:2px 0 8px">Linked to register tag <b>' + fsEsc(it.qid) + '</b>' +
@@ -14719,8 +15159,6 @@ function fsDetQrRender(syms) {
   /* PASS 27a item 5 — this button has NEVER worked. `grep -c dRaiseDefect` on
      V0.29 returns 1: the markup above, and no handler anywhere in the file. It
      has been dead since the day it was added; Pass 26 did not break it. */
-  const rd = document.getElementById("dRaiseDefect");
-  if (rd) rd.onclick = () => fsDefFormOpen(s, { qid: o.qid || "", node: o });
   const ed = document.getElementById("dQrEdit");
   if (ed) ed.onclick = () => fsQrItemOpen(s, it);
   const un = document.getElementById("dQrUnlink");
@@ -16283,7 +16721,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v34";
+const FS_BUILD = "aa-v35";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -20274,8 +20712,8 @@ function fsGateShow(kind, a, extra) {
   const pw = document.getElementById("fsGatePass");
   if (pw) pw.addEventListener("keydown", e => { if (e.key === "Enter" && go) go.onclick(); });
   document.getElementById("fsGateAdmin").onclick = async () => {
-    if (!fsRegister || !fsRegister.adminPin) { alert("Load a register with an admin passcode first."); return; }
-    const p = await fsAskPass("Admin passcode", { okLabel: "Unlock" });
+    if (!fsRegister || !fsRegister.adminPin) { alert("Load a register with an Office passcode first."); return; }
+    const p = await fsAskPass("Office passcode", { okLabel: "Unlock" });
     if (p === null) return;
     if (!(await fsPassVerify(p, fsRegister.adminPin))) { alert("Wrong passcode."); return; }
     try { sessionStorage.setItem("fs-gate-admin", "1"); } catch (e) {}
