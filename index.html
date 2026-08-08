@@ -4394,7 +4394,7 @@ function fsPdfTrim(c, auto) {
 
 /* V0.25 PASS 22 — the picker keeps two shapes: box and outline.
    An L-shaped building beside a title block is exactly where a rectangle
-   over-includes (Reece, 6 Aug, on the Hunter Health sheet) — so trace it:
+   over-includes (Reece, 6 Aug, on the Example Health sheet) — so trace it:
    Outline = tap corner by corner, tap your first point again to close.
    Freehand LASSO shipped in V0.24 and was cut in V0.25 — "way too difficult
    and impractical to use" on a tablet in the field (Reece, 7 Aug). It was
@@ -13604,7 +13604,7 @@ function fsInfoPhotoHtml() {
   if (fsInfoEdit) html += '<div class="fslabel">Google Maps link (Maps &rarr; Share &rarr; Copy link) &mdash; adds an "Open in maps" button next to Open Site Workspace</div>' +
     '<input class="fsinput fsInfoField" data-key="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." value="' + fsEsc(s.mapUrl || "") + '">';
   if (fsInfoEdit) html += '<div class="fslabel">Coordinates (lat, lng) &mdash; adds a &#128205; Coordinates button that opens maps at the EXACT spot (remote sites / gates where the address only gets you so far)</div>' +
-    '<input class="fsinput fsInfoField" data-key="coords" autocomplete="off" placeholder="-32.7345, 151.5433" value="' + fsEsc(s.coords || "") + '">';
+    '<input class="fsinput fsInfoField" data-key="coords" autocomplete="off" placeholder="-33.1000, 151.1000" value="' + fsEsc(s.coords || "") + '">';
   const vis = s.visit || {};
   if (fsInfoEdit) {
     const vRow = (label, key) => {
@@ -13986,7 +13986,7 @@ function fsRenderTab() {
       const v = window.prompt("Paste coordinates as  lat, lng\n\n(In Google Maps, long-press the spot \u2014 the numbers it shows are exactly this.)", cur);
       if (v === null) return;
       const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(v);
-      if (!m) { alert("That doesn't look like coordinates.\n\nExpected something like:  -32.8318, 151.4818"); return; }
+      if (!m) { alert("That doesn't look like coordinates.\n\nExpected something like:  -33.0000, 151.0000"); return; }
       const lat = +m[1], lng = +m[2];
       if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { alert("Those numbers are out of range for a latitude and longitude."); return; }
       s.geo = { lat: lat, lng: lng, manual: true };
@@ -17324,9 +17324,9 @@ async function fsPlGeocode(addr) {
   };
   /* V0.13 — degrade toward LESS SPECIFIC, never toward a fragment.
      The old single retry matched from the first DIGIT to the end of the string,
-     turns "Pelaw Main 1 WPS" into "1 WPS": it throws away the suburb (findable)
-     and keeps a site code (never findable). Measured 2 Aug 2026: "Pelaw Main
-     NSW" resolves, "Pelaw Main 1 WPS" and "1 WPS Pelaw Main" both return
+     turns "Example Ridge 1 WPS" into "1 WPS": it throws away the suburb (findable)
+     and keeps a site code (never findable). Measured 2 Aug 2026: "Example Ridge
+     NSW" resolves, "Example Ridge 1 WPS" and "1 WPS Example Ridge" both return
      nothing. Each rung below is a prefix or suffix of what was typed, so a hit
      is always somewhere the user actually wrote. */
   const parts = String(addr).split(",").map(s => s.trim()).filter(Boolean);
@@ -17336,8 +17336,8 @@ async function fsPlGeocode(addr) {
   if (parts.length > 3) tries.push(parts.slice(-3).join(", "));
   if (parts.length > 2) tries.push(parts.slice(-2).join(", "));
   if (parts.length > 1) tries.push(parts[parts.length - 1]);
-  /* Comma-less addresses are the common case for industrial sites — "Pelaw Main
-     1 WPS", "Kurri Kurri WPS 12A", "Sandgate Pump Station 4". None of the
+  /* Comma-less addresses are the common case for industrial sites — "Example Ridge
+     1 WPS", "Sample Valley WPS 12A", "Testfield Pump Station 4". None of the
      comma rungs above fire on those, and the site-code regex only catches a
      trailing run of 2-5 capitals, so it would miss "Pump Station 4" entirely.
      Drop trailing words one at a time instead, down to a two-word floor: the
