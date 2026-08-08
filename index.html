@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.29 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.30 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -248,7 +248,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.29 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.30 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -1807,37 +1807,84 @@ function drawSym(c, o, scale) {
        Proportions below are MEASURED off the reference by scanning dark pixel
        runs, in units of the coil's outer radius R. Note the tip ends at
        0.875 R — INSIDE the coil's right edge, where the reference puts it. */
+    /* PASS 27a item 1 — variant F1. Reece said "heaps better" on the V0.29
+       shape and asked for colour: red ribbon, black seams, brass nozzle,
+       closed centre, settled after five renders.
+
+       DRAW THE HOSE AS A RIBBON, NOT A DISC WITH LINES ON IT. This is the
+       whole lesson of the last three attempts. ONE path, stroked twice: black
+       at the full turn spacing, red inset by a seam each side. What is left
+       showing of the black IS the seam between turns, and the coil's outer
+       edge is the ribbon's own edge, which cannot drift.
+
+       Mockup E filled a circle of radius R and drew the spiral on top. A
+       spiral only touches R at the very top, so the red rim ran from nothing
+       at the top to a full turn-spacing by the time it came round — thin left,
+       fat right. Reece spotted it. A disc is the wrong model; a hose has one
+       thickness everywhere.
+
+       Geometry is the V0.29 measurement, with the two adjustments the ribbon
+       model forces: the centreline starts at R - SP/2 so the ribbon's OUTER
+       edge lands on R, and 3.9 turns becomes 3.55 so the run ends just past
+       the centre for the fill to seal against. */
     const R = s * 0.40;
     const cxR = -s * 0.05, cyR = s * 0.13;
     const SP = 0.25 * R;                    // turn spacing == the hose's own thickness
     const HX = u => cxR + u * R, HY = v => cyR + v * R;
-    c.strokeStyle = col; c.lineWidth = Math.max(0.9, s * 0.019);
-    c.lineCap = "butt"; c.lineJoin = "miter";
-    /* the coil — anticlockwise from the collar, so nothing sweeps under the
-       nozzle. 3.9 turns at 0.25 R spacing lands the innermost curl at the
-       centre, as the reference does. */
-    c.beginPath();
-    for (let k = 0; k <= 560; k++) {
-      const tt = k / 560;
-      const a = -Math.PI / 2 - tt * Math.PI * 2 * 3.9;
-      const rr = R - SP * (tt * 3.9);
-      if (rr < R * 0.03) break;
-      const px = cxR + Math.cos(a) * rr, py = cyR + Math.sin(a) * rr;
-      if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
-    }
-    c.stroke();
-    /* the nozzle. Centreline sits midway between the outer turn (-1.00 R) and
-       the next one in (-0.75 R), so the collar caps both and the hose reads as
-       continuous without a single line being drawn for it. */
+    /* seam = 11% of the turn spacing (s*0.011 IS SP*0.11 — same number written
+       two ways). The floor is 0.35, NOT the 0.8 the brief specified: 0.8 px is
+       11% of SP at mockup scale but 31% of it at plan scale, where SP is only
+       2.6 px. At s=26 a 0.8 seam leaves 1.0 px of red against 1.6 px of black
+       and the reel renders as a dark blob — measured 42 red pixels against 196
+       black. That is the V0.26 "black snail" failure coming back through a
+       number that was only ever checked at the size it was drawn at. */
+    const seam = Math.max(0.35, s * 0.011);
+    const redW = Math.max(0.5, SP - 2 * seam);
     const yAx = -0.875, hoseH = 0.125, colH = 0.158, tipH = 0.050;
+    /* the run-out under the nozzle, then the coil — anticlockwise from the
+       collar, so nothing sweeps under the nozzle and the space below it stays
+       clear. The run-out ends flush with the collar's right edge, where the
+       brass covers its cap. */
+    const hreelPath = () => {
+      c.beginPath();
+      c.moveTo(HX(0.15), HY(yAx));
+      for (let k = 0; k <= 720; k++) {
+        const tt = k / 720;
+        const a = -Math.PI / 2 - tt * Math.PI * 2 * 3.55;
+        const rr = (R - SP / 2) - SP * (tt * 3.55);
+        if (rr <= 0) break;
+        c.lineTo(cxR + Math.cos(a) * rr, cyR + Math.sin(a) * rr);
+      }
+    };
+    c.lineCap = "butt"; c.lineJoin = "round";
+    hreelPath(); c.strokeStyle = "#0d0d0d"; c.lineWidth = SP;   c.stroke();
+    hreelPath(); c.strokeStyle = "#c11313"; c.lineWidth = redW; c.stroke();
+    /* close the centre. Running the spiral to r=0 still leaves a pinhole where
+       the cap does not quite meet itself — Reece found it after I had told him
+       the symbol was fine. */
+    c.fillStyle = "#c11313";
+    c.beginPath(); c.arc(cxR, cyR, redW / 2, 0, Math.PI * 2); c.fill();
+    /* the nozzle: collar, cone and tip as ONE closed silhouette so it can be
+       filled brass. Same measured numbers as V0.29 with one join moved — the
+       cone runs to 0.80 instead of stopping at 0.78, because the gap that read
+       as a neck against white would read as a red slot against the ribbon. */
     c.beginPath();
-    c.rect(HX(0.02), HY(yAx - colH), 0.13 * R, colH * 2 * R);
-    /* the cone: top edge nearly flat, bottom edge does most of the converging */
-    c.moveTo(HX(0.15), HY(yAx - hoseH * 0.94)); c.lineTo(HX(0.78), HY(yAx - tipH));
-    c.moveTo(HX(0.15), HY(yAx + hoseH * 0.94)); c.lineTo(HX(0.78), HY(yAx + tipH));
-    c.moveTo(HX(0.78), HY(yAx - tipH));         c.lineTo(HX(0.78), HY(yAx + tipH));
-    c.rect(HX(0.80), HY(yAx - tipH * 1.95), 0.075 * R, tipH * 3.9 * R);
-    c.stroke();
+    c.moveTo(HX(0.02),  HY(yAx - colH));
+    c.lineTo(HX(0.15),  HY(yAx - colH));
+    c.lineTo(HX(0.15),  HY(yAx - hoseH * 0.94));
+    c.lineTo(HX(0.80),  HY(yAx - tipH));
+    c.lineTo(HX(0.80),  HY(yAx - tipH * 1.95));
+    c.lineTo(HX(0.875), HY(yAx - tipH * 1.95));
+    c.lineTo(HX(0.875), HY(yAx + tipH * 1.95));
+    c.lineTo(HX(0.80),  HY(yAx + tipH * 1.95));
+    c.lineTo(HX(0.80),  HY(yAx + tipH));
+    c.lineTo(HX(0.15),  HY(yAx + hoseH * 0.94));
+    c.lineTo(HX(0.15),  HY(yAx + colH));
+    c.lineTo(HX(0.02),  HY(yAx + colH));
+    c.closePath();
+    c.fillStyle = "#a8842c"; c.fill();
+    c.strokeStyle = "#0d0d0d"; c.lineWidth = Math.max(0.9, s * 0.019);
+    c.lineJoin = "miter"; c.stroke();
   } else if (t.glyph === "vad") {
     /* PASS 24 item 7 — VAD. The circle is the same construction as every other
        detector (fill, white ring, letter) so it sits in a row of them without
@@ -7050,30 +7097,126 @@ function fsOcrWorker(onProg) {
 }
 /* Keyword assignment. Deliberately conservative — it pre-fills only when a line
    actually says which field it is. Everything else is offered as a choice. */
+/* PASS 27a item 3 — the picking, not the reading.
+
+   Reece's Hochiki DCD-A label (12:05, 8 Aug) is the evidence. tesseract read
+   24 lines and every useful one was legible — HEAT DETECTOR, MODEL DCD-A,
+   HOCHIKI TOKYO JAPAN, MADE IN JAPAN 2-8-000-8439-152. The OCR did its job.
+   This function did not: Brand came out "FF r RAR Res", Model "DCD-A > |",
+   Serial empty. Three fixes below, cheapest first. */
+/* WORMALD IS DELIBERATELY NOT IN THIS LIST, and must not be added back.
+
+   PASS-27-START.md names it, and it is a plausible thing to read off a label.
+   It is also the name of a real client, and test_regress asserts that no
+   client name appears anywhere in the shipped shell — rule #1, client data is
+   never public. Adding it here failed that assertion in both apps on the first
+   run of this pass. A maker list is not worth putting a client's name into a
+   file served to every other client. */
+const FS_OCR_BRANDS = ["Hochiki", "Apollo", "System Sensor", "Chubb",
+  "Tyco", "Simplex", "Notifier", "Vigilant", "Ampac", "Pertronic", "Bosch",
+  "Honeywell"];
+/* tesseract furniture: pipes, slashes, guillemets, stray stops and dashes that
+   ride along on the ends of an otherwise clean line. "MODEL DCD-A > |" is the
+   whole reason Model came back with punctuation attached. */
+function fsOcrTrim(v) {
+  return String(v == null ? "" : v)
+    .replace(/^[\s|/\\;:.,«»<>*_+~^'"`-]+/, "")
+    .replace(/[\s|/\\;:.,«»<>*_+~^'"`-]+$/, "")
+    .trim();
+}
+/* a line is noise when fewer than half its non-space characters are letters or
+   digits. Note that "FF r RAR Res" SURVIVES this — which is exactly why the
+   brand list below is the fix that mattered and this is only the tidy-up. */
+function fsOcrUseful(v) {
+  const t = String(v == null ? "" : v).replace(/\s+/g, "");
+  if (t.length < 2) return false;
+  return (t.match(/[A-Za-z0-9]/g) || []).length * 2 >= t.length;
+}
+function fsOcrClean(lines) {
+  return (lines || []).map(fsOcrTrim).filter(fsOcrUseful);
+}
+/* One substituted character of tolerance, compared upper-cased with spaces and
+   punctuation removed, so "HOCH1KI TOKYO JAPAN" still finds Hochiki. Short
+   names are matched exactly — one edit on a four-letter brand is a coin toss,
+   not a correction.
+
+   DIGITS ARE KEPT DELIBERATELY. Stripping them looks tidier and breaks the
+   whole point: tesseract's commonest error on a metal label is letter-for-
+   digit (I->1, O->0, S->5), and a matcher that deletes digits deletes the very
+   character it is meant to forgive — "HOCH1KI" collapses to "HOCHKI", which is
+   a DELETION, not a substitution, and no longer lines up with the brand at all.
+   Keep the digit and let it count as the one allowed mismatch. */
+function fsOcrBrandHit(line) {
+  const L = String(line == null ? "" : line).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  for (let i = 0; i < FS_OCR_BRANDS.length; i++) {
+    const B = FS_OCR_BRANDS[i].toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (B && L.indexOf(B) >= 0) return FS_OCR_BRANDS[i];
+    if (B.length >= 6) {
+      for (let w = 0; w + B.length <= L.length; w++) {
+        let bad = 0;
+        for (let k = 0; k < B.length && bad < 2; k++) if (L.charAt(w + k) !== B.charAt(k)) bad++;
+        if (bad < 2) return FS_OCR_BRANDS[i];
+      }
+    }
+  }
+  return "";
+}
 function fsOcrGuess(lines) {
   const out = { brand:"", model:"", serial:"" };
+  const clean = fsOcrClean(lines);
   const pat = [
     ["serial", /\b(serial(\s*(no|number))?|s\/?n)\b[:.\s-]*(.+)$/i],
     ["model",  /\b(model|mdl|type|part(\s*no)?|p\/?n)\b[:.\s-]*(.+)$/i],
     ["brand",  /\b(brand|make|manufacturer)\b[:.\s-]*(.+)$/i]
   ];
-  lines.forEach(L => {
+  clean.forEach(L => {
     pat.forEach(([k, re]) => {
       if (out[k]) return;
       const m = L.match(re);
       if (m) {
-        const v = (m[m.length - 1] || "").trim();
+        const v = fsOcrTrim(m[m.length - 1] || "");
         if (v && v.length <= 40) out[k] = v;
       }
     });
   });
-  /* No brand keyword on most labels — the maker's name is just the biggest
-     word on the sticker. The first line that is mostly letters is the least
-     bad guess, and it is a GUESS the user can see and overwrite, not a silent
-     write into the register. */
-  if (!out.brand) {
-    const cand = lines.find(L => /^[A-Za-z][A-Za-z .&'-]{2,24}$/.test(L.trim()));
-    if (cand) out.brand = cand.trim();
+  /* FIX 1 — the brand, in three tiers, most direct evidence first.
+
+     The thing that went wrong on Reece's label was NOT the keyword pass. It
+     was the fallback: "first line that is mostly letters" picked noise sitting
+     four lines above HOCHIKI, so POSITION was doing the choosing. The list
+     fixes that by choosing on CONTENT. But it must not go so far as to
+     overrule a label that states its brand outright, which is strictly better
+     evidence than a name appearing somewhere on the sticker.
+
+     So: an explicit "Brand:"/"Make:"/"Manufacturer:" value wins, and is then
+     canonicalised through the list so the register does not end up holding
+     APOLLO, Apollo and apollo as three different makers. Failing that, a known
+     maker anywhere on the label. Failing that, and only then, the old guess. */
+  if (out.brand) {
+    out.brand = fsOcrBrandHit(out.brand) || out.brand;
+  } else {
+    const hit = clean.map(fsOcrBrandHit).filter(b => b)[0] || "";
+    if (hit) {
+      out.brand = hit;
+    } else {
+      /* still a GUESS the user can see and overwrite, not a silent write into
+         the register — just the last resort now rather than the first. */
+      const cand = clean.find(L => /^[A-Za-z][A-Za-z .&'-]{2,24}$/.test(L.trim()));
+      if (cand) out.brand = cand.trim();
+    }
+  }
+  /* FIX 3 — no SER or S/N anywhere on this label, so the keyword pass found
+     nothing and there was no fallback at all. Longest run of digits and dashes
+     carrying at least six digits: "2-8-000-8439-152" clears it, a year or a
+     temperature does not. */
+  if (!out.serial) {
+    let best = "";
+    clean.forEach(L => {
+      (String(L).match(/[0-9][0-9\/-]{4,}[0-9]/g) || []).forEach(r => {
+        if ((r.match(/[0-9]/g) || []).length >= 6 && r.length > best.length) best = r;
+      });
+    });
+    if (best) out.serial = best;
   }
   return out;
 }
@@ -7132,8 +7275,12 @@ function fsOcrRun(file) {
   })
     .then(w => w.recognize(file))
     .then(res => {
-      const lines = String(((res || {}).data || {}).text || "")
+      const raw = String(((res || {}).data || {}).text || "")
         .split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 1).slice(0, 24);
+      /* PASS 27a item 3 — clean ONCE, and let the picker show what the guesser
+         actually saw. A picker listing lines the guesser had already discarded
+         is a picker that disagrees with the boxes above it. */
+      const lines = fsOcrClean(raw);
       st.textContent = lines.length ? "Read " + lines.length + " line" + (lines.length === 1 ? "" : "s") + " \u2014 check them before using." : "";
       const g = fsOcrGuess(lines);
       document.getElementById("ocrBrand").value = g.brand;
@@ -14569,6 +14716,11 @@ function fsDetQrRender(syms) {
   }
   w.innerHTML = h;
   w.style.display = "block";
+  /* PASS 27a item 5 — this button has NEVER worked. `grep -c dRaiseDefect` on
+     V0.29 returns 1: the markup above, and no handler anywhere in the file. It
+     has been dead since the day it was added; Pass 26 did not break it. */
+  const rd = document.getElementById("dRaiseDefect");
+  if (rd) rd.onclick = () => fsDefFormOpen(s, { qid: o.qid || "", node: o });
   const ed = document.getElementById("dQrEdit");
   if (ed) ed.onclick = () => fsQrItemOpen(s, it);
   const un = document.getElementById("dQrUnlink");
@@ -16131,7 +16283,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v33";
+const FS_BUILD = "aa-v34";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
