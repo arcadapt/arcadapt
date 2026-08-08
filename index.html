@@ -188,7 +188,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.33 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.34 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -276,7 +276,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.33 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.34 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -603,10 +603,10 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <label>Text (Enter = new line)</label>
     <textarea id="tText" rows="3" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;font-family:inherit"></textarea>
     <div id="tFmtRow" style="display:flex;gap:6px;margin-top:10px">
-      <button class="btn" id="tBold" style="font-weight:800">B</button>
-      <button class="btn" id="tItalic" style="font-style:italic">I</button>
-      <button class="btn" id="tUnder" style="text-decoration:underline">U</button>
-      <button class="btn" id="tStrike" style="text-decoration:line-through">S</button>
+      <button class="btn" id="tBold" style="font-weight:800" title="Bold the selected text">B</button>
+      <button class="btn" id="tItalic" style="font-style:italic" title="Italicise the selected text">I</button>
+      <button class="btn" id="tUnder" style="text-decoration:underline" title="Underline the selected text">U</button>
+      <button class="btn" id="tStrike" style="text-decoration:line-through" title="Strike through the selected text">S</button>
     </div>
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:#e8e8e8">
       <input type="checkbox" id="tBg" style="width:18px;height:18px"> Border box (white background)
@@ -654,7 +654,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 <div class="modal" id="photoViewModal">
   <div class="modalbox" style="max-width:92vw;width:auto">
     <h3>Photo <span style="font-size:11px;color:#888">— buttons to zoom · draw with finger/pen (selected colour)</span></h3>
-    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><button class="btn" id="photoViewZOut" type="button" title="Zoom out">&#8722;</button><button class="btn" id="photoViewZIn" type="button" title="Zoom in">&#43;</button><button class="btn" id="photoViewFit" type="button">Fit</button><span id="photoViewZlbl" style="font-size:12px;color:#888"></span></div>
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><button class="btn" id="photoViewZOut" type="button" title="Zoom out">&#8722;</button><button class="btn" id="photoViewZIn" type="button" title="Zoom in">&#43;</button><button class="btn" id="photoViewFit" type="button" title="Fit the whole photo on screen">Fit</button><span id="photoViewZlbl" style="font-size:12px;color:#888"></span></div>
     <div id="photoViewScroll" style="max-width:86vw;max-height:64vh;overflow:auto;border:1px solid #555;border-radius:6px;background:#fff;touch-action:auto"><canvas id="photoViewCanvas" style="display:block;background:#fff;touch-action:none"></canvas></div>
     <div class="row">
       <button class="btn primary" id="photoViewSave">Save</button>
@@ -714,7 +714,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <h3 style="margin-bottom:2px">Mark up the photo</h3>
     <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Draw on it to point at the problem. The markup is burnt into the picture, so it survives the quote PDF and the export.</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <button class="btn fsAnnCol" data-c="#ff2d2d" type="button" style="background:#ff2d2d;color:#fff;min-width:44px">Red</button>
+      <button class="btn fsAnnCol" data-c="#ff2d2d" type="button" title="Draw in red" style="background:#ff2d2d;color:#fff;min-width:44px">Red</button>
       <button class="btn fsAnnCol" data-c="#ffd400" type="button" style="background:#ffd400;color:#101214;min-width:44px">Yellow</button>
       <button class="btn fsAnnCol" data-c="#ffffff" type="button" style="background:#fff;color:#101214;min-width:44px">White</button>
       <span style="flex:1"></span>
@@ -816,7 +816,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
       <button class="btn primary" id="annXlsx" disabled>&#128229; Populated xlsx</button>
-      <button class="btn" id="annPdf" disabled>&#128229; PDF</button>
+      <button class="btn" id="annPdf" disabled title="Save this markup as a PDF — available once the plan has been exported">&#128229; PDF</button>
       <button class="btn" id="annClose">Close</button>
     </div>
     <input type="file" id="annBaseInput" accept=".xlsx" style="display:none">
@@ -853,7 +853,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   <div class="modalbox" style="max-width:960px;width:94vw;text-align:center">
     <h3 id="fsRgnTitle">Keep which part?</h3>
     <div class="row" style="justify-content:center;gap:6px;margin:2px 0 0">
-      <button class="btn primary" id="fsRgnModeBox">&#9645; Box</button>
+      <button class="btn primary" id="fsRgnModeBox" title="Drag a rectangle around the part of the sheet to keep">&#9645; Box</button>
       <button class="btn" id="fsRgnModePoly">&#11040; Outline</button>
       <span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px">
         <button class="btn" id="fsRgnZoomOut" title="Zoom out">&minus;</button>
@@ -1142,7 +1142,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
       Calibrate: enter the reading from your real meter while both are measuring
       <div style="display:flex;gap:6px;margin-top:4px">
         <input type="text" id="calInput" inputmode="decimal" placeholder="e.g. 62.5" style="flex:1;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px">
-        <button class="btn" id="calSet">Set</button>
+        <button class="btn" id="calSet" title="Calibrate: store the difference between this app and your real sound meter. Every later reading is shifted by it.">Set</button>
       </div>
       <div id="calNote" style="margin-top:4px;color:#888"></div>
     </div>
@@ -7513,6 +7513,17 @@ function fsTipHide() {
     /* Desktop already has a real tooltip on hover. Firing both means the same
        sentence twice, which reads as a bug rather than as help. */
     if (e.pointerType === "mouse") return;
+    /* PASS 29 — [data-tip] controls already have a working press-and-hold
+       toast from the older tooltip system (550 ms, #toolTip, the follow-up
+       click suppressed). Now that the harvester preserves aria-label,
+       fsTipFor resolves these controls too, and without this guard a hold
+       past 1 s would stack BOTH toasts. The older system keeps ownership —
+       that is the behaviour every deployed build has had on a device.
+       Unifying the two systems onto the 1 s hold is a device-in-hand
+       decision, recorded in BACKLOG, not made here. */
+    let fsTipEl = e.target;
+    if (fsTipEl && fsTipEl.nodeType === 3) fsTipEl = fsTipEl.parentElement;
+    if (fsTipEl && fsTipEl.closest && fsTipEl.closest("[data-tip]")) return;
     const msg = fsTipFor(e.target);
     if (!msg) return;
     sx = e.clientX; sy = e.clientY;
@@ -8553,6 +8564,13 @@ document.getElementById("focusRedo").onclick = () => document.getElementById("bt
   function hideTip() { tip.style.display = "none"; }
   document.querySelectorAll("button.btn[title], .modebtn[title]").forEach(el => {
     el.dataset.tip = el.getAttribute("title");
+    /* PASS 29 — keep the accessible name. This harvester moved title into
+       data-tip and then stripped the attribute, leaving every one of these
+       controls with no title and no aria-label at runtime: nothing for a
+       screen reader, nothing for the Pass 28 long-press resolver. The audit
+       said "aria-label on all 43 icon controls" and this line is why it was
+       right — a title alone dies here at boot. */
+    if (!el.hasAttribute("aria-label")) el.setAttribute("aria-label", el.dataset.tip);
     el.removeAttribute("title");
   });
   document.addEventListener("pointerover", e => {
@@ -13950,7 +13968,34 @@ function fsDashPdf() {
 function fsStamp() {
   const el = document.getElementById("fsRegStamp");
   if (!fsRegister) { el.textContent = ""; return; }
-  el.textContent = "Register: " + (fsRegister.app || "register") +
+  /* PASS 29 item 7 — say WHOSE register this is, not which file format it is.
+
+     This line read "Register: firespark-register · updated ...". That string
+     is an internal format identifier, from a product that has since been
+     renamed, sitting in the first line of text under the app's own name — the
+     place a person looks to answer "whose data am I in".
+
+     RULE #1: the name here is the COMPANY USING THE APP, out of the loaded
+     profile, never a client. Same source as the export header. It must never
+     be reached from fsRegister.clients[].name — the deploy guard stops a
+     client name reaching a public file, but nothing stops one being drawn on
+     screen in front of a different client, and that is the same rule.
+
+     Falls back to the client count, then to the old string. A header that goes
+     blank is worse than one that reads oddly. */
+  const nClients = ((fsRegister.clients || []).length);
+  let who = "";
+  /* fsCoName, NOT fsDocBrand: fsDocBrand() falls back to the app's own name
+     and never returns empty, which would make the two fallbacks below dead
+     code and put "Arc Adapt" in the answer to "whose data is this" whenever
+     no profile is loaded. mutate-p29 M6 survived against the fsDocBrand
+     version — the blank-header fallback could not be reached to test. */
+  try { who = (typeof fsCoName === "function" ? (fsCoName() || "") : ""); } catch (e) { who = ""; }
+  const parts = [];
+  if (who) parts.push(who);
+  if (nClients) parts.push(nClients + " client" + (nClients === 1 ? "" : "s"));
+  if (!parts.length) parts.push("Register: " + (fsRegister.app || "register"));
+  el.textContent = parts.join(" · ") +
     (fsRegister.updated ? " · updated " + fsRegister.updated : "") +
     (fsRegister.savedBy ? " by " + fsRegister.savedBy : "") +
     /* PASS 28 item 3 — say WHICH kind of unsaved this is. The old line read
@@ -16914,7 +16959,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v37";
+const FS_BUILD = "aa-v38";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
