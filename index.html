@@ -182,7 +182,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.28 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.29 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -231,6 +231,10 @@
     <div id="fsLightbox" style="display:none;position:fixed;inset:0;z-index:210;background:rgba(10,14,16,.93);overflow:auto;text-align:center;cursor:zoom-out">
       <div style="position:sticky;top:0;display:flex;justify-content:flex-end;gap:8px;padding:10px;z-index:1">
         <button class="fsbtn" id="fsLbReplace" style="display:none">&#8635; Replace photo</button>
+        <!-- PASS 26 item 16 — deleting a site photo happens here, on the photo
+             itself, with a word on it. It used to be a 20 px glyph on the
+             corner of a 74 px thumbnail. -->
+        <button class="fsbtn" id="fsLbDelete" style="display:none;background:#c62828;border-color:#c62828;color:#fff">&#128465; Delete photo</button>
         <button class="fsbtn" id="fsLbClose">&#10005; Close</button>
       </div>
       <img id="fsLbImg" src="" alt="Photo" style="max-width:96vw;max-height:85vh;border-radius:8px;cursor:zoom-in;margin:0 12px 20px">
@@ -244,7 +248,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.28 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.29 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -377,20 +381,21 @@
 <div class="modal" id="detailsModal">
   <div class="modalbox">
     <h3 id="detailsTitle">Device details</h3>
+    <!-- PASS 26 item 15. Reece: "it's got a bit much, there's a lot of things
+         in there that makes that window become quite long." Everything that
+         identifies the PHYSICAL DEVICE — the QR tag it carries and the
+         brand/model/serial off its label — moves to a second tab. What is left
+         on the first is what a technician fills in while standing at it. -->
+    <div id="detTabs" style="display:flex;gap:6px;margin:-2px 0 12px">
+      <button class="btn" id="detTab1" type="button" style="flex:1">Details</button>
+      <button class="btn" id="detTab2" type="button" style="flex:1">ID &amp; tag</button>
+    </div>
+    <div id="detPane1">
     <label>Zone</label><input type="text" id="dZone" autocomplete="off">
     <label>Loop</label><input type="text" id="dLoop" autocomplete="off">
     <label>Device number</label><input type="text" id="dDev" autocomplete="off">
     <label>Other info</label><input type="text" id="dInfo" autocomplete="off">
-    <!-- PASS 24 items 5 + 14. Brand/Model/Serial sit together because they come
-         off one label and, with OCR, off one photo. The scan button is hidden
-         until ./ocr/ answers, so EverDue (which ships no ocr/) shows the three
-         boxes and no dead control. -->
-    <div id="idWrap" style="display:none">
-      <label>Brand</label><input type="text" id="dBrand" autocomplete="off">
-      <label>Model</label><input type="text" id="dModel" autocomplete="off">
-      <label>Serial</label><input type="text" id="dSerial" autocomplete="off">
-      <button class="btn" id="dScanBtn" type="button" style="display:none;margin-top:8px">&#128247; Scan label</button>
-    </div>
+    <!-- PASS 26 item 15: idWrap moved to the second pane, below. -->
     <!-- PASS 24 item 6. Checkbox look, radio behaviour, one value box each,
          both defaulting to 60 degC with Rate of rise ticked. -->
     <div id="thWrap" style="display:none">
@@ -462,7 +467,24 @@
       </div>
       <input type="file" id="dPhotoInput" accept="image/*">
     </div>
-    <div id="qrWrap" style="display:none;margin-top:10px"></div>
+    </div><!-- /detPane1 -->
+    <div id="detPane2" style="display:none">
+      <!-- PASS 24 items 5 + 14, moved here by Pass 26 item 15. Brand/Model/
+           Serial sit together because they come off one label and, with OCR,
+           off one photo. The scan button is hidden until ./ocr/ answers, so
+           EverDue (which ships no ocr/) shows the three boxes and no dead
+           control. -->
+      <div id="idWrap" style="display:none">
+        <label>Brand</label><input type="text" id="dBrand" autocomplete="off">
+        <label>Model</label><input type="text" id="dModel" autocomplete="off">
+        <label>Serial</label><input type="text" id="dSerial" autocomplete="off">
+        <button class="btn" id="dScanBtn" type="button" style="display:none;margin-top:8px">&#128247; Scan label</button>
+      </div>
+      <div id="qrWrap" style="display:none;margin-top:10px"></div>
+      <div id="detPane2Empty" style="display:none;color:#8fa2ab;font-size:13px;padding:6px 0">
+        Nothing to identify on this item type &mdash; no label fields and no QR tag.
+      </div>
+    </div>
     <div class="row">
       <button class="btn" id="detailsCancel">Cancel</button>
       <button class="btn primary" id="detailsSave">Save</button>
@@ -1107,11 +1129,24 @@
 <div class="modal" id="ocrModal">
   <div class="modalbox" style="max-width:560px">
     <h3>Scan a label</h3>
-    <div style="font-size:13px;color:#999;margin-bottom:8px">Runs on this device. The photo never leaves the tablet.</div>
-    <input type="file" id="ocrFile" accept="image/*" capture="environment" style="width:100%;font-size:14px">
+    <div style="font-size:13px;color:#999;margin-bottom:10px">Runs on this device. The photo never leaves the tablet.</div>
+    <!-- PASS 26 item 14b. Reece on V0.27: "I hit scan label and it doesn't even
+         open the camera, just goes to the boxes where it has brand model
+         serial." Nothing in the OCR pipeline was broken — capture="environment"
+         was here and correct. The fault was that the only route to the camera
+         was a bare file input, which iPad Safari draws as a small grey "Choose
+         File" chip sitting above three empty text boxes. The eye lands on the
+         boxes. So the camera is the hero now and the input is hidden behind
+         it. -->
+    <button class="btn primary" id="ocrShoot" type="button" style="width:100%;padding:14px;font-size:16px">&#128247; Take a photo of the label</button>
+    <button class="btn" id="ocrPickFile" type="button" style="width:100%;margin-top:7px;font-size:13.5px">Choose a photo you already have</button>
+    <input type="file" id="ocrFile" accept="image/*" capture="environment" style="display:none">
     <div id="ocrStatus" style="font-size:13px;color:#4caf50;min-height:18px;margin-top:8px"></div>
     <div id="ocrPick" style="max-height:38vh;overflow:auto;margin-top:8px"></div>
-    <div style="margin-top:10px;font-size:14px;color:#e8e8e8">
+    <!-- PASS 26 item 14b: hidden until a photo has been read. An empty form
+         under a camera button reads as "type these in", which is the exact
+         misdirection this item is about. -->
+    <div id="ocrFields" style="display:none;margin-top:10px;font-size:14px;color:#e8e8e8">
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Brand</span><input type="text" id="ocrBrand" autocomplete="off" style="flex:1;margin:0"></div>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Model</span><input type="text" id="ocrModel" autocomplete="off" style="flex:1;margin:0"></div>
       <div style="display:flex;gap:6px;align-items:center"><span style="width:56px;color:#999">Serial</span><input type="text" id="ocrSerial" autocomplete="off" style="flex:1;margin:0"></div>
@@ -1306,7 +1341,13 @@ const sizeSlider = document.getElementById("sizeSlider");
    already saved at 379 px keeps 379 px and merely pins the thumb at the top —
    objects are data, and a pass that resized existing devices to suit a slider
    would be a pass that edited the register. */
-function sizeVal() { return Math.max(2, Math.round(12 * Math.pow(10, (+sizeSlider.value) / 107))); }
+/* PASS 26 item 12b — Reece on V0.27: "if anything maybe a little too large
+   still." 107 -> 112 brings the top of travel from 302 px to 262 px, down 13%.
+   Same single lever as last time. If a third turn of this screw is needed, the
+   question to ask first is whether the TOP of the range is wrong or the
+   response curve is — they are different complaints and this number only
+   answers one of them. */
+function sizeVal() { return Math.max(2, Math.round(12 * Math.pow(10, (+sizeSlider.value) / 112))); }
 /* PASS 24 item 11 — per-type sticky size.
 
    "I don't want all of my smoke detectors to look different sizes." The memory
@@ -1337,7 +1378,7 @@ function symSizeSnap(typeId) {
   const v = symSizes[typeId];
   if (typeof v === "number" && v >= 2 && v <= 400) sizeSlider.value = sliderFromSize(v);
 }
-function sliderFromSize(s) { return Math.max(-60, Math.min(150, Math.round(107 * Math.log10(Math.max(2, s) / 12)))); }
+function sliderFromSize(s) { return Math.max(-60, Math.min(150, Math.round(112 * Math.log10(Math.max(2, s) / 12)))); }
 
 /* ================= Canvas sizing / coords ================= */
 function resizeCanvas() {
@@ -1740,47 +1781,62 @@ function drawSym(c, o, scale) {
     c.fill();
     c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.stroke();
   } else if (t.glyph === "hreel") {
-    /* PASS 24 item 8 — redrawn against refs/pass22-firehose-reel-correct.jpg.
-       Reece: "still broken/wrong, missing a line". At 6x the reference is
-       unambiguous about which line. The COIL is a single spiral, but the hose
-       LEAVING the coil is a tube drawn with two parallel edges, and the nozzle
-       is an outlined collar / taper / tip ferrule. V0.26 drew one line out of
-       the coil and filled the nozzle solid, which at plan scale read as a
-       black blob with a whisker. Everything here is stroked, nothing is
-       filled, and the tube's lower edge is the spiral's own outer end running
-       on — which is what makes it read as one continuous hose. */
-    const cx = -s * 0.16, cy = s * 0.10, r = s * 0.44;
-    const hw = s * 0.10;                    // hose width, = the tube's two edges apart
-    c.strokeStyle = col; c.lineWidth = Math.max(1.1, s * 0.055);
-    c.lineCap = "round"; c.lineJoin = "round";
-    /* the coil: 3.4 turns in to a tight centre curl, starting at the top so the
-       free end is already pointing at the nozzle */
+    /* PASS 26 item 8b — THIRD attempt, and the first one that was looked at.
+       Reece on V0.27: "still looks as if there's nothing coming out of the
+       nozzle."
+
+       Passes 22 and 24 both reasoned about the reference in prose and wrote
+       canvas calls. Neither rendered the output and compared it to
+       refs/pass22-firehose-reel-correct.jpg. This one was rendered and diffed
+       by eye after every edit, and three faults fell out that reading the code
+       could not have found:
+
+       1. THERE IS NO SEPARATE HOSE. The two lines running into the collar are
+          the outer coil turn and the one inside it, exactly one turn-spacing
+          apart; the collar spans that gap and caps both. Drawing a tube on top
+          of a spiral is what made every previous version read as a spanner
+          lying on a coil.
+       2. THE SPIRAL WOUND THE WRONG WAY. Clockwise from the top, the outer
+          turn dives right and sweeps under the nozzle, and the eye reads that
+          sweep as the cone's outline — which is precisely "nothing coming out
+          of the nozzle". Anticlockwise, the coil falls away left and the space
+          under the nozzle stays clear.
+       3. THE LINE WAS 1.6x TOO HEAVY (5.5% vs the reference's 1.9%), so at
+          plan scale the turns merged into a black snail.
+
+       Proportions below are MEASURED off the reference by scanning dark pixel
+       runs, in units of the coil's outer radius R. Note the tip ends at
+       0.875 R — INSIDE the coil's right edge, where the reference puts it. */
+    const R = s * 0.40;
+    const cxR = -s * 0.05, cyR = s * 0.13;
+    const SP = 0.25 * R;                    // turn spacing == the hose's own thickness
+    const HX = u => cxR + u * R, HY = v => cyR + v * R;
+    c.strokeStyle = col; c.lineWidth = Math.max(0.9, s * 0.019);
+    c.lineCap = "butt"; c.lineJoin = "miter";
+    /* the coil — anticlockwise from the collar, so nothing sweeps under the
+       nozzle. 3.9 turns at 0.25 R spacing lands the innermost curl at the
+       centre, as the reference does. */
     c.beginPath();
-    for (let k = 0; k <= 120; k++) {
-      const tt = k / 120;
-      const a = -Math.PI / 2 + tt * Math.PI * 2 * 3.4;
-      const rr = r * (1 - 0.88 * tt);
-      const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+    for (let k = 0; k <= 560; k++) {
+      const tt = k / 560;
+      const a = -Math.PI / 2 - tt * Math.PI * 2 * 3.9;
+      const rr = R - SP * (tt * 3.9);
+      if (rr < R * 0.03) break;
+      const px = cxR + Math.cos(a) * rr, py = cyR + Math.sin(a) * rr;
       if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
     }
     c.stroke();
-    /* the tube out to the nozzle — the lower edge continues the coil, the upper
-       edge is the line that was missing, and a cap closes them at the coil end */
-    const yLo = cy - r, yHi = yLo - hw, xN = s * 0.30;
+    /* the nozzle. Centreline sits midway between the outer turn (-1.00 R) and
+       the next one in (-0.75 R), so the collar caps both and the hose reads as
+       continuous without a single line being drawn for it. */
+    const yAx = -0.875, hoseH = 0.125, colH = 0.158, tipH = 0.050;
     c.beginPath();
-    c.moveTo(cx, yLo); c.lineTo(xN, yLo);
-    c.moveTo(cx + s * 0.02, yHi); c.lineTo(xN, yHi);
-    c.moveTo(cx, yLo); c.lineTo(cx + s * 0.02, yHi);
-    c.stroke();
-    /* nozzle: collar band, taper, tip ferrule — all outline, per the reference */
-    const xC = s * 0.36, xT = s * 0.60, xE = s * 0.66, tHi = s * 0.018;
-    const yMid = (yLo + yHi) / 2;
-    c.beginPath();
-    c.rect(xN, yHi, xC - xN, hw);
-    c.moveTo(xC, yHi); c.lineTo(xT, yMid - tHi);
-    c.moveTo(xC, yLo); c.lineTo(xT, yMid + tHi);
-    c.moveTo(xT, yMid - tHi); c.lineTo(xT, yMid + tHi);
-    c.rect(xT, yMid - s * 0.05, xE - xT, s * 0.10);
+    c.rect(HX(0.02), HY(yAx - colH), 0.13 * R, colH * 2 * R);
+    /* the cone: top edge nearly flat, bottom edge does most of the converging */
+    c.moveTo(HX(0.15), HY(yAx - hoseH * 0.94)); c.lineTo(HX(0.78), HY(yAx - tipH));
+    c.moveTo(HX(0.15), HY(yAx + hoseH * 0.94)); c.lineTo(HX(0.78), HY(yAx + tipH));
+    c.moveTo(HX(0.78), HY(yAx - tipH));         c.lineTo(HX(0.78), HY(yAx + tipH));
+    c.rect(HX(0.80), HY(yAx - tipH * 1.95), 0.075 * R, tipH * 3.9 * R);
     c.stroke();
   } else if (t.glyph === "vad") {
     /* PASS 24 item 7 — VAD. The circle is the same construction as every other
@@ -7044,13 +7100,31 @@ function fsOcrRenderPick(lines) {
 function fsOcrOpen() {
   ["ocrBrand", "ocrModel", "ocrSerial"].forEach(id => { document.getElementById(id).value = ""; });
   document.getElementById("ocrPick").innerHTML = "";
-  document.getElementById("ocrStatus").textContent = "";
+  const st0 = document.getElementById("ocrStatus");
+  st0.textContent = ""; st0.style.color = "";
   document.getElementById("ocrFile").value = "";
+  const flds = document.getElementById("ocrFields");
+  if (flds) flds.style.display = "none";
   fsOcrTargetFields = { brand:"dBrand", model:"dModel", serial:"dSerial" };
   document.getElementById("ocrModal").classList.add("show");
+  /* PASS 26 item 14b — open the camera straight away.
+
+     fsOcrOpen is called synchronously from the Scan label button's onclick, so
+     this .click() is still inside the user gesture and iOS honours it. That is
+     the whole reason it is here and not in a setTimeout: a deferred click is
+     outside the gesture and Safari silently ignores it, which would reproduce
+     the reported bug exactly.
+
+     If a browser refuses anyway, nothing is lost — the big button is sitting
+     right there behind this. Belt and braces on purpose; the failure mode of
+     the auto-fire is invisible, so it cannot be the only route. */
+  try { document.getElementById("ocrFile").click(); } catch (e) {}
 }
 function fsOcrRun(file) {
   const st = document.getElementById("ocrStatus");
+  /* PASS 26 item 14b — a photo exists, so the fields have something to hold */
+  const fw = document.getElementById("ocrFields");
+  if (fw) fw.style.display = "";
   st.textContent = "Loading the recogniser (one-off, about 5 MB)\u2026";
   return fsOcrWorker(m => {
     if (m && m.status === "recognizing text") st.textContent = "Reading\u2026 " + Math.round((m.progress || 0) * 100) + "%";
@@ -7072,7 +7146,30 @@ function fsOcrRun(file) {
       st.textContent = "On-device reading is not available here (" + ((e && e.message) || e) + "). Type the details in instead.";
     });
 }
+/* PASS 26 item 15 — the two panes of the details sheet.
+
+   Always opens on Details. A sheet that remembers which tab you were on is a
+   sheet that opens on the wrong one for the next device, and the first tab is
+   the one being filled in ninety-nine times in a hundred. */
+function fsDetTab(n) {
+  const p1 = document.getElementById("detPane1"), p2 = document.getElementById("detPane2");
+  const b1 = document.getElementById("detTab1"), b2 = document.getElementById("detTab2");
+  if (!p1 || !p2) return;
+  p1.style.display = n === 2 ? "none" : "";
+  p2.style.display = n === 2 ? "" : "none";
+  if (b1) b1.classList.toggle("primary", n !== 2);
+  if (b2) b2.classList.toggle("primary", n === 2);
+  if (n === 2) {
+    /* An empty tab is worse than no tab — say why it is empty rather than
+       showing a blank pane and letting it read as a loading failure. */
+    const idW = document.getElementById("idWrap"), qrW = document.getElementById("qrWrap");
+    const empty = document.getElementById("detPane2Empty");
+    const anything = (idW && idW.style.display !== "none") || (qrW && qrW.style.display !== "none");
+    if (empty) empty.style.display = anything ? "none" : "";
+  }
+}
 function openDetails() {
+  fsDetTab(1);
   const syms = selection.filter(o => o.kind === "sym");
   // single text/callout: open the text editor instead
   if (!syms.length && selection.length === 1 && (selection[0].kind === "text" || selection[0].kind === "callout")) {
@@ -7178,10 +7275,33 @@ document.getElementById("btnDetails").onclick = openDetails;
    the objects: Save on the details modal is still the only thing that commits,
    so a scan can be abandoned exactly like a typo can. */
 document.getElementById("dScanBtn").onclick = fsOcrOpen;
+/* PASS 26 item 15 */
+document.getElementById("detTab1").onclick = () => fsDetTab(1);
+document.getElementById("detTab2").onclick = () => fsDetTab(2);
 document.getElementById("ocrFile").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (f) fsOcrRun(f);
 });
+/* PASS 26 item 14b — both visible buttons reach the hidden input.
+
+   Caught by test_p26 B8/B9 on the first run of this pass: the markup for
+   ocrShoot and ocrPickFile landed without any wiring, so the sheet showed two
+   handsome buttons that did nothing and the ONLY working route was the
+   auto-fire on open. On a browser that refuses the auto-fire that is the
+   reported bug again, with a nicer-looking dead end in front of it. */
+document.getElementById("ocrShoot").onclick = () => {
+  const f = document.getElementById("ocrFile");
+  f.setAttribute("capture", "environment");
+  f.click();
+};
+document.getElementById("ocrPickFile").onclick = () => {
+  /* the library route: drop `capture` so iOS offers the photo picker rather
+     than going straight to the lens */
+  const f = document.getElementById("ocrFile");
+  f.removeAttribute("capture");
+  f.click();
+  f.setAttribute("capture", "environment");
+};
 document.getElementById("ocrCancel").onclick = () => { document.getElementById("ocrModal").classList.remove("show"); };
 document.getElementById("ocrUse").onclick = () => {
   ["brand", "model", "serial"].forEach(k => {
@@ -13392,13 +13512,15 @@ function fsInfoPhotoHtml() {
   if (!spAll.length) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
-    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
-      '<div class="fsSpDel" data-i="0" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:#c62828;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Remove this photo">&#10005;</div></div>';
+    /* PASS 26 item 16 — no delete badge on the tiles. Reece: "the red x being
+       there permanently no matter what is ugly." It was also a coin-flip on a
+       tablet: 24 px of delete, 6 px from the corner of a thumbnail you are
+       trying to tap to view. Deleting happens in the viewer now. */
+    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size"></div>';
     if (spAll.length > 1) {
       html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
       spAll.slice(1).forEach((p, i) => {
-        html += '<div style="position:relative"><img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:74px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view full size">' +
-          '<div class="fsSpDel" data-i="' + (i + 1) + '" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#c62828;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">&#10005;</div></div>';
+        html += '<div style="position:relative"><img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:74px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view full size"></div>';
       });
       html += '</div>';
     }
@@ -13778,25 +13900,24 @@ function fsRenderTab() {
     document.querySelectorAll(".fsSpTile").forEach(im => {
       im.onclick = () => fsViewPhoto(im.src, { kind:"siteIdx", i:+im.dataset.i });
     });
-    document.querySelectorAll(".fsSpDel").forEach(b => {
-      b.onclick = () => {
-        if (!confirm("Remove this photo from the site photos?")) return;
-        /* index 0 is s.photo, NOT photoExtra[-1]. Before Pass 22 the main
-           tile carried no delete badge at all, so a site whittled down to
-           one photo could never lose it (Reece, 7 Aug). Promote the first
-           extra so the card never blanks while photos remain. */
-        const spi = +b.dataset.i;
-        if (spi === 0) {
-          const spx = s.photoExtra || [];
-          if (spx.length) { s.photo = spx.shift(); s.photoExtra = spx; }
-          else delete s.photo;
-        } else {
-          s.photoExtra.splice(spi - 1, 1);
-        }
-        fsMarkDirty();
-        fsRenderTab();
-      };
-    });
+    /* PASS 26 item 16 — the delete itself lives here still, because this is
+       where `s` is in scope; the lightbox calls it. The promote-the-first-extra
+       rule is Pass 22's and is unchanged: index 0 is s.photo, NOT
+       photoExtra[-1], and deleting it pulls the first extra up so the card
+       never blanks while photos remain. That rule WAS Reece's "can't delete the
+       last photo" bug and it would be easy to drop while moving the control. */
+    fsSitePhotoDelete = function (spi) {
+      const spx = s.photoExtra || [];
+      if (spi === 0) {
+        if (spx.length) { s.photo = spx.shift(); s.photoExtra = spx; }
+        else delete s.photo;
+      } else {
+        spx.splice(spi - 1, 1);
+        s.photoExtra = spx;
+      }
+      fsMarkDirty();
+      fsRenderTab();
+    };
   }
 
   if (fsTab === "buildings") {
@@ -14638,6 +14759,16 @@ function fsViewPhoto(src, replaceTarget) {
   im.src = src;
   im.style.maxWidth = "96vw"; im.style.maxHeight = "85vh"; im.style.cursor = "zoom-in";
   document.getElementById("fsLbReplace").style.display = fsLbTarget ? "inline-block" : "none";
+  /* PASS 26 item 16 — Delete is offered only for a SITE photo, which is the
+     only target whose removal this knows how to do safely. Every other caller
+     of fsViewPhoto (defect photos, QR tag photos, equipment photos, register
+     files) passes no target or a different kind, and each of those has its own
+     delete elsewhere; offering a button here that silently did nothing, or
+     worse deleted the wrong record, is the failure this guard exists for. */
+  const lbDel = document.getElementById("fsLbDelete");
+  if (lbDel) lbDel.style.display = (fsLbTarget && fsLbTarget.kind === "siteIdx"
+                                    && typeof fsSitePhotoDelete === "function")
+                                   ? "inline-block" : "none";
   lb.style.display = "block";
 }
 function fsLbClose() { document.getElementById("fsLightbox").style.display = "none"; }
@@ -14650,6 +14781,16 @@ document.getElementById("fsLbImg").onclick = e => {
   im.style.maxWidth = big ? "96vw" : "none";
   im.style.maxHeight = big ? "85vh" : "none";
   im.style.cursor = big ? "zoom-in" : "zoom-out";
+};
+/* PASS 26 item 16 */
+let fsSitePhotoDelete = null;
+document.getElementById("fsLbDelete").onclick = e => {
+  e.stopPropagation();
+  if (!fsLbTarget || fsLbTarget.kind !== "siteIdx" || typeof fsSitePhotoDelete !== "function") return;
+  if (!confirm("Delete this photo from the site photos?")) return;
+  const i = fsLbTarget.i;
+  fsLbClose();
+  fsSitePhotoDelete(i);
 };
 document.getElementById("fsLbReplace").onclick = e => {
   e.stopPropagation();
@@ -15990,7 +16131,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v32";
+const FS_BUILD = "aa-v33";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
