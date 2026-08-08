@@ -17,6 +17,12 @@
 <script src="./zxing.js" defer></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+/* PASS 28 item 1 — iOS shows a text-selection callout on long-press, which
+   covers the help toast and hijacks the gesture. Controls are not text; this
+   costs nothing and is the difference between the feature working on an iPad
+   and appearing not to. */
+button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: none; user-select: none; }
+
   html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
   #app { display:flex; flex-direction:column; height:100%; }
 
@@ -182,7 +188,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.31 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.32 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -198,6 +204,28 @@
          in a row of buttons, which read as a control. -->
     <div id="fsClientBrand" style="display:none;align-items:center;gap:9px;margin:2px 0 6px"></div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
+    <!-- PASS 28 item 4 — nothing told a new user what to do next. The demo
+         button is good and most products this age do not have one, but once
+         you are inside it there is no signpost.
+
+         Deliberately a STRIP, not a tour. Reece works in basements with gloves
+         on; a multi-step coach-mark sequence is the wrong shape for this app
+         and for the person holding it. One sentence, one next action, and a
+         dismiss that sticks. -->
+    <div id="fsDemoStrip" style="display:none;align-items:flex-start;gap:10px;margin:0 0 16px;
+         padding:11px 13px;border:1px solid #4a5b3a;border-left:4px solid #7cb342;
+         border-radius:8px;background:#1b2418;font-size:13.5px;color:#dbe7d4;line-height:1.4">
+      <div style="flex:1">
+        <b>You are looking at demo data.</b> Nothing here is real and nothing you
+        change can affect a client. Have a dig around &mdash; open a client, then a
+        site, then tap a building to see the plan.
+        <div style="margin-top:5px;color:#a9bda0">When you want your own data in,
+        use <b>&#128194; Load</b> at the top to open your register file.</div>
+      </div>
+      <button class="fsbtn" id="fsDemoStripX" type="button"
+              title="Hide this — it will not come back"
+              style="padding:3px 9px;font-size:15px;line-height:1.1">&times;</button>
+    </div>
 
     <div id="fsImportView">
       <div class="fscard" style="max-width:430px;margin:60px auto;padding:26px;text-align:center">
@@ -248,7 +276,7 @@
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.31 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.32 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -549,6 +577,17 @@
     </div>
   </div>
 </div>
+
+<!-- PASS 28 item 1 — the help toast. The app's help is all `title=` attributes and they
+     are invisible on a touch screen, which is every device it runs on.
+     aria-live so a screen reader announces it; pointer-events none so it can
+     never swallow the tap that follows. -->
+<div id="fsTip" role="status" aria-live="polite"
+     style="display:none;position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
+            max-width:min(92vw,520px);z-index:400;pointer-events:none;
+            background:#11161a;color:#eef3f5;border:1px solid #3a464d;border-radius:10px;
+            padding:11px 15px;font-size:14.5px;line-height:1.35;
+            box-shadow:0 8px 26px rgba(0,0,0,.55)"></div>
 
 <div class="modal" id="zonesModal">
   <div class="modalbox">
@@ -7400,6 +7439,102 @@ async function fsCamOpen(job) {
   if (c) c.onclick = fsCamClose;
 })();
 
+/* ==========================================================================
+   PASS 28 item 1 — LONG-PRESS SHOWS THE HELP TEXT.
+
+   Reece asked whether someone with no knowledge of the app would fumble
+   through it. The single biggest reason they would: every explanation in this
+   app is a `title=` attribute, and tooltips do not exist on a touch screen.
+   ~130 strings, all correct, none of them reachable on an iPad.
+
+   This is ~40 lines and it unlocks the lot at once — including any added
+   later, because it resolves the attribute at press time rather than binding
+   to a list. That is the whole design: one delegated listener, no registry to
+   keep in sync, nothing to forget.
+   ========================================================================== */
+let fsTipTimer = null, fsTipFrom = null;
+
+/* The nearest ancestor carrying help text. aria-label is accepted as a
+   fallback so the two systems cannot disagree once item 5 adds them. */
+function fsTipFor(el) {
+  /* A press can land on a TEXT NODE inside a control, which has no .closest.
+     Climb to the element first. Caught by test_p28 A5 — the resolver returned
+     nothing for a child node, which is precisely the case a button with a
+     <span> inside it produces. */
+  if (el && el.nodeType === 3) el = el.parentElement;
+  if (!el || !el.closest) return "";
+  /* Never help on the plan. #cv is ONE element carrying every drawn object and
+     it already owns pan, pinch and the Pass 22 gestures; a toast mid-drag is
+     the V0.25 wedge with better manners.
+
+     THE TEST IS ON THE PRESSED ELEMENT, NOT ON THE RESOLVED ANCESTOR, and the
+     first version of this got it the wrong way round — it checked `hit`, which
+     is whatever ancestor carried the title. A wrapper ABOVE the canvas with a
+     title therefore sailed through and the plan started answering presses.
+     mutate-p28 M4 survived because the suite only asked whether #cv resolved
+     to nothing, which it did — for the wrong reason, since nothing above it
+     happened to have a title that day. One `title` on a container at any point
+     in the future would have switched it on silently. */
+  if (el.id === "cv" || el.closest("#cv")) return "";
+  const hit = el.closest("[title], [aria-label]");
+  if (!hit) return "";
+  const t = (hit.getAttribute("title") || hit.getAttribute("aria-label") || "").trim();
+  /* a one-word label is the control's own name — the user can already read it */
+  return t.length > 3 ? t : "";
+}
+
+function fsTipShow(msg) {
+  const el = document.getElementById("fsTip");
+  if (!el || !msg) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(fsTipTimer);
+  /* long enough to read a sentence standing on a ladder */
+  fsTipTimer = setTimeout(fsTipHide, 4200);
+}
+
+function fsTipHide() {
+  const el = document.getElementById("fsTip");
+  if (el) el.style.display = "none";
+  clearTimeout(fsTipTimer);
+  fsTipTimer = null;
+}
+
+(function () {
+  let press = null, sx = 0, sy = 0;
+  const CANCEL_PX = 10;      /* a drag on a list must not end in a toast */
+  const HOLD_MS = 500;
+
+  const down = e => {
+    /* Desktop already has a real tooltip on hover. Firing both means the same
+       sentence twice, which reads as a bug rather than as help. */
+    if (e.pointerType === "mouse") return;
+    const msg = fsTipFor(e.target);
+    if (!msg) return;
+    sx = e.clientX; sy = e.clientY;
+    fsTipFrom = e.target;
+    clearTimeout(press);
+    press = setTimeout(() => { press = null; fsTipShow(msg); }, HOLD_MS);
+  };
+  const move = e => {
+    if (press == null) return;
+    if (Math.abs(e.clientX - sx) > CANCEL_PX || Math.abs(e.clientY - sy) > CANCEL_PX) {
+      clearTimeout(press); press = null;
+    }
+  };
+  const up = () => { clearTimeout(press); press = null; };
+
+  /* capture phase: a control that stops propagation on its own pointerdown
+     (several do) would otherwise never reach this. */
+  document.addEventListener("pointerdown", down, true);
+  document.addEventListener("pointermove", move, true);
+  document.addEventListener("pointerup", up, true);
+  document.addEventListener("pointercancel", up, true);
+  /* any tap dismisses an open toast, so it never sits over the next thing */
+  document.addEventListener("click", fsTipHide, true);
+  window.addEventListener("scroll", fsTipHide, true);
+})();
+
 function fsOcrTrim(v) {
   return String(v == null ? "" : v)
     .replace(/^[\s|/\\;:.,«»<>*_+~^'"`-]+/, "")
@@ -8686,6 +8821,10 @@ resizeCanvas();
 let fsRegister = null;
 let fsClient = null, fsSite = null, fsParentSite = null;   // fsParentSite set while viewing a building
 let fsDirty = false;
+/* PASS 28 item 3 — WHY the register is dirty, so the stamp can say. "user"
+   for a real edit, "migration" for a load-time data conversion the user did
+   not ask for and cannot be blamed for. */
+let fsDirtyWhy = "user";
 let fsTab = "overview";
 let fsInfoEdit = false, fsEquipEdit = false;
 let fsPhotoTarget = null;   // {kind:"site"|"equip"|"files", key?}
@@ -10517,10 +10656,29 @@ function fsEnsureIds() {
       });
     });
   });
-  if (migrated) { fsDirty = true; fsPersistReg(); }
+  /* PASS 28 item 3 — the flag STAYS. The MESSAGE changes.
+
+     The audit said to stop setting fsDirty here, because "UNSAVED CHANGES —
+     save when done" appears before the user has touched anything. Following
+     that literally broke test_regress, which has asserted for months that a
+     migration marks the register dirty "so the fix gets saved" — and reading
+     why, that assertion is right and the audit was wrong.
+
+     This is not only id back-fill. fsEquipMigrateKeys rewrites legacy
+     equipment keys ("Fire extinguisher type" -> "Fire extinguisher"). That is
+     a real data-shape change. fsPersistReg() puts it on THIS device, but if it
+     never reaches the FILE then every other device re-migrates on every load,
+     and a colleague opening the same register sees the old shape until their
+     own copy converts. Dropping the flag would have traded a cosmetic
+     annoyance for a data-consistency bug, silently.
+
+     So the flag is correct and the WORDING was the fault. "UNSAVED CHANGES"
+     accuses the user of something they did not do and tells them nothing. The
+     stamp now distinguishes the two cases — see fsStamp. */
+  if (migrated) { fsDirty = true; fsDirtyWhy = "migration"; fsPersistReg(); }
 }
 
-function fsMarkDirty() { fsDirty = true; fsStamp(); fsPersistReg(); }
+function fsMarkDirty() { fsDirty = true; fsDirtyWhy = "user"; fsStamp(); fsPersistReg(); }
 /* ---------- Portfolio dashboard: all-sites management view behind an admin passcode.
    The passcode hash lives IN the register file (register.adminPin) so it travels to
    colleagues' copies. Forgot it? Delete the "adminPin" entry from the register json. ---------- */
@@ -13791,7 +13949,23 @@ function fsStamp() {
   el.textContent = "Register: " + (fsRegister.app || "register") +
     (fsRegister.updated ? " · updated " + fsRegister.updated : "") +
     (fsRegister.savedBy ? " by " + fsRegister.savedBy : "") +
-    (fsDirty ? " · UNSAVED CHANGES — save when done" : "");
+    /* PASS 28 item 3 — say WHICH kind of unsaved this is. The old line read
+       "UNSAVED CHANGES" after a load-time migration, which accuses the user of
+       something they did not do, explains nothing, and teaches them to ignore
+       the one warning that guards real data loss. */
+    (fsDirty ? (fsDirtyWhy === "migration"
+      ? " \u00b7 UPDATED FOR THIS VERSION \u2014 save to keep it"
+      : " \u00b7 UNSAVED CHANGES \u2014 save when done") : "");
+  /* PASS 28 item 4 — shown only while the loaded register IS the demo one, and
+     only until dismissed. fsStamp already runs on every load and every change,
+     so this needs no hook of its own. */
+  const strip = document.getElementById("fsDemoStrip");
+  if (strip) {
+    let hidden = false;
+    try { hidden = localStorage.getItem("bpm-demostrip") === "off"; } catch (e) {}
+    const isDemo = !!fsRegister && fsRegister.app === "demo-register";
+    strip.style.display = (isDemo && !hidden) ? "flex" : "none";
+  }
   const ex = document.getElementById("fsExportReg");
   ex.style.display = fsRegister ? "inline-block" : "none";
   const sh = document.getElementById("fsShareReg");
@@ -13873,7 +14047,12 @@ function fsRenderClients() {
       '<div style="flex:1"><div style="font-size:16.5px;font-weight:700">' + fsEsc(c.name) +
       '</div><div style="font-size:12.5px;color:var(--fs-sub2)">' + (c.sites || []).length + ' sites</div></div>' +
       (fsWhoRole() !== "tech" ? '<a class="fsCliRen" title="Rename client" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
-        '<a class="fsCliDel" title="Delete client" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#128465;</a>' : '') +
+        /* PASS 28 item 2 — the bin was var(--fs-sub2), the same grey as the
+           rename pencil next to it, at the same size. The confirm behind it is
+           already strong (it names the client, itemises what goes, and makes
+           you type the name), so the ONLY thing wrong was that the two
+           controls looked identical. Colour is the fix; nothing else changes. */
+        '<a class="fsCliDel" title="Delete client" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '') +
       '<div style="color:var(--fs-faint)">&#9654;</div>';
     row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
     const ren = row.querySelector(".fsCliRen");
@@ -13994,7 +14173,7 @@ function fsRenderSites() {
     row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
       '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div>' +
       (fsWhoRole() !== "tech" ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
-        '<a class="fsSiteDel" title="Delete site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#128465;</a>' : '') +
+        '<a class="fsSiteDel" title="Delete site" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '') +
       '<div style="color:var(--fs-faint)">&#9654;</div>';
     row.onclick = () => { fsParentSite = null; fsSite = s; fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false; fsRenderSite(); fsShow("fsSiteView"); };
     const sren = row.querySelector(".fsSiteRen");
@@ -15563,7 +15742,7 @@ function fsLoadRegister(objIn) {
   fsRegister = objIn;
   fsDirty = false;
   if (fsRegister.app !== "firespark-register") { fsRegister.app = "firespark-register"; fsDirty = true; }
-  fsEnsureIds();   // may set fsDirty if data was migrated (save to keep it)
+  fsEnsureIds();   // PASS 28 item 3: flags dirty as "migration", not as a user edit
   fsPersistReg(true).then(() => fsBlobGC()).catch(() => alert("⚠ Couldn't cache the register on this device (storage full?) — it will need reloading next time."));
   fsBackupSnapshot("loaded");
   fsLoadProfile();
@@ -15653,6 +15832,16 @@ document.getElementById("fsDemoBtn").onclick = () => {
     ]}]
   });
 };
+/* PASS 28 item 4 — dismissed means dismissed, across reloads. */
+(function () {
+  const x = document.getElementById("fsDemoStripX");
+  if (!x) return;
+  x.onclick = () => {
+    try { localStorage.setItem("bpm-demostrip", "off"); } catch (e) {}
+    const s = document.getElementById("fsDemoStrip");
+    if (s) s.style.display = "none";
+  };
+})();
 document.getElementById("fsExportReg").onclick = async () => {
   if (!fsRegister) return;
   let who = "";
@@ -16721,7 +16910,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v35";
+const FS_BUILD = "aa-v36";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
