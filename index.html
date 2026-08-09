@@ -188,7 +188,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.35 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.36 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -276,7 +276,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.35 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.36 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -907,12 +907,20 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsResScan" style="width:100%;text-align:left;margin-bottom:8px">&#128269; Scan QR tag &mdash; find a device</button>
     <button class="btn" id="fsResStore" style="width:100%;text-align:left;margin-bottom:8px">&#128190; Storage &amp; photos &mdash; see sizes, shrink photos</button>
     <!-- isolation gate hidden for V1.0 - set display:flex (and restore fsIsoGateOn) to reinstate --><label style="display:none;align-items:center;gap:8px;font-size:13.5px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="fsResIso"> Isolation restore gate on tests</label>
-    <div style="font-weight:700;font-size:13px;color:#7ddb8f;margin-bottom:6px">LIBRARY</div>
-    <div style="font-size:12px;color:#999;margin-bottom:8px">Reference documents (standards, manuals). Stored on this device only &mdash; add them once per device.</div>
-    <div id="fsLibList"></div>
-    <button class="btn" id="fsLibAdd" style="margin-top:8px">&#65291; Add file to library</button>
-    <input type="file" id="fsLibInput" accept="application/pdf,.pdf" style="display:none">
+    <div id="fsResLibHead" style="font-weight:700;font-size:13px;color:#7ddb8f;margin-bottom:6px">LIBRARY</div>
+    <button class="btn" id="fsResLib" title="Standards, forms and work documentation kept on this device" style="width:100%;text-align:left;margin-bottom:8px">&#128218; Library &mdash; standards, forms, manuals</button>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsResClose">Close</button></div>
+  </div>
+</div>
+<div class="modal" id="fsLibModal" style="z-index:122">
+  <div class="modalbox" style="max-width:560px;width:94vw;max-height:84vh;overflow-y:auto;text-align:left">
+    <h3 style="margin-bottom:4px">&#128218; Library</h3>
+    <div style="font-size:12px;color:#999;margin-bottom:10px">Stored on this device only &mdash; add them once per device. PDFs open here; other file types open in whichever app the device uses for them.</div>
+    <div id="fsLibTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div id="fsLibList"></div>
+    <button class="btn" id="fsLibAdd" style="margin-top:10px">&#65291; Add file to library</button>
+    <input type="file" id="fsLibInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.heic,application/pdf" style="display:none">
+    <div class="row" style="margin-top:14px"><button class="btn" id="fsLibClose">Close</button></div>
   </div>
 </div>
 <div class="modal" id="fsStoreModal" style="z-index:121">
@@ -13931,7 +13939,7 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Office</h2>' +
-    '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -13947,6 +13955,7 @@ function fsDashRender() {
   wrap.innerHTML = html;
   document.getElementById("fsDashBack").onclick = () => fsShow("fsClientsView");
   document.getElementById("fsDashPdf").onclick = fsDashPdf;
+  document.getElementById("fsDashLibBtn").onclick = fsLibOpen;
   document.getElementById("fsPipeBtn").onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
   document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
   document.getElementById("fsQuotesBtn").onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
@@ -16559,19 +16568,107 @@ document.getElementById("znShow").onchange = e => { zonesShow = e.target.checked
 
 /* ---------- Resources: tools + device-local library ---------- */
 async function fsLibGet() { try { return (await idbGet("fsLib")) || []; } catch (e) { return []; } }
+
+/* PASS 31 — the Library shelf.
+   CATS is DATA, not three hard-coded tabs. The app knows nothing about what a
+   form IS; it knows there are shelves and that entries name one. Ship Reece's
+   three; a fourth is a line here, not a migration. See LIBRARY-DESIGN
+   "THE SHAPE OF THE WHOLE THING". */
+const FS_LIB_CATS = [
+  { id: "work",      label: "Work documentation" },
+  { id: "standards", label: "Standards" },
+  { id: "forms",     label: "Forms" }
+];
+const FS_LIB_UNFILED = "\u2014";
+let fsLibCat = "work";
+
+function fsLibCatLabel(id) {
+  const c = FS_LIB_CATS.filter(x => x.id === id)[0];
+  return c ? c.label : "Unfiled";
+}
+/* An entry added before categories existed. NOT guessed at — see the patch
+   docstring. It gets a tab of its own until the user files it. */
+function fsLibIsUnfiled(f) {
+  return !f || !f.cat || !FS_LIB_CATS.some(c => c.id === f.cat);
+}
+function fsLibIsPdf(f) {
+  return /pdf/i.test((f && f.type) || "") || /\.pdf$/i.test((f && f.name) || "");
+}
+function fsLibSize(f) {
+  const b = ((f && f.data) || "").length * 0.75;
+  if (b < 1048576) return Math.max(1, Math.round(b / 1024)) + " KB";
+  return Math.round(b / 1048576 * 10) / 10 + " MB";
+}
+function fsLibWhen(f) {
+  if (!f || !f.t) return "";
+  try { return new Date(f.t).toLocaleDateString(); } catch (e) { return ""; }
+}
+
 async function fsLibRender() {
   const list = await fsLibGet();
   const box = document.getElementById("fsLibList");
-  if (!list.length) { box.innerHTML = '<div style="font-size:13px;color:#777">Nothing here yet \u2014 add the standards PDFs from your files.</div>'; return; }
-  box.innerHTML = list.map((f, i) =>
-    '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid #33383f;padding:7px 0">' +
-    '<a class="fsLibOpen" data-i="' + i + '" style="flex:1;color:#4fc3f7;cursor:pointer;font-size:13.5px">' + fsEsc(f.name) + '</a>' +
-    '<span style="font-size:11px;color:#777">' + Math.round((f.data || "").length * 0.75 / 1048576 * 10) / 10 + ' MB</span>' +
-    '<a class="fsLibDel" data-i="' + i + '" style="color:#c62828;cursor:pointer;padding:2px 6px">&#10005;</a></div>').join("");
+  const tabs = document.getElementById("fsLibTabs");
+  if (!box) return;
+  const anyUnfiled = list.some(fsLibIsUnfiled);
+  if (fsLibCat === FS_LIB_UNFILED && !anyUnfiled) fsLibCat = FS_LIB_CATS[0].id;
+
+  if (tabs) {
+    const shelves = FS_LIB_CATS.map(c => [c.id, c.label]);
+    if (anyUnfiled) shelves.push([FS_LIB_UNFILED, "Unfiled"]);
+    tabs.innerHTML = shelves.map(([id, label]) => {
+      const n = list.filter(f => id === FS_LIB_UNFILED ? fsLibIsUnfiled(f) : f.cat === id).length;
+      const on = id === fsLibCat;
+      return '<button class="btn fsLibTab" data-cat="' + fsEsc(id) + '" style="padding:5px 10px;font-size:12.5px;' +
+        (on ? 'background:#2f6d3a;border-color:#3f8a4c;color:#fff' : '') + '">' + fsEsc(label) +
+        ' <span style="opacity:.7">' + n + '</span></button>';
+    }).join("");
+    tabs.querySelectorAll(".fsLibTab").forEach(b => b.onclick = () => { fsLibCat = b.dataset.cat; fsLibRender(); });
+  }
+
+  const rows = list.map((f, i) => ({ f: f, i: i }))
+    .filter(r => fsLibCat === FS_LIB_UNFILED ? fsLibIsUnfiled(r.f) : r.f.cat === fsLibCat)
+    .sort((a, b) => String(a.f.name || "").toLowerCase() < String(b.f.name || "").toLowerCase() ? -1 : 1);
+
+  if (!rows.length) {
+    box.innerHTML = '<div style="font-size:13px;color:#777">Nothing on this shelf yet \u2014 add a file and it lands here.</div>';
+    return;
+  }
+  box.innerHTML = rows.map(r => {
+    const f = r.f, pdf = fsLibIsPdf(f);
+    const meta = [fsLibSize(f), fsLibWhen(f)].filter(Boolean).join(" \u00b7 ") +
+      (pdf ? "" : ' \u00b7 <span class="fsLibExt">Opens in another app</span>');
+    return '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid #33383f;padding:7px 0">' +
+      '<span style="flex:1;min-width:0">' +
+      '<a class="fsLibOpen" data-i="' + r.i + '" style="color:#4fc3f7;cursor:pointer;font-size:13.5px">' + fsEsc(f.name) + '</a>' +
+      '<br><span style="font-size:11px;color:#777">' + meta + '</span></span>' +
+      '<select class="fsLibCat" data-i="' + r.i + '" title="Which shelf this sits on" style="font-size:11.5px;padding:2px 4px">' +
+      FS_LIB_CATS.map(c => '<option value="' + c.id + '"' + (f.cat === c.id ? ' selected' : '') + '>' + fsEsc(c.label) + '</option>').join("") +
+      (fsLibIsUnfiled(f) ? '<option value="" selected>Unfiled</option>' : '') +
+      '</select>' +
+      '<a class="fsLibDel" data-i="' + r.i + '" title="Remove from this device" style="color:#c62828;cursor:pointer;padding:2px 6px">&#10005;</a></div>';
+  }).join("");
+
   box.querySelectorAll(".fsLibOpen").forEach(a => a.onclick = async () => {
     const f = (await fsLibGet())[+a.dataset.i];
     if (!f) return;
-    fetch(f.data).then(r => r.blob()).then(bl => window.open(URL.createObjectURL(bl), "_blank"));
+    fetch(f.data).then(r => r.blob()).then(bl => {
+      const u = URL.createObjectURL(bl);
+      /* The app renders pdf and nothing else. Anything else is handed to the
+         device with a download attribute rather than opened into a blank tab
+         the user has to work out for themselves. */
+      if (fsLibIsPdf(f)) { window.open(u, "_blank"); return; }
+      const a2 = document.createElement("a");
+      a2.href = u; a2.download = f.name || "document";
+      document.body.appendChild(a2); a2.click(); a2.remove();
+    });
+  });
+  box.querySelectorAll(".fsLibCat").forEach(sel => sel.onchange = async () => {
+    const list2 = await fsLibGet();
+    const f = list2[+sel.dataset.i];
+    if (!f) return;
+    f.cat = sel.value;
+    await idbPut("fsLib", list2);
+    fsLibRender();
   });
   box.querySelectorAll(".fsLibDel").forEach(a => a.onclick = async () => {
     const list2 = await fsLibGet();
@@ -16581,10 +16678,15 @@ async function fsLibRender() {
     fsLibRender();
   });
 }
+
+/* ONE screen, two entry points (Resources and Office) — they cannot drift. */
+function fsLibOpen() {
+  document.getElementById("fsLibModal").classList.add("show");
+  fsLibRender();
+}
 document.getElementById("fsResBtn").onclick = () => {
   document.getElementById("fsResFade").checked = fsFadeOn();
   document.getElementById("fsResIso").checked = fsIsoGateOn();
-  fsLibRender();
   document.getElementById("fsResModal").classList.add("show");
 };
 document.getElementById("fsResClose").onclick = () => document.getElementById("fsResModal").classList.remove("show");
@@ -16966,7 +17068,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v39";
+const FS_BUILD = "aa-v40";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -17081,6 +17183,8 @@ document.getElementById("fsSetWipe").onclick = async () => {
   location.reload();
 };
 document.getElementById("fsLibAdd").onclick = () => document.getElementById("fsLibInput").click();
+document.getElementById("fsLibClose").onclick = () => document.getElementById("fsLibModal").classList.remove("show");
+document.getElementById("fsResLib").onclick = fsLibOpen;
 document.getElementById("fsLibInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -17088,7 +17192,11 @@ document.getElementById("fsLibInput").addEventListener("change", e => {
   const rd = new FileReader();
   rd.onload = async () => {
     const list = await fsLibGet();
-    list.push({ name: f.name, type: f.type || "application/pdf", data: rd.result, t: Date.now() });
+    /* Lands on the shelf that is open — the tab IS the filing gesture. Never
+       the Unfiled pseudo-shelf: that one exists only for entries added before
+       categories, and adding to it would keep it alive forever. */
+    const cat = fsLibCat === FS_LIB_UNFILED ? FS_LIB_CATS[0].id : fsLibCat;
+    list.push({ name: f.name, type: f.type || "", data: rd.result, t: Date.now(), cat: cat });
     try { await idbPut("fsLib", list); } catch (err) { alert("Couldn't store that file (device storage full?)"); return; }
     fsLibRender();
   };
@@ -20145,12 +20253,16 @@ const FS_RES_MOD = [["battcalc", "fsResBatt"], ["timer", "fsResTimer"], ["meter"
 function fsApplyModules() {
   try {
     FS_RES_MOD.forEach(([k, id]) => { const el = document.getElementById(id); if (el) el.style.display = fsModOn("resTools." + k) ? "" : "none"; });
-    const lib = document.getElementById("fsLibList");
-    if (lib) {
+    /* PASS 31 — gate the ENTRY POINTS by id. This used to take #fsLibList and
+       walk previousElementSibling twice for the description and heading; the
+       list now lives in its own modal, so that walk would have hidden two
+       unrelated elements with nothing on screen to say so. */
+    {
       const on = fsModOn("resTools.library");
-      const desc = lib.previousElementSibling;
-      const head = desc ? desc.previousElementSibling : null;
-      [lib, document.getElementById("fsLibAdd"), desc, head].forEach(el => { if (el) el.style.display = on ? "" : "none"; });
+      const head = document.getElementById("fsResLibHead");
+      [document.getElementById("fsResLib"), head].forEach(el => { if (el) el.style.display = on ? "" : "none"; });
+      const dashLib = document.getElementById("fsDashLibBtn");
+      if (dashLib) dashLib.style.display = on ? "" : "none";
     }
     const pe = document.getElementById("fsProjEntry");
     if (pe) pe.style.display = fsModOn("sections.projects") ? "" : "none";
