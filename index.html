@@ -21,7 +21,11 @@
    covers the help toast and hijacks the gesture. Controls are not text; this
    costs nothing and is the difference between the feature working on an iPad
    and appearing not to. */
-button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: none; user-select: none; }
+/* PASS 34 — the callout menu rides the same long-press as the highlight, so
+   killing one without the other leaves the gesture half broken on iOS. */
+button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: none; user-select: none;
+                                                        -webkit-touch-callout: none; }
+.pal, .pal .lbl, .tab, .modebtn { -webkit-touch-callout: none; }
 
   html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
   #app { display:flex; flex-direction:column; height:100%; }
@@ -50,7 +54,12 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   .modebtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:2px solid transparent; background:#2e333a; border-radius:10px; padding:4px 10px; cursor:pointer; user-select:none; touch-action:manipulation; font-size:17px; min-width:52px; }
   .modebtn .lbl { font-size:9px; color:#aaa; }
   .modebtn.active { border-color:#ff5a3c; background:#3a2b27; }
-  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 2px; font-size:9px; color:#aaa; background:#262a30; border:1px solid #333; border-radius:9px; cursor:pointer; user-select:none; touch-action:manipulation; text-align:center; }
+  /* PASS 34 — touch-action was `manipulation`, which lets the browser own the
+     vertical pan and steal the pointer mid-drag. The palette solved this long
+     ago with touch-action:none plus a manual scroll in pointermove; the tab
+     strip now does the same thing, so #sideTabs still scrolls by touch. */
+  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 2px; font-size:9px; color:#aaa; background:#262a30; border:1px solid #333; border-radius:9px; cursor:pointer; user-select:none; touch-action:none; text-align:center; }
+  .tab.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
   .tab .ti { font-size:19px; line-height:1; }
   .tab.active { color:#fff; background:#3a2b27; border-color:#ff5a3c; font-weight:600; }
 
@@ -163,14 +172,33 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
   .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
-  /* PASS 33 — row edit mode. The rotation is small on purpose: 0.55deg reads
-     as "unsettled, temporary" at arm's length on an iPad without turning a
-     list of client names into something you cannot read. Even rows run half a
-     cycle out of phase so the list does not pulse in lockstep, which looks
-     like a rendering fault rather than a mode. */
-  @keyframes fsWob { 0% { transform:rotate(-0.55deg) } 50% { transform:rotate(0.55deg) } 100% { transform:rotate(-0.55deg) } }
-  .fsWobble { animation:fsWob .21s ease-in-out infinite; will-change:transform; }
-  .fsWobble:nth-child(even) { animation-delay:-.105s; }
+  /* PASS 34 — Reece, on the device: the highlight on hold is off-putting. It
+     is iOS text selection firing during the press.
+
+     THE TRADE, STATED SO IT IS NOT REDISCOVERED AS A BUG: client and site
+     NAMES IN THE LIST stop being selectable. There is no way to keep the
+     name selectable and kill the highlight, because the name is the largest
+     thing on the row and is exactly where a thumb lands. The detail screens
+     are deliberately NOT covered by this rule, so a name is still copyable
+     where anyone would actually copy it. Narrow selectors, not a reset. */
+  .fscard, .fsBldRow { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  /* PASS 34 — row edit mode. Confirmed on the device as too far AND too fast,
+     so both knobs moved. BEFORE: +/-0.55deg at .21s, even rows -.105s.
+     AFTER:  +/-0.3deg at .315s (1.5x slower), even rows -.1575s.
+     The .21s was not recorded in any V0.38 document and had to be read out of
+     the keyframe; these numbers are written down so the next adjustment
+     starts from a known figure instead of an archaeology exercise.
+
+     FLOOR WORTH KNOWING: below about +/-0.2deg a wobble stops reading as
+     deliberate and starts reading as a rendering fault, which is a worse
+     outcome than too much movement. If this is still too much, take more
+     speed out rather than more angle.
+
+     Even rows stay exactly half a cycle out of phase so the list does not
+     pulse in lockstep — half of .315s is .1575s. */
+  @keyframes fsWob { 0% { transform:rotate(-0.3deg) } 50% { transform:rotate(0.3deg) } 100% { transform:rotate(-0.3deg) } }
+  .fsWobble { animation:fsWob .315s ease-in-out infinite; will-change:transform; }
+  .fsWobble:nth-child(even) { animation-delay:-.1575s; }
   #fsRowEditDone { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:9000;
                    padding:11px 30px; font-size:15px; font-weight:700; box-shadow:0 6px 22px rgba(0,0,0,.35); }
   /* An animation that cannot be turned off is an accessibility fault, and this
@@ -202,7 +230,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.38 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.39 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -290,7 +318,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.38 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.39 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -3424,7 +3452,7 @@ function drawPalIcon(canvasEl, typeId) {
 const TAB_ICONS = { fav:"★", fire:"🔥", exit:"🏃", elec:"⚡", bldg:"🏠", markup:"✏️", modify:"🔧", tools:"🧰", views:"👁" };
 function buildTabs() {
   tabsEl.innerHTML = "";
-  TABS.forEach(tb => {
+  orderedTabs().forEach(tb => {
     const d = document.createElement("div");
     d.className = "tab" + (tb.id === activeTab ? " active" : "");
     d.id = "tab-" + tb.id;
@@ -3450,6 +3478,8 @@ function buildTabs() {
       d.appendChild(lb);
     }
     d.onclick = () => { activeTab = tb.id; buildPalette(); };
+    /* PASS 34 — hold 500 ms, drag, drop. Vertical axis, no favourite. */
+    attachTileGestures(d, tb.id, { axis:"y", fav:false, commit:commitTabReorder });
     tabsEl.appendChild(d);
   });
 }
@@ -3478,6 +3508,17 @@ let tabOrder = {};
 try { tabOrder = JSON.parse(localStorage.getItem("bpm-order") || "{}"); } catch (e) {}
 function saveTabOrder() { try { localStorage.setItem("bpm-order", JSON.stringify(tabOrder)); } catch (e) {} }
 
+/* PASS 34 — every tab now builds its tiles the same way: collect the entries,
+   then put them through the saved order. One helper so a future tab cannot be
+   added that forgets to call applyOrder, which is precisely how the tools tab
+   came to save an order it never read. */
+function orderEntries(entries, tab) {
+  const by = {};
+  entries.forEach(e => { if (e && e.t) by[e.t.id] = e; });
+  return applyOrder(entries.filter(e => e && e.t).map(e => e.t.id), tab)
+    .map(id => by[id]).filter(Boolean);
+}
+
 function applyOrder(ids, tab) {
   const saved = tab === "fav" ? null : tabOrder[tab];
   if (!saved) return ids;
@@ -3499,12 +3540,95 @@ function commitReorder(dragId, clientX) {
   rest.splice(insert, 0, dragId);
   if (activeTab === "fav") { favIds = rest; try { localStorage.setItem("bpm-favs", JSON.stringify(favIds)); } catch (e) {} }
   else { tabOrder[activeTab] = rest; saveTabOrder(); }
+  /* PASS 34 — hold the scroll position. buildPalette re-renders from scratch,
+     and on a strip long enough to need dragging, snapping back to the far left
+     after every move is the kind of thing that makes a feature feel broken
+     when it is working. The views toggles already did this; reorder did not. */
+  const sl = paletteEl.scrollLeft;
   buildPalette();
+  paletteEl.scrollLeft = sl;
 }
 
-function attachTileGestures(el, id) {
-  let liftTimer = null, favTimer = null, lifted = false, moved2 = false;
-  let down = false, x0 = 0, y0 = 0, lastX = 0, suppress = false;
+/* PASS 34 — the TAB STRIP reorders too. Same 500 ms lift, same 10 px
+   threshold, same .lift class as a palette tile; #sideTabs is vertical so the
+   only difference is that the drop point is a Y. No new gesture, no new
+   duration — the brief was explicit about that.
+
+   Deliberately NOT here: dragging a SYMBOL onto a TAB to move it between
+   tabs. That is a data move, not a reorder, and it is not in scope. */
+let tabsOrder = [];
+try { tabsOrder = JSON.parse(localStorage.getItem("bpm-taborder") || "[]") || []; } catch (e) { tabsOrder = []; }
+function saveTabsOrder() { try { localStorage.setItem("bpm-taborder", JSON.stringify(tabsOrder)); } catch (e) {} }
+
+/* Sorts TABS; never renders FROM the saved list. So a saved id for a tab that
+   no longer exists is ignored rather than rendering a ghost, and a tab added
+   in a later version appears at the end instead of vanishing. */
+function orderedTabs() {
+  if (!tabsOrder.length) return TABS.slice();
+  const pos = {};
+  tabsOrder.forEach((id, i) => { pos[id] = i; });
+  return TABS.slice().sort((a, b) => (pos[a.id] != null ? pos[a.id] : 999) - (pos[b.id] != null ? pos[b.id] : 999));
+}
+
+function commitTabReorder(dragId, clientY) {
+  const ids = [...tabsEl.querySelectorAll(".tab")].map(el => el.id.replace("tab-", ""));
+  const rest = ids.filter(i => i !== dragId);
+  let insert = rest.length;
+  for (let i = 0; i < rest.length; i++) {
+    const el = document.getElementById("tab-" + rest[i]);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) { insert = i; break; }
+  }
+  rest.splice(insert, 0, dragId);
+  tabsOrder = rest;
+  saveTabsOrder();
+  const st = tabsEl.scrollTop;
+  buildTabs();
+  tabsEl.scrollTop = st;
+}
+
+/* ===================== PASS 34 — THE TWO HOLD DURATIONS ===================
+   There are FOUR press-and-holds in this app, not the three PASS-33-NOTES
+   listed. attachSwatchGestures has its own pair and was missed.
+
+     FS_TILE_LIFT_MS  500   pick a palette tile, a swatch or a TAB up to move it
+     FS_HOLD_MS      1500   favourite a symbol / add-remove a swatch /
+                            rename-delete a register row (FS_ROW_HOLD_MS)
+
+   Reece, 9 Aug, on the device: 2 s is too long. Pass 33 had argued 800 ms up
+   to 2000 ms because rare and destructive earns a long gesture; the device
+   says that overshot. BOTH 2000 ms values move together, as PASS-33-NOTES
+   required, and they are now ONE BINDING rather than two literals that agree
+   by convention. There is nothing left to drift.
+
+   THE HAZARD THIS CREATED. The gap between lift and hold used to be 500 vs
+   2000 — a second and a half of slack. It is now 500 vs 1500, so a user who
+   picks a tile up and hesitates before dragging would favourite it. Nothing
+   cancelled favTimer on a successful lift; only movement did. That is fixed
+   below and test_p34 A4 is the check that would notice if it were undone.
+   ========================================================================== */
+const FS_TILE_LIFT_MS = 500;
+const FS_HOLD_MS = 1500;
+
+/* PASS 34 — ONE gesture implementation, three callers.
+   `opts.axis`   "y" for the vertical tab strip, anything else for the
+                 horizontal palette and swatch rows.
+   `opts.fav`    false on Views tiles: favouriting a show/hide toggle would
+                 push `vw_labels` into favIds, and entriesForTab("fav") maps
+                 unknown ids to null and filters them out — the tile would
+                 silently disappear. Lift and drag, no favourite.
+   `opts.commit` where a finished drag goes. Defaults to the palette.
+
+   The app already carried two near-identical copies of this gesture. A third
+   for the tabs was not acceptable, so the axis became an option instead. */
+function attachTileGestures(el, id, opts) {
+  const o = opts || {};
+  const vertical = o.axis === "y";
+  const canFav = o.fav !== false;
+  const commit = o.commit || commitReorder;
+  let liftTimer = null, favTimer = null, lifted = false, moved2 = false, favArmed = false;
+  let down = false, x0 = 0, y0 = 0, lastX = 0, lastY = 0, suppress = false;
   el.addEventListener("click", e => {
     if (suppress) { suppress = false; e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
@@ -3513,42 +3637,98 @@ function attachTileGestures(el, id) {
     x0 = e.clientX; y0 = e.clientY; lastX = e.clientX;
     lifted = false; moved2 = false;
     el.setPointerCapture(e.pointerId);
-    liftTimer = setTimeout(() => { lifted = true; el.classList.add("lift"); }, 500);
-    favTimer = setTimeout(() => {
+    liftTimer = setTimeout(() => { lifted = true; el.classList.add("lift"); }, FS_TILE_LIFT_MS);
+    /* PASS 34 — THE FAVOURITE IS NOW ARMED BY THE TIMER AND COMMITTED ON
+       RELEASE, AND THIS IS THE ONE REAL DESIGN CHANGE IN THIS PASS. READ IT
+       BEFORE TOUCHING EITHER TIMER.
+
+       THE BRIEF ASKED FOR SOMETHING THAT CANNOT BE BUILT. It said: once a
+       lift succeeds, cancel favTimer, and add a check that a lifted tile held
+       still for 2 s does not favourite. But `lifted` is set at 500 ms on
+       EVERY press, so cancelling on lift deletes hold-to-favourite outright —
+       it was tried, and the probe caught it: favIds went 9 -> 9 on a 1650 ms
+       hold that should have added one. And "a tile held still does not
+       favourite" is a direct contradiction of "hold a tile still to
+       favourite". They are the same gesture. One of them had to give.
+
+       WHAT THE BRIEF WAS ACTUALLY WORRIED ABOUT is real and is fixed:
+       "someone who lifts a tile and hesitates for a second before dragging
+       must not favourite it." Under the old 500/2000 split you had 1.5 s of
+       slack; under 500/1500 you have 1 s, which is an ordinary pause.
+
+       SO THE TIMER NO LONGER ACTS. It arms, and buzzes to say so. Release
+       commits; ANY movement disarms. That separates the two gestures by
+       INTENT rather than by clock:
+
+         hold still, let go            -> favourite      (unchanged to a user)
+         hold, pause, then drag        -> reorder, no favourite   (was broken)
+         hold, drag straight away      -> reorder                 (unchanged)
+
+       The visible difference is that the star now appears when you lift your
+       finger instead of while it is still down. That is the cost, it is
+       small, and it buys a gesture that cannot fire against your intent. */
+    if (canFav) favTimer = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(40);
-      clearTimeout(liftTimer);
-      el.classList.remove("lift");
-      lifted = false;
-      suppress = true;
-      toggleFav(id);
-    }, 2000);
+      favArmed = true;
+      favTimer = null;
+    }, FS_HOLD_MS);
   });
   el.addEventListener("pointermove", e => {
     if (!down) return;
     const dx = e.clientX - x0, dy = e.clientY - y0;
     if (!lifted) {
+      /* 10 px, and it is the same 10 px the register rows use. A palette and
+         a tab strip are scrolling surfaces before they are gesture targets. */
       if (Math.hypot(dx, dy) > 10) {
         clearTimeout(liftTimer); clearTimeout(favTimer);
         moved2 = true;
-        paletteEl.scrollLeft -= (e.clientX - lastX);   // manual palette scroll
+        if (vertical) tabsEl.scrollTop -= (e.clientY - lastY);   // manual tab-strip scroll
+        else paletteEl.scrollLeft -= (e.clientX - lastX);        // manual palette scroll
         suppress = true;
       }
     } else {
       clearTimeout(favTimer);
-      el.style.transform = "translateX(" + dx + "px) scale(1.06)";
+      el.style.transform = vertical
+        ? "translateY(" + dy + "px) scale(1.06)"
+        : "translateX(" + dx + "px) scale(1.06)";
       moved2 = true;
       suppress = true;
     }
-    lastX = e.clientX;
+    lastX = e.clientX; lastY = e.clientY;
   });
   const finish = e => {
     if (!down) return;
     down = false;
     clearTimeout(liftTimer); clearTimeout(favTimer);
+    /* PASS 34 — release commits the armed favourite, and `!moved2` IS THE
+       WHOLE MECHANISM. It is the difference between "I held this to favourite
+       it" and "I picked this up to move it and paused on the way". Checked
+       before the reorder branch, and it returns, because a press can only
+       mean one of the two.
+
+       A `favArmed = false` was written into both pointermove branches as
+       well, on the reasoning that movement should disarm. mutate-p34 M3
+       deleted it and SURVIVED: once lifted, any move sets moved2, and before
+       the lift a move past 10 px clears favTimer so nothing ever arms. The
+       flag was doing nothing. Per this repo's standing rule — dead code kept
+       "just in case" is how the app ended up with two competing help systems
+       — it was deleted, and M3 was rewritten to attack `!moved2` instead,
+       which is the thing actually holding the feature up. This is the same
+       story as mutate-p33 M2 and the second `suppress` flag, one pass later. */
+    if (favArmed && !moved2) {
+      favArmed = false;
+      lifted = false;
+      el.classList.remove("lift");
+      el.style.transform = "";
+      suppress = true;
+      toggleFav(id);
+      return;
+    }
+    favArmed = false;
     if (lifted) {
       el.classList.remove("lift");
       el.style.transform = "";
-      if (moved2) commitReorder(id, e.clientX);
+      if (moved2) commit(id, vertical ? e.clientY : e.clientX);
       lifted = false;
     }
   };
@@ -3576,14 +3756,25 @@ function entriesForTab(tab) {
     return ids.map(id => ({ kind:"tool", t:MODIFY_TOOLS.find(m => m.id === id) })).filter(e => e.t);
   }
   if (tab === "tools") {
-    const out = TOOLS_TAB.filter(t => typeof fsModOn !== "function" || fsModOn("wsTools." + t.id)).map(t => ({ kind:"tool", t }));
-    TYPES.filter(t => t.tab === "tools").forEach(t => out.push({ kind:"sym", t }));
-    return out;
+    /* PASS 34 — THIS WAS BUG NUMBER TWO AND IT DID NOT LOOK LIKE BUG NUMBER
+       ONE. The gesture was always attached here and commitReorder always
+       WROTE the new order into tabOrder.tools. This branch was simply the one
+       branch in this function that never called applyOrder, so the order was
+       saved and never read back: the drag worked, and the tiles snapped home
+       on the next render. A fix aimed only at missing attach sites would have
+       left this exactly as broken and the suite would have been green. */
+    const avail = TOOLS_TAB.filter(t => typeof fsModOn !== "function" || fsModOn("wsTools." + t.id))
+                           .map(t => ({ kind:"tool", t }))
+                           .concat(TYPES.filter(t => t.tab === "tools").map(t => ({ kind:"sym", t })));
+    return orderEntries(avail, tab);
   }
-  const ids = applyOrder(TYPES.filter(t => t.tab === tab).map(t => t.id), tab);
-  const out = ids.map(id => ({ kind:"sym", t:TYPE_MAP[id] })).filter(e => e.t);
-  if (tab === "fire") out.push({ kind:"tool", t:VESDAR_TOOL });
-  return out;
+  /* PASS 34 — BUG NUMBER THREE, found on the way and smaller than the other
+     two. VESDAR used to be pushed on AFTER applyOrder had run, so that one
+     tile always landed last no matter where it was dropped — on the FIRE tab,
+     the tab held up as the one that WORKS. It joins the ordered set now. */
+  const base = TYPES.filter(t => t.tab === tab).map(t => ({ kind:"sym", t }));
+  if (tab === "fire") base.push({ kind:"tool", t:VESDAR_TOOL });
+  return orderEntries(base, tab);
 }
 
 
@@ -3604,7 +3795,12 @@ function buildViewsPanel() {
   note.style.cssText = "font-size:10.5px;color:#888;padding:4px 8px;max-width:120px;flex:0 0 auto;touch-action:pan-x";
   note.textContent = "Show / hide on screen only. Exports and reports are never affected.";
   paletteEl.appendChild(note);
-  viewsToggleDefs().forEach(tg => {
+  /* PASS 34 — BUG NUMBER ONE, and the only one the brief's diagnosis would
+     have caught. This is a SECOND tile render path and it never attached the
+     gesture at all, so the Views tab was the one tab where a symbol could not
+     be picked up. Reece: "everything should behave the same like that." */
+  orderEntries(viewsToggleDefs().map(tg => ({ t:{ id:tg.id }, tg })), "views")
+    .map(e => e.tg).forEach(tg => {
     const d = document.createElement("div");
     d.className = "pal" + (tg.get() ? " active" : "");
     d.id = "pal-" + tg.id;
@@ -3620,6 +3816,11 @@ function buildViewsPanel() {
     d.appendChild(cnt);
     d.style.touchAction = "pan-x";
     d.onclick = () => { const sl = paletteEl.scrollLeft; tg.set(!tg.get()); buildPalette(); paletteEl.scrollLeft = sl; draw(); };
+    /* NO FAVOURITE on a Views tile. toggleFav("vw_labels") would push it into
+       favIds, entriesForTab("fav") maps unknown ids to null and filters them
+       out, and the tile would silently disappear from the Views tab with no
+       way back. Lift and drag only. */
+    attachTileGestures(d, tg.id, { fav:false });
     paletteEl.appendChild(d);
   });
 }
@@ -4189,7 +4390,7 @@ function commitSwatchReorder(col, clientX) {
 }
 
 function attachSwatchGestures(el, col, isTemp) {
-  let liftTimer = null, favTimer = null, lifted = false, moved2 = false;
+  let liftTimer = null, favTimer = null, lifted = false, moved2 = false, favArmed = false;
   let down = false, x0 = 0, y0 = 0, suppress = false;
   el.addEventListener("click", e => {
     if (suppress) { suppress = false; e.stopImmediatePropagation(); e.preventDefault(); }
@@ -4200,23 +4401,15 @@ function attachSwatchGestures(el, col, isTemp) {
     x0 = e.clientX; y0 = e.clientY;
     lifted = false; moved2 = false;
     el.setPointerCapture(e.pointerId);
-    if (!isTemp) liftTimer = setTimeout(() => { lifted = true; el.classList.add("lift"); }, 500);
+    if (!isTemp) liftTimer = setTimeout(() => { lifted = true; el.classList.add("lift"); }, FS_TILE_LIFT_MS);
+    /* PASS 34 — armed here, committed in `finish`, disarmed by any movement.
+       Identical reasoning to attachTileGestures: at 500 vs 1500 a pause on
+       the way to a drag would otherwise DELETE a colour. */
     favTimer = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(40);
-      clearTimeout(liftTimer);
-      el.classList.remove("lift");
-      lifted = false;
-      suppress = true;
-      if (isTemp) {
-        if (!swColors.some(c2 => c2.toLowerCase() === col.toLowerCase())) { swColors.push(col); saveSwatches(); }
-        curCustom = null;
-        buildSwatches();
-      } else if (swColors.length > 2) {
-        swColors = swColors.filter(c2 => c2 !== col);
-        saveSwatches();
-        buildSwatches();
-      }
-    }, 2000);
+      favArmed = true;
+      favTimer = null;
+    }, FS_HOLD_MS);
   });
   el.addEventListener("pointermove", e => {
     if (!down) return;
@@ -4234,6 +4427,24 @@ function attachSwatchGestures(el, col, isTemp) {
     if (!down) return;
     down = false;
     clearTimeout(liftTimer); clearTimeout(favTimer);
+    if (favArmed && !moved2) {
+      favArmed = false;
+      lifted = false;
+      el.classList.remove("lift");
+      el.style.transform = "";
+      suppress = true;
+      if (isTemp) {
+        if (!swColors.some(c2 => c2.toLowerCase() === col.toLowerCase())) { swColors.push(col); saveSwatches(); }
+        curCustom = null;
+        buildSwatches();
+      } else if (swColors.length > 2) {
+        swColors = swColors.filter(c2 => c2 !== col);
+        saveSwatches();
+        buildSwatches();
+      }
+      return;
+    }
+    favArmed = false;
     if (lifted) {
       el.classList.remove("lift");
       el.style.transform = "";
@@ -11274,7 +11485,6 @@ document.getElementById("fsDashBtn").onclick = async () => {
 }));
 
 
-
 /* ===== Starter remedy-task libraries =========================================
    Names and rough times ONLY - no parts, no prices. Neither Reece nor Claude
    can verify a parts mapping, and a confident-looking wrong one would get
@@ -11433,7 +11643,6 @@ function fsTaskLibLoad(key) {
   return { added: added, skipped: skipped };
 }
 /* ===== end starter remedy-task libraries =================================== */
-
 
 
 /* ===== fsPick — one tappable list picker, used everywhere ===================
@@ -12073,7 +12282,6 @@ async function fsAcctExport(q) {
 /* ===== end accounting handoff UI ============================================ */
 
 
-
 /* ===== Service charges - completed visits ===================================
    A routine visit is worth money whether or not it finds a defect. Recording a
    test writes ONE charge line for that visit.
@@ -12580,8 +12788,6 @@ function fsBookRender() {
   };
 }
 /* ===== end pricebook ======================================================= */
-
-
 
 
 /* ===== AS 1851 defect classification + notification clock ====================
@@ -14016,14 +14222,20 @@ function fsClientFadeCol(c) {
    READ THIS BEFORE ADDING A FOURTH PRESS-AND-HOLD MEANING. There are now
    three, and they are deliberately NOT at three different durations:
 
-     500 ms   attachTileGestures liftTimer   pick a palette tile up to reorder
-     2000 ms  attachTileGestures favTimer    favourite a palette symbol
-     2000 ms  FS_ROW_HOLD_MS (here)          rename/delete a register row
+     500 ms   FS_TILE_LIFT_MS   pick a palette tile, a swatch or a TAB up
+     1500 ms  FS_HOLD_MS        favourite a symbol, add/remove a swatch,
+                                rename/delete a register row (here)
 
-   The two 2000 ms gestures share a number because they never share a screen.
-   That is a decision, not a collision. Changing one means changing both.
+   PASS 34: there were FOUR of these, not three — attachSwatchGestures was
+   missed when this table was written. Both 2000 ms values became 1500 ms on
+   device feedback and there is now ONE constant, so "changing one means
+   changing both" is enforced by the code instead of by this comment.
    ========================================================================== */
-const FS_ROW_HOLD_MS = 2000;
+/* PASS 34 — 2000 -> 1500, and it is now the SAME BINDING as the palette
+   hold rather than a second literal that happens to match. PASS-33-NOTES
+   said: if either 2000 ms ever moves, move both. The device said 2 s was too
+   long, so both moved, and now they cannot move apart. */
+const FS_ROW_HOLD_MS = FS_HOLD_MS;
 let fsRowEdit = false;
 let fsRowEditRender = null;
 
@@ -14129,13 +14341,13 @@ function fsRenderClients() {
          rather than hidden with CSS. A destructive control that is present but
          invisible is still reachable by a stray tap, by a screen reader and by
          a test that then proves nothing. */
-      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsCliRen" title="Rename client" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
+      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsCliRen" title="Rename client" style="color:var(--fs-sub2);cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid var(--fs-border);border-radius:8px;white-space:nowrap">Rename</a>' +
         /* PASS 28 item 2 — the bin was var(--fs-sub2), the same grey as the
            rename pencil next to it, at the same size. The confirm behind it is
            already strong (it names the client, itemises what goes, and makes
            you type the name), so the ONLY thing wrong was that the two
            controls looked identical. Colour is the fix; nothing else changes. */
-        '<a class="fsCliDel" title="Delete client" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '');
+        '<a class="fsCliDel" title="Delete client" style="color:#e5534b;cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid #e5534b;border-radius:8px;white-space:nowrap">Delete</a>' : '');
     /* PASS 33 — the ▶ chevron was removed here. Reece asked three times what
        it did; it was a signpost with no handler. Decided with this pass, as
        BACKLOG required, because the hold is what replaced the furniture it was
@@ -14262,8 +14474,8 @@ function fsRenderSites() {
        user still cannot restructure the register. */
     row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
       '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div>' +
-      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
-        '<a class="fsSiteDel" title="Delete site" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '');
+      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid var(--fs-border);border-radius:8px;white-space:nowrap">Rename</a>' +
+        '<a class="fsSiteDel" title="Delete site" style="color:#e5534b;cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid #e5534b;border-radius:8px;white-space:nowrap">Delete</a>' : '');
     /* PASS 33 — chevron removed; see the client row for the decision. */
     if (fsRowEdit) row.classList.add("fsWobble");
     if (fsWhoRole() !== "tech") fsAttachRowHold(row, () => fsRenderSites());
@@ -14484,10 +14696,10 @@ function fsRenderTab() {
         (openDefB ? '<div style="font-size:12px;color:#c62828">' + openDefB + ' open defect' + (openDefB > 1 ? 's' : '') + '</div>' : '') + '</div>' +
         /* PASS 33 — behind the hold, same as clients and sites. "clients/sites
            etc" was the ask and the buildings list carries the same furniture. */
-        (fsRowEdit ? '<a class="fsBldRen" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Rename building">&#9998;</a>' +
+        (fsRowEdit ? '<a class="fsBldRen" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid var(--fs-border);border-radius:8px;white-space:nowrap" title="Rename building">Rename</a>' +
         /* V0.14: the client's wastebasket, not a red ✕. ✕ is the universal "close this" glyph;
            using it for a destructive action is a mis-cue, and the red was compensating. */
-        '<a class="fsBldDel" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Delete building">&#128465;</a>' : '') +
+        '<a class="fsBldDel" data-i="' + bi + '" style="color:#e5534b;cursor:pointer;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid #e5534b;border-radius:8px;white-space:nowrap" title="Delete building">Delete</a>' : '') +
         '</div>';
     });
     html += '</div>';
@@ -17131,7 +17343,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v42";
+const FS_BUILD = "aa-v43";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -20397,243 +20609,6 @@ function fsEditorRender() {
   document.getElementById("fsEdClose").onclick = () => document.getElementById("fsEditorModal").classList.remove("show");
 }
 
-/* ================= SparkCommand - VENDOR ONLY =========================================
-   TEMPORARY HOME for the profile builder. When the standalone admin app exists, delete
-   the button injected in fsDashRender below and lift this whole block out. The client
-   editor above stays where it is and the profile file format does not change.
-   The passcode is set by the vendor on first use and hashed into this device's storage
-   only - nothing secret ships in the (public) repo. ===================================== */
-async function fsSparkGate() {
-  let stored = "";
-  try { stored = localStorage.getItem("fs-spark-pin") || ""; } catch (e) {}
-  if (!stored) {
-    if (!confirm("SparkCommand is the profile builder — the vendor-side tool.\n\nNo passcode is set on this device yet. Set one now?")) return false;
-    const p1 = await fsAskPass("Choose a SparkCommand passphrase", {
-      confirm: true, min: 8, okLabel: "Set passphrase",
-      note: "At least 8 characters. Stored on THIS device only — you will set it again on any other machine you build profiles from."
-    });
-    if (p1 === null) return false;
-    try { localStorage.setItem("fs-spark-pin", await fsPassMake(p1)); } catch (e) {}
-    alert("Passcode set ✓ — it is stored on this device only. You'll need to set it again on any other device you build profiles from.");
-    return true;
-  }
-  const p = await fsAskPass("SparkCommand passphrase", { okLabel: "Unlock", sub: "Vendor-side profile builder" });
-  if (p === null) return false;
-  if (!(await fsPassVerify(p, stored))) { alert("Wrong passphrase."); return false; }
-  try { if (fsPassIsLegacy(stored)) localStorage.setItem("fs-spark-pin", await fsPassMake(p)); } catch (e) {}
-  return true;
-}
-async function fsSparkOpen() { if (await fsSparkGate()) fsBuilderOpen(); }
-
-/* ================= Equipment + checklist editors (vendor side) =========================
-   These live INSIDE the builder because they define what a client is issued, not what a
-   client switches on. They sit above the builder in the stack (z 122 over its 121).
-   Builder state holds null until something is edited, so an untouched build keeps the
-   existing "inherit from the loaded profile" behaviour exactly. ========================= */
-function fsSubModal(id) {
-  let m = document.getElementById(id);
-  if (m) return m;
-  m = document.createElement("div");
-  m.className = "modal"; m.id = id; m.style.zIndex = "122";
-  m.innerHTML = '<div class="modalbox" style="max-width:600px;width:95vw;max-height:88vh;overflow-y:auto;text-align:left"><div id="' + id + 'Body"></div></div>';
-  document.body.appendChild(m);
-  return m;
-}
-function fsClone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
-
-/* ---------- equipment fields ---------- */
-function fsEqEditOpen() {
-  const st = fsBld;
-  if (!st.equipment) {
-    const base = (st._src && st._src.equipment) || (fsProfile && fsProfile.equipment) || FS_EQUIP_FIELDS;
-    st.equipment = fsClone(base).slice();
-  }
-  if (!st.equipmentItems) {
-    const base = (st._src && st._src.equipmentItems) || (fsProfile && fsProfile.equipmentItems) || FS_EQUIP_ITEMS;
-    st.equipmentItems = fsClone(base).slice();
-  }
-  fsSubModal("fsEqModal").classList.add("show");
-  fsEqEditRender();
-}
-function fsEqEditRender() {
-  const st = fsBld, body = document.getElementById("fsEqModalBody");
-  let h = '<h3 style="margin-bottom:4px">&#129520; Equipment fields</h3>';
-  h += '<div style="font-size:12px;color:#999;margin-bottom:12px">The rows that appear on every site\'s Site Equipment tab. ' +
-       'Tick <b>qty</b> where a field should take typed quantity lines like "2 &times; CO2 4.5kg".</div>';
-  h += '<div style="font-size:11.5px;color:#ffb74d;margin-bottom:10px">Renaming a field does not rename data already saved against the old name on existing sites.</div>';
-  st.equipment.forEach((f, i) => {
-    const isItem = st.equipmentItems.indexOf(f) >= 0;
-    h += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">' +
-      '<input data-eqname="' + i + '" value="' + fsEsc(f) + '" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:1px solid #444;background:#2e333a;color:#e8e8e8;font-size:13px">' +
-      '<label title="Typed quantity lines" style="display:flex;align-items:center;gap:3px;font-size:11.5px;cursor:pointer"><input type="checkbox" data-eqitem="' + i + '"' + (isItem ? " checked" : "") + '>qty</label>' +
-      '<button class="btn" data-equp="' + i + '" style="padding:3px 7px"' + (i ? '' : ' disabled') + '>&#9650;</button>' +
-      '<button class="btn" data-eqdn="' + i + '" style="padding:3px 7px"' + (i < st.equipment.length - 1 ? '' : ' disabled') + '>&#9660;</button>' +
-      '<button class="btn" data-eqdel="' + i + '" style="padding:3px 7px;color:#ff8a80">&#10005;</button></div>';
-  });
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-       '<button class="btn" id="fsEqAdd">&#65291; Add field</button>' +
-       '<button class="btn" id="fsEqReset">' + ((st.libs || []).length ? "Rebuild from libraries" : "Reset to standard list") + '</button>' +
-       '<span style="flex:1"></span><button class="btn" id="fsEqDone">Done</button></div>';
-  body.innerHTML = h;
-  const sync = () => {
-    body.querySelectorAll("[data-eqname]").forEach(inp => {
-      const i = +inp.dataset.eqname, old = st.equipment[i], nv = inp.value.trim();
-      if (nv && nv !== old) {
-        st.eqEdited = true;
-        const j = st.equipmentItems.indexOf(old);
-        st.equipment[i] = nv;
-        if (j >= 0) st.equipmentItems[j] = nv;
-      }
-    });
-  };
-  body.querySelectorAll("[data-eqname]").forEach(inp => inp.onchange = () => { sync(); fsEqEditRender(); });
-  body.querySelectorAll("[data-eqitem]").forEach(cb => cb.onchange = () => {
-    sync();
-    const f = st.equipment[+cb.dataset.eqitem], j = st.equipmentItems.indexOf(f);
-    if (cb.checked && j < 0) st.equipmentItems.push(f);
-    if (!cb.checked && j >= 0) st.equipmentItems.splice(j, 1);
-  });
-  body.querySelectorAll("[data-equp]").forEach(b => b.onclick = () => {
-    sync(); st.eqEdited = true; const i = +b.dataset.equp;
-    st.equipment.splice(i - 1, 0, st.equipment.splice(i, 1)[0]); fsEqEditRender();
-  });
-  body.querySelectorAll("[data-eqdn]").forEach(b => b.onclick = () => {
-    sync(); st.eqEdited = true; const i = +b.dataset.eqdn;
-    st.equipment.splice(i + 1, 0, st.equipment.splice(i, 1)[0]); fsEqEditRender();
-  });
-  body.querySelectorAll("[data-eqdel]").forEach(b => b.onclick = () => {
-    sync(); const i = +b.dataset.eqdel, f = st.equipment[i];
-    if (!confirm('Remove the "' + f + '" field?\n\nData already saved against it on existing sites stays in the register but stops being shown.')) return;
-    st.eqEdited = true;
-    st.equipment.splice(i, 1);
-    const j = st.equipmentItems.indexOf(f); if (j >= 0) st.equipmentItems.splice(j, 1);
-    fsEqEditRender();
-  });
-  document.getElementById("fsEqAdd").onclick = () => { sync(); st.eqEdited = true; st.equipment.push("New field"); fsEqEditRender(); };
-  document.getElementById("fsEqReset").onclick = () => {
-    if ((st.libs || []).length) {
-      if (!confirm("Rebuild the equipment list from the ticked libraries?\n\nHand edits will be discarded.")) return;
-      const mg = fsLibMerge(st.libs, st.libExtra);
-      st.equipment = mg.equipment; st.equipmentItems = mg.equipmentItems; st.eqEdited = false; fsEqEditRender(); return;
-    }
-    if (!confirm("Put the equipment list back to the standard set?")) return;
-    st.equipment = FS_EQUIP_FIELDS.slice(); st.equipmentItems = FS_EQUIP_ITEMS.slice(); st.eqEdited = false; fsEqEditRender();
-  };
-  document.getElementById("fsEqDone").onclick = () => {
-    sync();
-    document.getElementById("fsEqModal").classList.remove("show");
-    fsBuilderRender();
-  };
-}
-
-/* ---------- checklists ---------- */
-let fsCkMode = "";
-function fsCkEditOpen() {
-  const st = fsBld;
-  if (!st.checklists) {
-    const base = (st._src && st._src.checklists) || (fsProfile && fsProfile.checklists) || fsChecklists;
-    st.checklists = base && base.modes ? fsClone(base) : { app: "firespark-checklists", version: 1, modes: {} };
-  }
-  const ms = Object.keys(st.checklists.modes || {});
-  if (!fsCkMode || ms.indexOf(fsCkMode) < 0) fsCkMode = ms[0] || "";
-  fsSubModal("fsCkModal").classList.add("show");
-  fsCkEditRender();
-}
-function fsCkCount(md) { return (md && md.sections || []).reduce((a, s) => a + (s.items || []).length, 0); }
-function fsCkEditRender() {
-  const st = fsBld, body = document.getElementById("fsCkModalBody");
-  const cl = st.checklists;
-  const modes = Object.keys(cl.modes || {});
-  let h = '<h3 style="margin-bottom:4px">&#128203; Test checklists</h3>';
-  h += '<div style="font-size:12px;color:#999;margin-bottom:8px">What a tech ticks off during a test session. These are issued with the profile.</div>';
-  h += '<div style="font-size:11.5px;color:#ff8a80;margin-bottom:10px">These carry compliance meaning. Removing an item removes it from every future test on this profile — check the standard before cutting anything.</div>';
-  if (!modes.length) {
-    h += '<div style="font-size:13px;color:#999;margin-bottom:10px">No checklists in this profile yet.</div>';
-  } else {
-    h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">';
-    modes.forEach(m => {
-      const md = cl.modes[m];
-      h += '<button class="btn" data-ckmode="' + fsEsc(m) + '"' + (m === fsCkMode ? ' style="background:#2596ab;color:#fff"' : '') + '>' +
-           fsEsc(md.label || m) + ' <span style="opacity:.7">(' + fsCkCount(md) + ')</span></button>';
-    });
-    h += '</div>';
-  }
-  const md = cl.modes[fsCkMode];
-  if (md) {
-    h += '<div style="font-size:11.5px;color:#888;margin-bottom:8px">' + fsEsc(md.ref || "") + '</div>';
-    (md.sections || []).forEach((sec, si) => {
-      h += '<div style="border:1px solid #3a4047;border-radius:8px;padding:9px;margin-bottom:9px">';
-      h += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:7px">' +
-        '<input data-cksec="' + si + '" value="' + fsEsc(sec.title || "") + '" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:1px solid #444;background:#2e333a;color:#e8e8e8;font-size:13px;font-weight:700">' +
-        '<button class="btn" data-cksup="' + si + '" style="padding:3px 7px"' + (si ? '' : ' disabled') + '>&#9650;</button>' +
-        '<button class="btn" data-cksdn="' + si + '" style="padding:3px 7px"' + (si < md.sections.length - 1 ? '' : ' disabled') + '>&#9660;</button>' +
-        '<button class="btn" data-cksdel="' + si + '" style="padding:3px 7px;color:#ff8a80">&#10005;</button></div>';
-      (sec.items || []).forEach((it, ii) => {
-        h += '<div style="display:flex;gap:4px;align-items:flex-start;margin-bottom:4px">' +
-          '<input data-ckk="' + si + '.' + ii + '" value="' + fsEsc(it.k || "") + '" style="width:62px;flex:none;padding:5px;border-radius:5px;border:1px solid #444;background:#262b31;color:#bbb;font-size:11.5px">' +
-          '<textarea data-ckt="' + si + '.' + ii + '" rows="2" style="flex:1;min-width:0;padding:5px 7px;border-radius:5px;border:1px solid #444;background:#262b31;color:#e8e8e8;font-size:12px;resize:vertical">' + fsEsc(it.t || "") + '</textarea>' +
-          '<button class="btn" data-ckidel="' + si + '.' + ii + '" style="padding:3px 6px;color:#ff8a80;flex:none">&#10005;</button></div>';
-      });
-      h += '<button class="btn" data-ckiadd="' + si + '" style="margin-top:4px">&#65291; Add item</button>';
-      h += '</div>';
-    });
-    h += '<button class="btn" id="fsCkSecAdd">&#65291; Add section</button>';
-  }
-  h += '<div class="row" style="margin-top:14px;gap:8px"><button class="btn" id="fsCkRevert">Revert to the loaded profile\'s</button>' +
-       '<span style="flex:1"></span><button class="btn" id="fsCkDone">Done</button></div>';
-  body.innerHTML = h;
-
-  const sync = () => {
-    const m2 = cl.modes[fsCkMode];
-    if (!m2) return;
-    body.querySelectorAll("[data-cksec]").forEach(i2 => { m2.sections[+i2.dataset.cksec].title = i2.value; });
-    body.querySelectorAll("[data-ckk]").forEach(i2 => {
-      const [a, b2] = i2.dataset.ckk.split("."); m2.sections[+a].items[+b2].k = i2.value;
-    });
-    body.querySelectorAll("[data-ckt]").forEach(i2 => {
-      const [a, b2] = i2.dataset.ckt.split("."); m2.sections[+a].items[+b2].t = i2.value;
-    });
-  };
-  body.querySelectorAll("[data-ckmode]").forEach(b => b.onclick = () => { sync(); fsCkMode = b.dataset.ckmode; fsCkEditRender(); });
-  body.querySelectorAll("[data-cksup]").forEach(b => b.onclick = () => {
-    sync(); const i = +b.dataset.cksup, s2 = cl.modes[fsCkMode].sections;
-    s2.splice(i - 1, 0, s2.splice(i, 1)[0]); fsCkEditRender();
-  });
-  body.querySelectorAll("[data-cksdn]").forEach(b => b.onclick = () => {
-    sync(); const i = +b.dataset.cksdn, s2 = cl.modes[fsCkMode].sections;
-    s2.splice(i + 1, 0, s2.splice(i, 1)[0]); fsCkEditRender();
-  });
-  body.querySelectorAll("[data-cksdel]").forEach(b => b.onclick = () => {
-    sync(); const i = +b.dataset.cksdel, s2 = cl.modes[fsCkMode].sections;
-    if (!confirm('Delete the section "' + (s2[i].title || "") + '" and its ' + (s2[i].items || []).length + ' items?')) return;
-    s2.splice(i, 1); fsCkEditRender();
-  });
-  body.querySelectorAll("[data-ckidel]").forEach(b => b.onclick = () => {
-    sync(); const [a, c] = b.dataset.ckidel.split(".");
-    const its = cl.modes[fsCkMode].sections[+a].items;
-    if (!confirm("Delete item " + (its[+c].k || "") + "?")) return;
-    its.splice(+c, 1); fsCkEditRender();
-  });
-  body.querySelectorAll("[data-ckiadd]").forEach(b => b.onclick = () => {
-    sync(); const sec = cl.modes[fsCkMode].sections[+b.dataset.ckiadd];
-    sec.items = sec.items || []; sec.items.push({ k: "", t: "" }); fsCkEditRender();
-  });
-  const sa = document.getElementById("fsCkSecAdd");
-  if (sa) sa.onclick = () => {
-    sync(); const m2 = cl.modes[fsCkMode];
-    m2.sections = m2.sections || []; m2.sections.push({ title: "New section", items: [] }); fsCkEditRender();
-  };
-  document.getElementById("fsCkRevert").onclick = () => {
-    if (!confirm("Throw away the checklist edits and go back to the loaded profile's?")) return;
-    st.checklists = null; fsCkEditOpen();
-  };
-  document.getElementById("fsCkDone").onclick = () => {
-    sync();
-    document.getElementById("fsCkModal").classList.remove("show");
-    fsBuilderRender();
-  };
-}
-/* ================= end SparkCommand block ============================================= */
 
 /* ---------- access gate (client-side trial gate — NOT licensing; bypassable by design) ---------- */
 function fsAccess() { return (fsProfile && fsProfile.access && typeof fsProfile.access === "object" && fsProfile.access.mode) ? fsProfile.access : null; }
@@ -21500,9 +21475,13 @@ try {
 /* ---------- profile builder (admin-gated, inside the Dashboard) ---------- */
 const FS_BLD_RES = [["battcalc", "Battery calculator"], ["timer", "Countdown timer"], ["meter", "Sound meter"],
                     ["annuals", "Annuals converter"], ["pa", "PA announcements"], ["qrlookup", "Scan QR tag"], ["library", "Library"]];
-/* ================= SparkCommand builder - VENDOR ONLY (part 2) ========================
-   Lifts out with part 1 when the standalone admin app exists. Do not put client-side
-   runtime code between these markers. */
+/* PASS 34 — HOISTED OUT OF THE SPARKCOMMAND BLOCK, WHICH WAS THEN DELETED.
+   This function is the shape of the module list, and the CLIENT-SIDE modules
+   editor calls it ("Turn parts of the app on or off for your company"). It
+   only ever lived inside the vendor block by accident of where it was first
+   written. A marker-to-marker excision of that block would have taken it and
+   broken a client-facing screen — test_p34 E2 renders that screen after the
+   cut for exactly this reason. */
 function fsBldGroups() {
   return [
     ["Test cycles", "cycles", [["monthly", "Monthly"], ["sixMonthly", "6 monthly"], ["annual", "Annual"], ["fiveYearly", "5 yearly"], ["fullFunction", "Full Function"]]],
@@ -21512,305 +21491,8 @@ function fsBldGroups() {
     ["Resources tools", "resTools", FS_BLD_RES]
   ];
 }
-let fsBld = null;
-function fsBldDefault() {
-  const m = {};
-  fsBldGroups().forEach(([, gk, items]) => items.forEach(([k]) => { m[(gk ? gk + "." : "") + k] = true; }));
-  const g = {};
-  fsBldGroups().forEach(([, gk, items]) => items.forEach(([k]) => { g[(gk ? gk + "." : "") + k] = true; }));
-  return { name: "", users: [], modules: m, grants: g, equipment: null, equipmentItems: null, checklists: null,
-           access: { mode: "none", start: "", expiry: "", user: "", pass: "", passHash: "", contact: "" }, incl: true };
-}
-/* users textarea <-> list. Format "Name, role" per line; role defaults to tech.
-   passHash/status survive a rename-free edit by lowercase name match. */
-function fsBldUsersText(users) {
-  return (users || []).map(u => u.name + (u.role && u.role !== "tech" ? ", " + u.role : "")).join("\n");
-}
-function fsBldUsersParse(txt, prev) {
-  const keep = {};
-  (prev || []).forEach(u => { if (u && u.name) keep[u.name.toLowerCase()] = u; });
-  const out = [];
-  String(txt || "").split("\n").forEach(ln => {
-    const parts = ln.split(",");
-    const name = (parts[0] || "").trim();
-    if (!name) return;
-    let role = (parts[1] || "").trim().toLowerCase();
-    if (!/^(admin|office|tech)$/.test(role)) role = "tech";
-    const old = keep[name.toLowerCase()] || {};
-    out.push({ name: name, role: role, passHash: old.passHash || "", status: old.status || "active" });
-  });
-  return out;
-}
-const FS_BLD_PRESETS = {
-  full: () => {},
-  service: st => { st.modules["sections.projects"] = false; },
-  projects: st => {
-    st.modules["sections.service"] = false;
-    ["cycles.monthly", "cycles.sixMonthly", "cycles.annual", "cycles.fiveYearly", "cycles.fullFunction", "planner", "dashboard"].forEach(k => st.modules[k] = false);
-  }
-};
-function fsBuilderModalEl() {
-  let m = document.getElementById("fsBuilderModal");
-  if (m) return m;
-  m = document.createElement("div");
-  m.className = "modal"; m.id = "fsBuilderModal"; m.style.zIndex = "121";
-  m.innerHTML = '<div class="modalbox" style="max-width:560px;width:95vw;max-height:86vh;overflow-y:auto;text-align:left"><div id="fsBldBody"></div></div>';
-  document.body.appendChild(m);
-  return m;
-}
-function fsBuilderOpen() {
-  fsBld = fsBld || fsBldDefault();
-  fsBuilderModalEl().classList.add("show");
-  fsBuilderRender();
-}
-function fsBuilderRender() {
-  const st = fsBld;
-  const body = document.getElementById("fsBldBody");
-  let h = '<h3 style="margin-bottom:2px">&#128736; Client profile builder</h3>';
-  h += '<div style="font-size:11.5px;color:#999;margin-bottom:10px">Builds a profile FILE for a client &mdash; nothing here changes THIS app. The login/expiry gate is client-side only: fine for trials, it is not real licensing.</div>';
-  h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:700">Preset:</span>';
-  [["full", "Full"], ["service", "Service only"], ["projects", "Projects only"]].forEach(([k, lbl]) => {
-    h += '<button class="btn" data-bldpre="' + k + '" style="padding:6px 12px;font-size:12.5px">' + lbl + '</button>';
-  });
-  h += '<span style="font-size:11px;color:#999">then tweak anything below</span></div>';
-  h += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;margin-bottom:3px">Client / company name</div><input id="fsBldName" style="width:100%;padding:9px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8" value="' + fsEsc(st.name).replace(/"/g, "&quot;") + '"></div>';
-  h += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;margin-bottom:3px">Users <span style="color:#999;font-weight:400">(one per line: Name, role &mdash; optional)</span></div>' +
-       '<textarea id="fsBldUsers" rows="3" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8;font-size:13px;resize:vertical" placeholder="e.g.&#10;J. Citizen, admin&#10;A. Nother, office&#10;B. Field">' + fsEsc(fsBldUsersText(st.users)) + '</textarea>' +
-       '<div style="font-size:11px;color:#999;margin-top:2px">Roles: <b>admin</b> (everything, manages users), <b>office</b> (dashboard, quotes, pricebook), <b>tech</b> (field work &mdash; the default). Each device asks "who is using this device?" and stamps that name on saves, tests and defects. The client\'s admin can edit users and set passwords later on their dashboard. Soft enforcement &mdash; real accounts come with the backend.</div></div>';
-  fsBldGroups().forEach(([title, gk, items], gi) => {
-    h += '<div style="font-size:12px;font-weight:700;color:#7ddb8f;margin:10px 0 5px">' + title.toUpperCase() + '</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px">';
-    items.forEach(([k, lbl]) => {
-      const path = (gk ? gk + "." : "") + k;
-      const gOn = st.grants ? st.grants[path] !== false : true;
-      h += '<div style="display:flex;align-items:center;gap:5px;font-size:12.5px">' +
-           '<label title="Give this to the client at all. Unticked = they never see it." style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" data-bldgrant="' + path + '"' + (gOn ? " checked" : "") + '><span style="color:#7ddb8f">give</span></label>' +
-           '<label title="On by default. They can change this in their own editor." style="display:flex;align-items:center;gap:4px;cursor:pointer;' + (gOn ? '' : 'opacity:.35;pointer-events:none') + '"><input type="checkbox" data-bldmod="' + path + '"' + (st.modules[path] !== false ? " checked" : "") + '><span style="color:#888">on</span></label>' +
-           '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(lbl) + '</span></div>';
-    });
-    h += '</div>';
-  });
-  const a = st.access;
-  h += '<div style="font-size:12px;font-weight:700;color:#7ddb8f;margin:12px 0 5px">ACCESS</div>';
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><select id="fsBldMode" style="padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
-    [["none", "No gate (open)"], ["trial", "Trial"], ["subscription", "Subscription"], ["perpetual", "Perpetual"]].map(([k, l]) => '<option value="' + k + '"' + (a.mode === k ? " selected" : "") + '>' + l + '</option>').join("") + '</select>';
-  if (a.mode === "trial") h += '<button class="btn" id="fsBld7" style="padding:6px 10px;font-size:12px">7 days</button><button class="btn" id="fsBld14" style="padding:6px 10px;font-size:12px">14 days</button>';
-  h += '</div>';
-  if (a.mode !== "none") {
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
-    h += '<div><div style="font-size:11px;color:#999">Start</div><input type="date" id="fsBldStart" value="' + fsEsc(a.start) + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"></div>';
-    h += '<div><div style="font-size:11px;color:#999">Expiry ' + (a.mode === "perpetual" ? "(leave blank)" : "") + '</div><input type="date" id="fsBldExp" value="' + fsEsc(a.expiry) + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"></div>';
-    h += '<div><div style="font-size:11px;color:#999">Login business name</div><input id="fsBldUser" value="' + fsEsc(a.user).replace(/"/g, "&quot;") + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"></div>';
-    h += '<div><div style="font-size:11px;color:#999">Password ' + (a.passHash ? "(blank = keep current)" : "") + '</div><input id="fsBldPass" value="' + fsEsc(a.pass).replace(/"/g, "&quot;") + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"></div>';
-    h += '</div><div style="margin-bottom:8px"><div style="font-size:11px;color:#999">Contact line shown on the lockout screen</div><input id="fsBldContact" value="' + fsEsc(a.contact).replace(/"/g, "&quot;") + '" placeholder="e.g. Call Reece on 04xx xxx xxx to keep going" style="width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"></div>';
-  }
-  h += '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin:8px 0;cursor:pointer"><input type="checkbox" id="fsBldIncl"' + (st.incl ? " checked" : "") + '> Include the currently loaded profile’s equipment fields &amp; checklists' + (fsProfile ? "" : " (no profile loaded — defaults will apply)") + '</label>';
-  h += '<div style="font-size:12px;font-weight:700;color:#7ddb8f;margin:12px 0 3px">EQUIPMENT LIBRARIES</div>';
-  h += '<div style="font-size:11.5px;color:#999;margin-bottom:6px">Tick the disciplines this client works in. Fields shared by two libraries (Exit lights, Emergency lights, Other equipment) collapse to one row. Leave all unticked to inherit the loaded profile exactly as before.</div>';
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 10px;margin-bottom:6px">';
-  FS_EQUIP_LIBS.concat(st.libExtra || []).forEach(lib => {
-    const on = (st.libs || []).indexOf(lib.key) >= 0;
-    h += '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;cursor:pointer"><input type="checkbox" data-bldlib="' + fsEsc(lib.key) + '"' + (on ? " checked" : "") + '>' +
-         '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(lib.label) + (lib.custom ? ' <span style="color:#7ddb8f">(loaded)</span>' : '') + '</span>' +
-         '<span style="color:#777;font-size:11px">' + (lib.fields || []).length + '</span></label>';
-  });
-  h += '</div>';
-  if ((st.libs || []).length) {
-    const mg = fsLibMerge(st.libs, st.libExtra);
-    h += '<div style="font-size:11.5px;color:#7ddb8f;margin-bottom:6px">' + mg.equipment.length + ' fields after merge \u00b7 ' + mg.equipmentItems.length + ' with typed quantities</div>';
-  }
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' +
-       '<button class="btn" id="fsBldLibLoad" style="font-size:12.5px">&#128194; Load a library file&hellip;</button>' +
-       '<button class="btn" id="fsBldEqBtn">&#129520; Equipment fields' + (st.equipment ? ' <span style="color:#7ddb8f">(' + st.equipment.length + (st.eqEdited ? ' — edited' : ' — from libraries') + ')</span>' : '') + '</button>' +
-       '<button class="btn" id="fsBldCkBtn">&#128203; Checklists' + (st.checklists ? ' <span style="color:#7ddb8f">(edited)</span>' : '') + '</button></div>';
-  h += '<input type="file" id="fsBldLibFile" accept=".json,application/json" style="display:none">';
-  h += '<div class="row" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="fsBldLoad">&#128194; Load profile to edit</button><span style="flex:1"></span><button class="btn" id="fsBldClose">Close</button><button class="btn" id="fsBldExport" style="background:#1b8a3f;border-color:#1b8a3f;color:#fff;font-weight:700">&#128190; Export profile file</button></div>';
-  h += '<input type="file" id="fsBldFile" accept=".json,application/json" style="display:none">';
-  body.innerHTML = h;
 
-  /* wiring */
-  body.querySelectorAll("[data-bldlib]").forEach(cb => cb.onchange = () => {
-    syncTop();
-    const key = cb.dataset.bldlib;
-    st.libs = st.libs || [];
-    const i = st.libs.indexOf(key);
-    if (st.eqEdited && !confirm("Changing the libraries rebuilds the equipment list from the ticked libraries.\n\nYour hand edits to that list will be discarded.\n\nContinue?")) {
-      fsBuilderRender(); return;
-    }
-    if (cb.checked && i < 0) st.libs.push(key);
-    if (!cb.checked && i >= 0) st.libs.splice(i, 1);
-    if (st.libs.length) {
-      const mg = fsLibMerge(st.libs, st.libExtra);
-      st.equipment = mg.equipment; st.equipmentItems = mg.equipmentItems;
-    } else {
-      st.equipment = null; st.equipmentItems = null;   /* back to inheriting the loaded profile */
-    }
-    st.eqEdited = false;
-    fsBuilderRender();
-  });
-  const libLoad = document.getElementById("fsBldLibLoad");
-  if (libLoad) libLoad.onclick = () => { syncTop(); document.getElementById("fsBldLibFile").click(); };
-  const libFile = document.getElementById("fsBldLibFile");
-  if (libFile) libFile.onchange = e => {
-    const f = (e.target.files || [])[0];
-    e.target.value = "";
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      let obj = null;
-      try { obj = JSON.parse(r.result); } catch (err) { alert("Couldn't read that file."); return; }
-      if (obj && obj.app === "firespark-profile") { alert("That's a company PROFILE file, not an equipment library.\n\nUse \ud83d\udcc2 Load profile to edit instead."); return; }
-      if (obj && (obj.app === "firespark-register" || obj.app === "firespark-bundle" || obj.clients)) { alert("That's a REGISTER file, not an equipment library."); return; }
-      const lib = fsLibFromFile(obj);
-      if (!lib) { alert("That doesn't look like an Arc Adapt equipment library file.\n\nIt needs \"app\": \"" + FS_LIB_APP + "\" and an \"equipment\" list of field names."); return; }
-      st.libExtra = (st.libExtra || []).filter(x => x.key !== lib.key);
-      st.libExtra.push(lib);
-      st.libs = st.libs || [];
-      if (st.libs.indexOf(lib.key) < 0) st.libs.push(lib.key);
-      const mg = fsLibMerge(st.libs, st.libExtra);
-      st.equipment = mg.equipment; st.equipmentItems = mg.equipmentItems; st.eqEdited = false;
-      fsBuilderRender();
-      alert("Library loaded \u2713 \u2014 " + lib.label + " (" + lib.fields.length + " fields).");
-    };
-    r.readAsText(f);
-  };
-  const eqb = document.getElementById("fsBldEqBtn");
-  if (eqb) eqb.onclick = () => { syncTop(); fsEqEditOpen(); };
-  const ckb = document.getElementById("fsBldCkBtn");
-  if (ckb) ckb.onclick = () => { syncTop(); fsCkEditOpen(); };
-  body.querySelectorAll("[data-bldgrant]").forEach(cb => cb.onchange = () => {
-    syncTop();   /* ACFIX-1: was missing — a give-tick toggle wiped the typed name/users/access */
-    st.grants = st.grants || {};
-    st.grants[cb.dataset.bldgrant] = cb.checked;
-    fsBuilderRender();
-  });
-  body.querySelectorAll("[data-bldpre]").forEach(b => b.onclick = () => {
-    fsBld = fsBldDefault();
-    fsBld.name = document.getElementById("fsBldName").value;
-    const uPre = document.getElementById("fsBldUsers");
-    fsBld.users = uPre ? fsBldUsersParse(uPre.value, st.users) : [];
-    fsBld.access = st.access;
-    fsBld.incl = document.getElementById("fsBldIncl").checked;
-    (FS_BLD_PRESETS[b.dataset.bldpre] || (() => {}))(fsBld);
-    fsBuilderRender();
-  });
-  const syncTop = () => {
-    st.name = document.getElementById("fsBldName").value;
-    const uEl = document.getElementById("fsBldUsers");
-    if (uEl) st.users = fsBldUsersParse(uEl.value, st.users);
-    st.incl = document.getElementById("fsBldIncl").checked;
-    body.querySelectorAll("[data-bldmod]").forEach(cb => { st.modules[cb.dataset.bldmod] = cb.checked; });
-    const gm = document.getElementById("fsBldMode");
-    if (gm) st.access.mode = gm.value;
-    ["Start", "Exp", "User", "Pass", "Contact"].forEach(f => {
-      const el = document.getElementById("fsBld" + f);
-      if (el) st.access[{ Start: "start", Exp: "expiry", User: "user", Pass: "pass", Contact: "contact" }[f]] = el.value;
-    });
-  };
-  document.getElementById("fsBldMode").onchange = () => { syncTop(); fsBuilderRender(); };
-  const d7 = document.getElementById("fsBld7"), d14 = document.getElementById("fsBld14");
-  const setDays = n => {
-    syncTop();
-    const t = new Date(); st.access.start = t.toISOString().slice(0, 10);
-    t.setDate(t.getDate() + n); st.access.expiry = t.toISOString().slice(0, 10);
-    fsBuilderRender();
-  };
-  if (d7) d7.onclick = () => setDays(7);
-  if (d14) d14.onclick = () => setDays(14);
-  document.getElementById("fsBldClose").onclick = () => { syncTop(); document.getElementById("fsBuilderModal").classList.remove("show"); };
-  document.getElementById("fsBldLoad").onclick = () => document.getElementById("fsBldFile").click();
-  document.getElementById("fsBldFile").onchange = e => {
-    const f = (e.target.files || [])[0];
-    e.target.value = "";
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const obj = JSON.parse(r.result);
-        if (!obj || obj.app !== "firespark-profile") { alert("That isn't an Arc Adapt profile file."); return; }
-        const st2 = fsBldDefault();
-        st2.equipment = null; st2.equipmentItems = null; st2.checklists = null;   /* start from the file, not the last edit */
-        st2.libs = Array.isArray(obj.libraries) ? obj.libraries.slice() : []; st2.libExtra = []; st2.eqEdited = false;
-        if (st2.libs.length) {
-          const mg0 = fsLibMerge(st2.libs, null);
-          if (mg0.equipment.length) { st2.equipment = mg0.equipment; st2.equipmentItems = mg0.equipmentItems; }
-        }
-        st2.name = (obj.company && obj.company.name) || "";
-        st2.users = Array.isArray(obj.users)
-          ? obj.users.map(u => ({ name: String((u && u.name) || "").trim(), role: (u && /^(admin|office|tech)$/.test(u.role)) ? u.role : "tech", passHash: (u && u.passHash) || "", status: (u && u.status) === "disabled" ? "disabled" : "active" })).filter(u => u.name)
-          : (Array.isArray(obj.techs) ? obj.techs.map(s => ({ name: String(s || "").trim(), role: "tech", passHash: "", status: "active" })).filter(u => u.name) : []);
-        if (obj.modules) {
-          const flat = (o, pre) => Object.entries(o).forEach(([k, v]) => {
-            if (v && typeof v === "object") flat(v, pre + k + ".");
-            else st2.modules[pre + k] = v !== false;
-          });
-          flat(obj.modules, "");
-        }
-        if (obj.grants) {   /* ACFIX-2: grants were dropped on load — re-export silently re-granted everything */
-          const flatG = (o, pre) => Object.entries(o).forEach(([k, v]) => {
-            if (v && typeof v === "object") flatG(v, pre + k + ".");
-            else st2.grants[pre + k] = v !== false;
-          });
-          flatG(obj.grants, "");
-        }
-        if (obj.access) st2.access = { mode: obj.access.mode || "none", start: obj.access.start || "", expiry: obj.access.expiry || "", user: obj.access.user || "", pass: "", passHash: obj.access.passHash || "", contact: obj.access.contact || "" };
-        st2._src = obj;
-        fsBld = st2;
-        fsBuilderRender();
-      } catch (err) { alert("Couldn't read that file."); }
-    };
-    r.readAsText(f);
-  };
-  document.getElementById("fsBldExport").onclick = async () => {
-    syncTop();
-    const name = st.name.trim();
-    if (!name) { alert("Give the profile a client / company name first."); return; }
-    const modules = { cycles: {}, sections: {}, wsTools: {}, resTools: {} };
-    Object.entries(st.modules).forEach(([path, v]) => {
-      const parts = path.split(".");
-      if (parts.length === 1) modules[parts[0]] = !!v;
-      else { modules[parts[0]] = modules[parts[0]] || {}; modules[parts[0]][parts[1]] = !!v; }
-    });
-    const src = st._src || {};
-    const base = st.incl && fsProfile ? fsProfile : (st.incl ? src : {});
-    const grants = {};
-    Object.entries(st.grants || {}).forEach(([path, v]) => {
-      const parts = path.split(".");
-      if (parts.length === 1) grants[parts[0]] = !!v;
-      else { grants[parts[0]] = grants[parts[0]] || {}; grants[parts[0]][parts[1]] = !!v; }
-    });
-    if (!st.incl && fsProfile && ((fsProfile.checklists && fsProfile.checklists.modes) || (fsProfile.equipment || []).length)) {
-      if (!confirm("WARNING — the equipment fields and test checklists box is UNTICKED.\n\nThe exported profile will contain NO equipment fields and NO checklists. Anyone loading it loses them.\n\nExport anyway?")) return;
-    }
-    const out = { app: "firespark-profile", version: 2, created: new Date().toISOString().slice(0, 10), company: { name: name }, modules: modules, grants: grants };
-    if ((st.users || []).length) {
-      /* a user list with no active admin locks the client out of managing users — promote the first */
-      if (!st.users.some(u => u.role === "admin" && u.status !== "disabled")) {
-        st.users[0].role = "admin";
-        alert("No admin in the user list — " + st.users[0].name + " (first listed) was made Admin so the client can manage their own users.");
-      }
-      out.users = st.users.map(u => ({ name: u.name, role: u.role, passHash: u.passHash || "", status: u.status || "active" }));
-    }
-    const eq = st.equipment || base.equipment;
-    const eqi = st.equipmentItems || base.equipmentItems;
-    const ckl = st.checklists || base.checklists;
-    if (st.libs && st.libs.length) out.libraries = st.libs.slice();
-    if (eq && eq.length) out.equipment = eq;
-    if (eqi && eqi.length) out.equipmentItems = eqi;
-    if (ckl && ckl.modes) out.checklists = ckl;
-    if (st.access.mode !== "none") {
-      const a = st.access;
-      let passHash = a.passHash || "";
-      if (a.pass) passHash = await fsPassMake(a.pass);   /* salted from V0.05 - the client's app must be V0.05+ */
-      if (a.user && !passHash) { alert("Set a password for the login (or clear the business name to skip the login gate)."); return; }
-      out.access = { mode: a.mode, start: a.start || "", expiry: a.expiry || "", user: a.user || "", passHash: passHash, contact: a.contact || "" };
-      if (a.mode === "trial" && !a.expiry) { alert("A trial needs an expiry date — use the 7 / 14 day buttons or pick one."); return; }
-    }
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "client";
-    deliverFile(new Blob([JSON.stringify(out)], { type: "application/json" }),
-      "arcadapt-profile-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json", "application/json");
-  };
-}
-/* ================= end SparkCommand block (part 2) ===================================== */
+
 try {
   const _fsDashRenderD = fsDashRender;
   fsDashRender = function () {
@@ -21818,8 +21500,19 @@ try {
     try {
       const wrap = document.getElementById("fsDashView");
       if (!wrap) return;
-      if (!document.getElementById("fsBuilderBtn")) {
+      /* PASS 34 — this used to test for the vendor profile-builder button,
+         which was doing double duty as "has the admin row been injected
+         yet". That button is gone (it lives in Arc Command now), so the
+         sentinel names the row itself. Guarding on a thing you are about to
+         delete is how a deletion turns into a render loop that multiplies
+         buttons on every dashboard paint.
+
+         The marker check in patch-p34.py forbids the old product name
+         anywhere in these bytes, and it caught THIS COMMENT on the first
+         run. That is the check doing its job, not a false positive. */
+      if (!document.getElementById("fsDashAdminRow")) {
         const row = document.createElement("div");
+        row.id = "fsDashAdminRow";
         row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px";
         const ed = document.createElement("button");
         ed.className = "fsbtn"; ed.id = "fsEditorBtn";
@@ -21834,13 +21527,6 @@ try {
         us.title = "Who can use this profile and what they can do (admin)";
         us.onclick = fsUsersOpen;
         row.appendChild(us);
-        /* SparkCommand: VENDOR ONLY, temporary. Remove this button when the admin app exists. */
-        const b = document.createElement("button");
-        b.className = "fsbtn"; b.id = "fsBuilderBtn";
-        b.innerHTML = "&#9889; SparkCommand";
-        b.title = "Profile builder (vendor)";
-        b.onclick = fsSparkOpen;
-        row.appendChild(b);
         wrap.insertBefore(row, wrap.children[1] || null);
       }
       /* role gating re-applied every render — Features and Users are admin tools */
