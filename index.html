@@ -188,7 +188,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.36 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.37 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -276,7 +276,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.36 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.37 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -582,12 +582,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
      are invisible on a touch screen, which is every device it runs on.
      aria-live so a screen reader announces it; pointer-events none so it can
      never swallow the tap that follows. -->
-<div id="fsTip" role="status" aria-live="polite"
-     style="display:none;position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
-            max-width:min(92vw,520px);z-index:400;pointer-events:none;
-            background:#11161a;color:#eef3f5;border:1px solid #3a464d;border-radius:10px;
-            padding:11px 15px;font-size:14.5px;line-height:1.35;
-            box-shadow:0 8px 26px rgba(0,0,0,.55)"></div>
+<!-- PASS 32 — the long-press help toast was removed at Reece's request; see BACKLOG -> CAPTURED. Desktop hover (#toolTip) still shows every title. -->
 
 <div class="modal" id="zonesModal">
   <div class="modalbox">
@@ -7455,115 +7450,25 @@ async function fsCamOpen(job) {
 })();
 
 /* ==========================================================================
-   PASS 28 item 1 — LONG-PRESS SHOWS THE HELP TEXT.
+   PASS 32 — THE LONG-PRESS HELP GESTURE WAS REMOVED HERE.
 
-   Reece asked whether someone with no knowledge of the app would fumble
-   through it. The single biggest reason they would: every explanation in this
-   app is a `title=` attribute, and tooltips do not exist on a touch screen.
-   ~130 strings, all correct, none of them reachable on an iPad.
+   Pass 28 added a one-second hold that read `title`/`aria-label` and showed a
+   toast, because tooltips do not exist on a touch screen. It worked, and Pass
+   29 widened it to ~30 icon controls that had no accessible name at all. Reece
+   then used it on an iPad for a day and scrapped it — see BACKLOG -> CAPTURED
+   for the decision and the full counter-argument he was given first. He also
+   wants the gesture for rename/delete, which it cannot be while it means two
+   things.
 
-   This is ~40 lines and it unlocks the lot at once — including any added
-   later, because it resolves the attribute at press time rather than binding
-   to a list. That is the whole design: one delegated listener, no registry to
-   keep in sync, nothing to forget.
+   NOTHING ABOUT THE HELP TEXT CHANGED. Every `title` and `aria-label` is still
+   in place, desktop hover still shows all of it through #toolTip, and the
+   harvester still preserves `aria-label` for screen readers. Only the touch
+   gesture is gone.
+
+   Do not reinstate this without Reece saying so, and do not add a third
+   press-and-hold meaning without reading the two that already exist
+   (hold-to-favourite on palette tiles, and the rename/delete hold).
    ========================================================================== */
-let fsTipTimer = null, fsTipFrom = null;
-
-/* The nearest ancestor carrying help text. aria-label is accepted as a
-   fallback so the two systems cannot disagree once item 5 adds them. */
-function fsTipFor(el) {
-  /* A press can land on a TEXT NODE inside a control, which has no .closest.
-     Climb to the element first. Caught by test_p28 A5 — the resolver returned
-     nothing for a child node, which is precisely the case a button with a
-     <span> inside it produces. */
-  if (el && el.nodeType === 3) el = el.parentElement;
-  if (!el || !el.closest) return "";
-  /* Never help on the plan. #cv is ONE element carrying every drawn object and
-     it already owns pan, pinch and the Pass 22 gestures; a toast mid-drag is
-     the V0.25 wedge with better manners.
-
-     THE TEST IS ON THE PRESSED ELEMENT, NOT ON THE RESOLVED ANCESTOR, and the
-     first version of this got it the wrong way round — it checked `hit`, which
-     is whatever ancestor carried the title. A wrapper ABOVE the canvas with a
-     title therefore sailed through and the plan started answering presses.
-     mutate-p28 M4 survived because the suite only asked whether #cv resolved
-     to nothing, which it did — for the wrong reason, since nothing above it
-     happened to have a title that day. One `title` on a container at any point
-     in the future would have switched it on silently. */
-  if (el.id === "cv" || el.closest("#cv")) return "";
-  const hit = el.closest("[title], [aria-label]");
-  if (!hit) return "";
-  const t = (hit.getAttribute("title") || hit.getAttribute("aria-label") || "").trim();
-  /* a one-word label is the control's own name — the user can already read it */
-  return t.length > 3 ? t : "";
-}
-
-function fsTipShow(msg) {
-  const el = document.getElementById("fsTip");
-  if (!el || !msg) return;
-  el.textContent = msg;
-  el.style.display = "block";
-  clearTimeout(fsTipTimer);
-  /* long enough to read a sentence standing on a ladder */
-  fsTipTimer = setTimeout(fsTipHide, 4200);
-}
-
-function fsTipHide() {
-  const el = document.getElementById("fsTip");
-  if (el) el.style.display = "none";
-  clearTimeout(fsTipTimer);
-  fsTipTimer = null;
-}
-
-(function () {
-  let press = null, sx = 0, sy = 0;
-  const CANCEL_PX = 10;      /* a drag on a list must not end in a toast */
-  /* 1000 ms, set by Reece 8 Aug 2026 after V0.32 went live: "I think the
-     long press should probably be one full second." He is the one wearing
-     gloves on a ladder and this is his call, not a number to re-tune from a
-     headless browser. 500 was a guess made without a device in hand. */
-  const HOLD_MS = 1000;
-
-  const down = e => {
-    /* Desktop already has a real tooltip on hover. Firing both means the same
-       sentence twice, which reads as a bug rather than as help. */
-    if (e.pointerType === "mouse") return;
-    /* PASS 29 — [data-tip] controls already have a working press-and-hold
-       toast from the older tooltip system (550 ms, #toolTip, the follow-up
-       click suppressed). Now that the harvester preserves aria-label,
-       fsTipFor resolves these controls too, and without this guard a hold
-       past 1 s would stack BOTH toasts. The older system keeps ownership —
-       that is the behaviour every deployed build has had on a device.
-       Unifying the two systems onto the 1 s hold is a device-in-hand
-       decision, recorded in BACKLOG, not made here. */
-    let fsTipEl = e.target;
-    if (fsTipEl && fsTipEl.nodeType === 3) fsTipEl = fsTipEl.parentElement;
-    if (fsTipEl && fsTipEl.closest && fsTipEl.closest("[data-tip]")) return;
-    const msg = fsTipFor(e.target);
-    if (!msg) return;
-    sx = e.clientX; sy = e.clientY;
-    fsTipFrom = e.target;
-    clearTimeout(press);
-    press = setTimeout(() => { press = null; fsTipShow(msg); }, HOLD_MS);
-  };
-  const move = e => {
-    if (press == null) return;
-    if (Math.abs(e.clientX - sx) > CANCEL_PX || Math.abs(e.clientY - sy) > CANCEL_PX) {
-      clearTimeout(press); press = null;
-    }
-  };
-  const up = () => { clearTimeout(press); press = null; };
-
-  /* capture phase: a control that stops propagation on its own pointerdown
-     (several do) would otherwise never reach this. */
-  document.addEventListener("pointerdown", down, true);
-  document.addEventListener("pointermove", move, true);
-  document.addEventListener("pointerup", up, true);
-  document.addEventListener("pointercancel", up, true);
-  /* any tap dismisses an open toast, so it never sits over the next thing */
-  document.addEventListener("click", fsTipHide, true);
-  window.addEventListener("scroll", fsTipHide, true);
-})();
 
 function fsOcrTrim(v) {
   return String(v == null ? "" : v)
@@ -8598,25 +8503,10 @@ document.getElementById("focusRedo").onclick = () => document.getElementById("bt
   document.addEventListener("pointerout", e => {
     if (e.pointerType === "mouse") { clearTimeout(hoverT); hideTip(); }
   });
-  document.addEventListener("pointerdown", e => {
-    if (e.pointerType === "mouse") return;
-    const el = e.target.closest && e.target.closest("[data-tip]");
-    if (!el) return;
-    clearTimeout(pressT);
-    pressT = setTimeout(() => {
-      suppress = el;
-      showTip(el);
-      if (navigator.vibrate) navigator.vibrate(10);
-    }, 550);
-  }, true);
-  function endPress() { clearTimeout(pressT); setTimeout(hideTip, 1300); }
-  document.addEventListener("pointerup", endPress, true);
-  document.addEventListener("pointercancel", endPress, true);
-  document.addEventListener("click", e => {
-    if (suppress && e.target.closest && e.target.closest("[data-tip]") === suppress) {
-      e.stopPropagation(); e.preventDefault(); suppress = null;
-    } else suppress = null;
-  }, true);
+  /* PASS 32 — the 550 ms press-and-hold path (with its vibrate and its
+     follow-up click suppression) was removed with the Pass 28 toast. Hover
+     above is untouched: a mouse user still gets every tip. `suppress` is gone
+     with the handlers that used it. */
 })();
 
 /* Revit-style two-letter hotkeys (PC keyboards) */
@@ -16594,6 +16484,20 @@ function fsLibIsUnfiled(f) {
 function fsLibIsPdf(f) {
   return /pdf/i.test((f && f.type) || "") || /\.pdf$/i.test((f && f.name) || "");
 }
+/* PASS 32 — base64 -> Blob with no await anywhere, so the caller keeps the
+   tap's user-activation. Returns "" rather than throwing on a malformed entry:
+   a library row that cannot open should not take the whole render with it. */
+function fsLibBlobUrl(f) {
+  try {
+    const src = (f && f.data) || "";
+    const comma = src.indexOf(",");
+    if (comma < 0) return "";
+    const bin = atob(src.slice(comma + 1));
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([buf], { type: (f.type || "application/octet-stream") }));
+  } catch (e) { return ""; }
+}
 function fsLibSize(f) {
   const b = ((f && f.data) || "").length * 0.75;
   if (b < 1048576) return Math.max(1, Math.round(b / 1024)) + " KB";
@@ -16641,26 +16545,42 @@ async function fsLibRender() {
       '<span style="flex:1;min-width:0">' +
       '<a class="fsLibOpen" data-i="' + r.i + '" style="color:#4fc3f7;cursor:pointer;font-size:13.5px">' + fsEsc(f.name) + '</a>' +
       '<br><span style="font-size:11px;color:#777">' + meta + '</span></span>' +
-      '<select class="fsLibCat" data-i="' + r.i + '" title="Which shelf this sits on" style="font-size:11.5px;padding:2px 4px">' +
-      FS_LIB_CATS.map(c => '<option value="' + c.id + '"' + (f.cat === c.id ? ' selected' : '') + '>' + fsEsc(c.label) + '</option>').join("") +
-      (fsLibIsUnfiled(f) ? '<option value="" selected>Unfiled</option>' : '') +
-      '</select>' +
+      /* PASS 32 — the picker is UNFILED-ONLY. Reece, on V0.36: "I dont see
+         why theres a need for that drop box on the right?" The tab you are
+         standing on when you add a file already sets its category, so a picker
+         on every row is a second way to do the same thing, permanently on
+         screen. An unfiled entry has no other way to be filed, and the control
+         disappears with the shelf once it is. */
+      (fsLibIsUnfiled(f)
+        ? '<select class="fsLibCat" data-i="' + r.i + '" title="Put this on a shelf" style="font-size:11.5px;padding:2px 4px">' +
+          '<option value="" selected>Unfiled</option>' +
+          FS_LIB_CATS.map(c => '<option value="' + c.id + '">' + fsEsc(c.label) + '</option>').join("") +
+          '</select>'
+        : '') +
       '<a class="fsLibDel" data-i="' + r.i + '" title="Remove from this device" style="color:#c62828;cursor:pointer;padding:2px 6px">&#10005;</a></div>';
   }).join("");
 
-  box.querySelectorAll(".fsLibOpen").forEach(a => a.onclick = async () => {
-    const f = (await fsLibGet())[+a.dataset.i];
+  box.querySelectorAll(".fsLibOpen").forEach(a => a.onclick = () => {
+    /* PASS 32 — EVERY LINE OF THIS RUNS INSIDE THE TAP, ON PURPOSE.
+       This used to await fsLibGet() and then fetch() the data URL before
+       calling window.open. iOS Safari only honours window.open while the tap's
+       user-activation is still live, and two async hops spend it: the popup
+       was blocked silently and the Library opened nothing on a device. Headless
+       Chrome does not enforce that rule, so the suite was green over a feature
+       that did not work. `list` is already in this closure from the render, and
+       fsLibBlobUrl decodes without awaiting. DO NOT reintroduce an await here.
+       test_p32 C2 asserts window.open lands during the synchronous dispatch. */
+    const f = list[+a.dataset.i];
     if (!f) return;
-    fetch(f.data).then(r => r.blob()).then(bl => {
-      const u = URL.createObjectURL(bl);
-      /* The app renders pdf and nothing else. Anything else is handed to the
-         device with a download attribute rather than opened into a blank tab
-         the user has to work out for themselves. */
-      if (fsLibIsPdf(f)) { window.open(u, "_blank"); return; }
-      const a2 = document.createElement("a");
-      a2.href = u; a2.download = f.name || "document";
-      document.body.appendChild(a2); a2.click(); a2.remove();
-    });
+    const u = fsLibBlobUrl(f);
+    if (!u) { alert("Couldn't open that file."); return; }
+    if (fsLibIsPdf(f)) { window.open(u, "_blank"); return; }
+    /* The app renders pdf and nothing else. Anything else is handed to the
+       device with a download attribute rather than opened into a blank tab the
+       user has to work out for themselves. */
+    const a2 = document.createElement("a");
+    a2.href = u; a2.download = f.name || "document";
+    document.body.appendChild(a2); a2.click(); a2.remove();
   });
   box.querySelectorAll(".fsLibCat").forEach(sel => sel.onchange = async () => {
     const list2 = await fsLibGet();
@@ -17068,7 +16988,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v40";
+const FS_BUILD = "aa-v41";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
