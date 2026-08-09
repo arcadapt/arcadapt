@@ -188,7 +188,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.34 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.35 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -276,7 +276,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.34 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.35 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -435,11 +435,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div id="thWrap" style="display:none">
       <label>Thermal type</label>
       <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8;margin-bottom:6px">
-        <label style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:17px;height:17px">Rate of rise</label>
+        <label title="Trips on a fast rise in temperature rather than at an exact figure — most thermal detectors are this type" style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:17px;height:17px">Rate of rise</label>
         <input type="text" id="dThRorV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
-        <label style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:17px;height:17px">Fixed</label>
+        <label title="Trips once the temperature reaches the set figure, no matter how slowly it climbs" style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:17px;height:17px">Fixed</label>
         <input type="text" id="dThFixV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
     </div>
@@ -764,7 +764,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <label style="margin-top:10px">What needs to be done about it</label>
     <input type="text" id="fsDfAction" autocomplete="off" placeholder="Optional — prefilled from the defect type">
 
-    <label style="margin-top:10px">AS 1851 section</label>
+    <label style="margin-top:10px" title="AS 1851 is the Australian Standard for routine servicing of fire protection systems — the section number says which rule the defect sits under. Leave it blank rather than guessing on a compliance record">AS 1851 section</label>
     <input type="text" id="fsDfClause" autocomplete="off" placeholder="Optional — the section this falls under">
 
     <div class="row" style="margin-top:12px">
@@ -899,7 +899,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   <div class="modalbox" style="max-width:470px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
     <h3 style="margin-bottom:10px">Resources</h3>
     <div style="font-weight:700;font-size:13px;color:#7ddb8f;margin-bottom:6px">TOOLS</div>
-    <button class="btn" id="fsResBatt" style="width:100%;text-align:left;margin-bottom:8px">&#128267; Battery calculator (AS 1851 App F)</button>
+    <button class="btn" id="fsResBatt" title="Works out standby battery sizes per Appendix F of AS 1851, the Australian Standard for servicing fire systems" style="width:100%;text-align:left;margin-bottom:8px">&#128267; Battery calculator (AS 1851 App F)</button>
     <button class="btn" id="fsResTimer" style="width:100%;text-align:left;margin-bottom:8px">&#9201; Emergency countdown timer</button>
     <button class="btn" id="fsResMeter" style="width:100%;text-align:left;margin-bottom:8px">&#127908; Sound meter (indicative &mdash; not calibrated)</button>
     <button class="btn" id="fsResAnnuals" style="width:100%;text-align:left;margin-bottom:8px">&#128203; Fire Alarm Annuals converter</button>
@@ -1267,19 +1267,19 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 /* ================= Symbol definitions ================= */
 const TYPES = [
   { id:"smoke",    tab:"fire", label:"Smoke",        glyph:"circle",   text:"S",     color:"#d81e05", dashed:false },
-  { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true  },
+  { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true,  full:"Conc Smoke — a smoke detector in a concealed space, such as a ceiling void" },
   { id:"thermal",  tab:"fire", label:"Thermal",      glyph:"circle",   text:"T",     color:"#1b8a3f", dashed:false },
-  { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true  },
-  { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000" },
-  { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000" },
-  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000" },
-  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000" },
+  { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true,  full:"Conc Thermal — a thermal detector in a concealed space, such as a ceiling void" },
+  { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000", full:"FIP — Fire Indicator Panel, the main fire alarm panel" },
+  { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000", full:"FDCIE — Fire Detection Control and Indicating Equipment, the newer standards' name for a fire panel" },
+  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
+  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
   { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00" },
   { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00" },
   { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200" },
-  { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575" },
-  { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000" },
-  { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2" },
+  { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575", full:"dBA — a sound level reading in decibels, marking where the reading was taken" },
+  { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000", full:"OWS — Occupant Warning System, the speakers and sounders that tell everyone to get out" },
+  { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2", full:"VESDA — Very Early Smoke Detection Apparatus, samples air through small pipes to catch smoke sooner" },
   { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a" },
   { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000" },
   /* PASS 24 item 7 — VAD, Visual Alarm Device. Reece called it a "visual alarm
@@ -1289,13 +1289,13 @@ const TYPES = [
      pink by default, and sound-wave arcs either side because a VAD sounds as
      well as flashes. Arc style only from refs/pass22-soundwave-ref-fire-bell
      .jpg — the bell symbol itself is not copied. */
-  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c" },
+  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
   { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
   { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f" },
   { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f" },
   { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f" },
   { id:"bglass",   tab:"exit", label:"Break Glass",  glyph:"bglass",   text:"",      color:"#1b8a3f" },
-  { id:"spitfire", tab:"exit", label:"Spitfire",     glyph:"spitfire", text:"",      color:"#1b8a3f" },
+  { id:"spitfire", tab:"exit", label:"Spitfire",     glyph:"spitfire", text:"",      color:"#1b8a3f", full:"Spitfire — the trade's name for the round surface-mounted emergency light" },
   { id:"db",       tab:"elec", label:"DB Board",     glyph:"db",       text:"",      color:"#111111" },
   { id:"batten",   tab:"elec", label:"Batten",       glyph:"batten",  text:"", color:"#111111" },
   { id:"embatten", tab:"elec", label:"Em. Batten",   glyph:"batten",  text:"", color:"#111111", em:true },
@@ -3622,7 +3622,14 @@ function buildPalette() {
     const d = document.createElement("div");
     d.className = "pal" + (activeTool === t.id ? " active" : "");
     d.id = "pal-" + t.id;
-    d.title = "Press & hold to add/remove from Favourites";
+    /* PASS 30 / audit item 6 — expand trade jargon on first use. The tile
+       label stays the word the trade uses (FIP, MCP, WIP...) because the
+       label is what lands on a plan and in a register; the expansion rides
+       the help machinery that already exists — native tooltip on desktop
+       hover, the Pass 28 one-second hold on touch (.pal is not harvested,
+       so its title survives boot) — and the field screen does not grow by a
+       pixel. `full` is the whole first sentence, per symbol, in TYPES. */
+    d.title = (t.full ? t.full + ". " : "") + "Press & hold to add/remove from Favourites";
     if (en.kind === "tool") {
       d.innerHTML = '<div class="sym">' + t.icon + '</div>';
     } else {
@@ -12457,7 +12464,7 @@ function fsBookRender() {
     if (!dts.length) {
       html += '<div style="background:#15181b;border:1px solid var(--fs-border);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--fs-sub)">' +
         '<b style="color:#e8e8e8">Nothing here yet.</b> Load the starter list and edit it. The class on each type is a <b>starting point</b> the technician confirms on the form, ' +
-        'and the AS 1851 section is deliberately left blank — fill it in yourself rather than trusting a guess on a compliance record.</div>';
+        'and the AS 1851 section — the clause in the Australian servicing standard this type falls under — is deliberately left blank: fill it in yourself rather than trusting a guess on a compliance record.</div>';
     }
     dts.forEach(t => {
       const c = fsDefCls(t.cls);
@@ -16273,7 +16280,7 @@ function fsRenderTest() {
   }
   if (fsSession.mode === "fiveYearly") {
     fsSession.ews5 = fsSession.ews5 || [];
-    html += '<div style="font-weight:700;font-size:14px;margin-top:10px">5 Yearly EWS records — per amp zone (E5.2–E5.4)</div>';
+    html += '<div style="font-weight:700;font-size:14px;margin-top:10px">5 Yearly EWS (emergency warning system) records — per amp zone (E5.2–E5.4)</div>';
     html += '<div style="font-size:12px;color:#999;margin:2px 0 6px">Intelligibility (CIS), Sound Pressure Level and impedance (Z) per amplifier zone. Red = recorded below reference, or Z changed by more than 15%.</div>';
     fsSession.ews5.forEach((r, i) => {
       const badS = r.rspl !== "" && r.mspl !== "" && !isNaN(+r.rspl) && !isNaN(+r.mspl) && (+r.mspl < +r.rspl);
@@ -16296,7 +16303,7 @@ function fsRenderTest() {
   if (fsSession.mode === "annual") {
     fsSession.spl = fsSession.spl || [];
     html += '<div style="font-weight:700;font-size:14px;margin-top:10px">OWS SPL table — Required vs Measured dBA</div>';
-    html += '<div style="font-size:12px;color:#999;margin:2px 0 6px">Amplifier reference SPL locations (item 3.10). Import pulls dBA symbols from the plan (E= reading as Measured). Use the Sound meter (Tools tab) or dBA symbol Details to measure.</div>';
+    html += '<div style="font-size:12px;color:#999;margin:2px 0 6px">Occupant warning system (OWS) sound levels — SPL is sound pressure level, in dBA, at the amplifier reference locations (item 3.10). Import pulls dBA symbols from the plan (E= reading as Measured). Use the Sound meter (Tools tab) or dBA symbol Details to measure.</div>';
     fsSession.spl.forEach((r, i) => {
       const bad = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas) && (+r.meas < +r.req);
       html += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center">' +
@@ -16959,7 +16966,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v38";
+const FS_BUILD = "aa-v39";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
