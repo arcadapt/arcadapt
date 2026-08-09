@@ -163,6 +163,20 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
   .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
+  /* PASS 33 — row edit mode. The rotation is small on purpose: 0.55deg reads
+     as "unsettled, temporary" at arm's length on an iPad without turning a
+     list of client names into something you cannot read. Even rows run half a
+     cycle out of phase so the list does not pulse in lockstep, which looks
+     like a rendering fault rather than a mode. */
+  @keyframes fsWob { 0% { transform:rotate(-0.55deg) } 50% { transform:rotate(0.55deg) } 100% { transform:rotate(-0.55deg) } }
+  .fsWobble { animation:fsWob .21s ease-in-out infinite; will-change:transform; }
+  .fsWobble:nth-child(even) { animation-delay:-.105s; }
+  #fsRowEditDone { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:9000;
+                   padding:11px 30px; font-size:15px; font-weight:700; box-shadow:0 6px 22px rgba(0,0,0,.35); }
+  /* An animation that cannot be turned off is an accessibility fault, and this
+     one runs until the user dismisses it. The controls still appear — only the
+     movement stops — so the feature is intact for anyone who needs stillness. */
+  @media (prefers-reduced-motion: reduce) { .fsWobble { animation:none; } }
   .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
   .fsbtn:active { opacity:.75; }
   .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
@@ -188,7 +202,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.37 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.38 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -276,7 +290,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.37 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.38 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -8932,6 +8946,12 @@ function fsProfileFromFile(obj) {
 }
 
 function fsShow(view) {
+  /* PASS 33 — a screen change always ends row edit mode, and does it by the
+     front door (fsRowEditOff re-renders the list you are leaving) rather than
+     by clearing the flag. Clearing it would leave a hidden list full of
+     .fsWobble rows to be found again on the way back. Nothing reachable from
+     fsRowEditOff calls fsShow, so this cannot recurse. */
+  if (typeof fsRowEditOff === "function") fsRowEditOff();
   ["fsImportView", "fsClientsView", "fsSitesView", "fsSiteView", "fsPlannerView", "fsDashView"].forEach(id =>
     document.getElementById(id).style.display = id === view ? "block" : "none");
 }
@@ -13988,6 +14008,110 @@ function fsClientFadeCol(c) {
   if (d >= 30) return fsLerpCol("#b58900", "#1b8a3f", (d - 30) / 30);
   return fsLerpCol("#c62828", "#b58900", d / 30);
 }
+/* ===================== PASS 33 — ROW EDIT MODE ============================
+   Hold a client, site or building row for two seconds: every row in that list
+   grows a rename pencil and a delete bin and wobbles, iOS-home-screen style.
+   Tap Done (or press Escape, or leave the screen) and they go away again.
+
+   READ THIS BEFORE ADDING A FOURTH PRESS-AND-HOLD MEANING. There are now
+   three, and they are deliberately NOT at three different durations:
+
+     500 ms   attachTileGestures liftTimer   pick a palette tile up to reorder
+     2000 ms  attachTileGestures favTimer    favourite a palette symbol
+     2000 ms  FS_ROW_HOLD_MS (here)          rename/delete a register row
+
+   The two 2000 ms gestures share a number because they never share a screen.
+   That is a decision, not a collision. Changing one means changing both.
+   ========================================================================== */
+const FS_ROW_HOLD_MS = 2000;
+let fsRowEdit = false;
+let fsRowEditRender = null;
+
+function fsRowEditBar(on) {
+  let el = document.getElementById("fsRowEditDone");
+  if (!on) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("button");
+  el.id = "fsRowEditDone";
+  el.className = "fsbtn";
+  el.type = "button";
+  el.textContent = "Done";
+  /* The only exit a touch user can SEE. Escape is a desktop courtesy and
+     leaving the screen is a side effect — neither is discoverable on an iPad,
+     so this pill is not optional furniture. */
+  el.onclick = fsRowEditOff;
+  document.body.appendChild(el);
+}
+function fsRowEditOn(render) {
+  if (fsRowEdit) return;
+  fsRowEdit = true;
+  if (render) fsRowEditRender = render;
+  if (fsRowEditRender) fsRowEditRender();
+  fsRowEditBar(true);
+}
+function fsRowEditOff() {
+  if (!fsRowEdit) return;
+  fsRowEdit = false;
+  const r = fsRowEditRender;
+  fsRowEditRender = null;
+  fsRowEditBar(false);
+  if (r) r();
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && fsRowEdit) fsRowEditOff(); });
+
+/* One helper for all three lists. `render` is passed as a thunk, never as a
+   bare function reference: fsRenderClients is REASSIGNED later in the file by
+   the projects module (`_fsRenderClientsD`), so a reference captured here at
+   definition time would call the un-wrapped original and silently drop the
+   Projects row out of the list every time edit mode toggled. */
+function fsAttachRowHold(row, render) {
+  let t = null, x0 = 0, y0 = 0;
+  const cancel = () => { if (t) { clearTimeout(t); t = null; } };
+  const isControl = e => !!(e.target && e.target.closest && e.target.closest("a,button,select,input,textarea"));
+  /* CAPTURE phase, and it must stay in capture: the row's own onclick is a
+     bubble-phase handler, so this is the only place that can get in front of
+     it. The isControl bail-out is load-bearing — without it this same listener
+     would also swallow the pencil and the bin, which are the point.
+
+     ONE FLAG DOES TWO JOBS HERE, AND THAT IS NOT AN OVERSIGHT. This has to
+     stop two different clicks: the lift that ENDS a successful hold (which
+     would otherwise open the client at the moment the wobble starts — Pass 32
+     deleted the app's only click suppressor and left this to us), and every
+     row-body tap while the mode is on. A separate `suppress` flag for the
+     first job was written and then deleted: `fsRowEditOn` sets `fsRowEdit`
+     synchronously inside the timeout, which fires BEFORE the user lifts, so
+     the mode is already on by the time that click is dispatched and this check
+     already covers it. mutate-p33 M2 defers the flag by one task and proves
+     the ordering is the thing doing the work. Do not add the second flag back
+     without breaking M2 first. */
+  row.addEventListener("click", e => {
+    if (isControl(e)) return;
+    if (fsRowEdit) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
+  row.addEventListener("pointerdown", e => {
+    if (isControl(e) || fsRowEdit) return;
+    x0 = e.clientX; y0 = e.clientY;
+    cancel();
+    t = setTimeout(() => {
+      t = null;
+      if (navigator.vibrate) { try { navigator.vibrate(35); } catch (err) {} }
+      fsRowEditOn(render);
+    }, FS_ROW_HOLD_MS);
+  });
+  /* A list is a scrolling surface first. 10 px matches attachTileGestures, so
+     the whole app agrees on what "held still" means. */
+  row.addEventListener("pointermove", e => {
+    if (!t) return;
+    if (Math.hypot(e.clientX - x0, e.clientY - y0) > 10) cancel();
+  });
+  row.addEventListener("pointerup", cancel);
+  row.addEventListener("pointercancel", cancel);
+  row.addEventListener("pointerleave", cancel);
+}
+
 function fsRenderClients() {
   const q = (document.getElementById("fsSearch").value || "").toLowerCase();
   const wrap = document.getElementById("fsClientList");
@@ -14001,14 +14125,25 @@ function fsRenderClients() {
     row.innerHTML = (fsFadeOn() ? '<span title="Closest test due across this client\'s sites" style="width:13px;height:13px;border-radius:50%;background:' + fsClientFadeCol(c) + ';flex:0 0 auto"></span>' : '') +
       '<div style="flex:1"><div style="font-size:16.5px;font-weight:700">' + fsEsc(c.name) +
       '</div><div style="font-size:12.5px;color:var(--fs-sub2)">' + (c.sites || []).length + ' sites</div></div>' +
-      (fsWhoRole() !== "tech" ? '<a class="fsCliRen" title="Rename client" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
+      /* PASS 33 — the pencil and the bin are NOT IN THE DOM outside edit mode,
+         rather than hidden with CSS. A destructive control that is present but
+         invisible is still reachable by a stray tap, by a screen reader and by
+         a test that then proves nothing. */
+      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsCliRen" title="Rename client" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
         /* PASS 28 item 2 — the bin was var(--fs-sub2), the same grey as the
            rename pencil next to it, at the same size. The confirm behind it is
            already strong (it names the client, itemises what goes, and makes
            you type the name), so the ONLY thing wrong was that the two
            controls looked identical. Colour is the fix; nothing else changes. */
-        '<a class="fsCliDel" title="Delete client" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '') +
-      '<div style="color:var(--fs-faint)">&#9654;</div>';
+        '<a class="fsCliDel" title="Delete client" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '');
+    /* PASS 33 — the ▶ chevron was removed here. Reece asked three times what
+       it did; it was a signpost with no handler. Decided with this pass, as
+       BACKLOG required, because the hold is what replaced the furniture it was
+       pointing at. It survives on the Projects entry and on job rows. */
+    if (fsRowEdit) row.classList.add("fsWobble");
+    /* A Field user cannot rename or delete anything, so the gesture would open
+       an empty mode and teach them the app is broken. No hold for tech. */
+    if (fsWhoRole() !== "tech") fsAttachRowHold(row, () => fsRenderClients());
     row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
     const ren = row.querySelector(".fsCliRen");
     if (ren) ren.onclick = ev => { ev.stopPropagation(); fsClientRename(c); };
@@ -14127,9 +14262,11 @@ function fsRenderSites() {
        user still cannot restructure the register. */
     row.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
       '<div style="flex:1;font-size:15.5px;font-weight:600">' + fsEsc(s.name) + '</div>' +
-      (fsWhoRole() !== "tech" ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
-        '<a class="fsSiteDel" title="Delete site" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '') +
-      '<div style="color:var(--fs-faint)">&#9654;</div>';
+      ((fsWhoRole() !== "tech" && fsRowEdit) ? '<a class="fsSiteRen" title="Rename site" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:6px 7px">&#9998;</a>' +
+        '<a class="fsSiteDel" title="Delete site" style="color:#e5534b;cursor:pointer;font-size:15px;padding:6px 7px">&#128465;</a>' : '');
+    /* PASS 33 — chevron removed; see the client row for the decision. */
+    if (fsRowEdit) row.classList.add("fsWobble");
+    if (fsWhoRole() !== "tech") fsAttachRowHold(row, () => fsRenderSites());
     row.onclick = () => { fsParentSite = null; fsSite = s; fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false; fsRenderSite(); fsShow("fsSiteView"); };
     const sren = row.querySelector(".fsSiteRen");
     if (sren) sren.onclick = ev => { ev.stopPropagation(); fsSiteRename(s); };
@@ -14341,15 +14478,17 @@ function fsRenderTab() {
     blds.forEach(b => {
       const bi = (s.buildings || []).indexOf(b);
       const openDefB = (b.defects || []).filter(d => !d.closed).length;
-      html += '<div class="fsBldRow" data-i="' + bi + '" style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--fs-border);padding:12px 0;cursor:pointer">' +
+      html += '<div class="fsBldRow' + (fsRowEdit ? ' fsWobble' : '') + '" data-i="' + bi + '" style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--fs-border);padding:12px 0;cursor:pointer">' +
         '<span style="width:12px;height:12px;border-radius:50%;background:' + fsSiteWorstDot(b) + ';flex:0 0 auto"></span>' +
         '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">' + fsEsc(b.name) + '</div>' +
         (openDefB ? '<div style="font-size:12px;color:#c62828">' + openDefB + ' open defect' + (openDefB > 1 ? 's' : '') + '</div>' : '') + '</div>' +
-        '<a class="fsBldRen" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Rename building">&#9998;</a>' +
+        /* PASS 33 — behind the hold, same as clients and sites. "clients/sites
+           etc" was the ask and the buildings list carries the same furniture. */
+        (fsRowEdit ? '<a class="fsBldRen" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Rename building">&#9998;</a>' +
         /* V0.14: the client's wastebasket, not a red ✕. ✕ is the universal "close this" glyph;
            using it for a destructive action is a mis-cue, and the red was compensating. */
-        '<a class="fsBldDel" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Delete building">&#128465;</a>' +
-        '<div style="color:var(--fs-faint)">&#9654;</div></div>';
+        '<a class="fsBldDel" data-i="' + bi + '" style="color:var(--fs-sub2);cursor:pointer;font-size:14px;padding:4px 7px" title="Delete building">&#128465;</a>' : '') +
+        '</div>';
     });
     html += '</div>';
   }
@@ -14671,6 +14810,10 @@ function fsRenderTab() {
       fsMarkDirty();
       fsRenderSite();
     });
+    /* PASS 33 — fsRenderTab both BUILDS this html and binds these handlers, so
+       the hold is re-attached on every tab render and never doubles up: the
+       rows are new elements each time. */
+    document.querySelectorAll(".fsBldRow").forEach(row => fsAttachRowHold(row, () => fsRenderTab()));
     document.querySelectorAll(".fsBldRow").forEach(row => row.onclick = () => {
       const b = (s.buildings || [])[+row.dataset.i];
       if (!b) return;
@@ -16988,7 +17131,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v41";
+const FS_BUILD = "aa-v42";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
