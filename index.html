@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.42 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.43 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.42 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.43 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -1097,6 +1097,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="wsSetVer"></b></span>
       <button class="btn" id="wsSetUpd">&#8635; Check for updates</button>
+    </div>
+    <div style="border-top:1px solid #3a4047;padding-top:10px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:2px">Tabs on the left strip</div>
+      <div style="font-size:11.5px;color:#888;margin-bottom:8px">Untick a trade you never work in and its tab goes, along with its symbols. Nothing is deleted &mdash; tick it back any time, and plans that already use those symbols still draw them.</div>
+      <div id="wsSetTabs" style="display:flex;flex-wrap:wrap;gap:6px 14px"></div>
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
@@ -3516,7 +3521,9 @@ function drawPalIcon(canvasEl, typeId) {
 const TAB_ICONS = { fav:"★", fire:"🔥", exit:"🏃", elec:"⚡", bldg:"🏠", markup:"✏️", modify:"🔧", tools:"🧰", views:"👁" };
 function buildTabs() {
   tabsEl.innerHTML = "";
-  orderedTabs().forEach(tb => {
+  /* PASS 38 — visibleTabs(), not orderedTabs(): a tab the user has turned off
+     in the settings cog is not built at all. */
+  visibleTabs().forEach(tb => {
     const d = document.createElement("div");
     d.className = "tab" + (tb.id === activeTab ? " active" : "");
     d.id = "tab-" + tb.id;
@@ -3624,6 +3631,65 @@ let tabsOrder = [];
 try { tabsOrder = JSON.parse(localStorage.getItem("bpm-taborder") || "[]") || []; } catch (e) { tabsOrder = []; }
 function saveTabsOrder() { try { localStorage.setItem("bpm-taborder", JSON.stringify(tabsOrder)); } catch (e) {} }
 
+/* ============ PASS 38 — WHICH TABS THIS DEVICE SHOWS ======================
+
+   Reece: "if you were a plumber and you're never going to want to use fire
+   detectors so you may want to turn off fire symbols and not have a tab on
+   the left for that."
+
+   PER DEVICE, in the settings cog, as checkboxes — his words when asked where
+   it should live. A company-profile version and a profile-default-with-
+   override version were both offered and both declined, so do not add them
+   later without asking him again.
+
+   Stored beside the favourites and the tab order, which is the company this
+   setting keeps: things the person holding the iPad chose for themselves. */
+const TABSOFF_KEY = "bpm-tabsoff";
+let tabsOff = {};
+try { tabsOff = JSON.parse(localStorage.getItem(TABSOFF_KEY) || "{}") || {}; } catch (e) { tabsOff = {}; }
+function saveTabsOff() { try { localStorage.setItem(TABSOFF_KEY, JSON.stringify(tabsOff)); } catch (e) {} }
+function tabHidden(id) { return !!tabsOff[id]; }
+
+/* GUARD 1 — the strip can never be emptied. An empty strip's only route back
+   is the same modal that emptied it, and "recoverable if you know where to
+   look" is not a defence. The floor is enforced HERE as well as in the
+   checkbox handler, because a corrupt or hand-edited localStorage value must
+   not be able to produce a workspace with no tabs. */
+function visibleTabs() {
+  const v = orderedTabs().filter(tb => !tabsOff[tb.id]);
+  return v.length ? v : orderedTabs().slice(0, 1);
+}
+
+/* A symbol's tab decides whether it is hidden. Tools are deliberately NOT
+   covered: a plumber turning off Fire should not lose the pen. */
+function typeTabHidden(typeId) {
+  const t = (typeof TYPE_MAP !== "undefined") ? TYPE_MAP[typeId] : null;
+  return !!(t && t.tab && tabsOff[t.tab]);
+}
+
+function setTabHidden(id, hidden) {
+  if (hidden) tabsOff[id] = true; else delete tabsOff[id];
+  saveTabsOff();
+  /* GUARD 2 — hiding the ACTIVE tab moves you off it. Otherwise the palette
+     goes on rendering a tab that is no longer in the strip, with nothing on
+     screen to say why. */
+  if (tabsOff[activeTab]) activeTab = visibleTabs()[0].id;
+  buildTabs();
+  buildPalette();
+}
+
+/* GUARD 3 — A REORDER MUST NOT DROP THE HIDDEN TABS OUT OF THE SAVED ORDER.
+   commitTabReorder rebuilds the order from the DOM and hidden tabs are not in
+   the DOM, so left alone it would quietly flush them to the end: tick a tab
+   back three weeks later and it has moved on its own, with the reorder that
+   did it long forgotten. Walk the OLD full order and hand each VISIBLE slot
+   the next id from the new sequence; hidden tabs keep the index they had. */
+function mergeHiddenOrder(newVisible) {
+  const full = orderedTabs().map(t => t.id);
+  let k = 0;
+  return full.map(id => (tabsOff[id] ? id : (k < newVisible.length ? newVisible[k++] : id)));
+}
+
 /* Sorts TABS; never renders FROM the saved list. So a saved id for a tab that
    no longer exists is ignored rather than rendering a ghost, and a tab added
    in a later version appears at the end instead of vanishing. */
@@ -3645,7 +3711,9 @@ function commitTabReorder(dragId, clientY) {
     if (clientY < r.top + r.height / 2) { insert = i; break; }
   }
   rest.splice(insert, 0, dragId);
-  tabsOrder = rest;
+  /* PASS 38 — `rest` came from the DOM, which holds only the VISIBLE tabs.
+     Assigning it straight to tabsOrder would drop every hidden tab. */
+  tabsOrder = mergeHiddenOrder(rest);
   saveTabsOrder();
   const st = tabsEl.scrollTop;
   buildTabs();
@@ -3856,7 +3924,12 @@ function entriesForTab(tab) {
                 MODIFY_TOOLS.find(mt => mt.id === id) || (id === "vesdar" ? VESDAR_TOOL : null);
       if (m && TOOLS_TAB.some(tt => tt.id === m.id) && typeof fsModOn === "function" && !fsModOn("wsTools." + m.id)) return null;
       return m ? { kind:"tool", t:m } : null;
-    }).filter(Boolean);
+    }).filter(Boolean).filter(en => !(en.kind === "sym" && tabsOff[en.t.tab]));
+    /* PASS 38 — a favourited symbol whose tab is switched off is HIDDEN, not
+       forgotten. favIds is never written to by this feature, so ticking the
+       tab back brings the favourite straight home. Turning Fire off and
+       leaving a fire detector sitting in Favourites would answer none of the
+       ask; deleting it would punish him for changing his mind. */
   }
   if (tab === "markup") {
     const ids = applyOrder(MARKUP_TOOLS.map(t => t.id), tab);
@@ -4297,8 +4370,38 @@ document.getElementById("btnWsSet").onclick = () => {
   const vb = document.getElementById("fsVerBadge");
   document.getElementById("wsSetVer").textContent = vb ? vb.textContent : "";
   document.getElementById("wsSetAutoT").textContent = wsLastAutoT ? "last ran " + new Date(wsLastAutoT).toLocaleTimeString() : "runs every 30 s while you work";
+  wsSetTabsRender();
   document.getElementById("wsSetModal").classList.add("show");
 };
+
+/* PASS 38 — the checkboxes. Rebuilt on every open so a tab reorder done since
+   the last open is reflected in the order they appear here: two lists of the
+   same tabs in different orders is a small thing that makes a settings screen
+   feel like it belongs to a different app. */
+function wsSetTabsRender() {
+  const wrap = document.getElementById("wsSetTabs");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  orderedTabs().forEach(tb => {
+    const lab = document.createElement("label");
+    lab.style.cssText = "display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;min-width:132px";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "wsSetTab-" + tb.id;
+    cb.checked = !tabsOff[tb.id];
+    cb.style.cssText = "width:16px;height:16px";
+    cb.onchange = () => {
+      /* GUARD 1 again, at the point of contact: the last visible tab refuses
+         to be unticked, and says nothing, because the tick springing back is
+         the clearest possible statement of the rule. */
+      if (!cb.checked && visibleTabs().length <= 1) { cb.checked = true; return; }
+      setTabHidden(tb.id, !cb.checked);
+    };
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(tb.id === "fav" ? "Favourites" : tb.label));
+    wrap.appendChild(lab);
+  });
+}
 document.getElementById("wsSetClose").onclick = () => document.getElementById("wsSetModal").classList.remove("show");
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
@@ -9126,7 +9229,7 @@ const FS_CYCLES = [
   { key:"lastFF",      label:"Full Function", months:12 }
 ];
 const FS_EQUIP_FIELDS = [
-  "Panel location", "Panel type", "Panel instructions", "Panel battery type / size", "Detectors", "EWIS location", "EWIS type",
+  "Panel location", "Panel type", "Panel instructions", "Panel battery type / size", "Panel battery installed", "Detectors", "EWIS location", "EWIS type",
   "OWS / speaker notes", "Fire extinguisher locations", "Fire extinguisher", "Fire doors", "Hose reel locations",
   "Hydrant / booster location", "Pump room location", "Sprinkler valve room",
   "Exit lights", "Emergency lights", "Gas suppression", "Other equipment"
@@ -9139,7 +9242,7 @@ const FS_EQUIP_FIELDS = [
    same order, same qty flags - so no existing site data can orphan. */
 const FS_EQUIP_LIBS = [
   { key:"fire", label:"Fire",
-    fields:["Panel location","Panel type","Panel battery type / size","Panel instructions","Detectors",
+    fields:["Panel location","Panel type","Panel battery type / size", "Panel battery installed","Panel instructions","Detectors",
       "EWIS location","EWIS type","OWS / speaker notes","Fire extinguisher locations","Fire extinguisher",
       "Fire doors","Hose reel locations","Hydrant / booster location","Pump room location","Sprinkler valve room",
       "Exit lights","Emergency lights","Gas suppression","Other equipment"],
@@ -17512,7 +17615,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v46";
+const FS_BUILD = "aa-v47";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
