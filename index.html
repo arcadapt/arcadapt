@@ -26,6 +26,38 @@
 button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: none; user-select: none;
                                                         -webkit-touch-callout: none; }
 .pal, .pal .lbl, .tab, .modebtn { -webkit-touch-callout: none; }
+/* PASS 36 — THE CALLOUT SUPPRESSION ABOVE WAS ALREADY HERE WHEN REECE HIT THE
+   MENU ON V0.40, AND IT WAS NEVER GOING TO HELP. The menu he photographed —
+   Copy / Look Up / Translate / Search Web — is the SELECTION EDIT menu, not
+   the touch callout. It exists because a selection exists. -webkit-touch-
+   callout governs the other menu (Open in New Tab / Copy Link / Add to
+   Photos) and has no authority over this one.
+
+   The tiles were already unselectable. THE SURFACES THEY SIT ON WERE NOT:
+   measured on clean V0.40, #palette, #sideTabs, #stage, #cv, #topbar and
+   #bottombar all computed `user-select: auto`. A thumb in the gap between
+   two tiles, or anywhere on the plan, started an ordinary text selection
+   that then followed the finger across the whole document — which is the
+   blue tint on the plan and the selection pin on the labels.
+
+   ONE RULE ON #app, NOT FIVE ON ITS CHILDREN. #app is exactly the workspace
+   and nothing else: every dialog, the detail panes, the camera frame and the
+   register sit outside it, so they keep normal selection. Five child
+   selectors would have left #midRow, #centerCol, #toolrow and #focusBar
+   padding selectable — holes between narrow selectors are how this survived
+   Pass 34 in the first place. */
+#app { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+/* ...and give it straight back to anything you type into. Nothing in #app is
+   a text field today; this is here so that adding one later cannot quietly
+   break it. */
+#app input, #app textarea, #app select, #app [contenteditable="true"] {
+  -webkit-user-select:text; user-select:text; }
+/* PASS 36 — touch-action IS NOT INHERITED. .pal and .tab set it to none; their
+   .lbl / .cnt / .ti / <canvas> children computed `auto`, and the child is what
+   a finger actually lands on — a tile is 34 px of canvas plus a label with
+   almost no bare tile left to hit. .swatch has NO CHILDREN, which is the whole
+   reason the identical gesture has felt clean on a swatch and cheap here. */
+.pal *, .tab * { touch-action: none; }
 
   html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
   #app { display:flex; flex-direction:column; height:100%; }
@@ -66,6 +98,22 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   #palette { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#31363d; border-bottom:1px solid #333; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:74px; }
   .pal { display:flex; flex-direction:column; align-items:center; gap:2px; border:2px solid transparent; background:#262a30; border-radius:10px; padding:5px 8px; cursor:pointer; min-width:58px; user-select:none; touch-action:none; flex:0 0 auto; }
   .pal.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
+  /* PASS 36 — THE 1.5 s FAVOURITE ARM HAD NO FEEDBACK ON AN iPAD AT ALL.
+     Its only signal was navigator.vibrate(40), and iOS Safari implements no
+     Vibration API — navigator.vibrate is undefined on every iPad ever made.
+     favArmed set no class and moved no pixel. Hold, nothing, lift, star.
+
+     It has to be DISTINCT from .lift, not merely present: .lift already fires
+     a full second earlier, at 500 ms, and looks the same whether the
+     favourite is armed or not. So the arm is AMBER — the favourite is a star,
+     the lift is cyan — and it wins the border because it is declared after.
+     Do not merge the two rules; telling them apart is the point. */
+  .pal.favarm, .tab.favarm, .swatch.favarm {
+    border-color:#ffc400 !important;
+    box-shadow:0 0 0 2px rgba(255,196,0,.35), 0 4px 16px rgba(255,196,0,.30) !important;
+    transform:scale(1.08);
+  }
+  .pal.favarm .lbl { color:#ffc400; }
   .pal.active { border-color:#ff5a3c; background:#3a2b27; }
   .pal canvas { width:34px; height:34px; }
   .pal .sym { width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px; }
@@ -230,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.40 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.41 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -318,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.40 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.41 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -3622,6 +3670,40 @@ const FS_HOLD_MS = 1500;
 
    The app already carried two near-identical copies of this gesture. A third
    for the tabs was not acceptable, so the axis became an option instead. */
+/* PASS 36 — THE SELECTION GUARD. CSS cannot do this part.
+
+   #app is unselectable now, so a selection cannot START on the workspace. Two
+   things remain that CSS has no answer for:
+
+     1. a selection that ALREADY EXISTS when the finger goes down — made in a
+        dialog, or on the register before the workspace opened — is still
+        painted, and still owns the edit menu, while you drag;
+     2. any surface nobody thought to name. The whole reason this bug survived
+        Pass 34 is that a list of selectors had gaps in it. A guard that is
+        not a list of selectors cannot have that gap.
+
+   So for the DURATION OF A GESTURE ONLY: collapse whatever is selected, and
+   refuse selectstart at the document in capture. Released in `finish`, which
+   also runs on pointercancel.
+
+   fsSelGuard is REFERENCE-COUNTED. Two fingers on two tiles is one gesture
+   each, and a naive boolean would have the first release re-enable selection
+   under the second finger. Counted, not flagged.
+
+   THE FAILURE MODE TO FEAR IS THE GUARD THAT NEVER LIFTS: the app would go
+   permanently unselectable everywhere and every reorder test would still
+   pass, because reordering does not care. test_p36 asserts selectstart is
+   NOT prevented once the gesture ends, on exactly that reasoning. */
+let fsSelGuard = 0;
+function fsSelBlock(e) { if (fsSelGuard > 0) e.preventDefault(); }
+document.addEventListener("selectstart", fsSelBlock, true);
+function fsSelGuardOn() {
+  fsSelGuard++;
+  const s = window.getSelection && window.getSelection();
+  if (s && !s.isCollapsed) { try { s.removeAllRanges(); } catch (err) {} }
+}
+function fsSelGuardOff() { if (fsSelGuard > 0) fsSelGuard--; }
+
 function attachTileGestures(el, id, opts) {
   const o = opts || {};
   const vertical = o.axis === "y";
@@ -3632,8 +3714,14 @@ function attachTileGestures(el, id, opts) {
   el.addEventListener("click", e => {
     if (suppress) { suppress = false; e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
+  /* PASS 36 — .swatch has had this since its own long-press bug (the C4
+     comment below); the palette and the tab strip never got it. Measured on
+     clean V0.40: defaultPrevented was False on .pal and .tab, True on
+     .swatch. A long press has to reach the 1.5 s arm, not a context menu. */
+  el.addEventListener("contextmenu", e => { e.preventDefault(); });
   el.addEventListener("pointerdown", e => {
     down = true; suppress = false;
+    fsSelGuardOn();
     x0 = e.clientX; y0 = e.clientY; lastX = e.clientX;
     lifted = false; moved2 = false;
     el.setPointerCapture(e.pointerId);
@@ -3668,7 +3756,11 @@ function attachTileGestures(el, id, opts) {
        finger instead of while it is still down. That is the cost, it is
        small, and it buys a gesture that cannot fire against your intent. */
     if (canFav) favTimer = setTimeout(() => {
+      /* PASS 36 — the class is the signal now. navigator.vibrate stays
+         because Android has it and it costs nothing, but it is undefined on
+         iOS Safari and was the ONLY feedback this gesture had. */
       if (navigator.vibrate) navigator.vibrate(40);
+      el.classList.add("favarm");
       favArmed = true;
       favTimer = null;
     }, FS_HOLD_MS);
@@ -3681,6 +3773,7 @@ function attachTileGestures(el, id, opts) {
          a tab strip are scrolling surfaces before they are gesture targets. */
       if (Math.hypot(dx, dy) > 10) {
         clearTimeout(liftTimer); clearTimeout(favTimer);
+        el.classList.remove("favarm");      /* PASS 36 — movement disarms, visibly */
         moved2 = true;
         if (vertical) tabsEl.scrollTop -= (e.clientY - lastY);   // manual tab-strip scroll
         else paletteEl.scrollLeft -= (e.clientX - lastX);        // manual palette scroll
@@ -3688,6 +3781,7 @@ function attachTileGestures(el, id, opts) {
       }
     } else {
       clearTimeout(favTimer);
+      el.classList.remove("favarm");        /* PASS 36 — a drag is not an arm */
       el.style.transform = vertical
         ? "translateY(" + dy + "px) scale(1.06)"
         : "translateX(" + dx + "px) scale(1.06)";
@@ -3699,6 +3793,7 @@ function attachTileGestures(el, id, opts) {
   const finish = e => {
     if (!down) return;
     down = false;
+    fsSelGuardOff();
     clearTimeout(liftTimer); clearTimeout(favTimer);
     /* PASS 34 — release commits the armed favourite, and `!moved2` IS THE
        WHOLE MECHANISM. It is the difference between "I held this to favourite
@@ -4398,6 +4493,7 @@ function attachSwatchGestures(el, col, isTemp) {
   el.addEventListener("contextmenu", e => { e.preventDefault(); });   /* C4: phone long-press must reach the 2s remove timer, not a context menu */
   el.addEventListener("pointerdown", e => {
     down = true; suppress = false;
+    fsSelGuardOn();
     x0 = e.clientX; y0 = e.clientY;
     lifted = false; moved2 = false;
     el.setPointerCapture(e.pointerId);
@@ -4407,6 +4503,7 @@ function attachSwatchGestures(el, col, isTemp) {
        the way to a drag would otherwise DELETE a colour. */
     favTimer = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(40);
+      el.classList.add("favarm");           /* PASS 36 — see the .favarm rule */
       favArmed = true;
       favTimer = null;
     }, FS_HOLD_MS);
@@ -4415,9 +4512,10 @@ function attachSwatchGestures(el, col, isTemp) {
     if (!down) return;
     const dx = e.clientX - x0, dy = e.clientY - y0;
     if (!lifted) {
-      if (Math.hypot(dx, dy) > 10) { clearTimeout(liftTimer); clearTimeout(favTimer); moved2 = true; suppress = true; }
+      if (Math.hypot(dx, dy) > 10) { clearTimeout(liftTimer); clearTimeout(favTimer); el.classList.remove("favarm"); moved2 = true; suppress = true; }
     } else {
       clearTimeout(favTimer);
+      el.classList.remove("favarm");
       el.style.transform = "translateX(" + dx + "px) scale(1.12)";
       moved2 = true;
       suppress = true;
@@ -4426,6 +4524,8 @@ function attachSwatchGestures(el, col, isTemp) {
   const finish = e => {
     if (!down) return;
     down = false;
+    fsSelGuardOff();
+    el.classList.remove("favarm");
     clearTimeout(liftTimer); clearTimeout(favTimer);
     if (favArmed && !moved2) {
       favArmed = false;
@@ -17343,7 +17443,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v44";
+const FS_BUILD = "aa-v45";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
