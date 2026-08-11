@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.43 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.44 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.43 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.44 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -5738,7 +5738,11 @@ function fsAutoKey() {
 let autosaveTimer = null;
 let autosaveDirty = false;
 function scheduleAutosave() { autosaveDirty = true; }
-async function autosaveNow() {
+/* PASS 39 [39-3] — `flush` means "the page is going away". The register write
+   below is debounced by 400 ms, and a dying page never runs the timer, so the
+   page-hide path has to ask for the immediate write explicitly. Called with no
+   argument by the 30-second interval, which SHOULD stay debounced. */
+async function autosaveNow(flush) {
   if (!autosaveDirty) return;
   if (!img && !siteNotes && !(sitePhotos && sitePhotos.length)) return;   // nothing worth keeping yet
   autosaveDirty = false;
@@ -5750,7 +5754,7 @@ async function autosaveNow() {
       fsSite.plan = { levels: levels, cur: curLevel, labelsOn: labelsOn, siteNotes: siteNotes, sitePhotos: sitePhotos, t: Date.now() };
       if (typeof fsRegister !== "undefined" && fsRegister) {
         fsDirty = true;
-        if (typeof fsPersistReg === "function") fsPersistReg();
+        if (typeof fsPersistReg === "function") fsPersistReg(!!flush);
         if (typeof fsStamp === "function") fsStamp();
       }
     }
@@ -5768,7 +5772,13 @@ async function autosaveNow() {
   }
 }
 autosaveTimer = setInterval(autosaveNow, 30000);
-document.addEventListener("visibilitychange", () => { if (document.hidden) autosaveNow(); });
+/* PASS 39 [39-3] — `true` is the whole fix. Without it this hook wrote the
+   IndexedDB autosave key and then SCHEDULED the register write for 400 ms
+   later, on a page that was already going away. The register copy is the one
+   that travels between devices, so this is the "the iPad lost my last edit
+   again" path. Honest limit: a write started at visibilitychange->hidden is
+   the last reliable moment the platform offers. It is not a guarantee. */
+document.addEventListener("visibilitychange", () => { if (document.hidden) autosaveNow(true); });
 
 async function tryRestoreAutosave() {
   try {
@@ -5923,6 +5933,13 @@ document.getElementById("planSaveNew").onclick = async () => {
 /* ================= Levels ================= */
 function syncLevel() {
   if (!img) return;
+  /* PASS 39 [39-1] — a switch is in flight, so `objects`, `img` and
+     `imgDataUrl` still belong to the level we are LEAVING, not to curLevel.
+     Writing them now is exactly the data loss this pass exists to close: it
+     stamps the old level's canvas into the new level's slot. The level we are
+     leaving was already synced by switchLevel() before curLevel moved, so
+     declining here loses nothing. */
+  if (levelLoading) return;
   if (!levels.length) levels.push({ name:"Level 1" });
   levels[curLevel] = { name:levels[curLevel] ? levels[curLevel].name : "Level " + (curLevel + 1),
                        image:imgDataUrl, pageBaseH:pageBaseH, objects:objects, scaleMpp:curScaleMpp };
@@ -5939,13 +5956,39 @@ function refreshLevelSel() {
     sel.appendChild(op);
   });
 }
+/* PASS 39 [39-1] — LEVEL SWITCHING IS ASYNCHRONOUS AND USED TO LOSE WORK.
+
+   Found by the battle tests, 10 Aug 2026: open level 2, then open level 3
+   before the first image has decoded, and level 1's canvas is written into
+   level 2's slot. A placed extinguisher vanishes under a level still showing
+   its own name, with no console error.
+
+   Two separate faults, and fixing either alone still loses work:
+
+     levelLoading  the canvas does not belong to curLevel while a switch is in
+                   flight, so syncLevel() must decline rather than guess.
+     levelGen      a stale onload arriving after a newer switch must be
+                   DROPPED. A generation counter, not a lock — a lock has to be
+                   released on every exit path, including the ones that throw,
+                   and a lock that leaks jams level switching until reload. */
+let levelGen = 0;
+let levelLoading = false;
+
 function switchLevel(i) {
-  if (i === curLevel && img) { refreshLevelSel(); return; }
+  /* `!levelLoading` matters: tapping the SAME level again while its load is in
+     flight used to return early here, and if that load never completed
+     (a corrupt or oversized image) levelLoading would stay true forever and
+     take syncLevel down with it. Re-issuing the load is the safe answer. */
+  if (i === curLevel && img && !levelLoading) { refreshLevelSel(); return; }
   syncLevel();
+  const gen = ++levelGen;
   curLevel = i;
+  levelLoading = true;
   const lv = levels[i];
   const im = new Image();
   im.onload = () => {
+    if (gen !== levelGen) return;      /* a newer switch won; this load is stale */
+    levelLoading = false;
     objects = lv.objects || [];
     pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null;
     img = im; imgDataUrl = lv.image;
@@ -5957,6 +6000,15 @@ function switchLevel(i) {
     scheduleAutosave();
     if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     if (typeof afterLevelSwitch === "function") { const f = afterLevelSwitch; afterLevelSwitch = null; f(); }
+  };
+  /* REQUIRED, not defensive decoration. Without it a plan that fails to decode
+     leaves levelLoading true forever, which silently disables syncLevel — a
+     new data-loss bug created by the fix for the old one. */
+  im.onerror = () => {
+    if (gen !== levelGen) return;
+    levelLoading = false;
+    refreshLevelSel();
+    if (typeof afterLevelSwitch === "function") { const f = afterLevelSwitch; afterLevelSwitch = null; if (f) f(); }
   };
   im.src = lv.image;
 }
@@ -9452,7 +9504,35 @@ async function fsBlobId(dataUrl) {
 async function fsSplitReg(reg) {
   const blobs = new Map(), plans = new Map();
   let bytes = 0;
-  async function walk(v, ownerId) {
+  /* PASS 39 [39-2] — PLANS USED TO BE KEYED BY THE NEAREST ANCESTOR id.
+
+     Any object carrying a `plan` but no own `id` inherited its ancestor's id,
+     and plans.set(id, ...) is last-write-wins, so a site's marked-up block
+     plan was silently replaced by a descendant's. It fires on the READ path
+     the app runs at every start, which is why the loss got baked into the
+     next file saved.
+
+     THE KEY IS BACKWARDS COMPATIBLE ON PURPOSE. It is both the IndexedDB key
+     ("fsPlan:" + key) and the bundle filename ("plans/" + key + ".json"), so
+     changing the scheme outright would orphan every plan in every register
+     already on a device and every .fsbundle already exported. An object with
+     its own id therefore keys EXACTLY as before. Only the cases that were
+     previously losing data get a new key.
+
+     `~` and `-` are chosen because fsReadBundle splits the filename on
+     lastIndexOf("."), so a key carrying a dot would truncate silently.
+     Segments are sanitised to [A-Za-z0-9_] so none can get in. */
+  function planKey(own, ownerId, rel) {
+    let key = own ? own : (ownerId + "~" + rel);
+    if (!plans.has(key)) return key;
+    /* Two records claiming one id. The register is already broken, but it
+       must not lose a plan on top of being broken. Deterministic for a given
+       register shape, which is what matters for a repeatable save. */
+    let n = 2;
+    while (plans.has(key + "~" + n)) n++;
+    return key + "~" + n;
+  }
+  async function walk(v, ownerId, rel) {
     if (typeof v === "string") {
       if (v.length >= FS_BLOB_MIN && v.slice(0, 5) === "data:") {
         const h = await fsBlobId(v);
@@ -9464,23 +9544,30 @@ async function fsSplitReg(reg) {
     if (!v || typeof v !== "object") return v;
     if (Array.isArray(v)) {
       const out = [];
-      for (let i = 0; i < v.length; i++) out.push(await walk(v[i], ownerId));
+      for (let i = 0; i < v.length; i++) out.push(await walk(v[i], ownerId, rel + "-" + i));
       return out;
     }
-    const id = (typeof v.id === "string" && v.id) ? v.id : ownerId;
+    const own = (typeof v.id === "string" && v.id) ? v.id : null;
+    const id = own || ownerId;
+    /* An object that owns an id restarts the relative path: everything below
+       it is described from IT, not from some grandparent. */
+    const base = own ? "" : rel;
     const out = {};
     for (const k in v) {
       if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+      const seg = String(k).replace(/[^A-Za-z0-9_]/g, "_");
+      const childRel = base ? base + "-" + seg : seg;
       if (k === "plan" && v[k] && typeof v[k] === "object" && !Array.isArray(v[k]) && id) {
-        plans.set(id, v[k]);
-        out[k] = { __p: id };
+        const pk = planKey(own, ownerId, childRel);
+        plans.set(pk, v[k]);
+        out[k] = { __p: pk };
         continue;
       }
-      out[k] = await walk(v[k], id);
+      out[k] = await walk(v[k], id, childRel);
     }
     return out;
   }
-  const idx = await walk(reg, null);
+  const idx = await walk(reg, null, "");
   return { idx: idx, blobs: blobs, plans: plans, bytes: bytes };
 }
 /* put the images and plans back, so the in-memory register looks untouched */
@@ -17615,7 +17702,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v47";
+const FS_BUILD = "aa-v48";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
