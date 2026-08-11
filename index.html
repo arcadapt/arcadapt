@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.45 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.46 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.45 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.46 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -7560,6 +7560,7 @@ const FS_OCR_BASE = "./ocr/";
 function fsOcrUrl(f) { return new URL(FS_OCR_BASE + (f || ""), location.href).href; }
 let fsOcrOk = null;          // null = not probed yet, then true/false
 let fsOcrWorkerP = null;
+let fsOcrLastCapture = "";   /* PASS 41 [41-3] */
 let fsOcrTargetFields = null;
 
 function fsOcrProbe() {
@@ -7610,6 +7611,15 @@ function fsOcrWorker(onProg) {
       langPath: fsOcrUrl(),
       gzip: true,
       logger: m => { if (onProg) onProg(m); }
+    }).then(w => {
+      /* PASS 41 [41-1] — a device label is ONE dense block of text. The
+         default is PSM 3, full automatic page-layout analysis, which is built
+         for a scanned page and will happily decide that four lines of moulded
+         text are four separate columns. This is one parameter and it is the
+         cheapest thing in the pass. */
+      return Promise.resolve(w.setParameters({ tessedit_pageseg_mode: "6" }))
+        .catch(() => {})
+        .then(() => w);
     }));
   fsOcrWorkerP = Promise.race([
     build,
@@ -7884,8 +7894,13 @@ function fsCamShoot(vid) {
   if (!vid || !vid.videoWidth) return null;
   const cv = fsCamGrab(vid);
   const fn = fsCamJob && fsCamJob.onShot;
+  /* PASS 41 [41-3] — MEASURE BEFORE CLOSING. fsCamClose() stops the tracks, and
+     a stopped track's getSettings() is empty, so taking this after the close
+     silently yields "size unknown" on every shot. */
+  let capture = "";
+  try { capture = fsCamMeasure(fsCamStream); } catch (e) { capture = ""; }
   fsCamClose();
-  if (fn) fn(cv);
+  if (fn) fn(cv, capture);
   return cv;
 }
 
@@ -7986,6 +8001,89 @@ async function fsCamOpen(job) {
    press-and-hold meaning without reading the two that already exist
    (hold-to-favourite on palette tiles, and the rename/delete hold).
    ========================================================================== */
+
+/* PASS 41 [41-2] — PREPROCESS BEFORE RECOGNISING.
+
+   The pipeline used to hand the raw camera JPEG straight to recognize(). A
+   phone photo of a moulded plastic label is low-contrast grey-on-grey, often
+   under a torch, and Tesseract wants black on white at a comfortable x-height.
+   Reece's 11 Aug read — MODEL pCD-A, wocH! TOKYO JAPAN, AS \sO 7240.5 classAIR
+   — is what that looks like.
+
+   Otsu rather than a fixed cut: label lighting is never twice the same, and a
+   fixed threshold is one dark photo away from returning a black rectangle,
+   which reads as "the OCR broke" rather than "the photo was dark".
+
+   The upscale is CAPPED. A 4K frame at 2x is 7680 px wide, and past that
+   canvases start failing to allocate on an iPad — a fix that takes the tab
+   down on the largest photos is worse than the bug. */
+const FS_OCR_MAX_W = 4000;
+
+function fsOcrPrep(srcCanvasOrImage) {
+  return new Promise(resolve => {
+    const sw = srcCanvasOrImage.naturalWidth || srcCanvasOrImage.width;
+    const sh = srcCanvasOrImage.naturalHeight || srcCanvasOrImage.height;
+    if (!sw || !sh) { resolve(srcCanvasOrImage); return; }
+    /* Small labels benefit most from scaling up; big ones are already past the
+       point where more pixels help, so the cap does double duty. */
+    const scale = Math.max(1, Math.min(2, FS_OCR_MAX_W / sw));
+    const w = Math.max(1, Math.round(sw * scale));
+    const h = Math.max(1, Math.round(sh * scale));
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(srcCanvasOrImage, 0, 0, w, h);
+
+    const im = ctx.getImageData(0, 0, w, h);
+    const d = im.data;
+    const hist = new Uint32Array(256);
+    /* Rec. 601 luma. The green channel carries most of the detail and the blue
+       channel most of the sensor noise, which is why this is not an average. */
+    for (let i = 0; i < d.length; i += 4) {
+      const y = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+      d[i] = d[i + 1] = d[i + 2] = y;
+      hist[y]++;
+    }
+    /* Otsu: the cut that maximises between-class variance. */
+    const total = w * h;
+    let sum = 0;
+    for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sumB = 0, wB = 0, best = 0, cut = 127;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t];
+      if (!wB) continue;
+      const wF = total - wB;
+      if (!wF) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB, mF = (sum - sumB) / wF;
+      const between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > best) { best = between; cut = t; }
+    }
+    for (let i = 0; i < d.length; i += 4) {
+      const v = d[i] > cut ? 255 : 0;
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+    ctx.putImageData(im, 0, 0);
+    resolve(cv);
+  });
+}
+
+function fsOcrToCanvas(file) {
+  if (file && (file.getContext || file.naturalWidth)) return Promise.resolve(file);
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    /* onerror is not optional here — it is battle finding #7's whole point,
+       and without it a photo that fails to decode leaves the scan dialog
+       saying "Loading the recogniser" until the app is closed. */
+    im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("that photo could not be read")); };
+    im.src = url;
+  });
+}
 
 function fsOcrTrim(v) {
   return String(v == null ? "" : v)
@@ -8184,7 +8282,7 @@ function fsOcrShoot() {
     mode: "shot",
     title: "Scan label",
     hint: "Fill the frame with the label. Pinch or drag the slider to zoom in — the zoom CROPS rather than enlarging, so the recogniser is handed real pixels.",
-    onShot: cv => { try { cv.toBlob(b => { if (b) fsOcrRun(b); }, "image/jpeg", 0.92); } catch (e) { fsOcrRun(cv); } }
+    onShot: (cv, capture) => { try { cv.toBlob(b => { if (b) fsOcrRun(b, capture); }, "image/jpeg", 0.92); } catch (e) { fsOcrRun(cv, capture); } }
   });
   Promise.resolve(p).then(ok => {
     if (ok) return;
@@ -8220,8 +8318,15 @@ function fsOcrOpen() {
      the auto-fire is invisible, so it cannot be the only route. */
   fsOcrShoot();
 }
-function fsOcrRun(file) {
+function fsOcrRun(file, capture) {
   const st = document.getElementById("ocrStatus");
+  /* PASS 41 [41-3] — the capture size travels with the shot. fsCamMeasure has
+     existed since Pass 37a and produced exactly the string Reece was asked to
+     read off the CAMERA view twice, across two sessions, and never did —
+     because that view is on screen for about a second while he is aiming. It
+     is printed here instead, next to "Read N lines", where he is already
+     looking. Nobody has to be asked a third time. */
+  fsOcrLastCapture = capture || "";
   /* PASS 26 item 14b — a photo exists, so the fields have something to hold */
   const fw = document.getElementById("ocrFields");
   if (fw) fw.style.display = "";
@@ -8230,7 +8335,9 @@ function fsOcrRun(file) {
     if (m && m.status === "recognizing text") st.textContent = "Reading\u2026 " + Math.round((m.progress || 0) * 100) + "%";
     else if (m && m.status) st.textContent = String(m.status).charAt(0).toUpperCase() + String(m.status).slice(1) + "\u2026";
   })
-    .then(w => w.recognize(file))
+    .then(w => fsOcrToCanvas(file)
+      .then(fsOcrPrep)
+      .then(prepped => w.recognize(prepped)))
     .then(res => {
       const raw = String(((res || {}).data || {}).text || "")
         .split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 1).slice(0, 24);
@@ -8238,7 +8345,8 @@ function fsOcrRun(file) {
          actually saw. A picker listing lines the guesser had already discarded
          is a picker that disagrees with the boxes above it. */
       const lines = fsOcrClean(raw);
-      st.textContent = lines.length ? "Read " + lines.length + " line" + (lines.length === 1 ? "" : "s") + " \u2014 check them before using." : "";
+      const cap = fsOcrLastCapture ? "  \u00b7  " + fsOcrLastCapture : "";
+      st.textContent = (lines.length ? "Read " + lines.length + " line" + (lines.length === 1 ? "" : "s") + " \u2014 check them before using." : "") + cap;
       const g = fsOcrGuess(lines);
       document.getElementById("ocrBrand").value = g.brand;
       document.getElementById("ocrModel").value = g.model;
@@ -17702,7 +17810,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v49";
+const FS_BUILD = "aa-v50";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
