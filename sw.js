@@ -1,4 +1,4 @@
-const CACHE = "aa-v48";
+const CACHE = "aa-v49";
 const PREFIX = "aa-";   // PASS 39 [39-4] — this app owns ONLY its own caches
 if (CACHE.indexOf(PREFIX) !== 0) throw new Error("cache name does not carry its own prefix");
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png", "./favicon.png", "./pdf.min.js", "./pdf.worker.min.js", "./qr.js", "./jsqr.js", "./zxing.js"];
@@ -33,9 +33,18 @@ const NAV_TIMEOUT_MS = 3000;
 // document. The cacheName option scopes it. Written as an option rather than
 // caches.open(CACHE).then(c => c.match(...)) so the literal caches.match( stays
 // where test_swfresh's static check reads it to prove assets are cache-first.
+// PASS 40 [40-1a] — the fallback used to name ONE key. If that exact entry was
+// the missing one it resolved undefined, and respondWith(undefined) is a
+// network error: the app refused to open offline while its own document sat in
+// the cache under "./". addAll(ASSETS) writes BOTH keys on install, so trying
+// both means either survivor is enough. Ordered index.html first only because
+// that is the key that is normally present; neither is preferred.
 function fromCache(req) {
   return caches.match(req, { ignoreSearch: true, cacheName: CACHE })
-    .then(hit => hit || caches.match("./index.html", { cacheName: CACHE }));
+    .then(hit => hit
+      || caches.match("./index.html", { cacheName: CACHE })
+      || null)
+    .then(hit => hit || caches.match("./", { cacheName: CACHE }));
 }
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
@@ -78,7 +87,16 @@ self.addEventListener("fetch", e => {
           caches.open(CACHE).then(c => c.put(e.request, copy));
         }
         return resp;
-      }).catch(() => caches.match("./index.html", { cacheName: CACHE }))
+      // PASS 40 [40-1b] — THIS LINE IS WHY Tesseract COULD VANISH SILENTLY.
+      // It used to return the app document here, so a missing asset came back
+      // 200 text/html; the browser sees a success with a body and fires
+      // ONLOAD on a <script> that never loaded. Every asset-load error path in
+      // the app was therefore dead code. A 504 is a real failure the loader
+      // can see. Chosen over Response.error() because it is inspectable in
+      // devtools and a test can assert on the status.
+      }).catch(() => new Response("", {
+        status: 504, statusText: "offline and not cached"
+      }))
     )
   );
 });
