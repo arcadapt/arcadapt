@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.46 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.47 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.46 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.47 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -2819,6 +2819,9 @@ function getCachedImg(src) {
   if (!imgCache.has(src)) {
     const el = new Image();
     el.onload = () => requestDraw();
+    /* PASS 42 [42-1] — battle finding #7. One Image per src lives in the cache,
+       so this fires ONCE per failed source, not once per draw frame. */
+    el.onerror = () => alert("An image on this plan could not be loaded.");
     el.src = src;
     imgCache.set(src, el);
   }
@@ -3452,6 +3455,8 @@ document.getElementById("btnFlatten").onclick = () => {
     clearSelection();
     setImage(im, dataUrl, true, true);
   };
+  /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+  im.onerror = () => alert("Couldn't apply that change \u2014 the page image failed to rebuild.");
   im.src = dataUrl;
 };
 
@@ -4783,8 +4788,13 @@ function loadImageFile(file) {
       const dataUrl = fsEncodePlan(cc, 0.92);
       const im2 = new Image();
       im2.onload = () => setImage(im2, dataUrl, false);
+      /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+      im2.onerror = () => { updateStatus(); alert("That image could not be displayed."); };
       im2.src = dataUrl;
     };
+    /* PASS 42 [42-1] — battle finding #7's headline site: the "Level name"
+       prompt appeared, then silence forever. */
+    im.onerror = () => { updateStatus(); alert("That image could not be read."); };
     im.src = reader.result;
   };
   reader.readAsDataURL(file);
@@ -4796,9 +4806,12 @@ document.getElementById("fileInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
   if (!f) return;
-  if (!img) { loadImageFile(f); return; }
-  pendingPhoto = f;
-  document.getElementById("photoModal").classList.add("show");
+  /* PASS 42 [42-5] — battle finding #7's rider: a PDF picked through the Photo
+     button used to hit loadImageFile, which cannot decode a PDF, and with no
+     onerror that was silence forever — while DROPPING the same file worked,
+     because the drop path routes through openAnyFile. One router for both now;
+     openAnyFile reproduces the old behaviour for images exactly. */
+  openAnyFile(f);
 });
 function pendingIsPdf() {
   return pendingPhoto && (pendingPhoto.type === "application/pdf" || (pendingPhoto.name || "").toLowerCase().endsWith(".pdf"));
@@ -5449,6 +5462,8 @@ function loadPdfFile(file, asObject) {
       }
       const im = new Image();
       im.onload = () => setImage(im, dataUrl, false);
+      /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+      im.onerror = () => { updateStatus(); alert("Couldn't display that PDF page."); };
       im.src = dataUrl;
     })
     .catch(() => {
@@ -5631,6 +5646,8 @@ function loadProjectFile(file) {
         fileHandle = null;
         setImage(im, lv.image, true);
       };
+      /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+      im.onerror = () => alert("That project's plan image could not be loaded.");
       im.src = lv.image;
     } catch (err) {
       alert("Couldn't read that project file.");
@@ -5687,6 +5704,8 @@ function insertImageObject(f, pick) {
       }
       insertImageFromDataUrl(c.toDataURL("image/jpeg", 0.85), c.width, c.height);
     };
+    /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+    im.onerror = () => alert("That photo could not be read.");
     im.src = reader.result;
   };
   reader.readAsDataURL(f);
@@ -5808,6 +5827,8 @@ async function tryRestoreAutosave() {
       setImage(im, lv.image, true);
       lastSaveNote = "Restored autosave from " + new Date(a.t).toTimeString().slice(0, 5); updateStatus();
     };
+    /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+    im.onerror = () => alert("Couldn't restore the autosave \u2014 its plan image failed to load.");
     im.src = lv.image;
   } catch (e) { /* no autosave */ }
 }
@@ -5890,6 +5911,8 @@ async function openPlan(id) {
     document.getElementById("plansModal").classList.remove("show");
     lastSaveNote = "Opened plan"; updateStatus();
   };
+  /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+  im.onerror = () => alert("That plan's image could not be loaded.");
   im.src = lv.image;
 }
 
@@ -6140,6 +6163,8 @@ document.getElementById("levelInput").addEventListener("change", e => {
         const cc = await fsRegionPick(c0);
         if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92));
       };
+      /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+      im.onerror = () => alert("That image could not be read.");
       im.src = reader.result;
     };
     reader.readAsDataURL(f);
@@ -6627,6 +6652,8 @@ function openPhotoViewer(sym) {
     document.getElementById("photoViewModal").classList.add("show");
     photoViewFit();
   };
+  /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+  im.onerror = () => alert("Couldn't open that photo.");
   im.src = sym.photo;
 }
 let photoViewZoom = 1;
@@ -6750,6 +6777,8 @@ document.getElementById("cameraInput").addEventListener("change", e => {
       scheduleAutosave();
       openPhotosGallery();
     };
+    /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+    im.onerror = () => alert("That pasted image could not be read.");
     im.src = reader.result;
   };
   reader.readAsDataURL(f);
@@ -6805,17 +6834,29 @@ document.getElementById("photosClose").onclick = () => document.getElementById("
 
 /* ================= Sound meter (Web Audio, indicative) ================= */
 let meterStream = null, meterCtx = null, meterAnalyser = null, meterTimer2 = null;
+let meterGen = 0;   /* PASS 42 [42-2] — bumped by every stop and every start; a start that loses its race stops its own tracks */
 let meterMinV = Infinity, meterMaxV = -Infinity, meterLastRaw = null, meterBegan = 0;
 let calOffset = 0;
 try { calOffset = parseFloat(localStorage.getItem("bpm-cal")) || 0; } catch (e) {}
 let meterOnTick = null;
 
 async function meterStart(onTick) {
-  meterStream = await navigator.mediaDevices.getUserMedia({
+  /* PASS 42 [42-2] — battle finding #8. The old code assigned the tracked
+     handle only AFTER the await, so a stop — or a second start — during the
+     permission prompt left a live microphone the app had lost the handle to.
+     meterStop() first: an overlapping start must never overwrite a live
+     stream. Then the generation token: meterStop() bumps it, so a start that
+     resolves stale stops the tracks it was just granted. */
+  meterStop();
+  const gen = ++meterGen;
+  const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
   });
+  if (gen !== meterGen) { stream.getTracks().forEach(tr => tr.stop()); return; }
+  meterStream = stream;
   meterCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (meterCtx.state === "suspended") await meterCtx.resume();
+  if (gen !== meterGen) return;   /* stopped during resume — meterStop already closed everything */
   const src = meterCtx.createMediaStreamSource(meterStream);
   meterAnalyser = meterCtx.createAnalyser();
   meterAnalyser.fftSize = 4096;
@@ -6849,6 +6890,7 @@ async function meterStart(onTick) {
   }, 50);
 }
 function meterStop() {
+  meterGen++;   /* PASS 42 [42-2] — invalidate any start still awaiting its stream */
   if (meterTimer2) { clearInterval(meterTimer2); meterTimer2 = null; }
   if (meterStream) { meterStream.getTracks().forEach(tr => tr.stop()); meterStream = null; }
   if (meterCtx) { meterCtx.close().catch(() => {}); meterCtx = null; }
@@ -7671,6 +7713,7 @@ const FS_OCR_BRANDS = ["Hochiki", "Apollo", "System Sensor", "Chubb",
    both callers go through it — the QR scan loop and the Scan label shutter.
    ========================================================================== */
 let fsCamZ = null, fsCamStream = null, fsCamRaf = null, fsCamJob = null;
+let fsCamGen = 0;   /* PASS 42 [42-3] — bumped by every close and every open */
 
 /* ======================= PASS 37 — THE CAMERA MODULE =======================
 
@@ -7910,6 +7953,7 @@ function fsCamStatus(msg) {
 }
 
 function fsCamClose() {
+  fsCamGen++;   /* PASS 42 [42-3] — a start still awaiting its stream must lose to this close */
   if (fsCamRaf) cancelAnimationFrame(fsCamRaf);
   fsCamRaf = null;
   if (fsCamStream) { fsCamStream.getTracks().forEach(t => t.stop()); fsCamStream = null; }
@@ -7933,6 +7977,11 @@ function fsCamClose() {
    onFrame returns truthy to stop the loop. Resolves false when the camera
    could not be opened, so a caller can fall back rather than dead-end. */
 async function fsCamOpen(job) {
+  /* PASS 42 [42-3] — battle finding #8. Close any previous stream FIRST — an
+     open-over-open used to overwrite fsCamStream and leak the first camera —
+     then take the generation token that decides every race below. */
+  if (fsCamStream) fsCamClose();
+  const gen = ++fsCamGen;
   fsCamJob = job || {};
   const modal = document.getElementById("fsCamModal");
   const vid = document.getElementById("fsCamVideo");
@@ -7941,8 +7990,9 @@ async function fsCamOpen(job) {
   document.getElementById("fsCamTitle").textContent = fsCamJob.title || "Camera";
   modal.classList.add("show");
   fsCamStatus("Starting camera…");
+  let stream;
   try {
-    fsCamStream = await fsCamGum();
+    stream = await fsCamGum();
   } catch (e) {
     /* Not a dead end. The caller decides — Scan label drops back to the file
        input, which is the behaviour every build before this one had. */
@@ -7950,8 +8000,11 @@ async function fsCamOpen(job) {
     fsCamClose();
     return false;
   }
+  if (gen !== fsCamGen) { stream.getTracks().forEach(t => t.stop()); return false; }
+  fsCamStream = stream;
   vid.srcObject = fsCamStream;
   await vid.play().catch(() => {});
+  if (gen !== fsCamGen) return false;   /* closed during play() — fsCamClose has already stopped the tracks */
   fsCamZoomInit(fsCamStream);
   /* PASS 37 — the resolution the device actually granted, on the glass. This
      is the readout the OCR investigation is gated on: it is not a debug aid.
@@ -8619,6 +8672,8 @@ document.getElementById("dPhotoInput").addEventListener("change", e => {
       ph.src = detailsPhoto; ph.style.display = "block";
       document.getElementById("dPhotoRemove").style.display = "inline-block";
     };
+    /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+    im.onerror = () => alert("That photo could not be read.");
     im.src = reader.result;
   };
   reader.readAsDataURL(f);
@@ -8831,6 +8886,8 @@ function resizePage(newH) {
   const dataUrl = c.toDataURL("image/jpeg", 0.92);
   const im = new Image();
   im.onload = () => setImage(im, dataUrl, true, true);
+  /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
+  im.onerror = () => alert("Couldn't resize the page \u2014 the page image failed to rebuild.");
   im.src = dataUrl;
 }
 document.getElementById("btnPageSpace").onclick = () => {
@@ -17810,7 +17867,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v50";
+const FS_BUILD = "aa-v51";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -17946,6 +18003,7 @@ document.getElementById("fsLibInput").addEventListener("change", e => {
 });
 /* ---------- PA announcements: device-local audio (IDB), NEVER in the register/exports ---------- */
 let fsPaAudio = null, fsPaPlaying = -1, fsPaRecorder = null, fsPaTimer = null;
+let fsPaGen = 0;   /* PASS 42 [42-4] — bumped by every stop and every start */
 async function fsPaGet() { try { return (await idbGet("fsPaLib")) || []; } catch (e) { return []; } }
 function fsPaStop() {
   if (fsPaAudio) { try { fsPaAudio.pause(); } catch (e) {} fsPaAudio = null; }
@@ -17993,6 +18051,7 @@ function fsPaSaveBlob(blob, defName) {
   rd2.readAsDataURL(blob);
 }
 function fsPaStopRec(silent) {
+  fsPaGen++;   /* PASS 42 [42-4] — a start still awaiting its stream must lose to this stop */
   if (fsPaRecorder && fsPaRecorder.state !== "inactive") { fsPaRecorder._silent = !!silent; fsPaRecorder.stop(); }
   if (fsPaTimer) { clearInterval(fsPaTimer); fsPaTimer = null; }
 }
@@ -18012,9 +18071,16 @@ document.getElementById("fsPaInput").addEventListener("change", e => {
 document.getElementById("fsPaRec").onclick = async () => {
   const btn = document.getElementById("fsPaRec");
   if (fsPaRecorder && fsPaRecorder.state === "recording") { fsPaStopRec(false); return; }
+  /* PASS 42 [42-4] — battle finding #8. The recording guard above runs BEFORE
+     the await, so two fast taps used to pass it twice and leave a stream the
+     app had lost the handle to — Stop only closed the last one, while the
+     orphan's timer kept repainting "\u25a0 Stop 0:0x" over a mic that was
+     still open. Last start wins; every loser stops its own tracks. */
+  const gen = ++fsPaGen;
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch (e) { alert("Microphone not available \u2014 check the app has mic permission in your device settings."); return; }
+  if (gen !== fsPaGen) { stream.getTracks().forEach(t => t.stop()); return; }
   const mt = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
   let rec;
   try { rec = new MediaRecorder(stream, mt ? { mimeType: mt } : undefined); }
