@@ -264,8 +264,28 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   .fsinput { width:100%; background:var(--fs-card); border:1px solid var(--fs-border); border-radius:8px; color:var(--fs-text); padding:10px; font-size:15px; font-family:inherit; }
   textarea.fsinput { min-height:56px; overflow:hidden; resize:vertical; }   /* auto-grows to content (fsGrowTa) - iPad can't drag-resize */
   .fslabel { font-size:12px; color:var(--fs-sub); margin:10px 0 3px; font-weight:600; }
+  /* ===== PASS 46 — the bottom nav bar (Ruling 1: it RELOCATES the top
+     buttons, it does not invent them) and the More sheet. The bar lives
+     INSIDE #fsReg so the workspace canvas never shows it. ===== */
+  #fsNavBar { position:fixed; left:0; right:0; bottom:0; z-index:80; display:flex;
+    justify-content:space-around; align-items:stretch; gap:2px;
+    background:var(--fs-card); border-top:1px solid var(--fs-border);
+    padding:5px 4px calc(5px + env(safe-area-inset-bottom,0px)); }
+  .fsNavItem { flex:1; max-width:132px; display:flex; flex-direction:column; align-items:center;
+    gap:2px; background:none; border:none; color:var(--fs-sub); font-family:inherit;
+    font-size:10.5px; font-weight:600; padding:4px 2px; cursor:pointer; border-radius:8px;
+    -webkit-tap-highlight-color:transparent; }
+  /* PASS 47 — inline SVG, not emoji: currentColor means .on tints the ICON
+     (a colour emoji ignores `color` and only the label was ever changing),
+     and one drawn family replaces four OS-drawn glyphs plus a text cog. */
+  .fsNavItem .fsNavIco { display:flex; align-items:center; justify-content:center; height:22px; }
+  .fsNavItem .fsNavIco svg { width:22px; height:22px; display:block; fill:none;
+    stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+  .fsNavItem.on .fsNavIco svg { stroke-width:2.4; }
+  .fsNavItem.on { color:var(--fs-accent); }
+  #fsReg .wrap { padding-bottom:calc(86px + env(safe-area-inset-bottom,0px)); }
   @media (max-width:720px) {
-    #fsReg .wrap { padding:12px 10px 70px; }
+    #fsReg .wrap { padding:12px 10px calc(86px + env(safe-area-inset-bottom,0px)); }
     .fsCyc { flex:1 1 42% !important; min-width:0 !important; }
     .fsPlDay.fsPlDrop { outline:2px dashed var(--fs-accent); outline-offset:-2px; background:rgba(37,150,171,.20) !important; }
     #fsReg h1 { font-size:24px !important; }
@@ -278,15 +298,38 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.50 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.52 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
       <button class="fsbtn" id="fsProfileBtn" title="Load your company profile file (branding + equipment fields + test checklists)">&#127970; Profile</button>
-      <button class="fsbtn" id="fsResBtn" title="Resources — tools &amp; library">&#128218; Resources</button>
-      <button class="fsbtn" id="fsPlannerBtn" style="display:none" title="Monthly planner + day routes">&#128197; Planner</button>
       <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)">&#128202; Office</button>
-      <button class="fsbtn" id="fsSettingsBtn" title="Settings">&#9881;</button>
+      <!-- PASS 46 — the NAV buttons relocate into the bottom bar (Ruling 1:
+           relocates, not invents; the 11 Aug critique ranked "two
+           navigation systems" the worst defect, so no nav stays up here).
+           The item set is Reece's 12 Aug call: Today / Sites / Planner /
+           Tools / the settings cog — the fifth slot IS the cog, no "More".
+           Files and Office stay above: file/admin operations, not
+           navigation. Planner, Tools and Settings keep their ids and
+           handlers — same element, new home. -->
+      <!-- PASS 47 — the bar's icons are inline SVG on the Lucide 24px grid
+           (ISC licence: house, map-pin, calendar, wrench, settings), drawn
+           with stroke:currentColor so the active accent reaches the ICON.
+           They were emoji until V0.52: a colour emoji ignores `color`, so
+           the active state tinted the label only; the set mixed four OS
+           emoji with the ⚙ text glyph; and every device drew them
+           differently. Inline rather than an icon font — this is an
+           offline-first PWA. -->
+      <nav id="fsNavBar" aria-label="Main">
+        <button class="fsNavItem" id="fsNavToday" title="Today &mdash; your day at a glance"><span class="fsNavIco"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.2 12 3l9 7.2"/><path d="M5 9.6V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.6"/><path d="M9.5 21v-6.5h5V21"/></svg></span><span class="fsNavLab">Today</span></button>
+        <button class="fsNavItem" id="fsNavSites" title="Clients &amp; sites"><span class="fsNavIco"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.8"/></svg></span><span class="fsNavLab">Sites</span></button>
+        <button class="fsNavItem" id="fsPlannerBtn" style="display:none" title="Monthly planner + day routes"><span class="fsNavIco"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.8h18M8 2.8v3.4M16 2.8v3.4"/><path d="M7.6 13.4h.01M12 13.4h.01M16.4 13.4h.01M7.6 17.2h.01M12 17.2h.01"/></svg></span><span class="fsNavLab">Planner</span></button>
+        <button class="fsNavItem" id="fsResBtn" title="Resources — tools &amp; library"><span class="fsNavIco"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.6 6.3a1 1 0 0 0 0 1.4l1.7 1.7a1 1 0 0 0 1.4 0l4-4a6 6 0 0 1-7.9 7.9l-6.3 6.3a2.1 2.1 0 0 1-3-3l6.3-6.3a6 6 0 0 1 7.9-7.9l-4 4Z"/></svg></span><span class="fsNavLab">Tools</span></button>
+        <!-- Money is NOT in the bar for now — it arrives with the
+             commercial layer, and where it slots then is BANKED, not
+             decided (Reece, 12 Aug). The Money-ownership decision is his. -->
+        <button class="fsNavItem" id="fsSettingsBtn" title="Settings"><span class="fsNavIco"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.8H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></span><span class="fsNavLab">Settings</span></button>
+      </nav>
     </div>
     <!-- V0.10: the client's own branding sits between the app wordmark and the
          register stamp. That order is deliberate — whose app, then whose data,
@@ -342,6 +385,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
 
     <div id="fsSiteView" style="display:none"></div>
+    <div id="fsTodayView" style="display:none"></div>
     <div id="fsPlannerView" style="display:none"></div>
     <div id="fsDashView" style="display:none"></div>
     <input type="file" id="fsPhotoInput" accept="image/*" multiple style="display:none">
@@ -366,7 +410,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.50 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.52 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -998,7 +1042,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 </div>
 <div class="modal" id="fsResModal" style="z-index:120">
   <div class="modalbox" style="max-width:470px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
-    <h3 style="margin-bottom:10px">Resources</h3>
+    <h3 style="margin-bottom:10px">Tools &amp; library</h3>
     <div style="font-weight:700;font-size:13px;color:#7ddb8f;margin-bottom:6px">TOOLS</div>
     <button class="btn" id="fsResBatt" title="Works out standby battery sizes per Appendix F of AS 1851, the Australian Standard for servicing fire systems" style="width:100%;text-align:left;margin-bottom:8px">&#128267; Battery calculator (AS 1851 App F)</button>
     <button class="btn" id="fsResTimer" style="width:100%;text-align:left;margin-bottom:8px">&#9201; Emergency countdown timer</button>
@@ -9620,8 +9664,10 @@ function fsShow(view) {
      .fsWobble rows to be found again on the way back. Nothing reachable from
      fsRowEditOff calls fsShow, so this cannot recurse. */
   if (typeof fsRowEditOff === "function") fsRowEditOff();
-  ["fsImportView", "fsClientsView", "fsSitesView", "fsSiteView", "fsPlannerView", "fsDashView"].forEach(id =>
+  ["fsImportView", "fsClientsView", "fsSitesView", "fsSiteView", "fsPlannerView", "fsDashView", "fsTodayView"].forEach(id =>
     document.getElementById(id).style.display = id === view ? "block" : "none");
+  /* PASS 46 — the bar tracks the screen. */
+  if (typeof fsNavSync === "function") fsNavSync(view);
 }
 function fsEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 
@@ -14861,7 +14907,7 @@ function fsStamp() {
   ex.style.display = fsRegister ? "inline-block" : "none";
   const sh = document.getElementById("fsShareReg");
   if (sh) sh.style.display = fsRegister ? "inline-block" : "none";
-  document.getElementById("fsPlannerBtn").style.display = (fsRegister && (typeof fsModOn !== "function" || fsModOn("planner"))) ? "inline-block" : "none";
+  document.getElementById("fsPlannerBtn").style.display = (fsRegister && (typeof fsModOn !== "function" || fsModOn("planner"))) ? "flex" : "none";
   document.getElementById("fsDashBtn").style.display = (fsRegister && (typeof fsModOn !== "function" || fsModOn("dashboard")) && (typeof fsCan !== "function" || fsCan("money"))) ? "inline-block" : "none";
   /* This must never be labelled as saving THE register - it writes a LOCAL file and
      is not the central OneDrive copy. The old label flipped between two names. */
@@ -15172,6 +15218,174 @@ async function fsSiteDelete(s) {
   fsMarkDirty();
   fsRenderSites();
 }
+/* ===== PASS 46 — THE BOTTOM NAV BAR + THE TODAY SCREEN ====================
+   Ruling 1: the bar RELOCATES the top buttons, it does not invent them.
+   Today is the one NEW destination — Reece answered the banked question
+   with the mock (TODAY-SCREEN-MOCK-2026-08-12.jpeg), a design not a spec.
+   Every section composes data that already exists: today's planner stops,
+   the strip's own overdue arithmetic, site photos. NO commercial surface —
+   the mock's two commercial tiles and its Money tab arrive with the
+   commercial briefs; the open Money-ownership decision is assumed by
+   nothing here. Schedule chips are DERIVED honestly (Done / Now / Booked);
+   the mock's "On site / On route" would need live state that does not
+   exist and are not faked. Ruling 4: an empty section is ABSENT. Ruling 9:
+   calm numbers are neutral; colour appears only for overdue. ============= */
+function fsNavSync(view) {
+  const map = { fsTodayView: "fsNavToday", fsClientsView: "fsNavSites",
+                fsSitesView: "fsNavSites", fsSiteView: "fsNavSites",
+                fsProjView: "fsNavSites", fsJobView: "fsNavSites",
+                fsPlannerView: "fsPlannerBtn" };
+  ["fsNavToday", "fsNavSites", "fsPlannerBtn", "fsResBtn", "fsSettingsBtn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("on", map[view] === id);
+  });
+}
+function fsTodayStops() {
+  /* today's plan, sorted by start. null = the IDB read has not landed yet
+     (fsRenderToday kicks it and re-renders — the hub's own pattern);
+     [] = loaded and genuinely empty. Ad-hoc jobs ride along with e:null. */
+  if (typeof fsPlPlans === "undefined" || !fsPlPlans) return null;
+  const tk = fsPlTodayKey(), mo = fsPlPlans[tk.slice(0, 7)];
+  const day = (mo && mo.days && mo.days[tk]) || [];
+  return day.filter(Boolean)
+    .map(x => ({ x: x, e: x.adhoc ? null : fsPlById(x.siteId) }))
+    .sort((a, b) => (fsPlT2M(a.x.start) || 0) - (fsPlT2M(b.x.start) || 0));
+}
+function fsSiteOverdueN(s) {
+  /* the SAME fsCycleStatus the strip renders from — one arithmetic, two
+     surfaces. Buildings roll up exactly as fsSiteWorstDot rolls them. */
+  let n = fsCycles().filter(c => fsCycleStatus(s, c).overdue).length;
+  (s.buildings || []).forEach(b => { n += fsSiteOverdueN(b); });
+  return n;
+}
+function fsTodayData() {
+  const stops = fsTodayStops();
+  const booked = {};
+  (stops || []).forEach(r => { if (r.e) booked[r.e.s.id] = 1; });
+  const pri = fsPlSites()
+    .map(e => ({ e: e, n: fsSiteOverdueN(e.s), b: !!booked[e.s.id] }))
+    .filter(r => r.n > 0 || r.b)
+    .sort((a, b) => (b.n - a.n) || ((b.b ? 1 : 0) - (a.b ? 1 : 0)))
+    .slice(0, 6);
+  return { stops: stops, pri: pri };
+}
+function fsTodayOpenSite(e) {
+  fsClient = e.c; fsParentSite = null; fsSite = e.s; fsTab = "overview";
+  fsInfoEdit = false; fsEquipEdit = false;
+  fsRenderSite(); fsShow("fsSiteView");
+}
+function fsTodayHtml(d) {
+  const hr = new Date().getHours();
+  const who = (typeof fsWho === "function" && fsWho()) ? ", " + fsEsc(fsWho().split(" ")[0]) : "";
+  const greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+  const stops = d.stops;
+  const planOn = typeof fsModOn !== "function" || fsModOn("planner");
+  const odSites = fsPlSites().map(e => fsSiteOverdueN(e.s)).filter(n => n > 0);
+  const odTotal = odSites.reduce((a, n) => a + n, 0);
+  const visitsAtOd = (stops || []).filter(r => r.e && fsSiteOverdueN(r.e.s) > 0).length;
+  let h = '<div id="fsTodayHead" style="margin:6px 0 14px">' +
+    '<h1 style="font-size:26px;margin:0">' + greet + who + '</h1>' +
+    '<div style="color:var(--fs-sub);font-size:13.5px">' +
+    fsEsc(new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })) +
+    '</div></div>';
+  /* stat tiles. The mock's two commercial tiles land in THIS grid with the
+     commercial layer — designed-in space, NOT built (the Money-ownership
+     decision stays Reece's). */
+  h += '<div id="fsTodayTiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">';
+  if (planOn && stops !== null) h += '<div class="fscard" id="fsTdTileVisits" style="padding:14px">' +
+    '<div style="font-size:12px;color:var(--fs-sub);font-weight:600">Today&#39;s visits</div>' +
+    '<div style="font-size:26px;font-weight:800">' + stops.length + '</div>' +
+    (visitsAtOd ? '<div style="font-size:12px;color:#e57373;font-weight:600">' + visitsAtOd + ' at site' + (visitsAtOd === 1 ? '' : 's') + ' with overdue work</div>' : '') +
+    '</div>';
+  h += '<div class="fscard" id="fsTdTileOverdue" style="padding:14px">' +
+    '<div style="font-size:12px;color:var(--fs-sub);font-weight:600">Overdue work</div>' +
+    '<div style="font-size:26px;font-weight:800' + (odTotal ? ';color:#e57373' : '') + '">' + odTotal + '</div>' +
+    (odTotal ? '<div style="font-size:12px;color:#e57373;font-weight:600">Across ' + odSites.length + ' site' + (odSites.length === 1 ? '' : 's') + '</div>' : '') +
+    '</div>';
+  h += '</div>';
+  /* the schedule — absent until the plan file has actually loaded (no
+     spinner, absence is honest; the card claiming "nothing booked" before
+     the read lands would be a lie for a frame). */
+  if (planOn && stops !== null) {
+    h += '<div class="fscard" id="fsTodaySched" style="padding:16px;margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+      '<h3 style="font-size:15px;font-weight:700">Today&#39;s schedule</h3>' +
+      '<a id="fsTodayPlanner" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View full planner &#8594;</a></div>';
+    if (!stops.length) h += '<div style="color:var(--fs-faint);font-size:13px">Nothing booked today.</div>';
+    else {
+      const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+      stops.forEach((r, i) => {
+        const st = fsPlT2M(r.x.start);
+        const en = (st != null && +r.x.mins) ? st + (+r.x.mins) : null;
+        const chip = r.x.done ? ["Done", "background:#22262b;color:var(--fs-sub)"]
+          : (st != null && en != null && nowM >= st && nowM < en)
+            ? ["Now", "background:rgba(37,150,171,.20);color:var(--fs-accent)"]
+            : ["Booked", "background:#22262b;color:var(--fs-sub)"];
+        const label = fsPlStopName(r.x, r.e);
+        const due = (!r.x.adhoc && r.e) ? fsPlDueCycles(r.e.s, fsPlTodayKey().slice(0, 7)).map(c => c.label).join(" + ") : "";
+        h += '<div class="fsTdRow" data-i="' + i + '" style="display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--fs-border)' + (r.e ? ';cursor:pointer' : '') + '">' +
+          '<div style="width:58px;font-weight:700;font-size:13px;white-space:nowrap">' + fsEsc(r.x.start || "—") + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(label) + '</div>' +
+          (due ? '<div style="font-size:12px;color:var(--fs-sub)">' + fsEsc(due) + ' service</div>' : '') + '</div>' +
+          '<span style="font-size:11.5px;border-radius:20px;padding:3px 10px;' + chip[1] + '">' + chip[0] + '</span></div>';
+      });
+    }
+    h += '</div>';
+  }
+  /* priority sites — absent when nothing needs attention (Ruling 4; no
+     "great work" panel). Photos are s.photo, the field the hub card shows. */
+  if (d.pri.length) {
+    h += '<div class="fscard" id="fsTodayPriority" style="padding:16px">' +
+      '<h3 style="font-size:15px;font-weight:700;margin-bottom:10px">Priority sites</h3>' +
+      '<div id="fsTdPriRow" style="display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch">';
+    d.pri.forEach((r, i) => {
+      h += '<div class="fsTdPriCard" data-i="' + i + '" style="flex:0 0 150px;border:1px solid var(--fs-border);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--fs-bg)">' +
+        (r.e.s.photo
+          ? '<img src="' + r.e.s.photo + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
+          : '<div style="width:100%;height:74px;display:flex;align-items:center;justify-content:center;background:#22262b;color:var(--fs-sub2);font-size:22px;font-weight:800">' + fsEsc((r.e.s.name || "?").slice(0, 1)) + '</div>') +
+        '<div style="padding:8px 9px">' +
+        '<div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.name) + '</div>' +
+        ((r.e.s.address || "") ? '<div style="font-size:11px;color:var(--fs-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.address) + '</div>' : '') +
+        '<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">' +
+        (r.n ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:rgba(198,40,40,.15);color:#e57373;font-weight:700">' + r.n + ' overdue</span>' : '') +
+        (r.b ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:#22262b;color:var(--fs-sub)">Booked today</span>' : '') +
+        '</div></div></div>';
+    });
+    h += '</div></div>';
+  }
+  return h;
+}
+function fsRenderToday() {
+  const w = document.getElementById("fsTodayView");
+  if (!w || !fsRegister) return;
+  if (typeof fsPlPlans === "undefined" || !fsPlPlans) {
+    /* the hub's own lazy-load pattern: kick the IDB read once, re-render
+       when it lands and only if the screen is still showing. */
+    fsPlLoadPlans().then(() => {
+      if (document.getElementById("fsTodayView").style.display !== "none") fsRenderToday();
+    });
+  }
+  const d = fsTodayData();
+  w.innerHTML = fsTodayHtml(d);
+  const pl = document.getElementById("fsTodayPlanner");
+  if (pl) pl.onclick = () => document.getElementById("fsPlannerBtn").click();
+  w.querySelectorAll(".fsTdRow").forEach(el => el.onclick = () => {
+    const r = (d.stops || [])[+el.dataset.i];
+    if (r && r.e) fsTodayOpenSite(r.e);
+  });
+  w.querySelectorAll(".fsTdPriCard").forEach(el => el.onclick = () => {
+    const r = d.pri[+el.dataset.i];
+    if (r) fsTodayOpenSite(r.e);
+  });
+}
+document.getElementById("fsNavToday").onclick = () => {
+  if (!fsRegister) return;                 /* the import screen keeps its own CTAs */
+  fsRenderToday(); fsShow("fsTodayView");
+};
+document.getElementById("fsNavSites").onclick = () => {
+  if (!fsRegister) return;
+  fsRenderClients(); fsShow("fsClientsView");
+};
 /* ===== PASS 45 — THE SITE HUB ==============================================
    The site landing screen composed from data that already exists
    (COMMERCIAL-MAP-2026-08-11.md §5). Built to the 19 settled rulings in
@@ -15798,7 +16012,7 @@ function fsRenderTab() {
     html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h3 style="font-size:16px;font-weight:700;flex:1">QR tags</h3>';
     if (qits.length) html += '<button class="fsbtn" id="fsQrSheetBtn">&#128424; Label sheet PDF</button>';
     html += '<button class="fsbtnP" id="fsQrAddBtn">+ Add QR tag</button></div>';
-    if (!qits.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No QR tags yet. Add one here (device details, barcode, QR photo, printable label), or create one from a device on the plan (double-tap the device &rarr; Details). Scan any printed tag from &#128218; Resources to look it up from anywhere.</div>';
+    if (!qits.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No QR tags yet. Add one here (device details, barcode, QR photo, printable label), or create one from a device on the plan (double-tap the device &rarr; Details). Scan any printed tag from &#128295; Tools in the bottom bar to look it up from anywhere.</div>';
     qits.forEach((it, i) => {
       const pl = fsQrItemPlaced(s, it.qid);
       const parts = [];
@@ -18368,7 +18582,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v54";
+const FS_BUILD = "aa-v56";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -20881,7 +21095,16 @@ document.getElementById("fsPlannerBtn").onclick = async () => {
       fsEnsureIds();
       fsStamp();
       fsRenderClients();
-      fsShow("fsClientsView");
+      /* PASS 47 — Today is the home screen (Reece, 12 Aug, answering the
+         Pass 46 gate). BOOT ONLY: fsLoadRegister still lands on the
+         clients list, because a user who has just picked a register FILE
+         picked it to look at it. The clients screen is rendered either
+         way, so tapping Sites is instant. If Today cannot render we land
+         where the app always landed rather than strand the boot on the
+         import screen with a register open. */
+      let toToday = false;
+      try { fsRenderToday(); toToday = true; } catch (e) {}
+      fsShow(toToday ? "fsTodayView" : "fsClientsView");
     }
   } catch (e) {}
   fsLoadProfile();
