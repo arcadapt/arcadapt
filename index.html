@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.49 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.50 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.49 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.50 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -15172,6 +15172,207 @@ async function fsSiteDelete(s) {
   fsMarkDirty();
   fsRenderSites();
 }
+/* ===== PASS 45 — THE SITE HUB ==============================================
+   The site landing screen composed from data that already exists
+   (COMMERCIAL-MAP-2026-08-11.md §5). Built to the 19 settled rulings in
+   BACKLOG.md; the mock (SITE-HUB-MOCK-2026-08-11.html) is a design, not a
+   spec sheet. Ruling 4: a section with nothing to report is ABSENT, not a
+   reassuring zero. Ruling 9: calm is monochrome and SHORTER — colour is
+   scarce and reserved for exceptions. NO Start-test control anywhere on
+   the hub — Reece, 12 Aug, and his instruction stands over Ruling 12's
+   recorded resolution. No commercial surface here: Rulings 5+18 made the
+   strip the one service-and-defects surface, and the open Money-ownership
+   decision may not be assumed by any hub display. ========================= */
+function fsHubToday(s) {
+  /* Today's planner stop for THIS site. fsPlPlans lives in IDB and loads
+     lazily — fsHubWire kicks the load once and re-renders; null here just
+     means "no card yet", never an invented booking. */
+  if (typeof fsPlPlans === "undefined" || !fsPlPlans) return null;
+  const tk = fsPlTodayKey(), mo = fsPlPlans[tk.slice(0, 7)];
+  const day = mo && mo.days && mo.days[tk];
+  if (!day) return null;
+  const stop = day.filter(x => x && !x.adhoc && x.siteId === s.id && !x.done)[0];
+  if (!stop) return null;
+  const due = fsPlDueCycles(s, tk.slice(0, 7)).map(c => c.label);
+  return { start: stop.start || "", mins: +stop.mins || 0,
+           title: due.length ? due.join(" + ") + " service" : "Routine visit" };
+}
+function fsHubAccessEx(s) {
+  /* Ruling 6 — an access EXCEPTION promotes to identity level. The
+     exception is the resolved access level being non-normal; the access
+     text rides along. Normal access with notes stays a quiet info row. */
+  const k = (typeof fsAccessResolve === "function")
+    ? fsAccessResolve(s, (typeof fsParentSite !== "undefined" && fsParentSite) || null, null)
+    : "normal";
+  if (!k || k === "normal") return null;
+  const lvl = fsAccessList().filter(l => l.k === k)[0];
+  return { label: (lvl && lvl.label) || k, text: s.access || "" };
+}
+function fsHubEvents(s) {
+  /* Real events only — a completed test and a raised defect happened;
+     "no defects found" is not an event (Ruling 9's mock failure). */
+  const ev = [];
+  (s.history || []).forEach(r => {
+    if (r && r.finished) ev.push({ d: String(r.finished).slice(0, 10),
+      t: (r.label || r.mode || "Test") + (r.manual ? " (recorded manually)" : ""),
+      w: r.tech || "" });
+  });
+  (s.defects || []).forEach(d => {
+    if (d && d.created) ev.push({ d: String(d.created).slice(0, 10),
+      t: "Defect raised — " + (d.desc || ""), w: d.raisedBy || "" });
+  });
+  return ev.sort((a, b) => String(b.d).localeCompare(String(a.d))).slice(0, 3);
+}
+function fsHubHtml(s) {
+  /* rev D — THE FIXED SLOT MAP (Reece, 12 Aug, via Dispatch, after the
+     rev C renders still moved visually: "Your pictures you sent me don't
+     even match in terms of where things are"). No auto-packing, ever.
+     Action bar full-width directly under the tab strip; LEFT column =
+     Important information (ALWAYS top — Reece) then Recent activity;
+     MIDDLE column = Today's work (top when booked) then Open defects
+     (promoted: problems never sit below the fold while the strip shows a
+     red count); RIGHT = the photo card (Rulings 15+19). An absent card
+     SHORTENS its column; an empty middle column is omitted; nothing ever
+     reflows sideways. Slot assertions: test_p45 C8a/C8b/C8c. */
+  /* Reece, 12 Aug: "where are the buttons that are supposed to be the
+     uniform buttons throughout the app?" — these are STANDARD .fsbtn,
+     no bespoke sizing. Uniformity is suite-checked (C9). */
+  let h = '<div id="fsHubActions" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' +
+    '<button class="fsbtn" id="fsHubQaScan">Scan QR</button>' +
+    ((typeof fsCan !== "function" || fsCan("field")) ? '<button class="fsbtn" id="fsHubQaDefect">Add defect</button>' : '') +
+    '<button class="fsbtn" id="fsHubQaPhoto">Take photo</button>' +
+    '</div>';
+  h += '<div id="fsHubWrap" style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">';
+  /* LEFT column */
+  h += '<div id="fsHubColL" style="flex:1.2;min-width:250px;display:flex;flex-direction:column;gap:10px">';
+  const rows = [];
+  if (s.access && !fsHubAccessEx(s)) rows.push(["Access", fsEsc(s.access)]);
+  fsCtList(s).forEach(c => {
+    /* tap-to-call stays a real tel: link — Brief 2's "tap contact -> call"
+       already shipped (Pass 17) and the hub must not regress it to text. */
+    const tel = (typeof fsCtTel === "function" && c.num) ? fsCtTel(c.num) : "";
+    rows.push([fsEsc(c.pos || "Contact"),
+      fsEsc(c.name || "") + (c.num ? (c.name ? "<br>" : "") +
+        (tel ? '<a href="tel:' + fsEsc(tel) + '" style="color:var(--fs-accent);text-decoration:none">' + fsEsc(c.num) + '</a>' : fsEsc(c.num)) : "")]);
+  });
+  Object.keys(s.equipment || {}).forEach(k => {
+    const en = s.equipment[k] || {};
+    if (/panel/i.test(k) && en.v) rows.push([fsEsc(k), fsEsc(en.v)]);
+  });
+  (s.equipCustom || []).forEach(en => {
+    if (en && /panel/i.test(en.name || "") && en.v) rows.push([fsEsc(en.name), fsEsc(en.v)]);
+  });
+  if (s.furtherInfo) rows.push(["Further information", fsEsc(s.furtherInfo)]);
+  h += '<div class="fscard fsHubCard" id="fsHubInfo" style="padding:16px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Important information</h3>' +
+    '<a id="fsInfoEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">Edit</a></div>';
+  if (rows.length) rows.forEach(r => {
+    h += '<div style="display:flex;gap:11px;padding:8px 0;border-top:1px solid var(--fs-border)">' +
+      '<div style="width:38%;color:var(--fs-sub);font-size:12.5px;font-weight:600">' + r[0] + '</div>' +
+      '<div style="flex:1;font-size:12.5px;color:var(--fs-text);white-space:pre-wrap">' + r[1] + '</div></div>';
+  });
+  else h += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
+  h += '</div>';
+  const ev = fsHubEvents(s);
+  if (ev.length) {
+    h += '<div class="fscard fsHubCard" id="fsHubActivity" style="padding:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Recent activity</h3>' +
+      '<a id="fsHubActAll" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
+    ev.forEach(e => {
+      h += '<div style="padding:8px 0;border-top:1px solid var(--fs-border)">' +
+        '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(e.d) + '</div>' +
+        '<div style="font-size:13px;font-weight:600">' + fsEsc(e.t) + '</div>' +
+        (e.w ? '<div style="font-size:12px;color:var(--fs-sub)">by ' + fsEsc(e.w) + '</div>' : '') + '</div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+  /* MIDDLE column */
+  let mh = "";
+  const today = fsHubToday(s);
+  if (today) {
+    /* NO Start-test button here — Reece, 12 Aug via Dispatch, twice. The
+       card is a briefing: what is booked, when, how long. The Start-test
+       control lives where it always did, in the workspace. */
+    mh += '<div class="fscard fsHubCard" id="fsHubToday" style="padding:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="font-size:15px;font-weight:700">Today\'s work</h3>' +
+      '<span style="font-size:11.5px;border-radius:20px;padding:3px 10px;background:#22262b;color:var(--fs-sub)">Booked today</span></div>' +
+      '<div style="font-size:14.5px;font-weight:600">' + fsEsc(today.title) + '</div>' +
+      '<div style="display:flex;gap:20px;border-top:1px solid var(--fs-border);margin-top:10px;padding-top:10px">' +
+      '<div><div style="color:var(--fs-sub2);font-size:11.5px">Booked</div><div style="font-weight:600;font-size:13px">' + fsEsc(today.start) +
+      (today.mins ? ' &ndash; ' + fsEsc(fsPlM2T(fsPlT2M(today.start) + today.mins)) : '') + '</div></div>' +
+      (today.mins ? '<div><div style="color:var(--fs-sub2);font-size:11.5px">Expected</div><div style="font-weight:600;font-size:13px">' + fsEsc(fsPlFmtMins(today.mins)) + '</div></div>' : '') +
+      '</div></div>';
+  }
+  const open = (s.defects || []).filter(d => !d.closed);
+  if (open.length) {
+    mh += '<div class="fscard fsHubCard" id="fsHubDefects" style="padding:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Open defects</h3>' +
+      '<a id="fsHubDefAll" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
+    open.forEach(d => {
+      const dc = fsDefCls(d.cls);
+      mh += '<div class="fsHubDefRow" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--fs-border);cursor:pointer">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e57373">' + fsEsc(d.desc) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + '</div></div>' +
+        (dc ? '<span style="font-size:11px;font-weight:800;color:#fff;background:' + dc.col + ';border-radius:11px;padding:1px 9px;flex:0 0 auto">' + fsEsc(dc.short) + '</span>' : '') +
+        '</div>';
+    });
+    mh += '</div>';
+  }
+  if (mh) h += '<div id="fsHubColM" style="flex:1.2;min-width:250px;display:flex;flex-direction:column;gap:10px">' + mh + '</div>';
+  /* RIGHT — the photo card, always the right-hand slot when a photo
+     exists (Rulings 15+19). */
+  if (s.photo || s.entryPhoto) {
+    h += '<div class="fscard" id="fsHubPhotoCard" style="flex:1;min-width:230px;padding:16px;display:flex;flex-direction:column;gap:8px">' +
+      '<div style="margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Site photo</h3></div>';
+    if (s.photo) h += '<img id="fsHubPhoto" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+    if (s.entryPhoto) h += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
+      '<img id="fsHubEntryPhoto" src="' + s.entryPhoto + '" style="width:100%;height:132px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+function fsHubWire(s) {
+  const ed = document.getElementById("fsInfoEditBtn");
+  if (ed) ed.onclick = () => { fsInfoEdit = true; fsRenderTab(); };
+  const qs = document.getElementById("fsHubQaScan");
+  if (qs) qs.onclick = fsQrLookOpen;
+  const qd = document.getElementById("fsHubQaDefect");
+  if (qd) qd.onclick = () => fsDefFormOpen(s, {});
+  const qp = document.getElementById("fsHubQaPhoto");
+  if (qp) qp.onclick = () => { fsPhotoTarget = { kind: s.photo ? "siteAdd" : "site" }; document.getElementById("fsPhotoInput").click(); };
+  const ph = document.getElementById("fsHubPhoto");
+  if (ph) ph.onclick = () => fsViewPhoto(s.photo, { kind: "siteIdx", i: 0 });
+  const ep = document.getElementById("fsHubEntryPhoto");
+  if (ep) ep.onclick = () => fsViewPhoto(s.entryPhoto, { kind: "siteEntry" });
+  document.querySelectorAll(".fsHubDefRow").forEach(r =>
+    r.onclick = () => { fsTab = "defects"; fsEquipEdit = false; fsRenderSite(); });
+  const va = document.getElementById("fsHubActAll");
+  if (va) va.onclick = () => { fsTab = "history"; fsEquipEdit = false; fsRenderSite(); };
+  const vd = document.getElementById("fsHubDefAll");
+  if (vd) vd.onclick = () => { fsTab = "defects"; fsEquipEdit = false; fsRenderSite(); };
+  /* The lightbox delete needs the promote rule in scope — Pass 22/26's,
+     byte-for-byte: index 0 is s.photo and deleting it pulls the first
+     extra up, so the card never blanks while photos remain. */
+  fsSitePhotoDelete = function (spi) {
+    const spx = s.photoExtra || [];
+    if (spi === 0) {
+      if (spx.length) { s.photo = spx.shift(); s.photoExtra = spx; }
+      else delete s.photo;
+    } else {
+      spx.splice(spi - 1, 1);
+      s.photoExtra = spx;
+    }
+    fsMarkDirty();
+    fsRenderTab();
+  };
+  /* Today's card reads the planner file; load it once, then one re-render.
+     fsPlPlans is non-null after the load, so this cannot loop. */
+  if (typeof fsPlLoadPlans === "function" && !fsPlPlans)
+    fsPlLoadPlans().then(() => {
+      if (fsTab === "overview" && !fsInfoEdit && document.getElementById("fsHubGrid")) fsRenderTab();
+    });
+}
 function fsRenderSites() {
   document.getElementById("fsClientTitle").textContent = fsClient.name;
   const wrap = document.getElementById("fsSiteList");
@@ -15283,29 +15484,28 @@ function fsInfoPhotoHtml() {
   if (!fsInfoEdit && !infoRows.some(([l, k]) => s[k]) && !fsCtList(s).length) html += '<div style="color:var(--fs-faint);font-size:13px">Nothing recorded yet — tap Edit.</div>';
   html += '</div>';
 
-  // site photo card — main photo + any extras
-  const spAll = [];
-  if (s.photo) spAll.push(s.photo);
-  (s.photoExtra || []).forEach(p => { if (p) spAll.push(p); });
+  /* PASS 45 [45-5] — Ruling 19, per Reece's 12 Aug correction: the
+     right-hand card is the DISPLAY photo, with the entry photo beneath it
+     when one exists. s.photoExtra[] left this card for Files & photos; the
+     Pass 22/26 promote-on-delete rule is unchanged and still lives in the
+     viewer (index 0 = s.photo). */
   html += '<div class="fscard" style="flex:1;min-width:230px;padding:14px;display:flex;flex-direction:column;gap:8px">';
-  html += '<div style="font-size:14px;font-weight:700;color:var(--fs-sub)">Site photos</div>';
-  if (!spAll.length) {
+  html += '<div style="font-size:14px;font-weight:700;color:var(--fs-sub)">Site photo</div>';
+  if (!s.photo) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
-    /* PASS 26 item 16 — no delete badge on the tiles. Reece: "the red x being
-       there permanently no matter what is ugly." It was also a coin-flip on a
-       tablet: 24 px of delete, 6 px from the corner of a thumbnail you are
-       trying to tap to view. Deleting happens in the viewer now. */
-    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + spAll[0] + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size"></div>';
-    if (spAll.length > 1) {
-      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-      spAll.slice(1).forEach((p, i) => {
-        html += '<div style="position:relative"><img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:74px;height:56px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view full size"></div>';
-      });
-      html += '</div>';
-    }
-    html += '<button class="fsbtn" id="fsSitePhotoAdd" style="align-self:flex-start">&#65291; Add photo</button>';
+    /* PASS 26 item 16 — no delete badge on the tiles; deleting happens in
+       the viewer. */
+    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size"></div>';
   }
+  if (s.entryPhoto) {
+    html += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
+      '<img id="fsEntryTile" src="' + s.entryPhoto + '" style="width:100%;height:132px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+  }
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  if (s.photo) html += '<button class="fsbtn" id="fsSitePhotoAdd">&#65291; Add photo</button>';
+  html += '<button class="fsbtn" id="fsEntryPhotoBtn">' + (s.entryPhoto ? 'Replace entry photo' : '&#65291; Add entry photo') + '</button>';
+  html += '</div>';
   html += '</div></div>';
 
   return html;
@@ -15323,26 +15523,48 @@ function fsRenderSite() {
   html += '<div style="flex:1;min-width:250px"><div style="font-size:11px;letter-spacing:2px;color:var(--fs-accent);font-weight:800">' + (fsParentSite ? 'BUILDING &middot; ' + fsEsc(fsParentSite.name).toUpperCase() : 'SITE') + '</div>';
   html += '<h1 style="font-size:32px;font-weight:700;margin:2px 0 4px">' + fsEsc(s.name) + '</h1>';
   if (addr) html += '<div style="color:var(--fs-sub);font-size:15px">' + fsEsc(addr) + '</div>';
-  html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px">';
-  if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn" id="fsMapBtn">Open in maps</button>';
+  html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px;flex-wrap:wrap">';
+  if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn" id="fsMapBtn">Navigate</button>';
   if (fsCoordsParse(s)) html += '<button class="fsbtn" id="fsCoordBtn" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>';
-  html += '<button class="fsbtnP" id="fsOpenWs">Open Site Workspace &nbsp;&#8594;</button></div></div>';
+  /* PASS 45 [45-2] — Rulings 3+10+13. Most sites have no workspace yet; a
+     primary CTA that dead-ends on most sites is worse than no CTA. The chip
+     renders ONLY when the site actually has a plan; creating one lives in
+     the ... overflow. */
+  if (s.plan && s.plan.levels && s.plan.levels.length) html += '<button class="fsbtn" id="fsOpenWs">Open workspace</button>';
+  html += '<button class="fsbtn" id="fsHubOvf" title="More">&#8943;</button></div></div>';
 
-  // status strip - compact (testing info shouldn't steal the show; Overview is the main event)
-  html += '<div class="fscard" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
+  /* PASS 45 [45-3] — Rulings 5+16+18: the strip is PROMOTED. It is the one
+     service-and-defects surface (the separate Site health / Service summary
+     cards were never built — this is them). Progress bars added; the
+     editable last-done dates STAY — they are the only way a cycle gets
+     updated today. Ruling 9: an OK cycle renders NEUTRAL, not green;
+     colour is scarce and reserved for due/overdue. Still fsCycles(): N
+     cells, never a hard-coded count (Brief 4's standing constraint). */
+  html += '<div class="fscard" id="fsHubStrip" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
   fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]).forEach((c, i) => {
     const st = fsCycleStatus(s, c);
+    const exCol = st.overdue ? '#c62828' : (st.col === '#b58900' ? '#b58900' : null);
+    const t = (s.testing || {})[c.key];
+    let pct = 0;
+    if (t && !isNaN(new Date(t))) pct = Math.max(0, Math.min(100, Math.round((Date.now() - new Date(t).getTime()) / (c.months * 2629800000) * 100)));
     html += '<div class="fsCyc" style="flex:1;min-width:104px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
-      '<div style="font-size:12.5px;font-weight:700;color:' + st.col + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
+      '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
+      '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;margin:3px 0 4px"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
       '</div>';
   });
   const openDef = (s.defects || []).filter(d => !d.closed).length;
   html += '<div style="flex:0 0 auto;min-width:84px;padding:7px 12px;border-left:1px solid var(--fs-border);display:flex;flex-direction:column;justify-content:center">' +
     '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">Defects</div>' +
-    '<div style="font-size:17px;font-weight:800;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
+    '<div id="fsHubDefN" style="font-size:17px;font-weight:800;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
   html += '</div>';
+  /* PASS 45 [45-4] — Ruling 6: an access EXCEPTION cannot be the fourth
+     thing someone reads. Same warning treatment the test dialog uses. */
+  const hubAcc = fsHubAccessEx(s);
+  if (hubAcc) html += '<div id="fsHubAccess" style="display:flex;gap:10px;align-items:center;background:#3a2320;border:1px solid #c62828;border-radius:10px;padding:10px 14px;margin-bottom:14px">' +
+    '<b style="color:#ff8a80;font-size:13px;flex:0 0 auto">&#9888; ' + fsEsc(hubAcc.label) + '</b>' +
+    (hubAcc.text ? '<span style="color:#e8b4b0;font-size:13px">' + fsEsc(hubAcc.text) + '</span>' : '') + '</div>';
 
   // tabs
   const tabs = [["overview", "Overview"]];
@@ -15368,7 +15590,21 @@ function fsRenderSite() {
   if (fsMapB) fsMapB.onclick = () => window.open(s.mapUrl && fsMapsApp() !== "waze" ? s.mapUrl : fsMapsNavUrl(s), "_blank");
   const fsCoordB = document.getElementById("fsCoordBtn");
   if (fsCoordB) fsCoordB.onclick = () => window.open(fsCoordsUrl(s), "_blank");
-  document.getElementById("fsOpenWs").onclick = fsEnterWorkspace;
+  const hubWs = document.getElementById("fsOpenWs");
+  if (hubWs) hubWs.onclick = fsEnterWorkspace;
+  /* PASS 45 [45-2] — workspace CREATION lives in the overflow (Ruling 3). */
+  const hubOvf = document.getElementById("fsHubOvf");
+  if (hubOvf) hubOvf.onclick = () => {
+    let m = document.getElementById("fsHubOvfMenu");
+    if (m) { m.remove(); return; }
+    m = document.createElement("div");
+    m.id = "fsHubOvfMenu";
+    m.style.cssText = "position:absolute;right:0;top:44px;background:var(--fs-card);border:1px solid var(--fs-border);border-radius:9px;padding:6px;z-index:60;box-shadow:0 6px 18px rgba(0,0,0,.4)";
+    m.innerHTML = '<button class="fsbtn" id="fsHubOvfWs" style="white-space:nowrap">Open Site Workspace &nbsp;&#8594;</button>';
+    hubOvf.parentElement.style.position = "relative";
+    hubOvf.parentElement.appendChild(m);
+    document.getElementById("fsHubOvfWs").onclick = fsEnterWorkspace;
+  };
   document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
       s.testing = s.testing || {};
@@ -15389,7 +15625,9 @@ function fsRenderTab() {
   let html = "";
 
   if (fsTab === "overview") {
-    html += fsInfoPhotoHtml();
+    /* PASS 45 [45-1] — the Site Hub. Edit keeps the full Site information
+       editor exactly as it ships; the hub is the composed read view. */
+    html += fsInfoEdit ? fsInfoPhotoHtml() : fsHubHtml(s);
   }
 
   if (fsTab === "buildings") {
@@ -15594,6 +15832,16 @@ function fsRenderTab() {
       });
       html += '</div>';
     }
+    /* PASS 45 [45-5] — Ruling 19: s.photoExtra[] renders HERE now, off the
+       right-hand card. Same tiles, same viewer, same promote-on-delete. */
+    const spx = (s.photoExtra || []).filter(Boolean);
+    if (spx.length) {
+      html += '<div style="margin-top:14px"><div style="font-size:13px;font-weight:700;color:var(--fs-sub);margin-bottom:6px">More site photos</div><div style="display:flex;gap:10px;flex-wrap:wrap">';
+      spx.forEach((p, i) => {
+        html += '<img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+      });
+      html += '</div></div>';
+    }
     const fls = s.files || [];
     if (fls.length) {
       html += '<div style="margin-top:14px"><div style="font-size:13px;font-weight:700;color:var(--fs-sub);margin-bottom:2px">Files</div>';
@@ -15613,7 +15861,8 @@ function fsRenderTab() {
 
   if (fsTab === "qr") fsQrTabWire(s);
 
-  if (fsTab === "overview") {
+  if (fsTab === "overview" && !fsInfoEdit) fsHubWire(s);
+  if (fsTab === "overview" && fsInfoEdit) {
     fsCtWire(s);
     const geoBtn = document.getElementById("fsSiteGeoBtn");
     if (geoBtn) geoBtn.onclick = () => {
@@ -15679,6 +15928,11 @@ function fsRenderTab() {
     };
     const spAdd = document.getElementById("fsSitePhotoAdd");
     if (spAdd) spAdd.onclick = () => { fsPhotoTarget = { kind:"siteAdd" }; document.getElementById("fsPhotoInput").click(); };
+    /* PASS 45 — Ruling 19: entry photo add/replace, same shared intake. */
+    const epBtn = document.getElementById("fsEntryPhotoBtn");
+    if (epBtn) epBtn.onclick = () => { fsPhotoTarget = { kind:"siteEntry" }; document.getElementById("fsPhotoInput").click(); };
+    const epTile = document.getElementById("fsEntryTile");
+    if (epTile) epTile.onclick = () => fsViewPhoto(s.entryPhoto, { kind:"siteEntry" });
     document.querySelectorAll(".fsSpTile").forEach(im => {
       im.onclick = () => fsViewPhoto(im.src, { kind:"siteIdx", i:+im.dataset.i });
     });
@@ -15946,6 +16200,23 @@ function fsRenderTab() {
   }
   if (fsTab === "files") {
     document.getElementById("fsFilesAdd").onclick = () => { fsPhotoTarget = { kind:"files" }; document.getElementById("fsPhotoInput").click(); };
+    /* PASS 45 [45-5] — the relocated site-photo extras: view + the same
+       viewer delete, with the promote rule in scope here too. */
+    document.querySelectorAll(".fsSpTile").forEach(im => {
+      im.onclick = () => fsViewPhoto(im.src, { kind: "siteIdx", i: +im.dataset.i });
+    });
+    fsSitePhotoDelete = function (spi) {
+      const spx = s.photoExtra || [];
+      if (spi === 0) {
+        if (spx.length) { s.photo = spx.shift(); s.photoExtra = spx; }
+        else delete s.photo;
+      } else {
+        spx.splice(spi - 1, 1);
+        s.photoExtra = spx;
+      }
+      fsMarkDirty();
+      fsRenderTab();
+    };
     document.getElementById("fsFileAnyAdd").onclick = () => document.getElementById("fsFileAnyInput").click();
     document.querySelectorAll(".fsFileOpen").forEach(a => a.onclick = () => {
       const f = (s.files || [])[+a.dataset.i];
@@ -16587,8 +16858,10 @@ function fsViewPhoto(src, replaceTarget) {
      delete elsewhere; offering a button here that silently did nothing, or
      worse deleted the wrong record, is the failure this guard exists for. */
   const lbDel = document.getElementById("fsLbDelete");
-  if (lbDel) lbDel.style.display = (fsLbTarget && fsLbTarget.kind === "siteIdx"
+  if (lbDel) lbDel.style.display = ((fsLbTarget && fsLbTarget.kind === "siteIdx"
                                     && typeof fsSitePhotoDelete === "function")
+                                    /* PASS 45 — the entry photo is a site photo too */
+                                    || (fsLbTarget && fsLbTarget.kind === "siteEntry"))
                                    ? "inline-block" : "none";
   lb.style.display = "block";
 }
@@ -16607,6 +16880,14 @@ document.getElementById("fsLbImg").onclick = e => {
 let fsSitePhotoDelete = null;
 document.getElementById("fsLbDelete").onclick = e => {
   e.stopPropagation();
+  /* PASS 45 — Ruling 19: the entry photo deletes here too. Its own branch:
+     it is a single named field, not an index into the photo list. */
+  if (fsLbTarget && fsLbTarget.kind === "siteEntry") {
+    if (!confirm("Remove the site entry photo?")) return;
+    fsLbClose();
+    if (typeof fsSite !== "undefined" && fsSite) { delete fsSite.entryPhoto; fsMarkDirty(); fsRenderSite(); }
+    return;
+  }
   if (!fsLbTarget || fsLbTarget.kind !== "siteIdx" || typeof fsSitePhotoDelete !== "function") return;
   if (!confirm("Delete this photo from the site photos?")) return;
   const i = fsLbTarget.i;
@@ -16634,6 +16915,7 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
   const apply = src => {
     changed = true;
     if (target.kind === "site") fsSite.photo = src;
+    else if (target.kind === "siteEntry") fsSite.entryPhoto = src;   /* PASS 45 — Ruling 19 */
     else if (target.kind === "siteAdd") {
       if (!fsSite.photo) fsSite.photo = src;
       else { fsSite.photoExtra = fsSite.photoExtra || []; fsSite.photoExtra.push(src); }
@@ -18086,7 +18368,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v53";
+const FS_BUILD = "aa-v54";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
