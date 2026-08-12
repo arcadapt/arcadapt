@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.48 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.49 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.48 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.49 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -11378,7 +11378,98 @@ function fsStep0Sweep() {
   }
   fsRecWalk(fsRegister, (o, _t, when) => { if (fsStamp0(o, when)) ch = true; });
   if ((fsRegister.version | 0) < FS_SCHEMA) { fsRegister.version = FS_SCHEMA; ch = true; }
+  /* PASS 44 [44-3] — back-link BEFORE the fingerprint snapshot below, so a
+     freshly-linked doc is baseline, not a phantom edit that bumps rev. */
+  if (fsLinkSweep()) ch = true;
   fsRevBase = fsRevSnap(fsRegister);
+  return ch;
+}
+/* ===== PASS 44 — the clientName/siteName -> uid relationship fix ============
+   Quotes and charges store the client and site as DISPLAY STRINGS captured
+   at creation. Deliberate, and it stays: the document must read correctly
+   months later, even after a rename. But a string is not a link — rename a
+   site and its quotes silently orphan (COMMERCIAL-MAP-2026-08-11.md §3).
+   Step 0 gave every record a permanent uid; the LINK is clientUid/siteUid.
+   NOT clientId/siteId (MONEY-DESIGN §3.4's spelling): fsSiteCtx uses those
+   exact names for the PATH ids, and reusing them would be the `dev`
+   collision again. PASS-44-NOTES.md has the reasoning. ==================== */
+function fsClientByUid(uid) {
+  if (!uid || !fsRegister) return null;
+  return ((fsRegister.clients || []).filter(c => c.uid === uid))[0] || null;
+}
+function fsSiteByUid(uid) {
+  if (!uid || !fsRegister) return null;
+  let hit = null;
+  (fsRegister.clients || []).forEach(c => (c.sites || []).forEach(s => {
+    if (s.uid === uid) hit = { c: c, s: s };
+  }));
+  return hit;
+}
+/* Resolve the link on a quote or charge. uid ONLY — a name fallback would
+   reintroduce the inference this pass removes. No uid: null, honestly. */
+function fsLinkClient(o) { return o ? fsClientByUid(o.clientUid) : null; }
+function fsLinkSite(o) { const h = o && fsSiteByUid(o.siteUid); return h ? h.s : null; }
+/* [44-3] The lazy migration. Runs inside the Step 0 upgrade-on-load, so it
+   is idempotent and persists under the same dirty-as-"migration" pattern.
+   Evidence order per doc: explicit stored id (defectId / recId — survives
+   rename, rescues already-orphaned docs), then the stored strings where
+   they match exactly ONE client/site, else linkMiss: true — never a guess.
+   An existing link is never overwritten. Scratch quotes are skipped. */
+function fsLinkSweep() {
+  if (!fsRegister) return false;
+  let ch = false;
+  const owners = [];
+  (fsRegister.clients || []).forEach(c => (c.sites || []).forEach(s => owners.push({ c: c, s: s })));
+  const byDefect = id => {
+    if (!id) return null;
+    let hit = null;
+    owners.forEach(o => {
+      const w = n => {
+        (n.defects || []).forEach(d => { if (d.id === id) hit = o; });
+        (n.buildings || []).forEach(w);
+      };
+      w(o.s);
+    });
+    return hit;
+  };
+  const byRec = id => {
+    if (!id) return null;
+    let hit = null;
+    owners.forEach(o => (o.s.history || []).forEach(h => { if (h.id === id) hit = o; }));
+    return hit;
+  };
+  const byNames = (cn, sn) => {
+    if (!sn) return null;                       /* a site claim needs a site name */
+    let m = owners.filter(o => (o.s.name || "") === sn);
+    if (cn) m = m.filter(o => (o.c.name || "") === cn);
+    return m.length === 1 ? m[0] : null;        /* exactly one or nothing */
+  };
+  const relink = (o, hit, wantSite) => {
+    if (hit) {
+      if (!o.clientUid && hit.c && hit.c.uid) { o.clientUid = hit.c.uid; ch = true; }
+      if (!o.siteUid && hit.s && hit.s.uid) { o.siteUid = hit.s.uid; ch = true; }
+    }
+    const miss = (wantSite && !o.siteUid) || (!!o.clientName && !o.clientUid);
+    if (miss && o.linkMiss !== true) { o.linkMiss = true; ch = true; }
+    if (!miss && o.linkMiss !== undefined) { delete o.linkMiss; ch = true; }
+  };
+  (fsRegister.quotes || []).forEach(q => {
+    if (q.scratch) return;                      /* typed, never register-backed */
+    const wantSite = !!(q.siteName || q.defectId);
+    if (!wantSite && !q.clientName) return;     /* nothing was ever linked */
+    if (!(q.clientUid && (q.siteUid || !wantSite))) {
+      const hit = byDefect(q.defectId) || byNames(q.clientName, q.siteName);
+      relink(q, hit, wantSite);
+    } else if (q.linkMiss !== undefined) { delete q.linkMiss; ch = true; }
+  });
+  (fsRegister.charges || []).forEach(c => {
+    const wantSite = !!(c.siteName || c.recId);
+    if (!wantSite && !c.clientName) return;
+    if (!(c.clientUid && (c.siteUid || !wantSite))) {
+      const hit = byRec(c.recId) || byNames(c.clientName, c.siteName);
+      relink(c, hit, wantSite);
+    } else if (c.linkMiss !== undefined) { delete c.linkMiss; ch = true; }
+  });
   return ch;
 }
 /* Routines ARE the cycle engine now. The legacy five-entry const survives
@@ -12949,7 +13040,7 @@ function fsCharges() {
 /* One completed visit, one charge line. Keyed on the test record id so the same
    visit can never be charged twice - a re-recorded or re-imported test is the
    same visit and must not earn a second line. */
-function fsVisitCharge(site, rec, clientName) {
+function fsVisitCharge(site, rec, clientName, client) {
   if (!fsRegister || !rec || !fsVisitChargeOn()) return null;
   const list = fsCharges();
   if (list.filter(x => x.recId === rec.id).length) return null;
@@ -12960,6 +13051,8 @@ function fsVisitCharge(site, rec, clientName) {
     id: fsBookId("sc"), recId: rec.id, created: rec.finished,
     visit: rec.mode || "", visitLabel: label,
     clientName: clientName || "", siteName: (site && site.name) || "",
+    /* PASS 44 [44-1] — the link, same rule as quotes: names display, uids resolve. */
+    clientUid: (client && client.uid) || "", siteUid: (site && site.uid) || "",
     rateSource: r.src, status: "open", handedAt: null,
     /* Integer cents always - the money core never sees a null. "No price" is
        the FLAG, not a blank number, so nothing can silently become zero. */
@@ -13890,6 +13983,10 @@ function fsQuoteNew(row) {
     id: fsBookId("q"), number: "", status: "draft",
     created: new Date().toISOString(), updated: new Date().toISOString(),
     clientName: (row && row.client) || "", siteName: (row && row.site) || "",
+    /* PASS 44 [44-1] — the LINK. The names above stay the display snapshot
+       (deliberate; a quote reads correctly after a rename). The uids are
+       what RESOLVES. Both creation paths carry the register objects. */
+    clientUid: (row && row.c && row.c.uid) || "", siteUid: (row && row.s && row.s.uid) || "",
     where: (row && row.where) || "",
     defectId: (row && row.d && row.d.id) || "", defectDesc: (row && row.d && row.d.desc) || "",
     access: row ? fsAccessResolve(row.s, null, row.node) : "normal",
@@ -13950,7 +14047,7 @@ async function fsQuoteStart() {
       empty: "There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later." });
   if (!hit) return null;
   const x = list[hit.k];
-  const q = fsQuoteNew({ client: x.client, site: x.site, s: x.s, node: x.s });
+  const q = fsQuoteNew({ client: x.client, site: x.site, c: x.c, s: x.s, node: x.s });
   fsMarkDirty();
   return q;
 }
@@ -13968,6 +14065,7 @@ function fsQuoteScratch() {
     id: fsBookId("q"), number: "", ref: "", scratch: true, status: "draft",
     created: now, updated: now,
     clientName: "", siteName: "", where: "",
+    clientUid: "", siteUid: "",   /* PASS 44 — scratch is typed, no register entity */
     defectId: "", defectDesc: "",
     access: "normal",
     lines: [], lineAmountsInclusive: false, currency: "AUD", notes: "",
@@ -17410,7 +17508,8 @@ function fsFinishTest() {
      finished the test is not shown an amount and never should be - money lives
      behind fsCan("money") on the dashboard. Wrapped because a charging problem
      must never cost someone the test they just recorded. */
-  try { fsVisitCharge(site, rec, (typeof fsClient !== "undefined" && fsClient && fsClient.name) || ""); } catch (e) {}
+  try { fsVisitCharge(site, rec, (typeof fsClient !== "undefined" && fsClient && fsClient.name) || "",
+                    (typeof fsClient !== "undefined" && fsClient) || null); } catch (e) {}
   fsMarkDirty();
   fsClearSession();
   fsCloseTest();
@@ -17987,7 +18086,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v52";
+const FS_BUILD = "aa-v53";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
