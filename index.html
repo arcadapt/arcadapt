@@ -278,7 +278,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.47 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.48 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -366,7 +366,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.47 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.48 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -10777,6 +10777,7 @@ function fsPlGridPx(st) {
 }
 
 async function fsRegisterBlob(asBundle) {
+  fsRevBump();   /* PASS 43 [43-3] — stamp what changed before the bytes leave */
   return asBundle ? await fsBuildBundle(fsRegister)
                   : new Blob([JSON.stringify(fsRegister)], { type:"application/json" });
 }
@@ -11294,6 +11295,123 @@ async function fsBlobGC() {
     }
   } catch (e) {}
 }
+/* ===== PASS 43 — BACKEND STEP 0: global identity ============================
+   Every record gets a stable client-generated uuid (uid), a version integer
+   (rev) and an updated_at. uid is the identity that crosses devices; the
+   existing path ids (c1_s2_b3, mkid, fsBookId) remain the in-file links they
+   already are. THE SYNC LAYER, WHEN IT EXISTS, READS uid AND ONLY uid — a
+   merge path that compares .id where it meant .uid is the silent-overwrite
+   bug this pass exists to prevent. BACKEND-STEP0-BRIEF.md has the reasoning;
+   PASS-43-NOTES.md has the four decisions. Schema version: 2. ============= */
+const FS_SCHEMA = 2;
+function fsUid() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  const b = new Uint8Array(16);
+  try { crypto.getRandomValues(b); } catch (e) { for (let i = 0; i < 16; i++) b[i] = Math.random() * 256 | 0; }
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;   /* version 4, variant 10 */
+  const h = Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+  return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+}
+function fsDeviceId() {
+  let d = null;
+  try { d = localStorage.getItem("fs-device"); } catch (e) {}
+  if (!d) { d = fsUid(); try { localStorage.setItem("fs-device", d); } catch (e) {} }
+  return d;
+}
+/* THE record inventory — one walk, used by the sweep AND the export bump, so
+   the two can never disagree about what a record is. cb(record, type,
+   bestKnownDate, childRecordKeys). Child-record arrays are excluded from the
+   parent's fingerprint so a defect edit bumps the defect, not the site. */
+function fsRecWalk(reg, cb) {
+  if (!reg) return;
+  const day = reg.updated || "";
+  (reg.clients || []).forEach(c => {
+    cb(c, "client", day, ["sites"]);
+    (c.sites || []).forEach(s => {
+      cb(s, "site", day, ["buildings", "history", "defects", "qrItems"]);
+      (s.buildings || []).forEach(b => cb(b, "building", day, []));
+      (s.history || []).forEach(h => cb(h, "record", h.finished || day, []));
+      (s.defects || []).forEach(d => cb(d, "defect", d.created || day, []));
+      (s.qrItems || []).forEach(q => cb(q, "qr", day, []));
+    });
+  });
+  (reg.quotes || []).forEach(q => cb(q, "quote", q.updated || q.created || day, []));
+  (reg.charges || []).forEach(ch => cb(ch, "charge", ch.created || day, []));
+  (reg.projects || []).forEach(j => cb(j, "job", j.created || day, []));
+  (reg.routines || []).forEach(rt => cb(rt, "routine", day, []));
+}
+function fsStamp0(o, when) {
+  let ch = false;
+  if (!o.uid) { o.uid = fsUid(); ch = true; }
+  if (typeof o.rev !== "number" || !isFinite(o.rev) || o.rev < 1) { o.rev = 1; ch = true; }
+  if (!o.updated_at) { o.updated_at = when || new Date().toISOString(); ch = true; }
+  return ch;
+}
+/* Fingerprint of one record: stamp fields and child-record arrays excluded. */
+function fsRecFp(o, skip) {
+  const drop = { uid: 1, rev: 1, updated_at: 1, updated_dev: 1 };
+  (skip || []).forEach(k => { drop[k] = 1; });
+  return JSON.stringify(o, function (k, v) {
+    return (this === o && drop[k]) ? undefined : v;
+  });
+}
+let fsRevBase = null;   /* uid -> fingerprint at load / last export */
+function fsRevSnap(reg) {
+  const m = {};
+  fsRecWalk(reg, (o, _t, _w, skip) => { if (o.uid) m[o.uid] = fsRecFp(o, skip); });
+  return m;
+}
+/* The upgrade-on-load. Runs inside fsEnsureIds under the Pass 28 migration
+   pattern: the flag STAYS (dirty as "migration") because minted uids that
+   never reach the FILE mean every device re-mints DIFFERENT uids for the
+   same records — the exact bug Step 0 exists to prevent. */
+function fsStep0Sweep() {
+  if (!fsRegister) return false;
+  let ch = false;
+  if (!Array.isArray(fsRegister.routines) || !fsRegister.routines.length) {
+    /* BRIEF 4, decided inside Step 0 per the locked ruling: the five cycles
+       become five seeded Routine records — same keys, same labels, same
+       months, so s.testing[] and the cycles.* module gating keep working.
+       The schema stops assuming five. Do not build Uptick here. */
+    fsRegister.routines = FS_CYCLES.map(c => ({ key: c.key, label: c.label, months: c.months }));
+    ch = true;
+  }
+  fsRecWalk(fsRegister, (o, _t, when) => { if (fsStamp0(o, when)) ch = true; });
+  if ((fsRegister.version | 0) < FS_SCHEMA) { fsRegister.version = FS_SCHEMA; ch = true; }
+  fsRevBase = fsRevSnap(fsRegister);
+  return ch;
+}
+/* Routines ARE the cycle engine now. The legacy five-entry const survives
+   only as the seed and the no-register fallback. Every read site goes
+   through here. */
+function fsCycles() {
+  const r = fsRegister && fsRegister.routines;
+  return (r && r.length) ? r : FS_CYCLES;
+}
+/* PASS 43 [43-3] — the rev bump happens where bytes LEAVE the device. The
+   register file is the thing two devices exchange, so per-record revs move
+   exactly when a changed record is exported. The IDB autosave is a same-
+   device cache and deliberately does not bump. */
+function fsRevBump() {
+  if (!fsRegister) return 0;
+  const dev = fsDeviceId(), now = new Date().toISOString();
+  let n = 0;
+  const base = fsRevBase || {};
+  fsRecWalk(fsRegister, (o, _t, when, skip) => {
+    if (fsStamp0(o, when)) {           /* created mid-session: identity minted here */
+      o.updated_dev = dev; n++;
+      base[o.uid] = fsRecFp(o, skip);
+      return;
+    }
+    const fp = fsRecFp(o, skip);
+    if (base[o.uid] !== undefined && base[o.uid] !== fp) {
+      o.rev = (o.rev | 0) + 1; o.updated_at = now; o.updated_dev = dev; n++;
+    }
+    base[o.uid] = fp;
+  });
+  fsRevBase = base;
+  return n;
+}
 function fsEnsureIds() {
   let migrated = false;
   (fsRegister.clients || []).forEach((c, ci) => {
@@ -11325,6 +11443,8 @@ function fsEnsureIds() {
      So the flag is correct and the WORDING was the fault. "UNSAVED CHANGES"
      accuses the user of something they did not do and tells them nothing. The
      stamp now distinguishes the two cases — see fsStamp. */
+  /* PASS 43 [43-2] — Backend Step 0 upgrade-on-load, same migration pattern. */
+  if (fsStep0Sweep()) migrated = true;
   if (migrated) { fsDirty = true; fsDirtyWhy = "migration"; fsPersistReg(); }
 }
 
@@ -14514,7 +14634,7 @@ function fsDashRows() {
   (fsRegister.clients || []).forEach(c => (c.sites || []).forEach(s => {
     let worstDays = null, openDef = 0, lastTest = "";
     const walk = s2 => {
-      FS_CYCLES.forEach(cy => {
+      fsCycles().forEach(cy => {
         const t = (s2.testing || {})[cy.key];
         if (!t) return;
         const last = new Date(t);
@@ -14552,7 +14672,7 @@ function fsDashRender() {
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
   rows.forEach((r, i) => {
-    const cyc = FS_CYCLES.map(cy => { const st = fsCycleStatus(r.s, cy); return st.txt === "No record" ? "" : '<span style="font-size:11px;color:' + st.col + ';font-weight:700;white-space:nowrap">' + cy.label + ": " + st.txt + '</span>'; }).filter(Boolean).join(' <span style="color:var(--fs-border)">|</span> ');
+    const cyc = fsCycles().map(cy => { const st = fsCycleStatus(r.s, cy); return st.txt === "No record" ? "" : '<span style="font-size:11px;color:' + st.col + ';font-weight:700;white-space:nowrap">' + cy.label + ": " + st.txt + '</span>'; }).filter(Boolean).join(' <span style="color:var(--fs-border)">|</span> ');
     html += '<div class="fsDashRow" data-i="' + i + '" style="display:flex;gap:10px;align-items:center;padding:9px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
       '<span style="width:10px;height:10px;border-radius:50%;flex:none;background:' + fsSiteWorstDot(r.s) + '"></span>' +
       '<span style="flex:1;min-width:0"><b style="font-size:14px">' + fsEsc(r.s.name) + '</b> <span style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(r.c.name) + '</span><br>' +
@@ -14583,7 +14703,7 @@ function fsDashPdf() {
   lines.push(["t", rows.length + " sites \u00b7 " + over + " overdue \u00b7 " + defs + " open defects"]);
   rows.forEach(r => {
     lines.push(["b", r.s.name + "  (" + r.c.name + ")"]);
-    FS_CYCLES.forEach(cy => { const st = fsCycleStatus(r.s, cy); if (st.txt !== "No record") lines.push([st.overdue ? "f" : "t", "  " + cy.label + ": " + st.txt]); });
+    fsCycles().forEach(cy => { const st = fsCycleStatus(r.s, cy); if (st.txt !== "No record") lines.push([st.overdue ? "f" : "t", "  " + cy.label + ": " + st.txt]); });
     if (r.def) lines.push(["f", "  Open defects: " + r.def]);
     if (r.last) lines.push(["t", "  Last test finished: " + r.last]);
   });
@@ -14670,7 +14790,7 @@ function fsSiteWorstDot(site) {
     else if (col === "#b58900" && worst !== "#c62828") worst = "#b58900";
     else if (col === "var(--fs-sub2)" && worst === "#1b8a3f") worst = "var(--fs-sub2)";
   };
-  FS_CYCLES.forEach(c => fold(fsCycleStatus(site, c).col));
+  fsCycles().forEach(c => fold(fsCycleStatus(site, c).col));
   (site.buildings || []).forEach(b => fold(fsSiteWorstDot(b)));   // buildings roll up into the site dot
   return worst;
 }
@@ -14679,7 +14799,7 @@ function fsFadeOn() { try { return localStorage.getItem("fs-fade") !== "0"; } ca
 function fsClientDueDays(c) {
   let min = null;
   const walk = s2 => {
-    FS_CYCLES.forEach(cy => {
+    fsCycles().forEach(cy => {
       const t = (s2.testing || {})[cy.key];
       if (!t) return;
       const last = new Date(t);
@@ -15112,7 +15232,7 @@ function fsRenderSite() {
 
   // status strip - compact (testing info shouldn't steal the show; Overview is the main event)
   html += '<div class="fscard" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
-  FS_CYCLES.filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]).forEach((c, i) => {
+  fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]).forEach((c, i) => {
     const st = fsCycleStatus(s, c);
     html += '<div class="fsCyc" style="flex:1;min-width:104px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
@@ -16904,7 +17024,7 @@ function fsAfssPdf(opts) {
   }
   if (opts.cyc) {
     L.push("ROUTINE SERVICE STATUS (AS 1851-2012)");
-    FS_CYCLES.forEach(c => {
+    fsCycles().forEach(c => {
       const st = fsCycleStatus(s2, c);
       const last = (s2.testing || {})[c.key];
       L.push("\u2022 " + c.label + ": last done " + (last || "no record") + " \u2014 " + st.txt.replace("&nbsp;", " "));
@@ -17867,7 +17987,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v51";
+const FS_BUILD = "aa-v52";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -18655,7 +18775,7 @@ function fsYearPdf(site, year) {
   if (fsClient) L("t", "Client: " + fsClient.name + (fsParentSite ? "   " + dot + "   Building of: " + fsParentSite.name : ""));
   if (site.address) L("t", "Address: " + site.address);
   L("t", "Generated " + new Date().toISOString().slice(0, 10) + " — " + recs.length + " test" + (recs.length === 1 ? "" : "s") + " recorded in " + year);
-  const cyc = FS_CYCLES.filter(c => (site.testing || {})[c.key]);
+  const cyc = fsCycles().filter(c => (site.testing || {})[c.key]);
   if (cyc.length) {
     L("h2", "Test cycle status");
     cyc.forEach(c => L("t", c.label + " — last done " + (site.testing || {})[c.key]));
@@ -18996,7 +19116,7 @@ async function fsPlEnsureTravel(status) {  // self-maintaining geo + matrix; saf
 function fsPlDueCycles(s, month) {  // cycle labels due (or overdue) by the end of the month
   const end = new Date(+month.slice(0, 4), +month.slice(5, 7), 0, 23, 59);
   const out = [];
-  FS_CYCLES.forEach(c => {
+  fsCycles().forEach(c => {
     const t = (s.testing || {})[c.key];
     if (!t) return;
     const d = new Date(t);
