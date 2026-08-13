@@ -298,7 +298,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.52 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.53 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -410,7 +410,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.52 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.53 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -11385,6 +11385,10 @@ function fsRecWalk(reg, cb) {
   (reg.charges || []).forEach(ch => cb(ch, "charge", ch.created || day, []));
   (reg.projects || []).forEach(j => cb(j, "job", j.created || day, []));
   (reg.routines || []).forEach(rt => cb(rt, "routine", day, []));
+  /* PASS 48 [48-2] — works are records like any other. Missing from this
+     walk they would get no uid, no rev and no export bump, and nothing
+     would say so until a backend sync existed. */
+  (reg.works || []).forEach(w => cb(w, "work", w.updated || w.created || day, []));
 }
 function fsStamp0(o, when) {
   let ch = false;
@@ -14022,6 +14026,116 @@ function fsQuoteAllocNumber() {
   return (pre + r.quoteSeq).slice(0, 13);
 }
 
+/* ===== PASS 48 — C2, THE WORK OBJECT =======================================
+   An approved quote was a dead end: priced, approved, and then nothing that
+   records whether the work was scheduled, done, or is sitting waiting to be
+   invoiced. Work is that record. It is a LINKING object, not a screen — the
+   Money work queue is C5.
+
+   The quote stays frozen. It is the commercial promise; this is what
+   actually happened. Lines are deep-copied so the two can diverge — which
+   they will, on any job that grows or shrinks on site — without either one
+   editing the other. That divergence is precisely what C3 will invoice from,
+   and why the invoice model cannot come before this.
+
+   Links are uids (Pass 44 [44-2]): no name fallback, ever. The names ride
+   along as the display snapshot so a work record reads correctly months
+   later even after the site is renamed, exactly as a quote does.
+   ========================================================================= */
+const FS_WSTATUS = [
+  { k: "pending",     label: "Pending",     col: "#7a7a7a" },
+  { k: "scheduled",   label: "Scheduled",   col: "#b58900" },
+  { k: "in progress", label: "In progress", col: "#0b6fb8" },
+  { k: "completed",   label: "Completed",   col: "#1b8a3f" },
+  { k: "cancelled",   label: "Cancelled",   col: "#c62828" }
+];
+/* One-way. Terminal is terminal — see fsWorkSetStatus. */
+const FS_WNEXT = {
+  "pending":     ["scheduled", "cancelled"],
+  "scheduled":   ["in progress", "cancelled"],
+  "in progress": ["completed", "cancelled"],
+  "completed":   [],
+  "cancelled":   []
+};
+function fsWStat(w) {
+  const k = (w && w.status) || "pending";
+  for (let i = 0; i < FS_WSTATUS.length; i++) if (FS_WSTATUS[i].k === k) return FS_WSTATUS[i];
+  return FS_WSTATUS[0];
+}
+function fsWorks() {
+  if (!fsRegister) return [];
+  fsRegister.works = fsRegister.works || [];
+  return fsRegister.works;
+}
+function fsWorkFind(id) { return fsWorks().filter(w => w.id === id)[0] || null; }
+/* The duplicate guard, and what makes "one quote -> one work" enforceable
+   rather than merely intended (PASS-48-BRIEF §8 Q4). A cancelled work does
+   NOT block a replacement — that is the whole point of cancelling one. */
+function fsWorkForQuote(quoteId) {
+  if (!quoteId) return null;
+  return fsWorks().filter(w => w.quoteId === quoteId && w.status !== "cancelled")[0] || null;
+}
+/* [48-4] Allocated at SCHEDULE, not at creation, and never twice. Its own
+   sequence — COMMERCIAL-MAP §2.4 is explicit that the counters stay
+   separate. Same one-way shape as fsQuoteAllocNumber, same 13-char cap for
+   the same MYOB reason. */
+function fsWorkAllocNumber() {
+  const r = fsRegister;
+  if (!Number.isInteger(r.workSeq)) r.workSeq = 1000;
+  r.workSeq += 1;
+  const pre = String(r.workPrefix == null ? "W-" : r.workPrefix);
+  return (pre + r.workSeq).slice(0, 13);
+}
+/* Created from an APPROVED quote and nothing else. Returns null rather than
+   throwing, so a caller that has drifted out of step just does nothing. */
+function fsWorkNew(q) {
+  if (!q || q.status !== "approved") return null;
+  if (fsWorkForQuote(q.id)) return null;          /* never two live works */
+  const now = new Date().toISOString();
+  const w = {
+    id: fsBookId("w"), number: "", status: "pending",
+    created: now, updated: now,
+    quoteId: q.id, quoteNumber: q.number || "",
+    /* the LINK — uids, per [44-2]. Names are the display snapshot. */
+    clientUid: q.clientUid || "", siteUid: q.siteUid || "",
+    clientName: q.clientName || "", siteName: q.siteName || "",
+    where: q.where || "", defectId: q.defectId || "",
+    defectDesc: q.defectDesc || "",
+    /* DEEP copy. A reference here would mean editing the work edits the
+       quote, and the quote is supposed to be frozen. */
+    lines: JSON.parse(JSON.stringify(q.lines || [])),
+    lineAmountsInclusive: !!q.lineAmountsInclusive,
+    currency: q.currency || "AUD",
+    scheduledFor: null, assignedTo: fsWho() || "",
+    startedAt: null, completedAt: null, cancelledAt: null,
+    cancelReason: "", notes: ""
+  };
+  fsWorks().push(w);
+  return w;
+}
+/* [48-3] One-way through the machine. Refuses anything FS_WNEXT does not
+   allow — including every transition out of a terminal state — and reports
+   false rather than throwing, so a stale button cannot corrupt a record. */
+function fsWorkSetStatus(w, k, reason) {
+  if (!w) return false;
+  const from = w.status || "pending";
+  if ((FS_WNEXT[from] || []).indexOf(k) < 0) return false;
+  const now = new Date().toISOString();
+  w.status = k;
+  w.updated = now;
+  if (k === "scheduled") { if (!w.number) w.number = fsWorkAllocNumber(); }
+  if (k === "in progress") w.startedAt = now;
+  if (k === "completed") w.completedAt = now;
+  if (k === "cancelled") { w.cancelledAt = now; w.cancelReason = reason || ""; }
+  if (typeof fsActLog === "function") fsActLog("Work " + k, w.number || w.quoteNumber || "");
+  return true;
+}
+/* Resolvers are uid-only, matching [44-2]. Null, honestly, beats a wrong
+   client found by a name that happens to still match. */
+function fsWorkClient(w) { return w && w.clientUid ? fsClientByUid(w.clientUid) : null; }
+function fsWorkSite(w) { return w && w.siteUid ? fsSiteByUid(w.siteUid) : null; }
+function fsWorkQuote(w) { return w && w.quoteId ? fsQuoteFind(w.quoteId) : null; }
+
 /* Start a quote from a defect. Captures the site and access difficulty at
    creation so the quote reads correctly later even if the site is renamed. */
 function fsQuoteNew(row) {
@@ -14343,6 +14457,33 @@ function fsQuoteRender() {
   html += '<button class="fsbtn" id="fsQPdf">&#128196; PDF</button>' +
           '<button class="fsbtn" id="fsQAcct">&#127974; Send to accounting</button>' +
           '<button class="fsbtn" id="fsQDel2" style="color:#c62828">Delete quote</button></div>';
+  /* PASS 48 [48-5] — the commercial chain, made visible. A button, never
+     automatic: an accidental approval must not leave a record behind that
+     the user cannot see to delete. */
+  if (q.status === "approved") {
+    const w0 = fsWorkForQuote(q.id);
+    html += '<div id="fsQWorkStrip" style="margin-top:12px;border:1px solid var(--fs-line);border-radius:8px;padding:11px 13px">' +
+      '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Work</div>';
+    if (!w0) {
+      html += '<div style="font-size:13px;color:var(--fs-sub2);margin-bottom:8px">No work record yet — the approved lines have not been turned into a job.</div>' +
+        '<button class="fsbtnP" id="fsQMkWork">Create work</button>';
+    } else {
+      const st = fsWStat(w0);
+      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<span style="background:' + st.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(st.label) + '</span>' +
+        (w0.number ? '<span style="font-size:13px">' + fsEsc(w0.number) + '</span>' : '') +
+        (w0.assignedTo ? '<span style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(w0.assignedTo) + '</span>' : '') +
+        '</div>';
+      const nxt = FS_WNEXT[w0.status] || [];
+      if (nxt.length) {
+        html += '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          nxt.map(k => '<button class="' + (k === "cancelled" ? "fsbtn" : "fsbtnP") + '" data-wnext="' + fsEsc(k) + '"' +
+            (k === "cancelled" ? ' style="color:#c62828"' : '') + '>' + fsEsc(fsWStat({ status: k }).label) + '</button>').join('') +
+          '</div>';
+      }
+    }
+    html += '</div>';
+  }
   html += '<div style="margin-top:8px;font-size:11.5px;color:var(--fs-faint)">' +
     (q.status === "approved"
       ? 'Approved — you can hand this to Xero as an invoice, or to MYOB AccountRight as a quote.'
@@ -14410,6 +14551,26 @@ function fsQuoteRender() {
   if (app) app.onclick = () => { fsQuoteSetStatus(q, "approved"); fsMarkDirty(); fsQuoteRender(); };
   const dec = document.getElementById("fsQDecline");
   if (dec) dec.onclick = () => { fsQuoteSetStatus(q, "declined"); fsMarkDirty(); fsQuoteRender(); };
+  /* PASS 48 [48-5] */
+  const mkw = document.getElementById("fsQMkWork");
+  if (mkw) mkw.onclick = () => {
+    if (!fsWorkNew(q)) { alert("This quote already has a work record."); return; }
+    fsMarkDirty(); fsQuoteRender();
+  };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-wnext]"), function (b) {
+    b.onclick = () => {
+      const w = fsWorkForQuote(q.id);
+      if (!w) return;
+      const k = b.getAttribute("data-wnext");
+      let reason = "";
+      if (k === "cancelled") {
+        if (!confirm("Cancel this work?\n\nThe quote stays approved. You can create fresh work from it afterwards.")) return;
+        reason = (prompt("Why is it cancelled? (optional)") || "").trim();
+      }
+      if (!fsWorkSetStatus(w, k, reason)) return;
+      fsMarkDirty(); fsQuoteRender();
+    };
+  });
   document.getElementById("fsQPdf").onclick = () => fsQuotePdf(q);
   document.getElementById("fsQAcct").onclick = () => fsAcctExport(q);
   document.getElementById("fsQDel2").onclick = () => {
@@ -18582,7 +18743,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v56";
+const FS_BUILD = "aa-v57";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
