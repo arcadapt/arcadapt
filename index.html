@@ -282,7 +282,17 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   .fsNavItem .fsNavIco svg { width:22px; height:22px; display:block; fill:none;
     stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
   .fsNavItem.on .fsNavIco svg { stroke-width:2.4; }
+  /* PASS 49 [49-6] — the top-header buttons get the same treatment the
+     bottom bar got in [47-1]. A colour emoji IGNORES `color`, so it can
+     never take an accent or a disabled state, and every OS draws it
+     differently. One drawn family, stroked from currentColor. */
+  .fsbtn .fsBtnIco { width:14px; height:14px; display:inline-block;
+    vertical-align:-2px; margin-right:5px; fill:none; stroke:currentColor;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   .fsNavItem.on { color:var(--fs-accent); }
+  .fsBizIn { width:100%; box-sizing:border-box; padding:9px; border-radius:8px;
+    border:1px solid #4a5057; background:#1a1d21; color:#eee; font-size:14px;
+    margin-bottom:7px; }
   #fsReg .wrap { padding-bottom:calc(86px + env(safe-area-inset-bottom,0px)); }
   @media (max-width:720px) {
     #fsReg .wrap { padding:12px 10px calc(86px + env(safe-area-inset-bottom,0px)); }
@@ -298,12 +308,12 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.53 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.54 beta</span>
       <span style="flex:1"></span>
-      <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client">&#128193; Files</button>
+      <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
       <button class="fsbtn" id="fsProfileBtn" title="Load your company profile file (branding + equipment fields + test checklists)">&#127970; Profile</button>
-      <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)">&#128202; Office</button>
+      <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</button>
       <!-- PASS 46 — the NAV buttons relocate into the bottom bar (Ruling 1:
            relocates, not invents; the 11 Aug critique ranked "two
            navigation systems" the worst defect, so no nav stays up here).
@@ -410,7 +420,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button>
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.53 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.54 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" title="Plans saved on this device">&#9776; Plans</button>
     <button class="btn" id="btnNew" title="Start a new plan">&#65291; New</button>
@@ -1194,6 +1204,10 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
       <span style="flex:1;font-size:13.5px">Who did what in this register</span>
       <button class="btn" id="fsActBtn">&#128203; Activity</button>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="flex:1;font-size:13.5px">Your business details, GST and tax codes</span>
+      <button class="btn" id="fsBizBtn">Business &amp; tax</button>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="fsSetVer"></b></span>
       <button class="btn" id="fsSetUpd">&#8635; Check for updates</button>
@@ -1203,6 +1217,49 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
       <div style="font-size:11.5px;color:#888;margin-top:5px">Removes the cached register, backups, saved plans, planner data, PA recordings, library files and preferences from THIS device only. Register and plan files saved on disk / OneDrive are untouched &mdash; reload your register file afterwards.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsSetClose">Close</button></div>
+  </div>
+</div>
+<div class="modal" id="fsBizModal" style="z-index:122">
+  <div class="modalbox" style="max-width:480px;width:94vw;max-height:84vh;overflow-y:auto;text-align:left">
+    <h3 style="margin-bottom:4px">Business &amp; tax</h3>
+    <div style="font-size:12px;color:#999;margin-bottom:12px">Your own business details. They travel inside the register file and appear on the documents this app produces. Nothing here is sent anywhere.</div>
+
+    <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin-bottom:6px">Business</div>
+    <input id="fsBizName" autocomplete="off" placeholder="Business name" class="fsBizIn">
+    <input id="fsBizAbn" autocomplete="off" placeholder="ABN" class="fsBizIn">
+    <input id="fsBizAddr" autocomplete="off" placeholder="Address" class="fsBizIn">
+    <input id="fsBizPhone" autocomplete="off" placeholder="Phone" class="fsBizIn">
+    <input id="fsBizEmail" autocomplete="off" placeholder="Email" class="fsBizIn">
+
+    <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Tax</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="fsBizGst"> This business is registered for GST</label>
+    <div id="fsBizGstOff" style="font-size:11.5px;color:#8fa0a8;margin-bottom:10px">While this is off, no tax is worked out or shown anywhere, and documents are titled <b>Invoice</b> rather than <b>Tax invoice</b>.</div>
+    <div id="fsBizTaxWrap" style="display:none">
+      <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">Tax codes are yours, not ours &mdash; nothing is filled in for you. A code is a name your accounting system knows, such as GST_ON_INCOME. Rates are stored as whole basis points, so ten per cent is stored as 1000 and can never become a rounding error.</div>
+      <div id="fsBizTaxList" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input id="fsBizNewCode" autocomplete="off" placeholder="Code, e.g. GST_ON_INCOME" style="flex:2;min-width:0;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px">
+        <input id="fsBizNewPct" autocomplete="off" inputmode="decimal" placeholder="%" style="flex:0 0 62px;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px">
+        <button class="btn" id="fsBizAddTax" title="Add this tax code to the table">Add</button>
+      </div>
+      <div id="fsBizTaxErr" style="display:none;font-size:11.5px;color:#ff8a7a;margin-bottom:6px"></div>
+      <div style="margin:10px 0 4px;font-size:13px">Code used on new documents</div>
+      <select id="fsBizCode" style="width:100%;box-sizing:border-box;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:8px;margin-bottom:8px"></select>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:4px;cursor:pointer"><input type="checkbox" id="fsBizIncl"> Prices are entered INCLUDING GST</label>
+      <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">Printed in words on every document, because it is the most misread number on one.</div>
+    </div>
+
+    <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Accounting package</div>
+    <select id="fsBizPkg" style="width:100%;box-sizing:border-box;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:8px;margin-bottom:8px">
+      <option value="">None &mdash; this app keeps the payment records</option>
+      <option value="xero">Xero</option>
+      <option value="myob">MYOB</option>
+    </select>
+    <div style="margin-bottom:4px;font-size:13px">Switchover date</div>
+    <input id="fsBizSwitch" type="date" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">
+    <div style="font-size:11.5px;color:#8fa0a8;margin-top:5px">Payments recorded here BEFORE this date stay here, frozen as history &mdash; readable for ever, never edited again. Your accounting package owns everything from that day on. Nothing is migrated and nothing is duplicated, so there is no second copy to reconcile.</div>
+
+    <div class="row" style="margin-top:16px;gap:8px"><button class="btn" id="fsBizSave">Save</button><button class="btn" id="fsBizClose">Close</button></div>
   </div>
 </div>
 <div class="modal" id="fsPaModal" style="z-index:121">
@@ -13381,7 +13438,7 @@ function fsBookRender() {
     const vt = fsVisitTypes(), vr = fsVisitRates(), vOn = fsVisitChargeOn();
     html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:10px">What a completed service visit is worth. ' +
       'With this on, recording a test writes ONE charge line for that visit. ' +
-      '<b style="color:#ffd873">A line and a total, never an invoice</b> — no tax is worked out anywhere in this app.</div>';
+      '<b style="color:#ffd873">A line and a total, never an invoice</b> — a service charge carries no tax; your accounting system raises the invoice.</div>';
     html += '<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;font-weight:700;padding:8px 0;border-bottom:1px solid var(--fs-border)">' +
       '<input type="checkbox" id="fsBkVisitOn"' + (vOn ? ' checked' : '') + '> Charge for completed visits</label>';
     if (!vt.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:10px 0">No visit types yet — they come from the test checklists in your company profile.</div>';
@@ -13985,6 +14042,185 @@ let fsDefPhotoTarget = null;
 /* ===== end raise-defect form ================================================ */
 
 
+/* ===== PASS 49 — C3a, BUSINESS SETTINGS + TAX ==============================
+   THE ONLY PLACE A TAX RATE MAY ENTER THIS APP. Everything downstream —
+   quotes, scratch quotes, and the invoice document C3b will add — reads a
+   table from here and hands it to FSMoney. Nothing computes a rate itself
+   and nothing carries a rate literal; test_p49 scans for that and the money
+   core still refuses to know what GST is (test_money.py:81).
+
+   RULE 2 of MONEY-DESIGN, restated because this is the file that could break
+   it: a tax CODE is an opaque string, a RATE is integer basis points, and
+   codes survive legislation changes while rates do not. 1000 = ten per cent.
+
+   NO DEFAULT TABLE SHIPS AND NO DEFAULT RATE SHIPS. Seeding "GST_ON_INCOME"
+   at 1000 would be a hardcoded Australian GST rate wearing a settings hat,
+   and it would be silently wrong for every business that is not registered,
+   not Australian, or registered on different codes. The business types its
+   own, once, in Settings -> Business & tax.
+   ========================================================================= */
+const FS_BIZ_DEF = {
+  name: "", abn: "", address: "", phone: "", email: "",
+  gstRegistered: false, defaultTaxCode: "", lineAmountsInclusive: false,
+  invoicePrefix: "INV-", terms: "", bankDetails: "", footer: ""
+};
+/* Lives on the REGISTER, not the profile (PASS-49-BRIEF §3.1). A tax invoice
+   has to be reproducible from the register file alone — a legal document that
+   needs a second file which may not travel with it is a liability — and
+   quoteSeq/workSeq already live here for the same reason. */
+function fsBiz() {
+  if (!fsRegister) return Object.assign({}, FS_BIZ_DEF);
+  if (!fsRegister.business || typeof fsRegister.business !== "object") {
+    fsRegister.business = Object.assign({}, FS_BIZ_DEF);
+  }
+  const b = fsRegister.business;
+  Object.keys(FS_BIZ_DEF).forEach(k => { if (!(k in b)) b[k] = FS_BIZ_DEF[k]; });
+  return b;
+}
+/* Returns the stored table, or null when there is nothing usable. null is
+   what FSMoney.computeDoc has always been given and it reports taxKnown:false
+   rather than guessing — so an unconfigured app behaves EXACTLY as it did
+   before this pass. That is the fallback, and it is deliberate. */
+function fsTaxTable() {
+  if (!fsRegister) return null;
+  const t = fsRegister.taxTable;
+  if (!t || typeof t !== "object") return null;
+  return Object.keys(t).length ? t : null;
+}
+/* THE ONLY WRITER OF register.taxTable. Refuses a non-integer here rather
+   than letting it reach FSMoney, which throws at compute time — a long way
+   from the person who typed it. Same rule, enforced one layer earlier. */
+function fsTaxSet(code, bp) {
+  code = String(code == null ? "" : code).trim();
+  if (!code) throw new Error("a tax code is required");
+  if (!Number.isInteger(bp) || bp < 0) {
+    throw new TypeError("tax table entries must be whole basis points: " + code);
+  }
+  if (!fsRegister.taxTable || typeof fsRegister.taxTable !== "object") fsRegister.taxTable = {};
+  fsRegister.taxTable[code] = bp;
+  return fsRegister.taxTable;
+}
+function fsTaxDrop(code) {
+  if (!fsRegister || !fsRegister.taxTable) return;
+  delete fsRegister.taxTable[String(code)];
+  const b = fsBiz();
+  if (b.defaultTaxCode === String(code)) b.defaultTaxCode = "";
+}
+/* Percent in, basis points out. The UI talks per cent because that is what a
+   human knows; storage is integer basis points because that is what keeps a
+   float out of money for ever. Math.round is the guard against typing dust. */
+function fsTaxBpFromPct(txt) {
+  const n = parseFloat(String(txt == null ? "" : txt).replace("%", "").trim());
+  if (!isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
+function fsTaxPctFromBp(bp) {
+  if (!Number.isInteger(bp)) return "";
+  return String(bp / 100);
+}
+/* [Q3] GST is ON only when ALL THREE are true. Any one missing and every
+   downstream screen behaves as it did before this pass. A business under the
+   registration threshold therefore never sees a tax line anywhere, which is
+   the point — a wrong document is worse than a missing feature. */
+function fsGstOn() {
+  const b = fsBiz();
+  if (!b.gstRegistered) return false;
+  if (!b.defaultTaxCode) return false;
+  const t = fsTaxTable();
+  return !!(t && Object.prototype.hasOwnProperty.call(t, b.defaultTaxCode));
+}
+/* Not decoration. An unregistered business must not issue a document calling
+   itself a tax invoice, and this is the single place that word is decided. */
+function fsDocWord() { return fsGstOn() ? "Tax invoice" : "Invoice"; }
+
+/* [49-3] THE ACCOUNTING CONNECTION AND THE SWITCHOVER DATE.
+   Reece's 13 Aug ruling is freeze-as-history: historical payments stay here,
+   source "arcadapt", read-only from switchover day; the package owns
+   everything after. A MODE FLAG IS NOT ENOUGH — without a date there is no
+   line between what this app owned and what the package owns, and the frozen
+   set cannot be identified after the fact. Nothing reads it yet but
+   fsPayFrozen; it lands now because it is cheap now and expensive once
+   payment data exists, which is exactly the C3b it precedes. */
+const FS_ACCT_DEF = { package: "", connectedAt: "", switchoverDate: "" };
+function fsAcct() {
+  if (!fsRegister) return Object.assign({}, FS_ACCT_DEF);
+  if (!fsRegister.accounting || typeof fsRegister.accounting !== "object") {
+    fsRegister.accounting = Object.assign({}, FS_ACCT_DEF);
+  }
+  const a = fsRegister.accounting;
+  Object.keys(FS_ACCT_DEF).forEach(k => { if (!(k in a)) a[k] = FS_ACCT_DEF[k]; });
+  return a;
+}
+/* Frozen means READ-ONLY, not deleted and not hidden: the invoice history
+   stays intact and a frozen payment still contributes to a derived balance
+   exactly as it did before. C3b's editors ask this before they write. */
+function fsPayFrozen(p) {
+  const a = fsAcct();
+  if (!a.switchoverDate) return false;
+  if (!p || p.source !== "arcadapt") return false;
+  return String(p.date || "") < String(a.switchoverDate);
+}
+
+/* [49-4] WHAT A DOCUMENT IS COMPUTED AGAINST, and the snapshot rule.
+   Once a document has been sent it computes against the table it was SENT
+   with, for ever — never the live settings. MONEY-DESIGN §3.7 already says
+   "copy, don't reference" about line prices; this is the same rule applied to
+   the one input that is not on the line. Without it, changing the rate in
+   settings silently reprices every quote the customer is already holding. */
+function fsDocTax(doc) {
+  if (doc && doc.taxUsed && doc.taxUsed.table) return doc.taxUsed;
+  /* A DOCUMENT THAT HAS ALREADY LEFT AND CARRIES NO SNAPSHOT was produced
+     before this business configured tax, and it must keep reporting tax
+     unknown FOR EVER. Reading the live settings here is the whole bug the
+     snapshot exists to prevent, arriving through the back door: register for
+     GST in 2027 and every quote sent in 2026 silently grows a tax line that
+     was never on the copy the customer is holding. Only a DRAFT reads live —
+     a draft has not been shown to anyone yet.
+     (Caught by test_p49 E5, which is why the guard is here and not in the
+     brief: the first cut of this function had exactly that hole.) */
+  if (doc && doc.status && doc.status !== "draft") return null;
+  if (!fsGstOn()) return null;
+  return { code: fsBiz().defaultTaxCode, table: fsTaxTable() };
+}
+/* Freeze, once, on the first send. Returns null when GST is off, which is how
+   a quote sent before any of this existed keeps reporting tax unknown instead
+   of growing GST retrospectively. */
+function fsTaxStamp(doc) {
+  if (!doc) return null;
+  if (doc.taxUsed && doc.taxUsed.table) return doc.taxUsed;
+  if (!fsGstOn()) return null;
+  doc.taxUsed = { code: fsBiz().defaultTaxCode,
+                  table: JSON.parse(JSON.stringify(fsTaxTable())) };
+  return doc.taxUsed;
+}
+/* Lines carry no tax code today, so the document's code is applied to any
+   line that has none. A COPY is returned — the stored lines are never
+   mutated, so turning GST off puts every screen back exactly where it was. */
+function fsTaxApply(lines, code) {
+  return (lines || []).map(l => (l && l.taxCode) ? l : Object.assign({}, l, { taxCode: code }));
+}
+/* The one call every screen makes. Returns FSMoney's totals, with tax when
+   the business has configured it and taxKnown:false when it has not. */
+function fsDocTotals(doc) {
+  const tx = fsDocTax(doc);
+  const lines = tx ? fsTaxApply(doc.lines, tx.code) : (doc.lines || []);
+  return FSMoney.computeDoc({ lines: lines,
+                              lineAmountsInclusive: !!doc.lineAmountsInclusive }, tx ? tx.table : null);
+}
+/* The words under a total. MONEY-DESIGN §4.3: the inclusive flag is the most
+   misread number on any document, so it is printed IN WORDS, never inferred. */
+function fsTaxNote(doc, tot) {
+  if (!tot || !tot.taxKnown) {
+    return "GST is not set up here. Add your tax codes in Settings → Business &amp; tax, " +
+           "or leave it to your accounting system, which applies its own.";
+  }
+  return "Amounts are entered " + (tot.lineAmountsInclusive ? "INCLUDING" : "EXCLUDING") +
+    " GST. " + ((doc && doc.taxUsed)
+      ? "Frozen at the tax settings this was sent with."
+      : "From your business tax settings.");
+}
+/* ===== end business settings =============================================== */
+
 /* ===== Quotes - money layer pass 2 ==========================================
    A quote is made HERE and lives in the register, so it works offline and
    travels with the file. Arc Adapt owns the WORK; Xero or MYOB own the MONEY -
@@ -14264,9 +14500,12 @@ function fsQuoteBlockers(q) {
   return out;
 }
 function fsQuoteTotals(q) {
-  /* No tax table is supplied on purpose - this app does not know GST rates and
-     must never invent one. computeDoc reports taxKnown:false and we say so. */
-  return FSMoney.computeDoc({ lines: q.lines, lineAmountsInclusive: !!q.lineAmountsInclusive }, null);
+  /* PASS 49 — the rate now comes from the business settings, and from the
+     SNAPSHOT once the quote has been sent, so a sent quote can never
+     re-render against a rate the customer was never shown. Unconfigured, this
+     is byte-for-byte the old behaviour: fsDocTax returns null, computeDoc
+     reports taxKnown:false, and the footer says so. */
+  return fsDocTotals(q);
 }
 
 /* Status flows one way through the defect too, so the nag list is never out of
@@ -14277,7 +14516,10 @@ function fsQuoteSetStatus(q, k) {
   const now = q.updated;
   /* Never off the main sequence for a scratch quote — that number belongs to
      real work. There is no send button on one; this is the second lock. */
-  if (k === "sent") { if (!q.number && !q.scratch) q.number = fsQuoteAllocNumber(); q.sentAt = now; }
+  /* PASS 49 [49-4] — the tax table is frozen onto the quote at SEND, beside
+     the number, for the same reason the number is allocated there: this is
+     the moment the document becomes a thing the customer holds. */
+  if (k === "sent") { if (!q.number && !q.scratch) q.number = fsQuoteAllocNumber(); q.sentAt = now; fsTaxStamp(q); }
   if (k === "approved") q.approvedAt = now;
   if (k === "declined") q.declinedAt = now;
   const map = { draft: null, sent: "quoted", approved: "approved", declined: "declined" };
@@ -14437,10 +14679,21 @@ function fsQuoteRender() {
   });
   html += '</div>';
 
+  /* PASS 49 [49-5] — one of the three claims that spoke for the WHOLE APP and
+     stopped being true. The charge-scoped copy is left alone: it is still
+     correct, and service charges do not become billable until C4. */
   html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
-    '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:14px;font-weight:700">Total excluding tax</span>' +
-    '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
-    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">GST is not calculated here. Arc Adapt records the work; your accounting system applies the tax. Send the quote to Xero or MYOB and it will use your own tax codes.</div></div>';
+    (tot.taxKnown
+      ? '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:13.5px;color:var(--fs-sub)">Subtotal excluding GST</span>' +
+        '<span style="font-size:14px;font-weight:700">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13.5px;color:var(--fs-sub)">GST</span>' +
+        '<span style="font-size:14px;font-weight:700">' + fsEsc(FSMoney.fmt(tot.taxCents)) + '</span></div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-top:6px;border-top:1px solid var(--fs-border);padding-top:8px">' +
+        '<span style="flex:1;font-size:14px;font-weight:700">Total including GST</span>' +
+        '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.totalCents)) + '</span></div>'
+      : '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:14px;font-weight:700">Total excluding tax</span>' +
+        '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>') +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">' + fsTaxNote(q, tot) + '</div></div>';
 
   if (blockers.length && !locked) {
     html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
@@ -14639,7 +14892,7 @@ function fsScratchRender(q) {
     '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
     (unp ? '<div style="font-size:12px;color:#ffd873;margin-top:6px">' + unp + ' line' + (unp === 1 ? ' has' : 's have') +
            ' no price yet, so ' + (unp === 1 ? 'it is' : 'they are') + ' not in that total. Nothing is stopping you — it is just not counted.</div>' : '') +
-    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">GST is not calculated here. Your accounting system applies the tax.</div></div>';
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">' + fsTaxNote(q, tot) + '</div></div>';
 
   html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">' +
     '<button class="fsbtnP" id="fsScPdf">&#128196; PDF</button>' +
@@ -18742,8 +18995,82 @@ document.getElementById("fsSettingsBtn").onclick = () => {
   document.getElementById("fsSettingsModal").classList.add("show");
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
+/* ===== PASS 49 — Business & tax settings UI ================================
+   The ONLY editor of register.business, register.taxTable and
+   register.accounting. Everything else in the app reads. */
+function fsBizTaxRender() {
+  const wrap = document.getElementById("fsBizTaxWrap");
+  const on = document.getElementById("fsBizGst").checked;
+  wrap.style.display = on ? "" : "none";
+  document.getElementById("fsBizGstOff").style.display = on ? "none" : "";
+  const t = fsRegister && fsRegister.taxTable ? fsRegister.taxTable : {};
+  const codes = Object.keys(t).sort();
+  const list = document.getElementById("fsBizTaxList");
+  list.innerHTML = codes.length ? codes.map(c =>
+    '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--fs-border)">' +
+    '<span style="flex:1;font-size:13px;font-family:monospace">' + fsEsc(c) + '</span>' +
+    '<span style="font-size:13px;color:var(--fs-sub)">' + fsEsc(fsTaxPctFromBp(t[c])) + '%</span>' +
+    '<span style="font-size:11px;color:var(--fs-faint)">' + fsEsc(String(t[c])) + ' bp</span>' +
+    '<a class="fsBizTaxDel" data-code="' + fsEsc(c) + '" style="color:#c62828;cursor:pointer;padding:0 4px">&#10005;</a></div>').join("")
+    : '<div style="font-size:12.5px;color:var(--fs-faint);padding:4px 0">No tax codes yet. Add the ones your accounting system uses.</div>';
+  const sel = document.getElementById("fsBizCode");
+  const cur = fsBiz().defaultTaxCode;
+  sel.innerHTML = '<option value="">&mdash; none &mdash;</option>' + codes.map(c =>
+    '<option value="' + fsEsc(c) + '"' + (c === cur ? " selected" : "") + ">" + fsEsc(c) + "</option>").join("");
+  Array.prototype.forEach.call(list.querySelectorAll(".fsBizTaxDel"), a => {
+    a.onclick = () => { fsTaxDrop(a.getAttribute("data-code")); fsMarkDirty(); fsBizTaxRender(); };
+  });
+}
+function fsBizOpen() {
+  if (!fsRegister) { alert("Load a register first — these settings live inside it."); return; }
+  const b = fsBiz(), a = fsAcct();
+  [["fsBizName", b.name], ["fsBizAbn", b.abn], ["fsBizAddr", b.address],
+   ["fsBizPhone", b.phone], ["fsBizEmail", b.email], ["fsBizSwitch", a.switchoverDate]
+  ].forEach(p => { const el = document.getElementById(p[0]); if (el) el.value = p[1] || ""; });
+  document.getElementById("fsBizGst").checked = !!b.gstRegistered;
+  document.getElementById("fsBizIncl").checked = !!b.lineAmountsInclusive;
+  document.getElementById("fsBizPkg").value = a.package || "";
+  fsBizTaxRender();
+  document.getElementById("fsBizModal").classList.add("show");
+}
+function fsBizSave() {
+  const b = fsBiz(), a = fsAcct();
+  const v = id => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
+  b.name = v("fsBizName"); b.abn = v("fsBizAbn"); b.address = v("fsBizAddr");
+  b.phone = v("fsBizPhone"); b.email = v("fsBizEmail");
+  b.gstRegistered = document.getElementById("fsBizGst").checked;
+  b.lineAmountsInclusive = document.getElementById("fsBizIncl").checked;
+  b.defaultTaxCode = v("fsBizCode");
+  a.package = v("fsBizPkg"); a.switchoverDate = v("fsBizSwitch");
+  if (a.package && !a.connectedAt) a.connectedAt = new Date().toISOString();
+  fsMarkDirty();
+  try { fsActLog("Business settings", b.gstRegistered ? "GST on" : "GST off"); } catch (e) {}
+  document.getElementById("fsBizModal").classList.remove("show");
+  try { if (typeof fsQuoteRender === "function" && document.getElementById("fsQuoteWrap")) fsQuoteRender(); } catch (e) {}
+}
+document.getElementById("fsBizBtn").onclick = () => {
+  document.getElementById("fsSettingsModal").classList.remove("show");
+  fsBizOpen();
+};
+document.getElementById("fsBizClose").onclick = () => document.getElementById("fsBizModal").classList.remove("show");
+document.getElementById("fsBizSave").onclick = () => fsBizSave();
+document.getElementById("fsBizGst").onchange = () => fsBizTaxRender();
+document.getElementById("fsBizAddTax").onclick = () => {
+  const err = document.getElementById("fsBizTaxErr");
+  const code = String(document.getElementById("fsBizNewCode").value || "").trim();
+  const bp = fsTaxBpFromPct(document.getElementById("fsBizNewPct").value);
+  err.style.display = "none";
+  if (!code) { err.textContent = "Give the code a name — the one your accounting system uses."; err.style.display = ""; return; }
+  if (bp === null) { err.textContent = "That is not a percentage this app can store."; err.style.display = ""; return; }
+  try { fsTaxSet(code, bp); } catch (e) { err.textContent = String(e.message || e); err.style.display = ""; return; }
+  document.getElementById("fsBizNewCode").value = "";
+  document.getElementById("fsBizNewPct").value = "";
+  fsMarkDirty();
+  fsBizTaxRender();
+};
+/* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v57";
+const FS_BUILD = "aa-v58";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
