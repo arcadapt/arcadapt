@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.55 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.56 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -426,7 +426,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.55 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.56 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -11461,7 +11461,12 @@ async function fsBlobGC() {
    merge path that compares .id where it meant .uid is the silent-overwrite
    bug this pass exists to prevent. BACKEND-STEP0-BRIEF.md has the reasoning;
    PASS-43-NOTES.md has the four decisions. Schema version: 2. ============= */
-const FS_SCHEMA = 2;
+/* PASS 51 [51-1] — 2 -> 3. Two new register arrays is a schema change, and
+   Reece answered §7 Q1 "yes" for the reason the question was asked: the
+   migration is trivial TODAY (invoices/payments default to [], invoiceSeq to
+   1000, invoiceUsed to []) and awkward the moment a register written by a
+   newer build has been opened by an older one. */
+const FS_SCHEMA = 3;
 function fsUid() {
   try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
   const b = new Uint8Array(16);
@@ -11501,6 +11506,14 @@ function fsRecWalk(reg, cb) {
      walk they would get no uid, no rev and no export bump, and nothing
      would say so until a backend sync existed. */
   (reg.works || []).forEach(w => cb(w, "work", w.updated || w.created || day, []));
+  /* PASS 51 [51-6] — invoices AND payments, BOTH, this pass. Carried verbatim
+     from [48-2] because it is the trap that nearly went silent: a record type
+     missing from this walk gets no uid, no rev and no export bump, AND THE APP
+     RUNS PERFECTLY while every such record is quietly unsyncable. Nothing
+     surfaces until a backend sync exists. test_p51 proves this by walking a
+     fixture through the real fsStep0Sweep, never by grepping for these lines. */
+  (reg.invoices || []).forEach(i => cb(i, "invoice", i.updated || i.created || day, []));
+  (reg.payments || []).forEach(p => cb(p, "payment", p.created || day, []));
 }
 function fsStamp0(o, when) {
   let ch = false;
@@ -11538,6 +11551,16 @@ function fsStep0Sweep() {
     fsRegister.routines = FS_CYCLES.map(c => ({ key: c.key, label: c.label, months: c.months }));
     ch = true;
   }
+  /* PASS 51 [51-1] — the schema 3 migration, and it runs BEFORE the walk so the
+     new arrays are stamped on the same pass they are created. Defaulting them
+     lazily in fsInvoices() alone would leave a register whose FILE has no
+     invoices[] key, and fsRecWalk would then have nothing to stamp until the
+     first invoice existed. The used-numbers ledger is seeded EMPTY and is
+     never pruned — see fsInvoiceAllocNumber. */
+  if (!Array.isArray(fsRegister.invoices)) { fsRegister.invoices = []; ch = true; }
+  if (!Array.isArray(fsRegister.payments)) { fsRegister.payments = []; ch = true; }
+  if (!Array.isArray(fsRegister.invoiceUsed)) { fsRegister.invoiceUsed = []; ch = true; }
+  if (!Number.isInteger(fsRegister.invoiceSeq)) { fsRegister.invoiceSeq = 1000; ch = true; }
   fsRecWalk(fsRegister, (o, _t, when) => { if (fsStamp0(o, when)) ch = true; });
   if ((fsRegister.version | 0) < FS_SCHEMA) { fsRegister.version = FS_SCHEMA; ch = true; }
   /* PASS 44 [44-3] — back-link BEFORE the fingerprint snapshot below, so a
@@ -14117,7 +14140,12 @@ let fsDefPhotoTarget = null;
 const FS_BIZ_DEF = {
   name: "", abn: "", address: "", phone: "", email: "",
   gstRegistered: false, defaultTaxCode: "", lineAmountsInclusive: false,
-  invoicePrefix: "INV-", terms: "", bankDetails: "", footer: ""
+  invoicePrefix: "INV-", terms: "", bankDetails: "", footer: "",
+  /* PASS 51 [51-7] — §7 Q4. `terms` above is FREE TEXT for the printed
+     document; this is the NUMBER the due date is computed from. Without it
+     every invoice needs a date typed by hand and `overdue` never means
+     anything. Overridable per invoice via inv.termsDays. */
+  paymentTermsDays: 14
 };
 /* Lives on the REGISTER, not the profile (PASS-49-BRIEF §3.1). A tax invoice
    has to be reproducible from the register file alone — a legal document that
@@ -15016,6 +15044,243 @@ function fsQuotePdf(q) {
   fsLinesPdf(L, fsDocBrand() + " quote " + stamp, "quote-" + stamp + ".pdf");
 }
 /* ===== end quotes ========================================================== */
+
+/* ===== PASS 51 — C3b, THE INVOICE DOCUMENT ==================================
+   An approved quote became a work in C2; that work gets completed and then
+   stops. THIS is what turns completed work into money owed.
+
+   IT COMPUTES NO NEW ARITHMETIC. FSMoney.computeDoc and fsDocTotals already
+   do that and C3a wired them to a real tax table. An invoice carrying lines,
+   lineAmountsInclusive, status and taxUsed gets its totals for free.
+
+   THE INVOICE IS RAISED FROM COMPLETED WORK, NOT FROM THE QUOTE. That is the
+   entire reason C2 came first and it is not negotiable.
+   ========================================================================= */
+const FS_INVSTATUS = [
+  { k: "draft",  label: "Draft",  col: "#7a7a7a" },
+  { k: "issued", label: "Issued", col: "#0b6fb8" },
+  { k: "void",   label: "Void",   col: "#c62828" }
+];
+/* [51-5] One-way, and void is reachable from EITHER — that is void-and-reissue
+   (Reece, Q4, 13 Aug), which leaves the original readable. Terminal is
+   terminal: nothing transitions OUT of void, ever. */
+const FS_INVNEXT = {
+  "draft":  ["issued", "void"],
+  "issued": ["void"],
+  "void":   []
+};
+function fsInvStat(inv) {
+  const k = (inv && inv.status) || "draft";
+  for (let i = 0; i < FS_INVSTATUS.length; i++) if (FS_INVSTATUS[i].k === k) return FS_INVSTATUS[i];
+  return FS_INVSTATUS[0];
+}
+function fsInvoices() {
+  if (!fsRegister) return [];
+  fsRegister.invoices = fsRegister.invoices || [];
+  return fsRegister.invoices;
+}
+function fsPayments() {
+  if (!fsRegister) return [];
+  fsRegister.payments = fsRegister.payments || [];
+  return fsRegister.payments;
+}
+function fsInvoiceFind(id) { return fsInvoices().filter(i => i.id === id)[0] || null; }
+/* [51-3] §7 Q3 — ONE LIVE INVOICE PER WORK, guarded exactly as fsWorkForQuote
+   guards C2. A void invoice does NOT block a replacement; that is the point of
+   voiding one. */
+function fsInvoiceForWork(workId) {
+  if (!workId) return null;
+  return fsInvoices().filter(i => i.workId === workId && i.status !== "void")[0] || null;
+}
+function fsInvoicePayments(invId) {
+  if (!invId) return [];
+  return fsPayments().filter(p => p.invoiceId === invId);
+}
+/* [51-3] THE USED-NUMBERS LEDGER. COMMERCIAL-MAP §8.4: invoiceSeq lives in the
+   register FILE, so a register restored from a backup would re-issue numbers
+   already used. For a quote that is untidy. FOR A TAX INVOICE IT SURFACES AT AN
+   AUDIT — two documents with one number. So allocation is not "increment and
+   hope": it REFUSES any number already in the ledger and walks forward.
+   GAPS IN AN INVOICE SEQUENCE ARE EXPLAINABLE. DUPLICATES ARE NOT.
+   The ledger is append-only and NEVER pruned — a voided invoice's number stays
+   in it for ever, because the document it was on may still be in someone's
+   filing cabinet. 13-char cap, same as fsWorkAllocNumber, same MYOB reason. */
+function fsInvoiceAllocNumber() {
+  const r = fsRegister;
+  if (!Number.isInteger(r.invoiceSeq)) r.invoiceSeq = 1000;
+  if (!Array.isArray(r.invoiceUsed)) r.invoiceUsed = [];
+  const pre = String(fsBiz().invoicePrefix == null ? "INV-" : fsBiz().invoicePrefix);
+  let n = null;
+  /* Bounded so a corrupt ledger cannot spin for ever; 100k is far past any
+     real sequence and failing loudly beats hanging the app. */
+  for (let guard = 0; guard < 100000; guard++) {
+    r.invoiceSeq += 1;
+    const cand = (pre + r.invoiceSeq).slice(0, 13);
+    if (r.invoiceUsed.indexOf(cand) < 0) { n = cand; break; }
+  }
+  if (n === null) return "";
+  r.invoiceUsed.push(n);
+  return n;
+}
+/* [51-1] §7 Q2 — from a COMPLETED work and nothing else. Returns null rather
+   than throwing, so a caller that has drifted out of step just does nothing,
+   exactly as fsWorkNew does. Part-invoicing a job in progress is progress
+   claims: a real trade practice, its own feature, its own retention rules. */
+function fsInvoiceNew(w) {
+  if (!w || w.status !== "completed") return null;
+  if (fsInvoiceForWork(w.id)) return null;          /* never two live invoices */
+  const now = new Date().toISOString();
+  const inv = {
+    id: fsBookId("i"),
+    number: "",                    /* late-bound at ISSUE — [51-3] */
+    status: "draft",               /* STORED. payState is DERIVED — [51-5] */
+    created: now, updated: now,
+    workId: w.id, quoteId: w.quoteId || "",
+    workNumber: w.number || "", quoteNumber: w.quoteNumber || "",
+    /* the LINK — uids per [44-2]. Names are the display snapshot. */
+    clientUid: w.clientUid || "", siteUid: w.siteUid || "",
+    clientName: w.clientName || "", siteName: w.siteName || "",
+    where: w.where || "",
+    /* DEEP copy. A reference here would mean editing the invoice edits the
+       work, and the work is what the invoice is evidence of. */
+    lines: JSON.parse(JSON.stringify(w.lines || [])),
+    lineAmountsInclusive: !!w.lineAmountsInclusive,
+    currency: w.currency || "AUD",
+    taxUsed: null,                 /* THE frozen table, stamped at issue — [51-4] */
+    termsDays: null,               /* null = use business default — [51-7] */
+    issuedAt: null, dueAt: null,
+    voidedAt: null, voidReason: "",
+    issued: null,                  /* the frozen document — [51-4] */
+    notes: ""
+  };
+  fsInvoices().push(inv);
+  return inv;
+}
+/* [51-7] The due date. Per-invoice override beats the business default; the
+   default is 14 and ships in FS_BIZ_DEF rather than being hardcoded here. */
+function fsInvoiceTermsDays(inv) {
+  if (inv && Number.isInteger(inv.termsDays) && inv.termsDays >= 0) return inv.termsDays;
+  const d = fsBiz().paymentTermsDays;
+  return Number.isInteger(d) && d >= 0 ? d : 14;
+}
+/* [51-4] THE ISSUED SNAPSHOT, and there is EXACTLY ONE FROZEN TAX TABLE.
+   fsTaxStamp freezes {code, table} onto taxUsed — the SAME field C3a already
+   reads and writes. This block deliberately does NOT carry issued.taxTable:
+   two frozen tables on one record can disagree, fsDocTotals would use one and
+   the rendered document would show the other, and that is a bug with a long
+   fuse and no symptom until a rate changes. It freezes everything that is NOT
+   already frozen elsewhere.
+   AN ISSUED INVOICE IS IMMUTABLE. A mistake is corrected by void-and-reissue,
+   which leaves the original readable. MONEY-DESIGN §3.8 argues for amendment
+   over hard-locking, and that reasoning is about QUOTES — a quote is a
+   commercial offer. An issued tax invoice is a document a third party relies
+   on and the ATO expects to be reproducible. §3.8 is scoped, not overridden. */
+function fsInvoiceIssue(inv) {
+  if (!inv || inv.status !== "draft") return false;
+  const now = new Date().toISOString();
+  fsTaxStamp(inv);                         /* taxUsed — the ONLY frozen table */
+  if (!inv.number) inv.number = fsInvoiceAllocNumber();
+  const tot = fsDocTotals(inv);
+  const b = fsBiz();
+  const c = inv.clientUid ? fsClientByUid(inv.clientUid) : null;
+  const due = new Date(Date.now() + fsInvoiceTermsDays(inv) * 86400000).toISOString();
+  inv.issuedAt = now;
+  inv.dueAt = due;
+  inv.status = "issued";
+  inv.updated = now;
+  inv.issued = {
+    at: now, number: inv.number, dueAt: due,
+    /* ATO: the seller's identity AND ABN are required on every tax invoice. */
+    business: { name: b.name || "", abn: b.abn || "", address: b.address || "",
+                phone: b.phone || "", email: b.email || "" },
+    /* ATO: at $1,000 or more the BUYER's identity or ABN is required too.
+       Snapshotted rather than resolved at render time, so the document stays
+       reproducible after the client record is renamed or deleted. */
+    customer: { name: (c && c.name) || inv.clientName || "",
+                address: (c && c.address) || "",
+                abn: (c && c.abn) || "" },
+    docWord: fsDocWord(),
+    lines: JSON.parse(JSON.stringify(inv.lines || [])),
+    lineAmountsInclusive: !!inv.lineAmountsInclusive,
+    subtotalCents: tot.subtotalCents, taxCents: tot.taxCents,
+    totalCents: tot.totalCents,
+    /* ATO: mixed taxable and non-taxable sales must show WHICH items are
+       taxable. That is what taxByCode is for, and it is why the snapshot keeps
+       it rather than a single taxCents. */
+    taxByCode: JSON.parse(JSON.stringify(tot.taxByCode || {})),
+    taxKnown: !!tot.taxKnown
+  };
+  if (typeof fsActLog === "function") fsActLog("Invoice issued", inv.number || "");
+  return true;
+}
+/* [51-5] One-way through the machine, refusing anything FS_INVNEXT does not
+   allow — including every transition out of void — and reporting false rather
+   than throwing, so a stale button cannot corrupt a record. */
+function fsInvoiceSetStatus(inv, k, reason) {
+  if (!inv) return false;
+  const from = inv.status || "draft";
+  if ((FS_INVNEXT[from] || []).indexOf(k) < 0) return false;
+  if (k === "issued") return fsInvoiceIssue(inv);
+  const now = new Date().toISOString();
+  inv.status = k;
+  inv.updated = now;
+  if (k === "void") { inv.voidedAt = now; inv.voidReason = reason || ""; }
+  if (typeof fsActLog === "function") fsActLog("Invoice " + k, inv.number || "");
+  return true;
+}
+/* [51-2] APPEND-ONLY MEANS APPEND-ONLY. A wrong payment is corrected by an
+   OFFSETTING record — amountCents may be NEGATIVE — never by an edit and never
+   by a delete. That is what makes the frozen historical set safe to freeze:
+   nothing can retrospectively change what a frozen invoice was paid.
+   `source` is written on every record from day one. fsPayFrozen (C3a) already
+   reads it and shipped against a record type that did not exist until now;
+   this pass FEEDS it and must not change it.
+   THIS RECORDS A PAYMENT RECEIVED. IT DOES NOT PROCESS ONE. MONEY-DESIGN §6
+   lists card processing under what NOT to build: no card, no link, no network. */
+function fsPaymentAdd(invoiceId, amountCents, date, method, reference) {
+  const inv = fsInvoiceFind(invoiceId);
+  if (!inv) return null;
+  if (inv.status !== "issued") return null;      /* nothing to pay on a draft or a void */
+  if (!Number.isInteger(amountCents) || amountCents === 0) return null;
+  const now = new Date().toISOString();
+  const p = {
+    id: fsBookId("p"),
+    invoiceId: invoiceId,
+    amountCents: amountCents,
+    date: String(date || now.slice(0, 10)),
+    method: String(method || ""), reference: String(reference || ""),
+    source: "arcadapt",
+    created: now
+  };
+  fsPayments().push(p);
+  return p;
+}
+function fsInvoicePaidCents(inv) {
+  if (!inv) return 0;
+  return fsInvoicePayments(inv.id).reduce((n, p) => n + (p.amountCents | 0), 0);
+}
+/* [51-5] DERIVED, never stored. The total comes from the ISSUED SNAPSHOT, not
+   from a recompute — an issued invoice's total is what it said when it left. */
+function fsInvoiceBalance(inv) {
+  if (!inv || !inv.issued) return 0;
+  return (inv.issued.totalCents | 0) - fsInvoicePaidCents(inv);
+}
+/* [51-5] DERIVED AND NEVER WRITTEN TO THE RECORD. `overdue` is a function of
+   dueAt and TODAY: store it and the nag list starts lying the moment the app
+   is closed. `paid` is a function of the payment set. A void invoice has no
+   payState at all. */
+function fsInvoicePayState(inv, nowIso) {
+  if (!inv || inv.status !== "issued" || !inv.issued) return null;
+  const bal = fsInvoiceBalance(inv);
+  if (bal <= 0) return "paid";
+  const now = nowIso || new Date().toISOString();
+  if (inv.dueAt && String(now) > String(inv.dueAt)) return "overdue";
+  return fsInvoicePaidCents(inv) > 0 ? "part paid" : "unpaid";
+}
+function fsInvoiceClient(inv) { return inv && inv.clientUid ? fsClientByUid(inv.clientUid) : null; }
+function fsInvoiceSite(inv) { return inv && inv.siteUid ? fsSiteByUid(inv.siteUid) : null; }
+function fsInvoiceWork(inv) { return inv && inv.workId ? fsWorkFind(inv.workId) : null; }
+/* ===== end PASS 51 — C3b ================================================== */
 
 
 /* ===== Defect pull-through pipeline =========================================
@@ -19147,7 +19412,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v59";
+const FS_BUILD = "aa-v60";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
