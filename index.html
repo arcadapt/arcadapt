@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.56 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.57 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -426,7 +426,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.56 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.57 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -14819,6 +14819,7 @@ function fsQuoteRender() {
       }
     }
     html += '</div>';
+    html += fsInvSectionHtml(w0);
   }
   html += '<div style="margin-top:8px;font-size:11.5px;color:var(--fs-faint)">' +
     (q.status === "approved"
@@ -14907,6 +14908,7 @@ function fsQuoteRender() {
       fsMarkDirty(); fsQuoteRender();
     };
   });
+  fsInvSectionWire(q);
   document.getElementById("fsQPdf").onclick = () => fsQuotePdf(q);
   document.getElementById("fsQAcct").onclick = () => fsAcctExport(q);
   document.getElementById("fsQDel2").onclick = () => {
@@ -15281,6 +15283,253 @@ function fsInvoiceClient(inv) { return inv && inv.clientUid ? fsClientByUid(inv.
 function fsInvoiceSite(inv) { return inv && inv.siteUid ? fsSiteByUid(inv.siteUid) : null; }
 function fsInvoiceWork(inv) { return inv && inv.workId ? fsWorkFind(inv.workId) : null; }
 /* ===== end PASS 51 — C3b ================================================== */
+
+
+/* ===== PASS 52 — THE INVOICE SCREEN ========================================
+   C3b shipped the record layer with no caller. This is the caller.
+
+   IT STORES NOTHING AND IT DECIDES NOTHING. The status word comes from
+   fsInvStat, the money word from fsInvoicePayState, the legal transitions from
+   FS_INVNEXT, and every write goes through fsInvoiceSetStatus or fsPaymentAdd.
+   A second opinion in here would be M7 all over again — that mutant opened
+   void -> issued in FS_INVNEXT and fsInvoiceIssue's own draft guard shadowed
+   it, leaving two guards where one was already dead.
+
+   "Sent", "Part paid", "Paid" and "Overdue" are RENDERINGS, not fields.
+   Brief 3 named six invoice states; C3b stores three and derives the rest,
+   deliberately. The moment `overdue` is written to a record the nag list
+   starts lying as soon as the app is closed.
+   ========================================================================= */
+
+/* THE TOTALS COME FROM DIFFERENT PLACES DEPENDING ON STATE, AND CONFLATING
+   THEM IS THE BUG THIS FUNCTION EXISTS TO PREVENT. A draft has no frozen
+   snapshot, so it is computed live through the one document path. An ISSUED
+   invoice's totals are inv.issued's and never a recompute: an issued invoice's
+   total is what it said when it left, and fsDocTotals would happily re-derive
+   it against a tax table that has since changed. */
+function fsInvView(inv) {
+  if (!inv) return null;
+  if (inv.issued) {
+    return { subtotalCents: inv.issued.subtotalCents | 0,
+             taxCents: inv.issued.taxCents | 0,
+             totalCents: inv.issued.totalCents | 0,
+             taxKnown: !!inv.issued.taxKnown, frozen: true };
+  }
+  const t = fsDocTotals(inv);
+  return { subtotalCents: t.subtotalCents | 0, taxCents: t.taxCents | 0,
+           totalCents: t.totalCents | 0, taxKnown: !!t.taxKnown, frozen: false };
+}
+/* Display names resolve through the UID ONLY. inv.clientName exists for the
+   FROZEN document — it is a snapshot of what the record said at issue — and
+   falling back to it here would put a stale name on a live screen, which is
+   the exact bug C1 (Pass 44) removed when renaming a site orphaned its quotes.
+   A missing link shows a dash and stays visibly missing. */
+function fsInvWho(inv) {
+  const c = fsInvoiceClient(inv), s = fsInvoiceSite(inv);
+  return { client: (c && c.name) || "", site: (s && s.name) || "" };
+}
+function fsInvPayLabel(inv) {
+  const ps = fsInvoicePayState(inv);
+  if (!ps) return null;
+  if (ps === "paid") return { t: "Paid", col: "#1b8a3f" };
+  if (ps === "overdue") return { t: "Overdue", col: "#c62828" };
+  if (ps === "part paid") return { t: "Part paid", col: "#b58900" };
+  return { t: "Unpaid", col: "#7a7a7a" };
+}
+/* [52-6] The buttons ARE the transition table. fsInvoiceSetStatus refuses
+   anything FS_INVNEXT does not allow, so a stale button cannot corrupt a
+   record — but offering one that will silently do nothing is its own defect. */
+function fsInvNextBtns(inv) {
+  const nxt = FS_INVNEXT[inv.status || "draft"] || [];
+  if (!nxt.length) return "";
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">' +
+    nxt.map(function (k) {
+      const lab = k === "issued" ? "Issue invoice" : "Void";
+      return '<button class="' + (k === "void" ? "fsbtn" : "fsbtnP") + '" data-invnext="' + fsEsc(k) + '"' +
+        (k === "void" ? ' style="color:#c62828"' : '') + '>' + fsEsc(lab) + '</button>';
+    }).join("") + '</div>';
+}
+function fsInvPayRows(inv) {
+  const ps = fsInvoicePayments(inv.id);
+  if (!ps.length) return '<div style="font-size:12.5px;color:var(--fs-faint);margin-top:6px">No payments recorded.</div>';
+  return '<div style="margin-top:8px">' + ps.map(function (p) {
+    const neg = (p.amountCents | 0) < 0;
+    return '<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--fs-border);padding:6px 0;font-size:12.5px">' +
+      '<span style="flex:1">' + fsEsc(p.date || "") +
+      (p.method ? ' <span style="color:var(--fs-sub2)">' + fsEsc(p.method) + '</span>' : '') +
+      (p.reference ? ' <span style="color:var(--fs-faint)">' + fsEsc(p.reference) + '</span>' : '') +
+      '</span>' +
+      '<span style="font-weight:700;color:' + (neg ? "#c62828" : "#e8e8e8") + '">' +
+      fsEsc(FSMoney.fmt(p.amountCents | 0)) + '</span>' +
+      (neg ? '' : '<a class="fsInvCorrect" data-id="' + fsEsc(p.id) + '" style="color:#b58900;cursor:pointer;font-size:12px">Correct</a>') +
+      '</div>';
+  }).join("") + '</div>';
+}
+/* [52-4] APPEND-ONLY IS ENFORCED BY THE SHAPE OF THIS FORM. There is no edit
+   control and no delete control anywhere in this screen. A wrong payment is
+   corrected by an OFFSETTING RECORD carrying a negative amountCents, which
+   fsPaymentAdd already accepts, and both rows stay visible for ever. An edit
+   form here would end [51-2]'s guarantee without a single record-layer test
+   noticing, because the record layer would still be perfectly append-only. */
+function fsInvPayForm(inv) {
+  if (inv.status !== "issued") return "";
+  return '<div id="fsInvPayBox" style="margin-top:10px;border-top:1px solid var(--fs-border);padding-top:9px">' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Record a payment received</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
+    fsMoneyIn("fsInvPayAmt", inv.id, null) +
+    '<input type="date" id="fsInvPayDate" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '<input type="text" id="fsInvPayMethod" placeholder="Method" style="width:96px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '<button class="fsbtnP" id="fsInvPayAdd">Add</button></div>' +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">Arc Adapt records a payment you have received. It does not take one.</div></div>';
+}
+function fsInvCardHtml(inv) {
+  const st = fsInvStat(inv);
+  const pl = fsInvPayLabel(inv);
+  const v = fsInvView(inv);
+  const who = fsInvWho(inv);
+  let h = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<span style="background:' + st.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(st.label) + '</span>' +
+    (pl ? '<span style="background:' + pl.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(pl.t) + '</span>' : '') +
+    '<span style="font-size:13px">' + (inv.number ? fsEsc(inv.number) : '<span style="color:var(--fs-faint)">No number until issued</span>') + '</span>' +
+    '</div>';
+  h += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' +
+    fsEsc(who.client || "—") + (who.site ? ' · ' + fsEsc(who.site) : '') +
+    (inv.workNumber ? ' · work ' + fsEsc(inv.workNumber) : '') +
+    (inv.quoteNumber ? ' · quote ' + fsEsc(inv.quoteNumber) : '') + '</div>';
+  h += '<div style="display:flex;gap:10px;align-items:center;font-size:13px">' +
+    '<span style="flex:1;color:var(--fs-sub)">' + (v.taxKnown ? 'Total including GST' : 'Total excluding tax') + '</span>' +
+    '<span style="font-size:16px;font-weight:800">' + fsEsc(FSMoney.fmt(v.taxKnown ? v.totalCents : v.subtotalCents)) + '</span></div>';
+  /* THE BALANCE IS SHOWN ONLY WHERE IT MEANS SOMETHING. fsInvoiceBalance
+     returns 0 without inv.issued, and a bare "0.00" on a draft reads as PAID
+     IN FULL — a draft has not been sent to anybody. */
+  if (inv.status === "issued") {
+    h += '<div style="display:flex;gap:10px;align-items:center;font-size:13px;margin-top:4px">' +
+      '<span style="flex:1;color:var(--fs-sub)">Balance</span>' +
+      '<span style="font-size:14px;font-weight:700">' + fsEsc(FSMoney.fmt(fsInvoiceBalance(inv))) + '</span></div>' +
+      (inv.dueAt ? '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:3px">Due ' + fsEsc(String(inv.dueAt).slice(0, 10)) + '</div>' : '');
+    h += fsInvPayRows(inv);
+  }
+  /* CALLED UNCONDITIONALLY ON PURPOSE. Guarding here as well as inside
+     fsInvPayForm would be two guards with one of them dead — mutate-p51's M7
+     exactly, where FS_INVNEXT and fsInvoiceIssue each refused void->issued and
+     only one of them was ever reached. mutate-p52 M8 proved it: with the
+     caller guarding, a mutant that opened the form on a draft changed nothing
+     and survived. fsInvPayForm owns the decision; nobody else states it. */
+  h += fsInvPayForm(inv);
+  if (inv.status === "void" && inv.voidReason) {
+    h += '<div style="font-size:12px;color:var(--fs-sub2);margin-top:6px">Voided: ' + fsEsc(inv.voidReason) + '</div>';
+  }
+  h += fsInvNextBtns(inv);
+  return h;
+}
+/* [52-5] VOID-AND-REISSUE ONLY WORKS IF THE VOIDED ONE IS STILL READABLE, and
+   the screen very nearly lost that. fsInvoiceForWork deliberately excludes
+   void — that is what lets a replacement be raised — so a voided invoice has
+   NO live handle and would simply disappear from the screen, taking its number
+   and its reason with it. [51-5] keeps a voided invoice readable precisely so
+   somebody can answer "what happened to INV-1001" at an audit; a UI that hides
+   it defeats the record layer without touching it. Caught by test_p52 C3. */
+function fsInvVoidHistory(w) {
+  const v = fsInvoices().filter(function (i) { return i.workId === w.id && i.status === "void"; });
+  if (!v.length) return "";
+  return '<div style="margin-top:9px;border-top:1px solid var(--fs-border);padding-top:8px">' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px">Voided</div>' +
+    v.map(function (i) {
+      return '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:3px">' +
+        (i.number ? fsEsc(i.number) : "never issued") +
+        (i.voidReason ? ' — ' + fsEsc(i.voidReason) : '') + '</div>';
+    }).join('') + '</div>';
+}
+/* [52-1] The section. Returns "" — never a stub, never an empty bordered box —
+   whenever there is nothing to say, so a quote that is nowhere near invoicing
+   looks exactly as it did before this pass. */
+function fsInvSectionHtml(w) {
+  if (!w) return "";
+  if (typeof fsCan === "function" && !fsCan("money")) return "";   /* [52-7] */
+  const inv = fsInvoiceForWork(w.id);
+  const hist = fsInvoices().filter(function (i) { return i.workId === w.id && i.status === "void"; });
+  if (!inv && !hist.length && w.status !== "completed") return "";
+  let h = '<div id="fsQInvStrip" style="margin-top:10px;border:1px solid var(--fs-line);border-radius:8px;padding:11px 13px">' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Invoice</div>';
+  if (!inv) {
+    h += '<div style="font-size:13px;color:var(--fs-sub2);margin-bottom:8px">This work is complete and has not been invoiced.</div>' +
+      '<button class="fsbtnP" id="fsQMkInv">Create invoice</button>';
+  } else {
+    h += fsInvCardHtml(inv);
+  }
+  h += fsInvVoidHistory(w);
+  return h + '</div>';
+}
+/* [52-1..5] The wiring. Every handler ends the same way — fsMarkDirty then
+   fsQuoteRender — so the section always re-reads the record rather than
+   patching its own markup, and a refused transition simply redraws unchanged. */
+function fsInvSectionWire(q) {
+  const mk = document.getElementById("fsQMkInv");
+  if (mk) mk.onclick = function () {
+    const w = fsWorkForQuote(q.id);
+    if (!w) return;
+    if (!fsInvoiceNew(w)) { alert("This work cannot be invoiced.\n\nIt must be completed, and it must not already have a live invoice."); return; }
+    fsMarkDirty(); fsQuoteRender();
+  };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invnext]"), function (b) {
+    b.onclick = function () {
+      const w = fsWorkForQuote(q.id);
+      const inv = w ? fsInvoiceForWork(w.id) : null;
+      if (!inv) return;
+      const k = b.getAttribute("data-invnext");
+      let reason = "";
+      if (k === "issued") {
+        /* [52-3] SAID BEFORE THE TAP, NOT AFTER. fsInvoiceAllocNumber pushes
+           to invoiceUsed and the ledger is never pruned, so the number is
+           spent the instant this is confirmed. */
+        if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+      }
+      if (k === "void") {
+        if (!confirm("Void this invoice?\n\nIt stays readable and its number is never reused. You can raise a fresh invoice for this work afterwards.")) return;
+        reason = (prompt("Why is it being voided? (optional)") || "").trim();
+      }
+      if (!fsInvoiceSetStatus(inv, k, reason)) return;
+      fsMarkDirty(); fsQuoteRender();
+    };
+  });
+  const add = document.getElementById("fsInvPayAdd");
+  if (add) add.onclick = function () {
+    const w = fsWorkForQuote(q.id);
+    const inv = w ? fsInvoiceForWork(w.id) : null;
+    if (!inv) return;
+    const el = document.querySelector(".fsInvPayAmt");
+    const cents = el ? fsMoneyOut(el) : null;
+    if (!Number.isInteger(cents) || cents === 0) { alert("Enter the amount received."); return; }
+    const d = document.getElementById("fsInvPayDate");
+    const m = document.getElementById("fsInvPayMethod");
+    if (!fsPaymentAdd(inv.id, cents, (d && d.value) || "", (m && m.value) || "", "")) {
+      alert("That payment could not be recorded.\n\nPayments can only go against an issued invoice.");
+      return;
+    }
+    fsMarkDirty(); fsQuoteRender();
+  };
+  Array.prototype.forEach.call(document.querySelectorAll(".fsInvCorrect"), function (a) {
+    a.onclick = function () {
+      const w = fsWorkForQuote(q.id);
+      const inv = w ? fsInvoiceForWork(w.id) : null;
+      if (!inv) return;
+      const p = fsInvoicePayments(inv.id).filter(function (x) { return x.id === a.dataset.id; })[0];
+      if (!p) return;
+      /* [52-4] THE CORRECTION IS A NEW RECORD. Nothing is edited and nothing
+         is deleted — both rows stay on the invoice for ever, which is what
+         makes a frozen historical set safe to freeze. */
+      if (!confirm("Reverse this payment?\n\n" + FSMoney.fmt(p.amountCents | 0) + " on " + (p.date || "") +
+                   "\n\nThe original stays on the invoice. A matching negative record is added beside it — nothing is edited and nothing is deleted.")) return;
+      const ref = (prompt("Why is it being reversed? (optional)") || "").trim();
+      if (!fsPaymentAdd(inv.id, -(p.amountCents | 0), "", "correction", ref || ("reverses " + p.id))) {
+        alert("That correction could not be recorded.");
+        return;
+      }
+      fsMarkDirty(); fsQuoteRender();
+    };
+  });
+}
+/* ===== end PASS 52 ======================================================== */
 
 
 /* ===== Defect pull-through pipeline =========================================
@@ -19412,7 +19661,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v60";
+const FS_BUILD = "aa-v61";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
