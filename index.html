@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.57 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.60 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -353,6 +353,15 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
          in a row of buttons, which read as a control. -->
     <div id="fsClientBrand" style="display:none;align-items:center;gap:9px;margin:2px 0 6px"></div>
     <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
+    <!-- PASS 53 [53-2] — the off-device backup state. Always rendered,
+         never blank while a register is open: "no backup yet" is the
+         state that matters most and an empty line reads as fine. -->
+    <!-- PASS 54 [54-1] — the identity that gets FROZEN onto a tax invoice.
+         Sourced from fsBiz(), NOT from fsCoName(): the stamp above shows the
+         PROFILE company, this shows the REGISTER business, and nothing keeps
+         them equal. -->
+    <div id="fsBizLine" style="font-size:11.5px;margin-bottom:4px"></div>
+    <div id="fsBakLine" style="font-size:11.5px;margin-bottom:16px"></div>
     <!-- PASS 28 item 4 — nothing told a new user what to do next. The demo
          button is good and most products this age do not have one, but once
          you are inside it there is no signpost.
@@ -426,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.57 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.60 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -13253,16 +13262,19 @@ function fsChargeTotals(list) {
 }
 /* The shape the handoff reads. rows[] carries the per-line context so one file
    can cover several sites without pretending they are one document. */
-function fsChargeDoc(list) {
+function fsChargeDoc(list, num) {
   const now = new Date().toISOString();
-  return { number: now.slice(0, 10), created: now, status: "",
+  /* PASS 55 [55-6] — the date fallback is KEPT for direct callers (the suite
+     builds a doc three times and an allocator here would burn three numbers).
+     fsChargeExport passes a real allocated number. */
+  return { number: num || now.slice(0, 10), created: now, status: "",
            clientName: (list[0] || {}).clientName || "", siteName: (list[0] || {}).siteName || "",
            rows: list, lines: fsChargeLines(list) };
 }
 function fsChargeExport(list) {
   if (!list.length) { alert("There are no open charge lines to hand over."); return; }
   const a = FSAccounting.CHARGE_ADAPTERS[0];
-  const doc = fsChargeDoc(list);
+  const doc = fsChargeDoc(list, fsChargeAllocNumber());
   const problems = FSAccounting.checks(doc, a.k, {});
   if (problems.length && !confirm("Worth checking first:\n\n• " + problems.join("\n• ") + "\n\nExport anyway?")) return;
   const text = FSAccounting.build(a.k, doc, {});
@@ -13273,18 +13285,32 @@ function fsChargeExport(list) {
   alert("✓ Saved.\n\nThat file is a list of charge LINES and what they come to. It is not an invoice — raise the invoice in your accounting system, which applies your own tax.");
 }
 
+function fsChargePill(c) {
+  if (!c) return "";
+  if (c.status === "handed") return "Handed over";
+  if (c.status === "invoiced") return "Invoiced";
+  return "Open";
+}
+function fsChargePillCol(c) {
+  if (c && c.status === "handed") return "#1b8a3f";
+  if (c && c.status === "invoiced") return "#2b6cb0";
+  return "#b58900";
+}
 function fsChargeListRender() {
   const wrap = document.getElementById("fsDashView");
   const all = fsCharges().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
-  const open = all.filter(c => c.status !== "handed");
+  /* PASS 55 [55-2] — "not handed" is no longer the same as "open": a charge on
+     an invoice has left too. One destination per charge, for ever. */
+  const open = all.filter(c => c.status === "open" && !c.workId);
   const tot = fsChargeTotals(open);
   let html = '<div style="margin-bottom:12px"><a id="fsScBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#129534; Service charges</h2>' +
     '<button class="fsbtn" id="fsScRates">&#128176; Visit prices</button>' +
+    '<button class="fsbtn" id="fsScMkInv">&#129534; Invoice selected</button>' +
     '<button class="fsbtn" id="fsScExport">&#127974; Send to accounting</button></div>';
   html += '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:10px">One completed visit, one charge line. ' +
-    'No invoice is made here and no tax is worked out — your accounting system raises the invoice and applies its own rate.' +
+    'One completed visit, one charge line. Invoice the selected lines here, or send them to your accounting system — each line can go one way or the other, never both.' +
     (fsVisitChargeOn() ? '' : ' <b style="color:#ffd873">Charging for visits is currently off</b> — turn it on under Visit prices.') + '</div>';
 
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -13295,14 +13321,17 @@ function fsChargeListRender() {
     const from = c.rateSource === "site" ? "priced on this site"
                : (c.rateSource === "profile" ? "priced in the pricebook" : "no price set");
     html += '<div style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + '">' +
+      (fsChargeSelectable(c)
+        ? '<input type="checkbox" class="fsScSel" data-id="' + fsEsc(c.id) + '" style="flex:none">'
+        : '<span style="width:13px;flex:none"></span>') +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:14px;font-weight:600">' + fsEsc(c.visitLabel) + ' &middot; ' + fsEsc(c.siteName) + '</div>' +
         '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(c.clientName || "(no client name)") + ' &middot; ' +
           fsEsc(String(c.created).slice(0, 10)) + ' &middot; ' + fsEsc(from) + '</div></div>' +
       '<span style="width:86px;text-align:right;font-size:13.5px;font-weight:700;color:' + (unpriced ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
         (unpriced ? '—' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
-      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + (c.status === "handed" ? '#1b8a3f' : '#b58900') +
-        ';border-radius:11px;padding:2px 9px;flex:none">' + (c.status === "handed" ? 'Handed over' : 'Open') + '</span>' +
+      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + fsChargePillCol(c) +
+        ';border-radius:11px;padding:2px 9px;flex:none">' + fsChargePill(c) + '</span>' +
       '<a class="fsScDel" data-id="' + fsEsc(c.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
   });
   html += '</div>';
@@ -13312,10 +13341,32 @@ function fsChargeListRender() {
     '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">A charge line and a total. Nothing here works out GST — your accounting system applies its own tax codes.</div></div>';
 
+  /* PASS 55 [55-5] — the SAME section the quote editor renders. Not a copy:
+     a second invoice implementation is a second transition table to keep in
+     step, which is the failure mutate-p51 M7 exists to describe. */
+  const scw = fsScWorkId ? fsWorks().filter(x => x.id === fsScWorkId)[0] : null;
+  if (scw) {
+    html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
+      '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:8px">Service invoice &middot; ' +
+      fsEsc(scw.siteName || "") + '</div>' + fsInvSectionHtml(scw) + '</div>';
+  }
   wrap.innerHTML = html;
+  if (scw) fsInvSectionWire({ id: scw.quoteId }, fsChargeListRender);
   document.getElementById("fsScBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsScRates").onclick = () => { fsBookTab = "visits"; fsDashMode = "book"; fsBookRender(); };
   document.getElementById("fsScExport").onclick = () => fsChargeExport(open);
+  /* PASS 55 [55-1]/[55-5] — READ the rule, never restate it. */
+  const mk = document.getElementById("fsScMkInv");
+  if (mk) mk.onclick = () => {
+    const ids = Array.prototype.map.call(wrap.querySelectorAll(".fsScSel:checked"), a => a.dataset.id);
+    const sel = ids.map(fsChargeById).filter(Boolean);
+    const why = fsWorkFromChargesBlock(sel);
+    if (why) { alert("These charges cannot be invoiced — " + why + "."); return; }
+    const w = fsWorkFromCharges(sel);
+    if (!w) { alert("These charges cannot be invoiced."); return; }
+    fsScWorkId = w.id;
+    fsMarkDirty(); fsChargeListRender();
+  };
   wrap.querySelectorAll(".fsScDel").forEach(a => a.onclick = () => {
     const list = fsCharges();
     const c = list.filter(x => x.id === a.dataset.id)[0];
@@ -15179,6 +15230,10 @@ function fsInvoiceTermsDays(inv) {
    on and the ATO expects to be reproducible. §3.8 is scoped, not overridden. */
 function fsInvoiceIssue(inv) {
   if (!inv || inv.status !== "draft") return false;
+  /* PASS 54 [54-3] — a tax invoice without a seller name and ABN is not a
+     tax invoice, and fsInvoiceAllocNumber spends the number either way.
+     THE RULE LIVES HERE ONLY; the screen reads fsInvIssueBlock to say why. */
+  if (fsInvIssueBlock()) return false;
   const now = new Date().toISOString();
   fsTaxStamp(inv);                         /* taxUsed — the ONLY frozen table */
   if (!inv.number) inv.number = fsInvoiceAllocNumber();
@@ -15226,7 +15281,13 @@ function fsInvoiceSetStatus(inv, k, reason) {
   const now = new Date().toISOString();
   inv.status = k;
   inv.updated = now;
-  if (k === "void") { inv.voidedAt = now; inv.voidReason = reason || ""; }
+  if (k === "void") {
+    inv.voidedAt = now; inv.voidReason = reason || "";
+    /* PASS 55 [Q4] — the work was still done. Its charges go back to open so
+       they can be invoiced again; leaving them "invoiced" would strand that
+       revenue outside BOTH exits. */
+    if (typeof fsChargeReleaseForWork === "function") fsChargeReleaseForWork(inv.workId);
+  }
   if (typeof fsActLog === "function") fsActLog("Invoice " + k, inv.number || "");
   return true;
 }
@@ -15443,6 +15504,17 @@ function fsInvVoidHistory(w) {
 /* [52-1] The section. Returns "" — never a stub, never an empty bordered box —
    whenever there is nothing to say, so a quote that is nowhere near invoicing
    looks exactly as it did before this pass. */
+/* PASS 54 [54-1] — reads fsBizIdLine so the strip and the header can never
+   disagree, and states the single-device rule where invoices are actually
+   issued rather than only in a design document (Reece, 16 Aug). */
+function fsInvWhoHtml() {
+  const r = fsBizIdLine();
+  return '<div id="fsInvWho" data-warn="' + (r.warn ? "1" : "0") +
+    '" style="font-size:11.5px;margin-bottom:8px;color:' +
+    (r.warn ? "#e0a33a" : "var(--fs-sub)") + '">Billing as ' + fsEsc(r.text) + '</div>' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);margin-bottom:8px">' +
+    'Issue from one device only — a second device would allocate the same number.</div>';
+}
 function fsInvSectionHtml(w) {
   if (!w) return "";
   if (typeof fsCan === "function" && !fsCan("money")) return "";   /* [52-7] */
@@ -15450,7 +15522,10 @@ function fsInvSectionHtml(w) {
   const hist = fsInvoices().filter(function (i) { return i.workId === w.id && i.status === "void"; });
   if (!inv && !hist.length && w.status !== "completed") return "";
   let h = '<div id="fsQInvStrip" style="margin-top:10px;border:1px solid var(--fs-line);border-radius:8px;padding:11px 13px">' +
-    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Invoice</div>';
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Invoice</div>' +
+    /* PASS 54 [54-1] — the header answers "where am I"; this answers
+       "who am I about to bill as", next to the irreversible control. */
+    fsInvWhoHtml();
   if (!inv) {
     h += '<div style="font-size:13px;color:var(--fs-sub2);margin-bottom:8px">This work is complete and has not been invoiced.</div>' +
       '<button class="fsbtnP" id="fsQMkInv">Create invoice</button>';
@@ -15463,13 +15538,19 @@ function fsInvSectionHtml(w) {
 /* [52-1..5] The wiring. Every handler ends the same way — fsMarkDirty then
    fsQuoteRender — so the section always re-reads the record rather than
    patching its own markup, and a refused transition simply redraws unchanged. */
-function fsInvSectionWire(q) {
+function fsInvSectionWire(q, redraw) {
+  /* PASS 55 [55-5] — the handlers used to end in fsQuoteRender(), which
+     writes into the QUOTE view. On the charges screen that is invisible.
+     Passed in at the call site rather than held in a module variable, so
+     leaving one screen cannot leave the other redrawing the wrong thing.
+     The quote call site is unchanged and still reads fsInvSectionWire(q). */
+  const rd = redraw || fsQuoteRender;
   const mk = document.getElementById("fsQMkInv");
   if (mk) mk.onclick = function () {
     const w = fsWorkForQuote(q.id);
     if (!w) return;
     if (!fsInvoiceNew(w)) { alert("This work cannot be invoiced.\n\nIt must be completed, and it must not already have a live invoice."); return; }
-    fsMarkDirty(); fsQuoteRender();
+    fsMarkDirty(); rd();
   };
   Array.prototype.forEach.call(document.querySelectorAll("[data-invnext]"), function (b) {
     b.onclick = function () {
@@ -15479,6 +15560,12 @@ function fsInvSectionWire(q) {
       const k = b.getAttribute("data-invnext");
       let reason = "";
       if (k === "issued") {
+        /* PASS 54 [54-3] — READ, not restated. The refusal itself lives in
+           fsInvoiceIssue; this is only how the user hears about it, and it
+           runs BEFORE the confirm so nobody taps through to nothing. */
+        const blocked = fsInvIssueBlock();
+        if (blocked) { alert("This invoice cannot be issued — " + blocked +
+          ".\n\nA tax invoice must carry your business name and ABN. Set them in Business & tax, then issue."); return; }
         /* [52-3] SAID BEFORE THE TAP, NOT AFTER. fsInvoiceAllocNumber pushes
            to invoiceUsed and the ledger is never pruned, so the number is
            spent the instant this is confirmed. */
@@ -15489,7 +15576,7 @@ function fsInvSectionWire(q) {
         reason = (prompt("Why is it being voided? (optional)") || "").trim();
       }
       if (!fsInvoiceSetStatus(inv, k, reason)) return;
-      fsMarkDirty(); fsQuoteRender();
+      fsMarkDirty(); rd();
     };
   });
   const add = document.getElementById("fsInvPayAdd");
@@ -15506,7 +15593,7 @@ function fsInvSectionWire(q) {
       alert("That payment could not be recorded.\n\nPayments can only go against an issued invoice.");
       return;
     }
-    fsMarkDirty(); fsQuoteRender();
+    fsMarkDirty(); rd();
   };
   Array.prototype.forEach.call(document.querySelectorAll(".fsInvCorrect"), function (a) {
     a.onclick = function () {
@@ -15525,11 +15612,326 @@ function fsInvSectionWire(q) {
         alert("That correction could not be recorded.");
         return;
       }
-      fsMarkDirty(); fsQuoteRender();
+      fsMarkDirty(); rd();
     };
   });
 }
 /* ===== end PASS 52 ======================================================== */
+/* ===== PASS 53 — OFF-DEVICE BACKUP ==========================================
+   BRIEF-OFF-DEVICE-BACKUP.md, questions answered 16 Aug 2026.
+
+   Nothing here is a new backup system. fsBackupSnapshot (on-device, last five)
+   and the whole OneDrive layer already existed; the only thing missing was a
+   caller that does not need a human, and a line that says when one last ran.
+
+   THE CONFLICT RULE. fsMsSaveNow asks before overwriting a changed cloud copy.
+   An unattended writer cannot ask, so it must not overwrite. A cTag mismatch
+   ABORTS and is recorded; the user resolves it through the interactive save,
+   which is allowed to ask. Silently winning that race is the data loss this
+   whole pass is against.
+
+   SINGLE-DEVICE ISSUANCE (Reece, 16 Aug). This pushes one device's register out
+   and back. It does not reconcile two. Once the line below exists, a second
+   device will make it read "conflict" — that is the truth becoming visible, not
+   a regression, and the wording must never imply the app merges anything.     */
+const FS_BAK_STALE_MS = 86400000;          /* 24h. Q2: save + boot, never a timer. */
+let fsBakLast = null;                      /* in-memory mirror so fsStamp stays sync */
+
+async function fsBakRead() {
+  try { return (await idbGet("fsBakState")) || null; } catch (e) { return null; }
+}
+async function fsBakSet(o) {
+  fsBakLast = o;
+  try { await idbPut("fsBakState", o); } catch (e) {}
+}
+async function fsBakLoad() {
+  fsBakLast = await fsBakRead();
+  try { fsStamp(); } catch (e) {}
+  return fsBakLast;
+}
+async function fsBakFail(why) {
+  const prev = fsBakLast || {};
+  await fsBakSet({ t: Date.now(), ok: false, why: why,
+                   lastOkT: prev.lastOkT || 0, name: prev.name || "" });
+  try { fsStamp(); } catch (e) {}
+}
+/* Coarse on purpose. "3 days" is the answer to "should I worry"; a timestamp to
+   the minute is not, and it invites reading it as a sync clock. */
+function fsBakAge(ms) {
+  if (!(ms >= 0)) return "";
+  const m = Math.floor(ms / 60000);
+  if (m < 2) return "just now";
+  if (m < 60) return m + " minutes ago";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + (h === 1 ? " hour ago" : " hours ago");
+  const d = Math.floor(h / 24);
+  return d + (d === 1 ? " day ago" : " days ago");
+}
+function fsBakStale() {
+  const s = fsBakLast;
+  if (!s || !s.lastOkT) return true;
+  return (Date.now() - s.lastOkT) > FS_BAK_STALE_MS;
+}
+/* Returns {text, warn}. THREE STATES AND NO FOURTH — never, wrong, fine. The
+   never case is loud because it is the one a new user sits in for weeks. */
+function fsBakLine() {
+  if (!fsRegister) return { text: "", warn: false };
+  const s = fsBakLast;
+  if (!s || !s.lastOkT) {
+    return { text: "⚠ No off-device backup yet — this register only exists on this device",
+             warn: true };
+  }
+  const age = fsBakAge(Date.now() - s.lastOkT);
+  if (s.ok === false && s.why === "conflict") {
+    return { text: "⚠ Off-device backup blocked — the cloud copy changed since this device opened it. Last good copy " + age,
+             warn: true };
+  }
+  if (s.ok === false) {
+    return { text: "⚠ Off-device backup failed — last good copy " + age, warn: true };
+  }
+  if (fsBakStale()) {
+    return { text: "⚠ Off-device backup is " + age.replace(" ago", " old"), warn: true };
+  }
+  return { text: "Backed up off this device " + age, warn: false };
+}
+function fsBakRender() {
+  const el = document.getElementById("fsBakLine");
+  if (!el) return;
+  const r = fsBakLine();
+  el.textContent = r.text;
+  el.style.color = r.warn ? "#e0a33a" : "var(--fs-sub)";
+  el.dataset.warn = r.warn ? "1" : "0";
+}
+/* THE UNATTENDED WRITER. Never alerts, never confirms, never prompts a sign-in.
+   Returns a reason string so a caller and a test can both see WHY nothing
+   happened, which is the part that is otherwise invisible.                    */
+async function fsBakAuto(why) {
+  if (!fsRegister) return "no-register";
+  let signed = false;
+  try { signed = await fsMsSignedIn(); } catch (e) {}
+  if (!signed) return "signed-out";        /* deliberately writes NOTHING: not signed in is not a failure */
+  let tok = "";
+  try { tok = await fsMsToken(); } catch (e) {}
+  if (!tok) { await fsBakFail("offline"); return "offline"; }
+  try {
+    await fsMsEnsureWorkspace();
+    let prev = null;
+    try { prev = await idbGet("fsMsFile"); } catch (e) { prev = null; }
+    let item = null;
+    if (prev && prev.id) {
+      try { item = await fsGraph("/me/drive/items/" + encodeURIComponent(prev.id) + FS_MS_SEL); }
+      catch (e) { if (!fsMsIs404(e)) throw e; }
+    }
+    if (!item) item = await fsMsItem(FS_MS_MAIN);
+    if (item && prev && prev.id === item.id && prev.ctag && item.cTag && prev.ctag !== item.cTag) {
+      await fsBakFail("conflict");
+      return "conflict";                   /* ABORT. An unattended writer does not win a race. */
+    }
+    if (item) await fsMsArchive(item);
+    const blob = await fsBuildBundle(fsRegister);
+    const r = await fsMsPut(item ? { id: item.id } : { rel: FS_MS_MAIN }, blob);
+    let saved = (r && r.id) ? r : null;
+    if (!saved || !saved.cTag) { try { saved = (await fsMsItem(FS_MS_MAIN)) || saved; } catch (e) {} }
+    if (saved && saved.id) await fsMsRemember(saved);
+    const now = Date.now();
+    await fsBakSet({ t: now, ok: true, why: why || "", lastOkT: now,
+                     name: (saved && saved.name) || FS_MS_MAIN });
+    await fsBackupSnapshot("auto backup to OneDrive");
+    try { fsStamp(); } catch (e) {}
+    return "ok";
+  } catch (e) {
+    await fsBakFail("failed");             /* loud on screen, silent in the way autosaveNow is not: no alert */
+    return "failed";
+  }
+}
+/* ===== end PASS 53 ========================================================= */
+/* ===== PASS 54 — THE REGISTER'S VISIBLE IDENTITY ============================
+   PASS-54-BRIEF.md, questions answered 16 Aug 2026.
+
+   fsBiz() is the authority for everything below. fsCoName() is NOT — it reads
+   the PROFILE's company name, which is a different field in a different file,
+   and the one that reaches a tax invoice is fsBiz(). Anything here that falls
+   back to fsCoName() reintroduces the bug this pass closes, wearing a name
+   that looks right.                                                          */
+
+/* Trimmed, because " " is not an ABN. The whole of [54-3] turns on this. */
+function fsBizIdOf(reg) {
+  const b = (reg && reg.business) || {};
+  return { name: String(b.name || "").trim(), abn: String(b.abn || "").trim() };
+}
+function fsBizIdNow() { return fsBizIdOf(fsRegister); }
+
+/* THE SINGLE DECISION. fsInvoiceIssue refuses on it and the UI READS it to say
+   why. Neither restates it. Returns "" when issuing is allowed.              */
+function fsInvIssueBlock() {
+  const id = fsBizIdNow();
+  if (!id.name && !id.abn) return "no business name and no ABN are set";
+  if (!id.name) return "no business name is set";
+  if (!id.abn) return "no ABN is set";
+  return "";
+}
+
+function fsBizIdLine() {
+  if (!fsRegister) return { text: "", warn: false };
+  const id = fsBizIdNow();
+  if (!id.name && !id.abn) {
+    return { text: "⚠ No business set — invoices cannot be issued", warn: true };
+  }
+  if (!id.abn) return { text: (id.name || "—") + " · ⚠ no ABN", warn: true };
+  if (!id.name) return { text: "⚠ no business name · ABN " + id.abn, warn: true };
+  return { text: id.name + " · ABN " + id.abn, warn: false };
+}
+function fsBizIdRender() {
+  const el = document.getElementById("fsBizLine");
+  if (!el) return;
+  const r = fsBizIdLine();
+  el.textContent = r.text;
+  el.style.color = r.warn ? "#e0a33a" : "var(--fs-sub)";
+  el.dataset.warn = r.warn ? "1" : "0";
+}
+
+/* [54-2] Q2: ask ONLY when the identity differs AND there is a current one.
+   Confirming a same-identity reload trains the tap away, and that tap is the
+   entire control. A first load into an empty app must not nag.               */
+function fsBizIdDiffers(a, b) {
+  if (!a || (!a.name && !a.abn)) return false;      /* nothing to lose */
+  return a.name !== b.name || a.abn !== b.abn;
+}
+function fsBizIdSwapOk(incoming) {
+  const cur = fsBizIdNow();
+  const inc = fsBizIdOf(incoming);
+  if (!fsBizIdDiffers(cur, inc)) return true;
+  const show = function (i) {
+    return (i.name || "(no name)") + (i.abn ? " (ABN " + i.abn + ")" : " (no ABN)");
+  };
+  return confirm("Replace " + show(cur) + "\n\nwith " + show(inc) + "?\n\n" +
+    "The register on this device is replaced. Invoices are issued under the " +
+    "business of whichever register is loaded.");
+}
+/* ===== end PASS 54 ========================================================= */
+/* ===== PASS 55 — C4a: A SERVICE VISIT CAN BE INVOICED =======================
+   PASS-55-BRIEF.md, questions answered 17 Aug 2026.
+
+   A charge line has been a well-formed billable line since it was written —
+   integer cents, a `priced` FLAG rather than a blank number, clientUid/siteUid
+   per C1. What it never had was a way out other than a CSV.
+
+   WORK STAYS THE ONLY THING THAT BECOMES AN INVOICE. COMMERCIAL-MAP is right
+   that a second invoice source is "exactly the fourth commercial island". So a
+   service run makes a WORK, and the existing invoice path does the rest.     */
+
+let fsScWorkId = "";        /* the service work currently shown on the charges screen */
+
+function fsChargeById(id) { return fsCharges().filter(function (c) { return c.id === id; })[0] || null; }
+function fsChargesForWork(wid) {
+  if (!wid) return [];
+  return fsCharges().filter(function (c) { return c.workId === wid; });
+}
+/* Open AND unattached. status alone is not enough: a charge released by a void
+   is `open` again and must be selectable, and one mid-run must not be. */
+function fsChargeSelectable(c) {
+  return !!c && c.status === "open" && !c.workId;
+}
+function fsChargeKey(c) {
+  return String((c && c.clientUid) || "") + "|" + String((c && c.siteUid) || "");
+}
+/* Resolve, never invent. The line's own code wins; the business default is the
+   only fallback; there is no third. */
+function fsChargeTaxCode(c) {
+  const own = String(((c && c.line) || {}).taxCode || "").trim();
+  if (own) return own;
+  return String((fsBiz().defaultTaxCode || "")).trim();
+}
+
+/* THE SINGLE DECISION, same shape as fsInvIssueBlock. Returns "" when a work can
+   be made. fsWorkFromCharges refuses on it and the screen READS it to say why —
+   neither restates it. */
+function fsWorkFromChargesBlock(list) {
+  const l = (list || []).filter(Boolean);
+  if (!l.length) return "nothing is selected";
+  const bad = l.filter(function (c) { return !fsChargeSelectable(c); })[0];
+  if (bad) {
+    return "one of the selected charges has already left — " +
+      ((bad.line || {}).description || bad.id) +
+      (bad.status === "handed" ? " was sent to accounting" : " is already on an invoice");
+  }
+  /* [55-3] ZERO IS THE DANGEROUS NUMBER. unitPriceCents is 0 as a PLACEHOLDER
+     when no rate was found, and $0.00 on a tax invoice reads as a discount. */
+  const un = l.filter(function (c) { return ((c.line || {}).priced === false); })[0];
+  if (un) {
+    return "no price is set for " + (un.visitLabel || "that visit") + " at " +
+      (un.siteName || "that site") + " — set it under Visit prices first";
+  }
+  /* [Q1] one work per client+site. An invoice spanning two sites is a document
+     the customer cannot check. */
+  const keys = {};
+  l.forEach(function (c) { keys[fsChargeKey(c)] = 1; });
+  if (Object.keys(keys).length > 1) {
+    return "the selection covers more than one site — invoice one site at a time";
+  }
+  /* [55-4] */
+  const noTax = l.filter(function (c) { return !fsChargeTaxCode(c); })[0];
+  if (noTax) {
+    return "no tax code is set on the line and no default tax code is set in Business & tax";
+  }
+  return "";
+}
+
+/* [55-1] The constructor. Deliberately NOT fsWorkNew: that function's
+   approved-quote guard is tested and correct, and relaxing it to take a second
+   kind of input is how one path quietly becomes two. */
+function fsWorkFromCharges(list) {
+  if (fsWorkFromChargesBlock(list)) return null;
+  const l = list.filter(Boolean);
+  const now = new Date().toISOString();
+  const runId = fsBookId("scr");
+  const first = l[0];
+  const w = {
+    id: fsBookId("w"), number: "", status: "completed",   /* [Q2] the visit already happened */
+    sourceKind: "service",
+    created: now, updated: now,
+    quoteId: "sc:" + runId,          /* the DOCUMENT this work came from — see the header */
+    quoteNumber: "", workRunId: runId,
+    clientUid: first.clientUid || "", siteUid: first.siteUid || "",
+    clientName: first.clientName || "", siteName: first.siteName || "",
+    where: "", defectId: "", defectDesc: "",
+    lines: l.map(function (c) {
+      const ln = JSON.parse(JSON.stringify(c.line || {}));
+      ln.taxCode = fsChargeTaxCode(c);
+      return ln;
+    }),
+    lineAmountsInclusive: false, currency: "AUD",
+    scheduledFor: null, assignedTo: (typeof fsWho === "function" ? (fsWho() || "") : ""),
+    startedAt: null, completedAt: now, cancelledAt: null,
+    cancelReason: "", notes: "Raised from " + l.length + " service charge line" + (l.length === 1 ? "" : "s")
+  };
+  fsWorks().push(w);
+  l.forEach(function (c) { c.status = "invoiced"; c.workId = w.id; c.invoicedAt = now; });
+  if (typeof fsActLog === "function") fsActLog("Service work raised", l.length + " charge lines");
+  return w;
+}
+
+/* [Q4] Void is terminal for the INVOICE, not for the work that was actually
+   done. Leaving the charges `invoiced` would make that revenue disappear from
+   both exits — it could never be re-invoiced and never be exported. */
+function fsChargeReleaseForWork(wid) {
+  const l = fsChargesForWork(wid);
+  l.forEach(function (c) { c.status = "open"; c.workId = ""; c.invoicedAt = null; });
+  return l.length;
+}
+
+/* [55-6] Allocated at EXPORT, where a real document is produced. */
+function fsChargeAllocNumber() {
+  const r = fsRegister;
+  if (!r) return "";
+  if (!Number.isInteger(r.chargeSeq)) r.chargeSeq = 1000;
+  r.chargeSeq += 1;
+  return "SC-" + r.chargeSeq;
+}
+/* ===== end PASS 55 ========================================================= */
+
+
+
 
 
 /* ===== Defect pull-through pipeline =========================================
@@ -15886,6 +16288,10 @@ function fsStamp() {
     const isDemo = !!fsRegister && fsRegister.app === "demo-register";
     strip.style.display = (isDemo && !hidden) ? "flex" : "none";
   }
+  /* PASS 53 [53-2] — fsStamp already runs on every save, load and dirty
+     transition, so the backup line needs no hook of its own. */
+  fsBizIdRender();   /* PASS 54 [54-1] — identity first, then how safe it is */
+  fsBakRender();
   const ex = document.getElementById("fsExportReg");
   ex.style.display = fsRegister ? "inline-block" : "none";
   const sh = document.getElementById("fsShareReg");
@@ -18292,6 +18698,10 @@ document.getElementById("fsHmSave").onclick = fsHistModalSave;
 /* ---------- register load / save ---------- */
 let fsRegFileHandle = null;
 function fsLoadRegister(objIn) {
+  /* PASS 54 [54-2] — the only place a register is replaced. Refusing here
+     leaves the working register untouched; every caller already treats a
+     load that does not happen as a no-op. */
+  if (!fsBizIdSwapOk(objIn)) return false;
   fsRegister = objIn;
   fsDirty = false;
   if (fsRegister.app !== "firespark-register") { fsRegister.app = "firespark-register"; fsDirty = true; }
@@ -18417,6 +18827,7 @@ document.getElementById("fsExportReg").onclick = async () => {
       fsDirty = false;
       fsStamp();
       alert("✓ Saved over " + fsRegFileHandle.name + " (backup kept on this device).");
+      fsBakAuto("saved");   /* PASS 53 [53-1] — not awaited: the save is done, this is a copy */
       return;
     } catch (e) { alert("Couldn't write to the original file (" + e.name + ") — exporting a copy instead."); }
   }
@@ -18431,6 +18842,7 @@ document.getElementById("fsExportReg").onclick = async () => {
       }
     });
   fsBackupSnapshot("saved");
+  fsBakAuto("saved");   /* PASS 53 [53-1] */
 };
 document.getElementById("fsSetupBtn").onclick = () => {
   document.getElementById("fsProfileInput").click();
@@ -19661,7 +20073,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v61";
+const FS_BUILD = "aa-v64";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -22200,6 +22612,13 @@ document.getElementById("fsPlannerBtn").onclick = async () => {
         FS_MS_DIR + "/ is ready \u2014 press Save register to OneDrive to create it.");
       else if (fsMsFresh && r === "dirty") alert("Signed in \u2713\n\nThe OneDrive copy is newer, but you have UNSAVED changes on this device, so nothing was replaced. Save or export first, then reopen from OneDrive.");
     }
+  } catch (e) {}
+  /* PASS 53 [53-1] — Q2: save, plus a staleness check at boot. NOT a timer:
+     a PWA cannot be relied on to run one, and a backup that claims a cadence
+     it does not keep is worse than one that never claimed it. */
+  try {
+    await fsBakLoad();
+    if (fsBakStale()) await fsBakAuto("boot");
   } catch (e) {}
 })();
 
