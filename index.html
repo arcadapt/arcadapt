@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.60 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.61 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.60 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.61 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -13309,7 +13309,7 @@ function fsChargeListRender() {
     '<button class="fsbtn" id="fsScRates">&#128176; Visit prices</button>' +
     '<button class="fsbtn" id="fsScMkInv">&#129534; Invoice selected</button>' +
     '<button class="fsbtn" id="fsScExport">&#127974; Send to accounting</button></div>';
-  html += '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:10px">One completed visit, one charge line. ' +
+  html += '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:10px">' +
     'One completed visit, one charge line. Invoice the selected lines here, or send them to your accounting system — each line can go one way or the other, never both.' +
     (fsVisitChargeOn() ? '' : ' <b style="color:#ffd873">Charging for visits is currently off</b> — turn it on under Visit prices.') + '</div>';
 
@@ -14551,8 +14551,12 @@ function fsQuoteAddItem(q, itemId) {
   return true;
 }
 function fsQuoteAddManual(q, desc) {
+  /* [56-5] `priced: false` from birth. Without it a fresh hand line reads
+     "$0.00", which is what Reece hit: a real price of nothing, rather than
+     the absence of one. Same flag the scratch editor and every charge line
+     already use. */
   q.lines.push({ id: fsBookId("ql"), kind: "manual", description: desc, qty: 1,
-                 unitPriceCents: 0, taxCode: "" });
+                 unitPriceCents: 0, priced: false, taxCode: "" });
   q.updated = new Date().toISOString();
 }
 
@@ -14627,7 +14631,12 @@ function fsQuoteBlockers(q) {
   const unconf = q.lines.filter(l => l.kind === "labour" && l.suggested && !l.confirmed).length;
   if (unconf) out.push(unconf + " labour line" + (unconf === 1 ? "" : "s") +
     " still showing a suggested time. Confirm the minutes — the app will not guess for you.");
-  const unpriced = q.lines.filter(l => l.kind !== "manual" && !FSMoney.isCents(l.unitPriceCents ? l.unitPriceCents : 0) ||
+  /* [56-6] A MANUAL LINE USED TO BE EXEMPT FROM THIS CHECK, so an unpriced
+     hand line went out on the quote at $0.00 — silently, which is the
+     failure mode [55-3] names. It is no longer exempt: `priced === false`
+     is the flag, so a line deliberately priced at zero still passes. */
+  const unpriced = q.lines.filter(l => (l.kind === "manual" && l.priced === false) ||
+    l.kind !== "manual" && !FSMoney.isCents(l.unitPriceCents ? l.unitPriceCents : 0) ||
     (l.kind === "item" && l.priceSource === "none") || (l.kind === "labour" && l.priced === false)).length;
   if (unpriced) out.push(unpriced + " line" + (unpriced === 1 ? " has" : "s have") +
     " no price in the pricebook. Fill the price in, or price the line here.");
@@ -14689,8 +14698,7 @@ function fsQuoteListRender() {
   let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128195; Quotes</h2>' +
-    '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>' +
-    '<button class="fsbtn" id="fsQlScratch">&#9998; Scratch quote</button>' +
+    fsQlButtons() +
     '<button class="fsbtn" id="fsQlSeq">&#128290; Numbering</button>' +
     '<button class="fsbtn" id="fsQlAcct">&#127974; Accounting setup</button></div>';
   if (nScratch) {
@@ -14721,7 +14729,9 @@ function fsQuoteListRender() {
   wrap.innerHTML = html;
   document.getElementById("fsQlBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsQlAcct").onclick = fsAcctSetup;
-  document.getElementById("fsQlScratch").onclick = () => {
+  /* PASS 56 — either of these two can be absent now. */
+  const qlScratchBtn = document.getElementById("fsQlScratch");
+  if (qlScratchBtn) qlScratchBtn.onclick = () => {
     const q = fsQuoteScratch();
     fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsScratchRender(q);
   };
@@ -14729,7 +14739,15 @@ function fsQuoteListRender() {
   if (tog) tog.onclick = () => { fsQlShowScratch = !fsQlShowScratch; fsQuoteListRender(); };
   const togB = document.getElementById("fsQlTogBack");
   if (togB) togB.onclick = () => { fsQlShowScratch = false; fsQuoteListRender(); };
-  document.getElementById("fsQlNew").onclick = async () => {
+  const qlNewBtn = document.getElementById("fsQlNew");
+  if (qlNewBtn) qlNewBtn.onclick = async () => {
+    /* [56-2] On a Simple-only profile the ONE button opens the scratch
+       editor. Same button, same label, the only editor they have. */
+    if (!fsQuoteModes().pipeline) {
+      const sq = fsQuoteScratch();
+      fsQuoteId = sq.id; fsQuoteBack = "list"; fsDashMode = "quote";
+      return fsScratchRender(sq);
+    }
     const q = await fsQuoteStart();
     if (!q) return;
     fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsQuoteRender();
@@ -14789,7 +14807,8 @@ function fsQuoteRender() {
   q.lines.forEach((l, i) => {
     const isLab = l.kind === "labour";
     const needsConfirm = isLab && l.suggested && !l.confirmed;
-    const unpriced = (l.kind === "item" && l.priceSource === "none") || (isLab && l.priced === false);
+    const unpriced = (l.kind === "item" && l.priceSource === "none") || (isLab && l.priced === false)
+      || (l.kind === "manual" && l.priced === false);
     const lineCents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
     html += '<div style="padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + '">' +
       '<div style="display:flex;gap:10px;align-items:flex-start">' +
@@ -14801,10 +14820,22 @@ function fsQuoteRender() {
                  (l.basis && l.basis.accessPct !== 100 ? ' (' + l.basis.baseMinutes + ' min &times; ' + fsEsc(l.basis.accessLabel) + ' ' + l.basis.accessPct + '%)' : ''))
               : (l.qty == null ? 1 : l.qty) + ' &times; ' + (FSMoney.isCents(l.unitPriceCents) && !unpriced ? fsEsc(FSMoney.fmt(l.unitPriceCents)) : '—')) +
           '</div>' +
+          /* [56-4] THE FIX. A hand-added line is the one line whose price
+             cannot come from anywhere but a person, so it gets the same
+             money input the scratch editor has had all along. A locked
+             quote keeps the read-only line above and gets no field. */
+          ((l.kind === 'manual' && !locked)
+            ? '<div style="margin-top:5px;display:flex;align-items:center;gap:7px">' +
+                '<span style="font-size:11.5px;color:var(--fs-sub2)">Price each</span>' +
+                fsMoneyIn('fsQmPrice', l.id, l.priced === false ? null : l.unitPriceCents) +
+              '</div>'
+            : '') +
           (needsConfirm ? '<div style="margin-top:5px"><span style="font-size:11.5px;color:#b58900;font-weight:700">Suggested time — not confirmed</span> ' +
             (locked ? '' : '<a class="fsQConf" data-id="' + fsEsc(l.id) + '" style="color:var(--fs-accent);cursor:pointer;font-size:12px;font-weight:700;margin-left:6px">Confirm or change</a>') + '</div>' : '') +
           (l.confirmed && l.adjusted ? '<div style="font-size:11px;color:var(--fs-sub2);margin-top:3px">changed from the suggested ' + l.suggestedMinutes + ' min</div>' : '') +
-          (unpriced ? '<div style="font-size:11.5px;color:#c62828;margin-top:4px">No price in the pricebook</div>' : '') +
+          (unpriced ? '<div style="font-size:11.5px;color:#c62828;margin-top:4px">' +
+            (l.kind === 'manual' ? 'No price set yet' : 'No price in the pricebook') +
+          '</div>' : '') +
         '</div>' +
         '<span style="width:86px;text-align:right;font-size:13.5px;font-weight:700;color:' + (unpriced || needsConfirm ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
           (unpriced ? '—' : fsEsc(FSMoney.fmt(lineCents))) + '</span>' +
@@ -14917,6 +14948,23 @@ function fsQuoteRender() {
     if (v != null && (!isFinite(v) || v < 0)) { alert("That is not a number of minutes."); return; }
     try { FSMoney.confirmLabour(l, v); } catch (e) { alert("That is not a valid time."); return; }
     fsMarkDirty(); fsQuoteRender();
+  });
+  /* [56-4] Mutate on input, NEVER re-render on a keystroke — a re-render
+     mid-type drops focus, which on iOS closes the keyboard. Byte-for-byte
+     the scratch editor's fsScPrice semantics: blank is "not priced yet",
+     the money core will not take a null, so the cents stay a real 0 and
+     the FLAG carries the meaning. */
+  wrap.querySelectorAll(".fsQmPrice").forEach(el => {
+    const apply = () => {
+      const l = q.lines.filter(x => x.id === el.dataset.id)[0];
+      if (!l) return;
+      const c = fsMoneyOut(el);
+      l.priced = c != null;
+      l.unitPriceCents = c == null ? 0 : c;
+      fsMarkDirty();
+    };
+    el.oninput = apply;
+    el.onchange = () => { apply(); fsQuoteRender(); };
   });
   wrap.querySelectorAll(".fsQDel").forEach(a => a.onclick = () => {
     const l = q.lines.filter(x => x.id === a.dataset.id)[0];
@@ -15929,6 +15977,43 @@ function fsChargeAllocNumber() {
   return "SC-" + r.chargeSeq;
 }
 /* ===== end PASS 55 ========================================================= */
+/* ===== PASS 56 — ONE CLIENT, ONE WAY TO QUOTE ===============================
+   Reece, 17 Aug 2026: "when we create a profile for them in arc command, we
+   will only give alot of clients one, the pipe line or the simple way. which
+   could make it less confusing…. I may be getting a bit confused with
+   everything but thats because I have an app that has everything."
+
+   He is the only person who will ever see the whole surface. Every client gets
+   a subset by design, so the app HE drives is strictly harder than the one
+   anyone else uses. The answer is to gate it, not to delete a capability.
+
+   [56-1] TWO BOOLEAN GRANTS, NOT ONE STRING MODE, AND THE REASON IS IN
+   ARC COMMAND. Its export flattens a grant path to two levels — a third
+   segment is dropped — so `money.quoting.simple` and `money.quoting.pipeline`
+   would both land on `grants.money.quoting` and overwrite each other. Two-level
+   paths reuse fsModOn exactly as it stands: not granted = invisible,
+   unspecified = on, and a profile with no grants block is unaffected.        */
+
+function fsQuoteModes() {
+  return { simple: fsModOn("money.quoteSimple"), pipeline: fsModOn("money.quotePipeline") };
+}
+function fsQuotingAny() { const m = fsQuoteModes(); return !!(m.simple || m.pipeline); }
+
+/* [56-2] ONE PLACE DECIDES WHAT THE QUOTES LIST OFFERS. The list, the Office
+   entry point and the New-quote handler all READ this; none of them restates
+   it. Same discipline as FS_SHARE_CATS and fsWorkFromChargesBlock: a screen
+   that can disagree with the rule is a screen that eventually will.
+   The primary button keeps ONE id and ONE label in every mode — a client on
+   Simple should not be told there is a "Scratch" kind of quote, because for
+   them it is the only kind.                                                  */
+function fsQlButtons() {
+  const m = fsQuoteModes();
+  let h = '';
+  if (m.simple || m.pipeline) h += '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>';
+  if (m.simple && m.pipeline) h += '<button class="fsbtn" id="fsQlScratch">&#9998; Scratch quote</button>';
+  return h;
+}
+/* ===== end PASS 56 ========================================================= */
 
 
 
@@ -16196,7 +16281,7 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Office</h2>' +
-    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button><button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button><button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -16215,7 +16300,8 @@ function fsDashRender() {
   document.getElementById("fsDashLibBtn").onclick = fsLibOpen;
   document.getElementById("fsPipeBtn").onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
   document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
-  document.getElementById("fsQuotesBtn").onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
+  const qBtn = document.getElementById("fsQuotesBtn");
+  if (qBtn) qBtn.onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
   document.getElementById("fsChargesBtn").onclick = () => { fsDashMode = "charges"; fsChargeListRender(); };
   wrap.querySelectorAll(".fsDashRow").forEach(el => el.onclick = () => {
     const r = rows[+el.dataset.i];
@@ -20073,7 +20159,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v64";
+const FS_BUILD = "aa-v65";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
