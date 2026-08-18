@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.62 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.63 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.62 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.63 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -15282,19 +15282,28 @@ function fsInvoiceIssue(inv) {
      tax invoice, and fsInvoiceAllocNumber spends the number either way.
      THE RULE LIVES HERE ONLY; the screen reads fsInvIssueBlock to say why. */
   if (fsInvIssueBlock()) return false;
+  /* PASS 58 — `now` (UTC) is for the RECORD's updated field only; the
+     DOCUMENT stamps below use fsLocalIso. RULED: local date and time. */
   const now = new Date().toISOString();
+  const issuedLocal = fsLocalIso();
   fsTaxStamp(inv);                         /* taxUsed — the ONLY frozen table */
   if (!inv.number) inv.number = fsInvoiceAllocNumber();
   const tot = fsDocTotals(inv);
   const b = fsBiz();
   const c = inv.clientUid ? fsClientByUid(inv.clientUid) : null;
-  const due = new Date(Date.now() + fsInvoiceTermsDays(inv) * 86400000).toISOString();
-  inv.issuedAt = now;
+  /* PASS 58 [58-3] — SAME INSTANT, LOCAL LABEL. The overdue instant is
+     unchanged from V0.62 (test_p51 D9 pins exactly termsDays × 24h);
+     only the calendar label on the document went local. */
+  const due = fsLocalIso(new Date(Date.now() + fsInvoiceTermsDays(inv) * 86400000));
+  inv.issuedAt = issuedLocal;
   inv.dueAt = due;
   inv.status = "issued";
   inv.updated = now;
   inv.issued = {
-    at: now, number: inv.number, dueAt: due,
+    /* PASS 58 — the record and the snapshot carry the SAME string; a
+       split-brain where the card and the document disagree is a bug,
+       not a feature. */
+    at: issuedLocal, number: inv.number, dueAt: due,
     /* ATO: the seller's identity AND ABN are required on every tax invoice. */
     business: { name: b.name || "", abn: b.abn || "", address: b.address || "",
                 phone: b.phone || "", email: b.email || "",
@@ -15339,7 +15348,9 @@ function fsInvoiceSetStatus(inv, k, reason) {
   inv.status = k;
   inv.updated = now;
   if (k === "void") {
-    inv.voidedAt = now; inv.voidReason = reason || "";
+    /* PASS 58 [58-4] — a DOCUMENT date: the red VOID line prints it.
+       inv.updated above stays UTC — it is a record timestamp. */
+    inv.voidedAt = fsLocalIso(); inv.voidReason = reason || "";
     /* PASS 55 [Q4] — the work was still done. Its charges go back to open so
        they can be invoiced again; leaving them "invoiced" would strand that
        revenue outside BOTH exits. */
@@ -15367,7 +15378,9 @@ function fsPaymentAdd(invoiceId, amountCents, date, method, reference) {
     id: fsBookId("p"),
     invoiceId: invoiceId,
     amountCents: amountCents,
-    date: String(date || now.slice(0, 10)),
+    /* PASS 58 [58-5] — a blank date field means TODAY, and today is
+       where the device is standing, not Greenwich. */
+    date: String(date || fsLocalIso().slice(0, 10)),
     method: String(method || ""), reference: String(reference || ""),
     source: "arcadapt",
     created: now
@@ -15393,7 +15406,9 @@ function fsInvoicePayState(inv, nowIso) {
   if (!inv || inv.status !== "issued" || !inv.issued) return null;
   const bal = fsInvoiceBalance(inv);
   if (bal <= 0) return "paid";
-  const now = nowIso || new Date().toISOString();
+  /* PASS 58 [58-6] — local against local. nowIso is honoured unchanged;
+     every suite that injects a clock still drives this. */
+  const now = nowIso || fsLocalIso();
   if (inv.dueAt && String(now) > String(inv.dueAt)) return "overdue";
   return fsInvoicePaidCents(inv) > 0 ? "part paid" : "unpaid";
 }
@@ -15477,6 +15492,38 @@ function fsInvoicePdf(inv) {
   return true;
 }
 /* ===== end PASS 57 ========================================================= */
+
+/* ===== PASS 58 — LOCAL DATE AND TIME ON INVOICES ===========================
+   RULED, Reece 18 Aug: "Yes, obviously local date and time." An invoice
+   issued at 9am AEST said yesterday, because every document stamp was
+   new Date().toISOString() — UTC — and every renderer prints slice(0, 10).
+
+   THE LINE: DOCUMENT dates are LOCAL — issuedAt, dueAt, issued.at,
+   issued.dueAt, voidedAt, the default payment date. RECORD timestamps —
+   created, updated, updated_at — stay UTC: machine bookkeeping, never
+   printed on a document.
+
+   THE FORMAT: local wall clock plus the device's numeric UTC offset,
+   2026-08-18T09:00:00+10:00. slice(0, 10) now yields the LOCAL date, so no
+   renderer changed. Lexicographic order still works between stamps from one
+   zone, and Date.parse reads the offset exactly (test_p51 D9 relies on it).
+   The offset is computed from the instant being formatted, so DST is
+   honoured per-stamp.
+
+   ISSUED SNAPSHOTS ARE NEVER REWRITTEN. A legacy invoice keeps its UTC
+   stamps and reprints byte-identical for ever — converting at render would
+   make a reprint differ from the document the customer holds, the exact
+   fabrication [57-2] refuses. The fix applies where stamps are MADE.      */
+function fsLocalIso(d) {
+  d = d || new Date();
+  const p = function (n) { return (n < 10 ? "0" : "") + n; };
+  const off = -d.getTimezoneOffset();          /* minutes EAST of UTC */
+  const a = Math.abs(off);
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+         "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) +
+         (off < 0 ? "-" : "+") + p(Math.floor(a / 60)) + ":" + p(a % 60);
+}
+/* ===== end PASS 58 ========================================================= */
 
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
@@ -20268,7 +20315,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v66";
+const FS_BUILD = "aa-v67";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
