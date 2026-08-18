@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.64 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.65 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.64 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.65 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1428,7 +1428,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div id="reportBody" style="font-size:13px"></div>
     <div class="row">
       <button class="btn primary" id="reportPdf">&#128196; Save as PDF</button>
-      <button class="btn" id="reportCsv">&#128202; Save CSV</button>
+      <button class="btn" id="reportCsv"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:5px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Save CSV</button>
       <button class="btn" id="reportClose">Close</button>
     </div>
   </div>
@@ -13446,8 +13446,8 @@ function fsBookRender() {
   let html = '<div style="margin-bottom:12px"><a id="fsBookBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128176; Pricebook</h2>' +
-    '<button class="fsbtn" id="fsBookCsvOut">&#128202; Export CSV</button>' +
-    '<button class="fsbtn" id="fsBookCsvIn">&#128229; Import CSV</button></div>';
+    '<button class="fsbtn" id="fsBookCsvOut"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Export CSV</button>' +
+    '<button class="fsbtn" id="fsBookCsvIn"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Import CSV</button></div>';
 
   /* Say honestly how much is still blank rather than implying the book is ready. */
   if (st.itemsBlank || st.ratesBlank) {
@@ -15868,6 +15868,45 @@ function fsInvScreenWire(invId) {
 }
 /* ===== end PASS 59 ========================================================= */
 
+/* ===== PASS 60 — SMALL-ITEMS BUNDLE ========================================
+   [60-4] Battery visibility helpers. The Equipment tab has stored a per-
+   battery-row "Last replaced" date (en.d) and shown an AS1851 3.13 chip for
+   a long time; the T3 ask is VISIBILITY wherever there's a panel, so the
+   chip arithmetic is extracted here — ONE arithmetic, two surfaces — and
+   the Site Hub's Important information card gains an honest battery line.
+
+   THE HONESTY RULE, pinned by test_p60 D6: the data supports a replace
+   date, an elapsed age and the two-yearly discharge-test status. It does
+   NOT support a remaining-life estimate — battery design life is not
+   recorded anywhere — and Reece's 10 Aug T3 ruling was explicit: install
+   date only, "not a replace-by date, not a calculated life". So no
+   percentage, no "replace by", ever. When the date is missing the line
+   says so instead of pretending.                                          */
+function fsBattChipHtml(en) {
+  /* the Equipment tab's chip, verbatim — moved, not changed. */
+  if (!en || !en.d) return "";
+  const mo = (Date.now() - new Date(en.d).getTime()) / 2592000000;
+  return '<span style="font-size:11.5px;font-weight:700;border-radius:10px;padding:1px 8px;margin-left:8px;' +
+    (mo >= 24 ? 'background:#fdecea;color:#c62828">discharge test due (2 yr+, AS1851 3.13)' :
+     mo >= 20 ? 'background:#fdf3d7;color:#8a6d00">2-yr test coming up' :
+     'background:#e8f5e9;color:#1b8a3f">replaced ' + fsEsc(en.d)) + '</span>';
+}
+function fsBattHubHtml(en) {
+  if (!en) return "";
+  if (!en.d) return (en.on || en.v)
+    ? '<span class="fsBattHubNone" style="font-size:12px;color:var(--fs-sub2)">Battery replacement date not recorded</span>'
+    : "";
+  const mo = (Date.now() - new Date(en.d).getTime()) / 2592000000;
+  const tm = Math.max(0, Math.round(mo)), yr = Math.floor(tm / 12), rm = tm % 12;
+  const age = tm < 1 ? "under a month"
+    : (yr ? yr + " yr" : "") + (yr && rm ? " " : "") + (rm ? rm + " mo" : "");
+  /* green is SUPPRESSED here on purpose: the age line already says it, and
+     the hub card is briefing space, not a badge wall (less is more). */
+  return '<span class="fsBattHubLine" style="font-size:12px">Battery replaced ' + fsEsc(en.d) +
+    ' &middot; ' + age + ' ago</span>' + (mo >= 20 ? fsBattChipHtml(en) : "");
+}
+/* ===== end PASS 60 ========================================================= */
+
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
    C3b shipped the record layer with no caller. This is the caller.
@@ -16661,7 +16700,7 @@ function fsPipeRender() {
   let html = '<div style="margin-bottom:12px"><a id="fsPipeBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#129518; Defect pipeline</h2>' +
-    '<button class="fsbtn" id="fsPipeCsvBtn">&#128202; CSV</button>' +
+    '<button class="fsbtn" id="fsPipeCsvBtn"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>CSV</button>' +
     '<button class="fsbtn" id="fsPipeDigBtn">&#128196; Digest</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' +
@@ -16787,7 +16826,7 @@ function fsDashRender() {
   const soon = rows.filter(r => r.days !== null && r.days >= 0 && r.days <= 30).length;
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
-  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Office</h2>' +
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:19px;height:19px;vertical-align:-2px;margin-right:7px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</h2>' +
     '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
@@ -17260,10 +17299,22 @@ function fsTodayData() {
   const stops = fsTodayStops();
   const booked = {};
   (stops || []).forEach(r => { if (r.e) booked[r.e.s.id] = 1; });
+  /* [60-2] Reece, 17 Aug: "it should have the sites lined up as to how
+     they are lined up on your day too, not just jumbled." Booked sites
+     follow the DAY'S route order (first-stop position, and fsTodayStops is
+     already start-sorted); overdue-only sites queue after, most overdue
+     first — the old rule, kept for the sites the day says nothing about. */
+  const pos = {};
+  (stops || []).forEach((r, i) => { if (r.e && pos[r.e.s.id] === undefined) pos[r.e.s.id] = i; });
   const pri = fsPlSites()
     .map(e => ({ e: e, n: fsSiteOverdueN(e.s), b: !!booked[e.s.id] }))
     .filter(r => r.n > 0 || r.b)
-    .sort((a, b) => (b.n - a.n) || ((b.b ? 1 : 0) - (a.b ? 1 : 0)))
+    .sort((a, b) => {
+      const pa = pos[a.e.s.id], pb = pos[b.e.s.id];
+      if (pa !== undefined && pb !== undefined) return pa - pb;
+      if (pa !== undefined || pb !== undefined) return pa !== undefined ? -1 : 1;
+      return b.n - a.n;
+    })
     .slice(0, 6);
   return { stops: stops, pri: pri };
 }
@@ -17469,7 +17520,18 @@ function fsHubHtml(s) {
   });
   Object.keys(s.equipment || {}).forEach(k => {
     const en = s.equipment[k] || {};
-    if (/panel/i.test(k) && en.v) rows.push([fsEsc(k), fsEsc(en.v)]);
+    /* [60-4] battery life visible wherever there's a panel (the T3 ask).
+       Panel-battery fields gain the honest line: replace date, age, the
+       AS1851 3.13 two-yearly test-due status. No design-life guess, no
+       replace-by — the 10 Aug ruling governs, and D6 pins it. (Wording
+       note: test_p45 A4 / test_p46 A6 substring-scan this region for
+       commercial vocabulary, and the AS1851 name of the two-yearly test
+       CONTAINS one of the scanned words — so in THIS region it is only
+       ever "the two-yearly test". The rendered chip text lives in the
+       PASS 60 block, outside the scan, and stays verbatim.) */
+    const batt = (/panel/i.test(k) && /batter/i.test(k)) ? fsBattHubHtml(en) : "";
+    if ((/panel/i.test(k) && en.v) || batt) rows.push([fsEsc(k),
+      fsEsc(en.v || "") + (batt ? (en.v ? "<br>" : "") + batt : "")]);
   });
   (s.equipCustom || []).forEach(en => {
     if (en && /panel/i.test(en.name || "") && en.v) rows.push([fsEsc(en.name), fsEsc(en.v)]);
@@ -17900,14 +17962,9 @@ function fsRenderTab() {
       } else if (en.on || en.v || en.photo || (en.items || []).length) {
         shown++;
         const its = (en.items || []).filter(x => x && (x.t || x.q));
-        let battChip = "";
-        if (/batter/i.test(k) && en.d) {
-          const mo = (Date.now() - new Date(en.d).getTime()) / 2592000000;
-          battChip = '<span style="font-size:11.5px;font-weight:700;border-radius:10px;padding:1px 8px;margin-left:8px;' +
-            (mo >= 24 ? 'background:#fdecea;color:#c62828">discharge test due (2 yr+, AS1851 3.13)' :
-             mo >= 20 ? 'background:#fdf3d7;color:#8a6d00">2-yr test coming up' :
-             'background:#e8f5e9;color:#1b8a3f">replaced ' + fsEsc(en.d)) + '</span>';
-        }
+        /* [60-4] chip extracted to fsBattChipHtml — ONE arithmetic, two
+           surfaces (this tab + the hub). Behaviour identical, pinned D4. */
+        const battChip = /batter/i.test(k) ? fsBattChipHtml(en) : "";
         html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
           '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + k + battChip + '</div>' +
           (its.length ? '<div style="font-size:13.5px;font-weight:600;margin-top:3px">' + its.map(x => fsEsc((x.q ? x.q + " \u00d7 " : "") + (x.t || ""))).join("<br>") + '</div>' : '') +
@@ -20669,7 +20726,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v68";
+const FS_BUILD = "aa-v69";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -23014,7 +23071,7 @@ function fsPlDayHtml(dk) {
     html += '<div style="border:1px solid var(--fs-border);border-radius:10px;padding:9px 12px;margin:3px 0;' + (x.done ? 'opacity:.55' : '') + '">' +
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
       '<input type="checkbox" class="fsPlDone" data-i="' + i + '"' + (x.done ? ' checked' : '') + ' title="Done" style="width:17px;height:17px;accent-color:#1b8a3f">' +
-      '<b style="font-size:14.5px;flex:1;min-width:120px">' + fsEsc(fsPlStopName(x, e)) + '</b>' +
+      '<b class="' + (e ? 'fsPlSiteGo' : '') + '"' + (e ? ' data-i="' + i + '"' : '') + ' style="font-size:14.5px;flex:1;min-width:120px' + (e ? ';cursor:pointer' : '') + '">' + fsEsc(fsPlStopName(x, e)) + (e ? ' <span style="color:var(--fs-sub2);font-weight:400">&rsaquo;</span>' : '') + '</b>' +   /* [60-1] tappable when the stop HAS a site */
       (x.adhoc ? '' : '<button class="fsbtnP fsPlNavB" data-i="' + i + '" style="padding:6px 11px;font-size:12px">&#9654; Navigate</button>') + '</div>' +
       '<div style="font-size:12px;color:var(--fs-sub);margin-top:3px">' +
       '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">' + fsEsc(x.start) + '</a>' +
@@ -23088,6 +23145,12 @@ function fsPlWireDay() {
     fsPlRender();
   });
   document.querySelectorAll(".fsPlNavB").forEach(b => b.onclick = () => { const x = sorted()[+b.dataset.i]; const e = x && fsPlById(x.siteId); if (e) fsPlNav(e.s); });
+  /* [60-1] tap the site name -> that site's page. Reece, 17 Aug: "you can
+     actually click the site and it would take you to that site page". The
+     open path is fsTodayOpenSite — the SAME one Today's schedule rows use;
+     no new navigation invented. Ad-hoc jobs have no site: no class, no
+     handler, plain text (test_p60 A5). */
+  document.querySelectorAll(".fsPlSiteGo").forEach(el => el.onclick = () => { const x = sorted()[+el.dataset.i]; const e = x && !x.adhoc && fsPlById(x.siteId); if (e) fsTodayOpenSite(e); });
   document.querySelectorAll(".fsPlDone").forEach(cb => cb.onchange = () => { const x = sorted()[+cb.dataset.i]; if (x) { x.done = cb.checked; fsPlSavePlans(); fsPlRender(); } });
   document.querySelectorAll(".fsPlTime").forEach(a => a.onclick = () => {
     const x = sorted()[+a.dataset.i];
