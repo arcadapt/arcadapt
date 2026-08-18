@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.63 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.64 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.63 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.64 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -15282,6 +15282,13 @@ function fsInvoiceIssue(inv) {
      tax invoice, and fsInvoiceAllocNumber spends the number either way.
      THE RULE LIVES HERE ONLY; the screen reads fsInvIssueBlock to say why. */
   if (fsInvIssueBlock()) return false;
+  /* PASS 59 [59-2] — an ad-hoc invoice must not freeze an empty or
+     unpriced line set into an immutable document (the [55-3] silent
+     zero, unfixable after issue). Same single-decision discipline as
+     fsInvIssueBlock: the rule lives HERE; the screens only read it.
+     Refused BEFORE the number is allocated — a refusal must not
+     spend an invoice number. */
+  if (inv.adhoc && fsInvAdhocBlock(inv)) return false;
   /* PASS 58 — `now` (UTC) is for the RECORD's updated field only; the
      DOCUMENT stamps below use fsLocalIso. RULED: local date and time. */
   const now = new Date().toISOString();
@@ -15525,6 +15532,342 @@ function fsLocalIso(d) {
 }
 /* ===== end PASS 58 ========================================================= */
 
+/* ===== PASS 59 — AD-HOC INVOICES ===========================================
+   Reece, 17 Aug, verbatim: "if I just wanted to make up invoice by myself,
+   then it's definitely not that easy." Every invoice route ran quote ->
+   work -> invoice or charge -> work -> invoice. This is the missing one:
+   NEW INVOICE, TYPE THE LINES, SEND IT.
+
+   THE MODEL (PASS-59-BRIEF section 2): the SAME register.invoices[] record
+   C3b defined, carrying workId "" and adhoc: true. No work record is
+   fabricated — "from completed work" governs PIPELINE invoices, where the
+   quote is an offer and the work is the fact; an ad-hoc invoice is the
+   operator asserting the fact directly, exactly as the scratch quote
+   asserts a quote with no defect, no register site and no pricebook.
+   fsInvoiceNew and its completed-work gate are UNTOUCHED.
+
+   THE ISSUE PATH IS fsInvoiceIssue, VERBATIM — one number sequence off one
+   ledger (an auditor sees ONE gap-explainable series), the [54-3] identity
+   gate, the [51-4]/[57-1] frozen snapshot, Pass 58 local dates, the [57-2]
+   snapshot-only PDF. Nothing here re-implements any of it; that is the
+   entire point of reusing the record.                                      */
+let fsInvId = null;                /* the invoice open on the invoice screen */
+
+/* [59-gate] Same role rule as the invoice section ([52-7]) plus a two-level
+   module grant per [56-1], so an Arc Command profile can turn the surface
+   off per client. Unspecified = on: every existing profile sees it. */
+function fsInvScreenOn() {
+  if (typeof fsCan === "function" && !fsCan("money")) return false;
+  return fsModOn("money.invoices");
+}
+
+/* [59-1] Field for field the fsInvoiceNew shape with the links empty and
+   adhoc: true, so every downstream reader — totals, issue, payments, PDF,
+   fsRecWalk, the future backend table — sees ONE record type.
+   lineAmountsInclusive false: every quote creation site says false; amounts
+   are entered excluding GST here like everywhere else. */
+function fsInvoiceAdhocNew() {
+  const now = new Date().toISOString();
+  const inv = {
+    id: fsBookId("i"),
+    number: "",                    /* late-bound at ISSUE — [51-3] */
+    status: "draft", adhoc: true,
+    created: now, updated: now,
+    workId: "", quoteId: "", workNumber: "", quoteNumber: "",
+    clientUid: "", siteUid: "",
+    clientName: "", siteName: "", where: "",
+    lines: [],
+    lineAmountsInclusive: false,
+    currency: "AUD",
+    taxUsed: null, termsDays: null,
+    issuedAt: null, dueAt: null,
+    voidedAt: null, voidReason: "",
+    issued: null, notes: ""
+  };
+  fsInvoices().push(inv);
+  return inv;
+}
+/* Same line shape as every manual line in the app — [56-5]'s priced flag
+   from birth so a fresh line reads "—" and never $0.00, taxCode "" so
+   fsTaxApply gives it the business default exactly as on a quote. */
+function fsInvAdhocAddLine(inv) {
+  inv.lines.push({ id: fsBookId("il"), kind: "manual", description: "", qty: 1,
+                   unitPriceCents: 0, priced: false, taxCode: "" });
+  inv.updated = new Date().toISOString();
+}
+function fsInvAdhocUnpriced(inv) {
+  return ((inv && inv.lines) || []).filter(function (l) { return l.priced === false; }).length;
+}
+/* [59-2] THE SINGLE DECISION. fsInvoiceIssue refuses on it, the screens READ
+   it to say why, neither restates it — the [54-3] discipline, kept because
+   mutate-p51 M7 showed what two guards with one dead look like.
+   priced === false is the flag, so a line deliberately priced at $0 passes:
+   byte-for-byte the [56-6] semantics. Returns "" when issuing is allowed. */
+function fsInvAdhocBlock(inv) {
+  if (!inv || !(inv.lines || []).length) return "it has no lines yet";
+  const n = fsInvAdhocUnpriced(inv);
+  if (n) {
+    return n === 1 ? "a line has no price yet" : n + " lines have no price yet";
+  }
+  return "";
+}
+
+/* [59-3] THE LIST — the first screen on which every invoice can be FOUND.
+   "No invoice UI" was declared the most visible gap when C3b shipped; until
+   now an invoice was only visible inside the quote or charges screen that
+   spawned it. Void invoices stay listed — [52-5]'s readable-for-ever now has
+   a home that does not depend on refinding the parent quote. A LIST, not the
+   C5 money work queue: no aging, no filters, no totals strip, by scope. */
+function fsInvListRender() {
+  const wrap = document.getElementById("fsDashView");
+  const all = fsInvoices().slice().sort(function (a, b) {
+    return String(b.created).localeCompare(String(a.created));
+  });
+  let html = '<div style="margin-bottom:12px"><a id="fsInvLBack" class="fsCrumb">&#8592; Office</a></div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<h2 style="font-size:20px;flex:1;min-width:150px">&#128181; Invoices</h2>' +
+    '<button class="fsbtnP" id="fsInvLNew">&#65291; New invoice</button></div>';
+  html += '<div class="fscard" style="padding:4px 14px">';
+  if (!all.length) {
+    html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">' +
+      'No invoices yet. Press &#65291; New invoice to type one from nothing, ' +
+      'or raise one from completed work on a quote.</div>';
+  }
+  all.forEach(function (inv, i) {
+    const st = fsInvStat(inv), pl = fsInvPayLabel(inv), v = fsInvView(inv), who = fsInvWho(inv);
+    const nLines = (inv.lines || []).length;
+    html += '<div class="fsInvLRow" data-id="' + fsEsc(inv.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;font-weight:600">' + fsEsc(inv.number || "Draft") + ' &middot; ' + fsEsc(who.client || "(no customer yet)") + '</div>' +
+        '<div style="font-size:12px;color:var(--fs-sub2)">' + (who.site ? fsEsc(who.site) + ' &middot; ' : '') +
+          fsEsc(String(inv.created).slice(0, 10)) + ' &middot; ' + nLines + ' line' + (nLines === 1 ? '' : 's') +
+          (inv.workNumber ? ' &middot; work ' + fsEsc(inv.workNumber) : '') + '</div></div>' +
+      '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsEsc(FSMoney.fmt(v.taxKnown ? v.totalCents : v.subtotalCents)) + '</span>' +
+      (pl ? '<span style="font-size:11px;font-weight:800;color:#fff;background:' + pl.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(pl.t) + '</span>' : '') +
+      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(st.label) + '</span></div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+  document.getElementById("fsInvLBack").onclick = function () { fsDashMode = "sites"; fsDashRender(); };
+  document.getElementById("fsInvLNew").onclick = function () {
+    const inv = fsInvoiceAdhocNew();
+    fsMarkDirty();
+    fsInvId = inv.id; fsDashMode = "invoice"; fsInvScreenRender();
+  };
+  wrap.querySelectorAll(".fsInvLRow").forEach(function (el) {
+    el.onclick = function () { fsInvId = el.dataset.id; fsDashMode = "invoice"; fsInvScreenRender(); };
+  });
+}
+
+/* [59-4] THE INVOICE SCREEN. An ad-hoc DRAFT gets the typing editor; from
+   issue onward — and for every work-born invoice opened from the list — the
+   exact Pass 52/57 card, with wiring that resolves by invoice id and calls
+   the SAME record-layer functions. Guards live in the record layer; screens
+   only voice refusals ([54-3]). */
+function fsInvScreenRender() {
+  const wrap = document.getElementById("fsDashView");
+  const inv = fsInvoiceFind(fsInvId);
+  if (!inv) { fsDashMode = "invoices"; return fsInvListRender(); }
+  if (inv.adhoc && inv.status === "draft") return fsInvAdhocEdit(inv);
+  let html = '<div style="margin-bottom:12px"><a id="fsInvBack" class="fsCrumb">&#8592; Invoices</a></div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<h2 style="font-size:20px;flex:1;min-width:150px">' + fsEsc(inv.number || "Invoice") + '</h2></div>';
+  html += '<div class="fscard" style="padding:14px">' + fsInvWhoHtml() + fsInvCardHtml(inv) + '</div>';
+  wrap.innerHTML = html;
+  document.getElementById("fsInvBack").onclick = function () { fsDashMode = "invoices"; fsInvListRender(); };
+  fsInvScreenWire(inv.id);
+}
+
+/* [59-5] The ad-hoc editor — the scratch editor's pattern, field for field:
+   inline inputs, mutate on change, never a re-render on a keystroke (the
+   [56-4] iOS keyboard rule), blank money means "not priced yet" and renders
+   an em dash, never $0.00. */
+function fsInvAdhocEdit(inv) {
+  const wrap = document.getElementById("fsDashView");
+  const tot = fsDocTotals(inv), unp = fsInvAdhocUnpriced(inv);
+  const whyAdhoc = fsInvAdhocBlock(inv), whoBlock = fsInvIssueBlock();
+  const blocked = whyAdhoc || whoBlock;
+  const txt = function (cls, id, val, ph) {
+    return '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' + fsEsc(val || "") +
+      '" placeholder="' + fsEsc(ph) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 8px;font-size:13px;width:100%">';
+  };
+  let html = '<div style="margin-bottom:12px"><a id="fsInvBack" class="fsCrumb">&#8592; Invoices</a></div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<h2 style="font-size:20px;flex:1;min-width:150px">New invoice</h2>' +
+    '<span style="font-size:11px;font-weight:800;color:#fff;background:#7a7a7a;border-radius:11px;padding:2px 10px">Draft</span></div>';
+  html += '<div class="fscard" style="padding:14px;margin-bottom:10px">' + fsInvWhoHtml() +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<div style="flex:1;min-width:150px"><div style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:3px">Customer</div>' +
+        txt("fsInvCli", inv.id, inv.clientName, "Who this invoice is for") + '</div>' +
+      '<div style="flex:1;min-width:150px"><div style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:3px">Site or job</div>' +
+        txt("fsInvSiteIn", inv.id, inv.siteName, "Where the work was (optional)") + '</div>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:9px">Typed by hand &mdash; no quote and no work record behind it. It takes its number from your one invoice sequence when you issue it.</div></div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<button class="fsbtnP" id="fsInvAddLn">&#65291; Add a line</button></div>';
+  html += '<div class="fscard" style="padding:4px 14px">';
+  if (!inv.lines.length) {
+    html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">Nothing on it yet. Press &#65291; Add a line and type what you are billing.</div>';
+  }
+  inv.lines.forEach(function (l, i) {
+    const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
+    html += '<div style="padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + '">' +
+      '<div style="display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:160px">' + txt("fsInvDesc", l.id, l.description, "What the line is for") + '</div>' +
+        '<div style="width:62px"><input type="text" class="fsInvQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
+          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
+        '<div style="width:96px">' + fsMoneyIn("fsInvPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
+        '<span style="width:84px;text-align:right;font-size:13.5px;font-weight:700;padding-top:7px;color:' + (l.priced === false ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
+          (l.priced === false ? '&mdash;' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
+        '<a class="fsInvDelLn" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:7px">&#10005;</a>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
+    (tot.taxKnown
+      ? '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:13.5px;color:var(--fs-sub)">Subtotal excluding GST</span>' +
+        '<span style="font-size:14px;font-weight:700">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-top:4px"><span style="flex:1;font-size:13.5px;color:var(--fs-sub)">GST</span>' +
+        '<span style="font-size:14px;font-weight:700">' + fsEsc(FSMoney.fmt(tot.taxCents)) + '</span></div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-top:6px;border-top:1px solid var(--fs-border);padding-top:8px">' +
+        '<span style="flex:1;font-size:14px;font-weight:700">Total including GST</span>' +
+        '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.totalCents)) + '</span></div>'
+      : '<div style="display:flex;gap:10px;align-items:center"><span style="flex:1;font-size:14px;font-weight:700">Total excluding tax</span>' +
+        '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>') +
+    (unp ? '<div style="font-size:12px;color:#ffd873;margin-top:6px">' + unp + ' line' + (unp === 1 ? ' has' : 's have') +
+           ' no price yet. An invoice cannot be issued until every line has one.</div>' : '') +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">' + fsTaxNote(inv, tot) + '</div></div>';
+  if (blocked) {
+    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
+      '<b>Before this can be issued</b><ul style="margin:6px 0 0 18px;padding:0">' +
+      (whyAdhoc ? '<li style="margin-bottom:3px">' + fsEsc("It cannot be issued while " + whyAdhoc + ".") + '</li>' : '') +
+      (whoBlock ? '<li style="margin-bottom:3px">' + fsEsc("Your business is not ready: " + whoBlock + ". Set it under Business & tax.") + '</li>' : '') +
+      '</ul></div>';
+  }
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">' +
+    '<button class="fsbtnP" id="fsInvIssueBtn"' + (blocked ? ' disabled style="opacity:.45"' : '') + '>Issue invoice</button>' +
+    '<button class="fsbtn" id="fsInvDelDraft" style="color:#c62828">Delete draft</button></div>';
+  wrap.innerHTML = html;
+
+  document.getElementById("fsInvBack").onclick = function () { fsDashMode = "invoices"; fsInvListRender(); };
+  const line = function (id) { return inv.lines.filter(function (x) { return x.id === id; })[0]; };
+  const on = function (cls, fn) {
+    wrap.querySelectorAll("." + cls).forEach(function (el) {
+      el.onchange = function () { fn(el); inv.updated = new Date().toISOString(); fsMarkDirty(); fsInvAdhocEdit(inv); };
+    });
+  };
+  on("fsInvCli", function (el) { inv.clientName = el.value.trim(); });
+  on("fsInvSiteIn", function (el) { inv.siteName = el.value.trim(); });
+  on("fsInvDesc", function (el) { const l = line(el.dataset.id); if (l) l.description = el.value.trim(); });
+  on("fsInvQty", function (el) {
+    const l = line(el.dataset.id); if (!l) return;
+    const v = Number(String(el.value).trim());
+    l.qty = (isFinite(v) && v >= 0) ? v : 1;
+  });
+  on("fsInvPrice", function (el) {
+    const l = line(el.dataset.id); if (!l) return;
+    const c = fsMoneyOut(el);
+    /* Blank is "not priced yet"; the money core will not take a null, so the
+       cents stay a real 0 and the FLAG carries the meaning — [56-4]/[56-5]. */
+    l.priced = c != null;
+    l.unitPriceCents = c == null ? 0 : c;
+  });
+  wrap.querySelectorAll(".fsInvDelLn").forEach(function (a) {
+    a.onclick = function () {
+      const l = line(a.dataset.id); if (!l) return;
+      inv.lines.splice(inv.lines.indexOf(l), 1);
+      fsMarkDirty(); fsInvAdhocEdit(inv);
+    };
+  });
+  document.getElementById("fsInvAddLn").onclick = function () {
+    fsInvAdhocAddLine(inv); fsMarkDirty(); fsInvAdhocEdit(inv);
+  };
+  document.getElementById("fsInvIssueBtn").onclick = function () {
+    /* READ, not restated — the refusals live in fsInvoiceIssue. Run before
+       the confirm so nobody taps through to nothing ([54-3] wiring rule). */
+    const why = fsInvAdhocBlock(inv) || fsInvIssueBlock();
+    if (why) { alert("This invoice cannot be issued — " + why + "."); return; }
+    if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+    if (!fsInvoiceSetStatus(inv, "issued", "")) return;
+    fsMarkDirty(); fsInvScreenRender();
+  };
+  /* A DRAFT is private typing and deletable, like a scratch quote. An issued
+     invoice never reaches this editor and can only be VOIDED — it has spent
+     a number and left the building. */
+  document.getElementById("fsInvDelDraft").onclick = function () {
+    if (!confirm("Delete this draft?\n\nIt was never issued and has no number, so nothing else is affected.")) return;
+    const arr = fsInvoices();
+    arr.splice(arr.indexOf(inv), 1);
+    fsInvId = null; fsMarkDirty();
+    fsDashMode = "invoices"; fsInvListRender();
+  };
+}
+
+/* The card wiring, resolved BY INVOICE ID — this screen has no quote and no
+   work behind it. Calls the SAME record-layer functions as fsInvSectionWire;
+   every guard lives down there, so a stale button redraws unchanged. */
+function fsInvScreenWire(invId) {
+  const rd = function () { fsInvScreenRender(); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invnext]"), function (b) {
+    b.onclick = function () {
+      const inv = fsInvoiceFind(invId);
+      if (!inv) return;
+      const k = b.getAttribute("data-invnext");
+      let reason = "";
+      if (k === "issued") {
+        const blocked = (inv.adhoc ? fsInvAdhocBlock(inv) : "") || fsInvIssueBlock();
+        if (blocked) { alert("This invoice cannot be issued — " + blocked +
+          ".\n\nA tax invoice must carry your business name and ABN. Set them in Business & tax, then issue."); return; }
+        if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+      }
+      if (k === "void") {
+        if (!confirm("Void this invoice?\n\nIt stays readable and its number is never reused.")) return;
+        reason = (prompt("Why is it being voided? (optional)") || "").trim();
+      }
+      if (!fsInvoiceSetStatus(inv, k, reason)) return;
+      fsMarkDirty(); rd();
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
+    el.onclick = function () {
+      const pinv = fsInvoiceFind(el.getAttribute("data-invpdf"));
+      if (pinv) fsInvoicePdf(pinv);
+    };
+  });
+  const add = document.getElementById("fsInvPayAdd");
+  if (add) add.onclick = function () {
+    const inv = fsInvoiceFind(invId);
+    if (!inv) return;
+    const el = document.querySelector(".fsInvPayAmt");
+    const cents = el ? fsMoneyOut(el) : null;
+    if (!Number.isInteger(cents) || cents === 0) { alert("Enter the amount received."); return; }
+    const d = document.getElementById("fsInvPayDate");
+    const m = document.getElementById("fsInvPayMethod");
+    if (!fsPaymentAdd(inv.id, cents, (d && d.value) || "", (m && m.value) || "", "")) {
+      alert("That payment could not be recorded.\n\nPayments can only go against an issued invoice.");
+      return;
+    }
+    fsMarkDirty(); rd();
+  };
+  Array.prototype.forEach.call(document.querySelectorAll(".fsInvCorrect"), function (a) {
+    a.onclick = function () {
+      const inv = fsInvoiceFind(invId);
+      if (!inv) return;
+      const p = fsInvoicePayments(inv.id).filter(function (x) { return x.id === a.dataset.id; })[0];
+      if (!p) return;
+      if (!confirm("Reverse this payment?\n\n" + FSMoney.fmt(p.amountCents | 0) + " on " + (p.date || "") +
+                   "\n\nThe original stays on the invoice. A matching negative record is added beside it — nothing is edited and nothing is deleted.")) return;
+      const ref = (prompt("Why is it being reversed? (optional)") || "").trim();
+      if (!fsPaymentAdd(inv.id, -(p.amountCents | 0), "", "correction", ref || ("reverses " + p.id))) {
+        alert("That correction could not be recorded.");
+        return;
+      }
+      fsMarkDirty(); rd();
+    };
+  });
+}
+/* ===== end PASS 59 ========================================================= */
+
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
    C3b shipped the record layer with no caller. This is the caller.
@@ -15566,6 +15909,12 @@ function fsInvView(inv) {
    the exact bug C1 (Pass 44) removed when renaming a site orphaned its quotes.
    A missing link shows a dash and stays visibly missing. */
 function fsInvWho(inv) {
+  /* PASS 59 [59-6] — an AD-HOC invoice has no register entity behind
+     it: the typed name IS the source of truth, not a snapshot of one
+     (scratch-quote precedent). The UID-only rule below guards
+     register-LINKED records against stale names, and an ad-hoc record
+     has no link to go stale. */
+  if (inv && inv.adhoc) return { client: inv.clientName || "", site: inv.siteName || "" };
   const c = fsInvoiceClient(inv), s = fsInvoiceSite(inv);
   return { client: (c && c.name) || "", site: (s && s.name) || "" };
 }
@@ -16430,6 +16779,8 @@ function fsDashRender() {
   if (fsDashMode === "quotes") return fsQuoteListRender();
   if (fsDashMode === "quote") return fsQuoteRender();
   if (fsDashMode === "charges") return fsChargeListRender();
+  if (fsDashMode === "invoices") return fsInvListRender();
+  if (fsDashMode === "invoice") return fsInvScreenRender();
   const wrap = document.getElementById("fsDashView");
   const rows = fsDashRows();
   const over = rows.filter(r => r.days !== null && r.days < 0).length;
@@ -16437,7 +16788,7 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px">&#128202; Office</h2>' +
-    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -16458,6 +16809,9 @@ function fsDashRender() {
   document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
   const qBtn = document.getElementById("fsQuotesBtn");
   if (qBtn) qBtn.onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
+  /* PASS 59 — gated exactly as the button is rendered. */
+  const invBtn = document.getElementById("fsInvsBtn");
+  if (invBtn) invBtn.onclick = () => { fsDashMode = "invoices"; fsInvListRender(); };
   document.getElementById("fsChargesBtn").onclick = () => { fsDashMode = "charges"; fsChargeListRender(); };
   wrap.querySelectorAll(".fsDashRow").forEach(el => el.onclick = () => {
     const r = rows[+el.dataset.i];
@@ -20315,7 +20669,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v67";
+const FS_BUILD = "aa-v68";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
