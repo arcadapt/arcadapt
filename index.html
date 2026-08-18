@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.61 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.62 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.61 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.62 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -15297,7 +15297,12 @@ function fsInvoiceIssue(inv) {
     at: now, number: inv.number, dueAt: due,
     /* ATO: the seller's identity AND ABN are required on every tax invoice. */
     business: { name: b.name || "", abn: b.abn || "", address: b.address || "",
-                phone: b.phone || "", email: b.email || "" },
+                phone: b.phone || "", email: b.email || "",
+                /* PASS 57 [57-1] — the PDF prints payment instructions, so
+                   they freeze WITH the document. Read live they would make a
+                   reprint differ from the document the customer holds. */
+                bankDetails: b.bankDetails || "", terms: b.terms || "",
+                footer: b.footer || "" },
     /* ATO: at $1,000 or more the BUYER's identity or ABN is required too.
        Snapshotted rather than resolved at render time, so the document stays
        reproducible after the client record is renamed or deleted. */
@@ -15305,6 +15310,10 @@ function fsInvoiceIssue(inv) {
                 address: (c && c.address) || "",
                 abn: (c && c.abn) || "" },
     docWord: fsDocWord(),
+    /* PASS 57 [57-1] — the references, frozen with everything else. They
+       are stamped on the record at creation and never rewritten, but the
+       document reads ONLY its snapshot, so they live here too. */
+    workNumber: inv.workNumber || "", quoteNumber: inv.quoteNumber || "",
     lines: JSON.parse(JSON.stringify(inv.lines || [])),
     lineAmountsInclusive: !!inv.lineAmountsInclusive,
     subtotalCents: tot.subtotalCents, taxCents: tot.taxCents,
@@ -15392,6 +15401,82 @@ function fsInvoiceClient(inv) { return inv && inv.clientUid ? fsClientByUid(inv.
 function fsInvoiceSite(inv) { return inv && inv.siteUid ? fsSiteByUid(inv.siteUid) : null; }
 function fsInvoiceWork(inv) { return inv && inv.workId ? fsWorkFind(inv.workId) : null; }
 /* ===== end PASS 51 — C3b ================================================== */
+
+/* ===== PASS 57 — C5a, THE INVOICE PDF ======================================
+   THE RULE THIS FUNCTION LIVES OR DIES BY: every string it prints comes from
+   inv.issued, the write-once void fields, or a constant. Print an invoice,
+   change EVERYTHING in Business & tax, record a payment, print again —
+   BYTE-IDENTICAL. An issued tax invoice is reproducible for ever or the
+   frozen snapshot is decoration. That is why [57-1] froze bankDetails/terms/
+   footer and the references at issue rather than letting this read fsBiz().
+
+   NO BALANCE AND NO PAYMENTS ON THE DOCUMENT. The invoice is the issued
+   instrument; the payment ledger is a different fact that changes daily.
+   The screen shows balance. The document must not.
+
+   A DRAFT CANNOT PRINT. No snapshot, no number, no frozen tax — the output
+   would be a fabrication that LOOKS like an invoice. Same reasoning as
+   "No number until issued". A VOID invoice prints — [52-5]: readable for
+   ever includes handing it to an auditor — marked VOID in red with date and
+   reason, via the "f" tag fsLinesPdf already renders red.                  */
+function fsInvoicePdf(inv) {
+  if (!inv || !inv.issued) return false;
+  const s = inv.issued;
+  const b = s.business || {};
+  const c = s.customer || {};
+  const L = [];
+  L.push(["h", (s.docWord || "Invoice") + " " + (s.number || "")]);
+  if (inv.status === "void") {
+    L.push(["f", "VOID" + (inv.voidedAt ? " — " + String(inv.voidedAt).slice(0, 10) : "") +
+                 (inv.voidReason ? " — " + inv.voidReason : "")]);
+  }
+  L.push(["t", (b.name || "") + (b.abn ? "   ABN " + b.abn : "")]);
+  if (b.address) L.push(["t", b.address]);
+  if (b.phone || b.email) L.push(["t", [b.phone, b.email].filter(Boolean).join("   ")]);
+  L.push(["t", "Issued: " + String(s.at || "").slice(0, 10) +
+               (s.dueAt ? "    Due: " + String(s.dueAt).slice(0, 10) : "")]);
+  if (s.workNumber || s.quoteNumber) {
+    L.push(["t", (s.workNumber ? "Work " + s.workNumber : "") +
+                 (s.workNumber && s.quoteNumber ? "   " : "") +
+                 (s.quoteNumber ? "Quote " + s.quoteNumber : "")]);
+  }
+  L.push(["b", "Billed to"]);
+  L.push(["t", (c.name || "") + (c.abn ? "   ABN " + c.abn : "")]);
+  if (c.address) L.push(["t", c.address]);
+  L.push(["b", "Work carried out"]);
+  (s.lines || []).forEach(l => {
+    const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
+    L.push(["t", "  " + (l.description || l.desc || "") +
+                 (l.qty != null && l.qty !== 1 ? "  ×" + l.qty : "") +
+                 "   " + FSMoney.fmt(cents)]);
+  });
+  /* The totals are THE SNAPSHOT'S. fsDocTotals here would re-derive against a
+     live table — the exact bug [51-4] exists to prevent. taxByCode is printed
+     when more than one code applied: mixed taxable and non-taxable sales must
+     show which is which, and the snapshot kept the split for exactly this. */
+  if (s.taxKnown) {
+    L.push(["b", "Subtotal excluding GST: " + FSMoney.fmt(s.subtotalCents | 0)]);
+    const codes = Object.keys(s.taxByCode || {});
+    if (codes.length > 1) {
+      codes.forEach(k => L.push(["t", "  " + k + ": " + FSMoney.fmt(s.taxByCode[k] | 0)]));
+    }
+    L.push(["b", "GST: " + FSMoney.fmt(s.taxCents | 0)]);
+    L.push(["b", "Total including GST: " + FSMoney.fmt(s.totalCents | 0)]);
+  } else {
+    L.push(["b", "Total: " + FSMoney.fmt((s.totalCents != null ? s.totalCents : s.subtotalCents) | 0)]);
+  }
+  if (b.bankDetails || b.terms) {
+    L.push(["b", "Payment"]);
+    if (b.bankDetails) String(b.bankDetails).split("\n").forEach(x => L.push(["t", x]));
+    if (b.terms) String(b.terms).split("\n").forEach(x => L.push(["t", x]));
+  }
+  if (b.footer) String(b.footer).split("\n").forEach(x => L.push(["t", x]));
+  const stamp = String(s.number || "invoice").replace(/[^A-Za-z0-9_-]+/g, "-");
+  fsLinesPdf(L, (b.name || "") + " — " + (s.docWord || "Invoice").toLowerCase() +
+                " " + (s.number || ""), "invoice-" + stamp + ".pdf");
+  return true;
+}
+/* ===== end PASS 57 ========================================================= */
 
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
@@ -15528,6 +15613,14 @@ function fsInvCardHtml(inv) {
   if (inv.status === "void" && inv.voidReason) {
     h += '<div style="font-size:12px;color:var(--fs-sub2);margin-top:6px">Voided: ' + fsEsc(inv.voidReason) + '</div>';
   }
+  /* PASS 57 [57-3] — issued and void have a snapshot and can print; a
+     draft has nothing to print. The guard is inv.issued, the same fact
+     fsInvoicePdf itself refuses on, so the button and the function
+     cannot disagree. */
+  if (inv.issued) {
+    h += '<div style="margin-top:9px"><button class="fsbtn" data-invpdf="' +
+         fsEsc(inv.id) + '">&#10515; PDF</button></div>';
+  }
   h += fsInvNextBtns(inv);
   return h;
 }
@@ -15546,7 +15639,13 @@ function fsInvVoidHistory(w) {
     v.map(function (i) {
       return '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:3px">' +
         (i.number ? fsEsc(i.number) : "never issued") +
-        (i.voidReason ? ' — ' + fsEsc(i.voidReason) : '') + '</div>';
+        (i.voidReason ? ' — ' + fsEsc(i.voidReason) : '') +
+        /* PASS 57 [57-3] — [52-5]: readable for ever includes handing it
+           to an auditor. Only a voided invoice that was ISSUED has a
+           document to reprint. */
+        (i.issued ? ' <a data-invpdf="' + fsEsc(i.id) +
+          '" style="color:var(--fs-sub);cursor:pointer;font-size:12px">PDF</a>' : '') +
+        '</div>';
     }).join('') + '</div>';
 }
 /* [52-1] The section. Returns "" — never a stub, never an empty bordered box —
@@ -15625,6 +15724,16 @@ function fsInvSectionWire(q, redraw) {
       }
       if (!fsInvoiceSetStatus(inv, k, reason)) return;
       fsMarkDirty(); rd();
+    };
+  });
+  /* PASS 57 [57-3] — resolved by ID through fsInvoiceFind, never through
+     fsInvoiceForWork: that helper excludes void BY DESIGN and the void
+     history rows carry this attribute too. Printing changes no record,
+     so there is no redraw. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
+    el.onclick = function () {
+      const pinv = fsInvoiceFind(el.getAttribute("data-invpdf"));
+      if (pinv) fsInvoicePdf(pinv);
     };
   });
   const add = document.getElementById("fsInvPayAdd");
@@ -20159,7 +20268,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v65";
+const FS_BUILD = "aa-v66";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
