@@ -261,6 +261,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   @media (prefers-reduced-motion: reduce) { .fsWobble { animation:none; } }
   .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
   .fsbtn:active { opacity:.75; }
+  /* PASS 63 [63-2] — the hub header's REAL buttons stand out by being alone
+     AND by this: accent outline, taller for a gloved thumb. A modifier on
+     .fsbtn, never a new button species (test_p45 C9's uniformity survives:
+     hub-body buttons still match each other). */
+  .fsbtn.fsbtnHero { border-color:var(--fs-accent); color:var(--fs-accent); font-weight:700; padding:14px 18px; }
   .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
   .fsbtnP:active { background:var(--fs-accentD); }
   .fsCrumb { display:inline-block; color:var(--fs-accent); font-weight:800; font-size:17px; line-height:1; cursor:pointer; padding:9px 15px 9px 11px; border:1.5px solid var(--fs-accent); border-radius:999px; background:var(--fs-card); -webkit-tap-highlight-color:transparent; }
@@ -314,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.67 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.68 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.67 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.68 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -16407,7 +16412,7 @@ function fsInvPayForm(inv) {
     '<input type="date" id="fsInvPayDate" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
     '<input type="text" id="fsInvPayMethod" placeholder="Method" style="width:96px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
     '<button class="fsbtnP" id="fsInvPayAdd">Add</button></div>' +
-    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">Arc Adapt records a payment you have received. It does not take one.</div></div>';
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">This records a payment you have received. It does not take one.</div></div>';
 }
 function fsInvCardHtml(inv) {
   const st = fsInvStat(inv);
@@ -16684,13 +16689,20 @@ function fsBakLine() {
   }
   return { text: "Backed up off this device " + age, warn: false };
 }
-function fsBakRender() {
-  const el = document.getElementById("fsBakLine");
+/* PASS 63 [63-1] — ONE quiet treatment for the two header warn lines.
+   Reece: the amber "sticks out"; tone down BOTH, remove NEITHER. The words
+   stay (test_p53/p54 pin them); the volume moves — muted text at 11px, the
+   ⚠ glyphs alone carry the amber. Warn SEMANTICS (dataset.warn) unchanged. */
+function fsWarnLineSet(el, r) {
   if (!el) return;
-  const r = fsBakLine();
-  el.textContent = r.text;
-  el.style.color = r.warn ? "#e0a33a" : "var(--fs-sub)";
+  el.style.fontSize = "11px";
+  el.style.color = r.warn ? "var(--fs-sub2)" : "var(--fs-sub)";
   el.dataset.warn = r.warn ? "1" : "0";
+  if (r.warn) el.innerHTML = fsEsc(r.text).replace(/⚠/g, '<span style="color:#e0a33a">⚠</span>');
+  else el.textContent = r.text;
+}
+function fsBakRender() {
+  fsWarnLineSet(document.getElementById("fsBakLine"), fsBakLine());
 }
 /* THE UNATTENDED WRITER. Never alerts, never confirms, never prompts a sign-in.
    Returns a reason string so a caller and a test can both see WHY nothing
@@ -16772,12 +16784,8 @@ function fsBizIdLine() {
   return { text: id.name + " · ABN " + id.abn, warn: false };
 }
 function fsBizIdRender() {
-  const el = document.getElementById("fsBizLine");
-  if (!el) return;
-  const r = fsBizIdLine();
-  el.textContent = r.text;
-  el.style.color = r.warn ? "#e0a33a" : "var(--fs-sub)";
-  el.dataset.warn = r.warn ? "1" : "0";
+  /* PASS 63 [63-1] — same treatment as fsBakRender, by construction. */
+  fsWarnLineSet(document.getElementById("fsBizLine"), fsBizIdLine());
 }
 
 /* [54-2] Q2: ask ONLY when the identity differs AND there is a current one.
@@ -18196,8 +18204,7 @@ function fsRenderSite() {
   html += '<h1 style="font-size:32px;font-weight:700;margin:2px 0 4px">' + fsEsc(s.name) + '</h1>';
   if (addr) html += '<div style="color:var(--fs-sub);font-size:15px">' + fsEsc(addr) + '</div>';
   html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px;flex-wrap:wrap">';
-  if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn" id="fsMapBtn">Navigate</button>';
-  if (fsCoordsParse(s)) html += '<button class="fsbtn" id="fsCoordBtn" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>';
+  if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn fsbtnHero" id="fsMapBtn">Navigate</button>';
   /* PASS 50 [50-5] — F3. This REVERSES the Pass 45 [45-2] ruling above and
      it is recorded rather than done quietly. That ruling said "a primary CTA
      that dead-ends on most sites is worse than no CTA", and it was right —
@@ -18209,7 +18216,7 @@ function fsRenderSite() {
      ARC ADAPT ONLY. EverDue never creates this element (COMMERCIAL-MAP §8.6:
      "EverDue has no Workspace"), and growing one there would manufacture
      exactly the dead-end Pass 45 refused to ship. test_p50 pins its absence. */
-  html += '<button class="fsbtn" id="fsOpenWs">' +
+  html += '<button class="fsbtn fsbtnHero" id="fsOpenWs">' +
           (s.plan && s.plan.levels && s.plan.levels.length ? 'Open workspace' : 'Create workspace') +
           '</button>';
   html += '<button class="fsbtn" id="fsHubOvf" title="More">&#8943;</button></div></div>';
@@ -18269,8 +18276,6 @@ function fsRenderSite() {
   };
   const fsMapB = document.getElementById("fsMapBtn");
   if (fsMapB) fsMapB.onclick = () => window.open(s.mapUrl && fsMapsApp() !== "waze" ? s.mapUrl : fsMapsNavUrl(s), "_blank");
-  const fsCoordB = document.getElementById("fsCoordBtn");
-  if (fsCoordB) fsCoordB.onclick = () => window.open(fsCoordsUrl(s), "_blank");
   const hubWs = document.getElementById("fsOpenWs");
   if (hubWs) hubWs.onclick = fsEnterWorkspace;
   /* PASS 45 [45-2] — workspace CREATION lives in the overflow (Ruling 3). */
@@ -18281,10 +18286,16 @@ function fsRenderSite() {
     m = document.createElement("div");
     m.id = "fsHubOvfMenu";
     m.style.cssText = "position:absolute;right:0;top:44px;background:var(--fs-card);border:1px solid var(--fs-border);border-radius:9px;padding:6px;z-index:60;box-shadow:0 6px 18px rgba(0,0,0,.4)";
-    m.innerHTML = '<button class="fsbtn" id="fsHubOvfWs" style="white-space:nowrap">Open Site Workspace &nbsp;&#8594;</button>';
+    m.innerHTML = '<button class="fsbtn" id="fsHubOvfWs" style="white-space:nowrap;display:block">Open Site Workspace &nbsp;&#8594;</button>' +
+      /* PASS 63 [63-2] — Coordinates lives here now. Same guard as ever:
+         only when coordinates EXIST (the no-dead-end rule, test_p50 F3
+         moved here with it), same fsCoordsUrl, nothing re-implemented. */
+      (fsCoordsParse(s) ? '<button class="fsbtn" id="fsHubOvfCoord" style="white-space:nowrap;display:block;margin-top:6px" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>' : '');
     hubOvf.parentElement.style.position = "relative";
     hubOvf.parentElement.appendChild(m);
     document.getElementById("fsHubOvfWs").onclick = fsEnterWorkspace;
+    const oc = document.getElementById("fsHubOvfCoord");
+    if (oc) oc.onclick = () => { m.remove(); window.open(fsCoordsUrl(s), "_blank"); };
   };
   document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
@@ -21124,7 +21135,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v71";
+const FS_BUILD = "aa-v72";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
