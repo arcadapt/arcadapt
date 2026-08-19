@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.66 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.67 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.66 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.67 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -13341,17 +13341,48 @@ function fsChargeListRender() {
     '<span style="font-size:18px;font-weight:800">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span></div>' +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">A charge line and a total. Nothing here works out GST — your accounting system applies its own tax codes.</div></div>';
 
-  /* PASS 55 [55-5] — the SAME section the quote editor renders. Not a copy:
-     a second invoice implementation is a second transition table to keep in
-     step, which is the failure mutate-p51 M7 exists to describe. */
-  const scw = fsScWorkId ? fsWorks().filter(x => x.id === fsScWorkId)[0] : null;
-  if (scw) {
-    html += '<div class="fscard" style="padding:14px;margin-top:10px">' +
-      '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:8px">Service invoice &middot; ' +
-      fsEsc(scw.siteName || "") + '</div>' + fsInvSectionHtml(scw) + '</div>';
+  /* PASS 62 — C5: the queue renders from the RECORDS via fsScQueue();
+     fsScWorkId is demoted to "which row is open" and no longer needs to
+     survive a reload or a second run. [55-5] still governs the section:
+     the SAME fsInvSectionHtml, ONE call site, rendered as a SIBLING of its
+     row so the section's buttons do not bubble into the row toggle. Same
+     [52-7] gate the section itself uses. */
+  const queue = (typeof fsCan === "function" && !fsCan("money")) ? [] : fsScQueue();
+  if (queue.length === 1) fsScWorkId = queue[0].id;   /* one in flight: open, as before */
+  /* A stale fsScWorkId needs no guard of its own: scw resolves THROUGH the
+     queue, so an id whose work has settled resolves to nothing — one
+     decision, no second dead copy of it (the mutate-p51 M7 lesson). */
+  const scw = fsScWorkId ? queue.filter(x => x.id === fsScWorkId)[0] || null : null;
+  if (queue.length) {
+    html += '<div class="fscard" id="fsScQueue" style="padding:4px 14px;margin-top:10px">' +
+      '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;padding:10px 0 2px">Service invoices &middot; ' +
+      queue.length + ' in flight</div>';
+    queue.forEach(function (w, i) {
+      const qs = fsScQueueState(w);
+      const openRow = !!(scw && scw.id === w.id);
+      html += '<div class="fsScQRow" data-id="' + fsEsc(w.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' +
+        (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
+        '<span style="width:14px;text-align:center;color:var(--fs-faint);flex:none">' + (openRow ? '&#9662;' : '&#9656;') + '</span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:600">' + fsEsc(w.siteName || "(no site)") + '</div>' +
+          '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(String(w.created).slice(0, 10)) + ' &middot; ' +
+            (w.lines || []).length + ' line' + ((w.lines || []).length === 1 ? '' : 's') + '</div></div>' +
+        '<span style="font-size:13.5px;font-weight:700">' + fsEsc(FSMoney.fmt(fsScWorkCents(w))) + '</span>' +
+        '<span style="font-size:11px;font-weight:800;color:#fff;background:' + qs.col +
+          ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(qs.t) + '</span></div>';
+      /* SIBLING, not child — see the header comment. */
+      if (openRow) html += '<div style="padding:2px 0 12px">' + fsInvSectionHtml(scw) + '</div>';
+    });
+    html += '</div>';
   }
   wrap.innerHTML = html;
   if (scw) fsInvSectionWire({ id: scw.quoteId }, fsChargeListRender);
+  wrap.querySelectorAll(".fsScQRow").forEach(function (el) {
+    el.onclick = function () {
+      fsScWorkId = fsScWorkId === el.dataset.id ? "" : el.dataset.id;
+      fsChargeListRender();
+    };
+  });
   document.getElementById("fsScBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsScRates").onclick = () => { fsBookTab = "visits"; fsDashMode = "book"; fsBookRender(); };
   document.getElementById("fsScExport").onclick = () => fsChargeExport(open);
@@ -16228,6 +16259,51 @@ function fsDocPdf(d, fname) {
   });
 }
 /* ===== end PASS 61 ========================================================= */
+
+/* ===== PASS 62 — C5: THE SERVICE WORK QUEUE =================================
+   PASS-62-BRIEF.md. fsScWorkId used to be the ONLY handle on an in-flight
+   service work: it boots to "", a second run overwrites it, and a completed
+   work with no invoice yet is invisible to the [59-3] Invoices list too —
+   revenue in limbo, on screen NOWHERE. The queue below is derived from the
+   record layer at every render and stores NOTHING.
+
+   WHAT LEAVES THE QUEUE, AND WHERE IT GOES — nothing vanishes:
+   - issued and fully paid -> the Invoices list [59-3] is its for-ever home;
+   - voided -> its charges went back to OPEN ([55 Q4]) and re-invoicing lives
+     THERE. Keeping the old work openable beside the released charges is a
+     double-billing surface, so it is not kept. The void document itself
+     stays readable in the Invoices list. */
+function fsScQueueState(w) {
+  /* DERIVED, never stored — the [51-5] rule. null = not in flight. */
+  const inv = fsInvoiceForWork(w.id);
+  if (inv && inv.status === "draft") return { k: "draft", t: "Draft invoice", col: "#7a7a7a" };
+  if (inv && inv.status === "issued") {
+    if (fsInvoiceBalance(inv) <= 0) return null;      /* settled — [59-3]'s job now */
+    const pl = fsInvPayLabel(inv) || { t: "Unpaid", col: "#7a7a7a" };
+    return { k: "issued", t: pl.t, col: pl.col };
+  }
+  /* No live invoice: in flight only while the work still HOLDS its charges.
+     A void released them ([55 Q4]); the open charge list is where they
+     re-bill, never a second handle on the old work. */
+  if (fsChargesForWork(w.id).length) return { k: "uninvoiced", t: "Not invoiced", col: "#b58900" };
+  return null;
+}
+function fsScQueue() {
+  return fsWorks()
+    .filter(function (w) { return !!w && w.sourceKind === "service" && !!fsScQueueState(w); })
+    .sort(function (a, b) { return String(b.created).localeCompare(String(a.created)); });
+}
+/* The row amount. An invoice speaks for itself — fsInvView reads the FROZEN
+   totals once issued ([51-4]); before any invoice exists the work's own
+   lines are all there is, summed exactly as the charge list sums a line. */
+function fsScWorkCents(w) {
+  const inv = fsInvoiceForWork(w.id);
+  if (inv) { const v = fsInvView(inv); return v.taxKnown ? v.totalCents : v.subtotalCents; }
+  return (w.lines || []).reduce(function (n, l) {
+    return n + FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
+  }, 0);
+}
+/* ===== end PASS 62 ========================================================= */
 
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
@@ -21048,7 +21124,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v70";
+const FS_BUILD = "aa-v71";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
