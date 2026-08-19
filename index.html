@@ -314,7 +314,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.65 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.66 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -435,7 +435,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.65 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.66 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -14662,7 +14662,19 @@ function fsQuoteSetStatus(q, k) {
   /* PASS 49 [49-4] — the tax table is frozen onto the quote at SEND, beside
      the number, for the same reason the number is allocated there: this is
      the moment the document becomes a thing the customer holds. */
-  if (k === "sent") { if (!q.number && !q.scratch) q.number = fsQuoteAllocNumber(); q.sentAt = now; fsTaxStamp(q); }
+  if (k === "sent") {
+    if (!q.number && !q.scratch) q.number = fsQuoteAllocNumber();
+    q.sentAt = now; fsTaxStamp(q);
+    /* PASS 61 [61-2] — the send freeze GROWS: the same instant that fixes
+       the number and the tax table now fixes the identity the document
+       prints (q.docBiz) and the logo it carries (q.logoKey, through the
+       store). A sent quote reprints identically after a settings change;
+       a draft previews live, because until send there is no document. */
+    const zb = fsBiz();
+    q.docBiz = { name: zb.name || "", abn: zb.abn || "", address: zb.address || "",
+                 phone: zb.phone || "", email: zb.email || "" };
+    q.logoKey = fsLogoFreeze();
+  }
   if (k === "approved") q.approvedAt = now;
   if (k === "declined") q.declinedAt = now;
   const map = { draft: null, sent: "quoted", approved: "approved", declined: "declined" };
@@ -15124,25 +15136,50 @@ function fsScratchRender(q) {
 }
 function fsQuotePdf(q) {
   const tot = fsQuoteTotals(q);
-  /* A scratch quote has no sequence number by design — it prints whatever
-     reference was typed, or just "Quote". */
-  const L = [["h", q.scratch ? ("Quote" + (q.ref ? " " + q.ref : "")) : ("Quote " + (q.number || "(draft)"))]];
-  L.push(["t", (q.clientName ? q.clientName + " — " : "") + q.siteName + (q.where ? " — " + q.where : "")]);
-  L.push(["t", "Date: " + String(q.created).slice(0, 10) + "    Status: " + fsQStat(q).label]);
-  if (q.defectDesc) { L.push(["b", "Defect"]); L.push(["t", q.defectDesc]); }
-  L.push(["b", "Work to be carried out"]);
-  q.lines.forEach(l => {
+  /* [61-2] THE SAME COMPOSER AS THE INVOICE — one business, one look. A
+     customer who receives a quote and then an invoice must not see two
+     different companies. Identity prefers the SEND FREEZE (q.docBiz +
+     q.logoKey, fixed the moment the document became a thing the customer
+     holds); a DRAFT previews from live settings because until send there
+     is no document. A quote sent before this pass has no freeze and reads
+     live — exactly what it always did, declared in the notes. */
+  const fz = q.docBiz || null;
+  const bz = fz || fsBiz();
+  const rows = q.lines.map(l => {
     const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
     const un = (l.kind === "item" && l.priceSource === "none") || (l.kind === "labour" && l.priced === false);
-    L.push(["t", "  " + (l.description || "") +
-      (l.kind === "labour" && l.minutes != null ? "  (" + l.minutes + " min)" : "") +
-      "   " + (un ? "price not set" : FSMoney.fmt(cents))]);
+    return { desc: (l.description || "") +
+                   (l.kind === "labour" && l.minutes != null ? "  (" + l.minutes + " min)" : ""),
+             qty: l.qty == null ? 1 : l.qty,
+             unit: un ? "" : FSMoney.fmt(l.unitPriceCents || 0),
+             amount: un ? "price not set" : FSMoney.fmt(cents),
+             muted: un };
   });
-  L.push(["b", "Total excluding tax: " + FSMoney.fmt(tot.subtotalCents)]);
-  L.push(["t", "GST is applied by our accounting system and shown on the tax invoice."]);
-  if (q.notes) { L.push(["b", "Notes"]); String(q.notes).split("\n").forEach(x => L.push(["t", x])); }
+  const blocks = [];
+  if (q.defectDesc) blocks.push({ title: "Defect", lines: String(q.defectDesc).split("\n").filter(Boolean) });
+  blocks.push({ title: "GST", lines: ["GST is applied by our accounting system and shown on the tax invoice."] });
+  if (q.notes) blocks.push({ title: "Notes", lines: String(q.notes).split("\n").filter(Boolean) });
   const stamp = q.scratch ? ((q.ref || "scratch").replace(/[^A-Za-z0-9_-]+/g, "-")) : (q.number || "draft");
-  fsLinesPdf(L, fsDocBrand() + " quote " + stamp, "quote-" + stamp + ".pdf");
+  /* [61-5] THE FOOTER CARRIES THE BUSINESS, NEVER THE APPLICATION. The old
+     footer was fsDocBrand(), which falls back to the APP'S name on a
+     register with no profile loaded — the exact thing Reece said a
+     customer document must never do. Business name or nothing. */
+  return fsDocPdf({
+    title: "QUOTE",
+    number: q.scratch ? (q.ref || "") : (q.number || "(draft)"),
+    meta: ["Date: " + String(q.created).slice(0, 10), "Status: " + fsQStat(q).label],
+    logo: fz ? fsLogoGet(q.logoKey || "") : fsBrandLogo(),
+    biz: { name: bz.name || "", abn: bz.abn || "", address: bz.address || "",
+           contact: [bz.phone, bz.email].filter(Boolean).join("   ") },
+    party: { label: "Prepared for",
+             name: (q.clientName ? q.clientName + " — " : "") + (q.siteName || ""),
+             address: q.where || "" },
+    cols: {}, rows: rows,
+    totals: [{ label: "Total excluding tax", value: FSMoney.fmt(tot.subtotalCents), strong: true }],
+    blocks: blocks,
+    accent: "#0f5e6b",
+    footer: [bz.name || "", "quote " + stamp].filter(Boolean).join(" — ")
+  }, "quote-" + stamp + ".pdf");
 }
 /* ===== end quotes ========================================================== */
 
@@ -15326,6 +15363,12 @@ function fsInvoiceIssue(inv) {
                 address: (c && c.address) || "",
                 abn: (c && c.abn) || "" },
     docWord: fsDocWord(),
+    /* PASS 61 — the logo freezes BY REFERENCE at the same instant as
+       everything else on the document: the store keeps one copy per
+       distinct image, the snapshot keeps the KEY ([57-1]'s rule at a
+       price a hand-backed-up register can afford). A reprint resolves
+       the key through the store and NEVER the live profile. */
+    logoKey: fsLogoFreeze(),
     /* PASS 57 [57-1] — the references, frozen with everything else. They
        are stamped on the record at creation and never rewritten, but the
        document reads ONLY its snapshot, so they live here too. */
@@ -15446,57 +15489,62 @@ function fsInvoicePdf(inv) {
   const s = inv.issued;
   const b = s.business || {};
   const c = s.customer || {};
-  const L = [];
-  L.push(["h", (s.docWord || "Invoice") + " " + (s.number || "")]);
-  if (inv.status === "void") {
-    L.push(["f", "VOID" + (inv.voidedAt ? " — " + String(inv.voidedAt).slice(0, 10) : "") +
-                 (inv.voidReason ? " — " + inv.voidReason : "")]);
-  }
-  L.push(["t", (b.name || "") + (b.abn ? "   ABN " + b.abn : "")]);
-  if (b.address) L.push(["t", b.address]);
-  if (b.phone || b.email) L.push(["t", [b.phone, b.email].filter(Boolean).join("   ")]);
-  L.push(["t", "Issued: " + String(s.at || "").slice(0, 10) +
-               (s.dueAt ? "    Due: " + String(s.dueAt).slice(0, 10) : "")]);
-  if (s.workNumber || s.quoteNumber) {
-    L.push(["t", (s.workNumber ? "Work " + s.workNumber : "") +
-                 (s.workNumber && s.quoteNumber ? "   " : "") +
-                 (s.quoteNumber ? "Quote " + s.quoteNumber : "")]);
-  }
-  L.push(["b", "Billed to"]);
-  L.push(["t", (c.name || "") + (c.abn ? "   ABN " + c.abn : "")]);
-  if (c.address) L.push(["t", c.address]);
-  L.push(["b", "Work carried out"]);
-  (s.lines || []).forEach(l => {
+  /* [57-2] UNCHANGED RULE, NEW LAYOUT: every string handed to the composer
+     comes from inv.issued, the write-once void fields, or a constant. The
+     logo is the one REFERENCE — resolved through the store by the KEY the
+     snapshot froze at issue, never through the live profile (fsLogoGet
+     refuses that fallback by design). A legacy snapshot has no logoKey,
+     resolves "", and prints without a logo — byte-identical for ever.
+     The totals are THE SNAPSHOT'S: fsDocTotals here would re-derive
+     against a live table, the exact bug [51-4] exists to prevent. */
+  const rows = (s.lines || []).map(l => {
     const cents = FSMoney.roundHalfUp((l.unitPriceCents || 0) * (l.qty == null ? 1 : l.qty));
-    L.push(["t", "  " + (l.description || l.desc || "") +
-                 (l.qty != null && l.qty !== 1 ? "  ×" + l.qty : "") +
-                 "   " + FSMoney.fmt(cents)]);
+    return { desc: l.description || l.desc || "",
+             qty: l.qty == null ? 1 : l.qty,
+             unit: FSMoney.fmt(l.unitPriceCents || 0),
+             amount: FSMoney.fmt(cents) };
   });
-  /* The totals are THE SNAPSHOT'S. fsDocTotals here would re-derive against a
-     live table — the exact bug [51-4] exists to prevent. taxByCode is printed
-     when more than one code applied: mixed taxable and non-taxable sales must
-     show which is which, and the snapshot kept the split for exactly this. */
+  const totals = [];
   if (s.taxKnown) {
-    L.push(["b", "Subtotal excluding GST: " + FSMoney.fmt(s.subtotalCents | 0)]);
+    totals.push({ label: "Subtotal excluding GST", value: FSMoney.fmt(s.subtotalCents | 0) });
     const codes = Object.keys(s.taxByCode || {});
-    if (codes.length > 1) {
-      codes.forEach(k => L.push(["t", "  " + k + ": " + FSMoney.fmt(s.taxByCode[k] | 0)]));
-    }
-    L.push(["b", "GST: " + FSMoney.fmt(s.taxCents | 0)]);
-    L.push(["b", "Total including GST: " + FSMoney.fmt(s.totalCents | 0)]);
+    if (codes.length > 1) codes.forEach(k => totals.push({ label: k, value: FSMoney.fmt(s.taxByCode[k] | 0) }));
+    totals.push({ label: "GST", value: FSMoney.fmt(s.taxCents | 0) });
+    totals.push({ label: "Total including GST", value: FSMoney.fmt(s.totalCents | 0), strong: true });
   } else {
-    L.push(["b", "Total: " + FSMoney.fmt((s.totalCents != null ? s.totalCents : s.subtotalCents) | 0)]);
+    totals.push({ label: "Total", value: FSMoney.fmt((s.totalCents != null ? s.totalCents : s.subtotalCents) | 0), strong: true });
   }
+  const blocks = [];
   if (b.bankDetails || b.terms) {
-    L.push(["b", "Payment"]);
-    if (b.bankDetails) String(b.bankDetails).split("\n").forEach(x => L.push(["t", x]));
-    if (b.terms) String(b.terms).split("\n").forEach(x => L.push(["t", x]));
+    blocks.push({ title: "Payment", lines: String(b.bankDetails || "").split("\n")
+      .concat(String(b.terms || "").split("\n")).filter(Boolean) });
   }
-  if (b.footer) String(b.footer).split("\n").forEach(x => L.push(["t", x]));
+  if (b.footer) blocks.push({ title: "", lines: String(b.footer).split("\n").filter(Boolean) });
+  const meta = ["Issued: " + String(s.at || "").slice(0, 10) +
+                (s.dueAt ? "    Due: " + String(s.dueAt).slice(0, 10) : "")];
+  if (s.workNumber || s.quoteNumber) {
+    meta.push((s.workNumber ? "Work " + s.workNumber : "") +
+              (s.workNumber && s.quoteNumber ? "   " : "") +
+              (s.quoteNumber ? "Quote " + s.quoteNumber : ""));
+  }
   const stamp = String(s.number || "invoice").replace(/[^A-Za-z0-9_-]+/g, "-");
-  fsLinesPdf(L, (b.name || "") + " — " + (s.docWord || "Invoice").toLowerCase() +
-                " " + (s.number || ""), "invoice-" + stamp + ".pdf");
-  return true;
+  return fsDocPdf({
+    title: (s.docWord || "Invoice").toUpperCase(),
+    number: s.number || "",
+    meta: meta,
+    banner: inv.status === "void"
+      ? "VOID" + (inv.voidedAt ? " — " + String(inv.voidedAt).slice(0, 10) : "") +
+        (inv.voidReason ? " — " + inv.voidReason : "")
+      : "",
+    logo: fsLogoGet(s.logoKey || ""),
+    biz: { name: b.name || "", abn: b.abn || "", address: b.address || "",
+           contact: [b.phone, b.email].filter(Boolean).join("   ") },
+    party: { label: "Billed to", name: c.name || "", abn: c.abn || "", address: c.address || "" },
+    cols: {}, rows: rows, totals: totals, blocks: blocks,
+    accent: "#0f5e6b",
+    footer: [b.name || "", (s.docWord || "Invoice").toLowerCase() + " " + (s.number || "")]
+      .filter(Boolean).join(" — ")
+  }, "invoice-" + stamp + ".pdf");
 }
 /* ===== end PASS 57 ========================================================= */
 
@@ -15906,6 +15954,280 @@ function fsBattHubHtml(en) {
     ' &middot; ' + age + ' ago</span>' + (mo >= 20 ? fsBattChipHtml(en) : "");
 }
 /* ===== end PASS 60 ========================================================= */
+
+/* ===== PASS 61 — THE DOCUMENT A CUSTOMER SEES ==============================
+   Reece, 18 Aug, after the first real device run: "the PDF looks pretty plain
+   and ugly though, would be good if it was a well presented pdf with a good
+   lay out on it even if it was just a standard one." And, same session, of the
+   quote: "same deal with the invoice with the quote. looks ugly and plain."
+
+   THE DIAGNOSIS, AND IT IS WHY THIS IS NOT A RESTYLE. fsLinesPdf is a
+   single-column text stacker: it writes tagged lines down the left margin at
+   three sizes. No columns, no right-alignment, no table, no image. Money is a
+   substring inside a sentence. There is nowhere for a layout to live, so this
+   adds a structured composer beside it. fsLinesPdf is UNTOUCHED — eight other
+   documents still use it and none of them are customer-facing.
+
+   WHAT IS NOT REBUILT: fsCanvasesToPdf already writes real %PDF-1.4 bytes from
+   canvases. No library comes in. The canvas 2D context already measures text,
+   fills rectangles and draws images, which is the whole toolkit a layout needs.
+
+   TWO IDENTITIES, AND PASS 54 EXISTS BECAUSE NOTHING KEPT THEM EQUAL.
+   fsProfile.company is the CLIENT'S BRANDING — logo and brand name, issued
+   from Arc Command. The issued snapshot's business{} is the LEGAL IDENTITY the
+   ATO requires on a tax invoice. The layout takes the logo from the profile
+   and the name and ABN from the snapshot. They are never crossed.           */
+
+/* ONE LOGO, UPLOADED ONCE. Reece: "Surely if they upload it once then we can
+   utilise the same upload for the invoices." Arc Command already uploads and
+   caps it (512px / 150KB) and both registers already read it through
+   fsBrandLogo(), which returns "" when there is none — so "otherwise none" is
+   already the accessor's behaviour and no call site needs a branch.
+
+   THE FREEZE, AND WHY IT IS A REFERENCE AND NOT THE BYTES. Pass 57 [57-1]
+   ruled that anything printed on the document freezes WITH the document:
+   "read live they would make a reprint differ from the document the customer
+   holds." That applies to a logo exactly as it applies to bank details. But a
+   150KB image copied into every invoice snapshot would put 30MB into a
+   register Reece backs up by hand at 200 invoices. So the register keeps ONE
+   copy per distinct image under a content key, and the snapshot freezes the
+   KEY. Re-brand a client and old invoices still print the logo they were
+   issued with, at the cost of one stored copy per distinct logo — not per
+   invoice. Reece chose this over both alternatives, 18 Aug.                 */
+function fsLogoKey(d) {
+  const s = String(d || "");
+  if (!s) return "";
+  /* djb2 over the data URL. This is a CONTENT KEY, not a security hash — it
+     only has to distinguish one client's logo from another's. */
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return "L" + h.toString(36) + s.length.toString(36);
+}
+function fsLogoStore() {
+  if (!fsRegister) return {};
+  if (!fsRegister.logos || typeof fsRegister.logos !== "object") fsRegister.logos = {};
+  return fsRegister.logos;
+}
+/* Called at ISSUE time only. A draft has nothing frozen and prints nothing. */
+function fsLogoFreeze() {
+  const d = fsBrandLogo();
+  if (!d) return "";
+  const k = fsLogoKey(d), st = fsLogoStore();
+  if (!st[k]) { st[k] = d; fsMarkDirty(); }
+  return k;
+}
+/* A key that is not in the store returns "" and the document prints without a
+   logo. It NEVER falls back to the current profile's logo — that would print
+   the new branding on an old invoice, which is the thing the freeze prevents. */
+function fsLogoGet(k) { return (k && fsLogoStore()[k]) || ""; }
+
+function fsDocImg(src) {
+  return new Promise(function (res) {
+    if (!src) return res(null);
+    const im = new Image();
+    im.onload = function () { res(im); };
+    im.onerror = function () { res(null); };
+    im.src = src;
+  });
+}
+
+/* THE COMPOSER. Takes a document description and draws it. Everything it
+   prints is handed to it — it resolves nothing and decides nothing, which is
+   what keeps the snapshot honest. */
+function fsDocPdf(d, fname) {
+  return fsDocImg(d.logo).then(function (logo) {
+    const W = 1240, H = 1754, M = 74, RIGHT = W - M, INNER = W - M * 2;
+    const pages = [];
+    let cx = null, y = 0;
+
+    const F = function (px, bold) {
+      cx.font = (bold ? "bold " : "") + px + "px system-ui, sans-serif";
+    };
+    const T = function (txt, x, size, bold, col) {
+      F(size, bold); cx.fillStyle = col || "#000000"; cx.textBaseline = "top";
+      cx.fillText(String(txt), x, y);
+    };
+    /* Right-alignment is MEASURED, never padded with spaces. A padded column
+       is what the old text stacker could do and it is why money never lined
+       up. */
+    const TR = function (txt, xRight, size, bold, col) {
+      F(size, bold); cx.fillStyle = col || "#000000"; cx.textBaseline = "top";
+      cx.fillText(String(txt), xRight - cx.measureText(String(txt)).width, y);
+    };
+    const wrap = function (txt, size, bold, maxw) {
+      F(size, bold);
+      const words = String(txt == null ? "" : txt).split(" ");
+      const out = []; let cur = "";
+      words.forEach(function (w) {
+        const t = cur ? cur + " " + w : w;
+        if (cx.measureText(t).width > maxw && cur) { out.push(cur); cur = w; }
+        else cur = t;
+      });
+      out.push(cur);
+      return out;
+    };
+    const rule = function (yy, col, h) {
+      cx.fillStyle = col || "#111111"; cx.fillRect(M, yy, INNER, h || 1);
+    };
+
+    /* Column geometry. Description flexes; the three numeric columns are fixed
+       and right-aligned so a four-figure amount cannot push the table ragged —
+       the failure the charges screen was checked for at 390px. */
+    const CW_AMT = 150, CW_UNIT = 130, CW_QTY = 70, GAP = 18;
+    const X_AMT = RIGHT, X_UNIT = X_AMT - CW_AMT, X_QTY = X_UNIT - CW_UNIT;
+    const X_DESC_MAX = X_QTY - CW_QTY - GAP - M;
+
+    const newPage = function () {
+      const cv = document.createElement("canvas");
+      cv.width = W; cv.height = H;
+      cx = cv.getContext("2d");
+      cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+      pages.push(cv); y = M;
+    };
+    const room = function (n) { return y + n <= H - M - 60; };
+
+    /* ---- header band: logo or business name left, document right --------- */
+    const header = function () {
+      const top = y;
+      let lh = 0;
+      if (logo) {
+        const maxW = 300, maxH = 96;
+        const sc = Math.min(maxW / logo.width, maxH / logo.height, 1);
+        const w = Math.round(logo.width * sc), h = Math.round(logo.height * sc);
+        cx.drawImage(logo, M, top, w, h);
+        lh = h;
+      } else {
+        y = top; T(d.biz.name || "", M, 30, true);
+        lh = 34;
+      }
+      y = top;
+      TR(d.title, RIGHT, 30, true);
+      y = top + 40;
+      if (d.number) { TR(d.number, RIGHT, 20, true, "#333333"); y += 26; }
+      (d.meta || []).forEach(function (m) { TR(m, RIGHT, 17, false, "#444444"); y += 22; });
+      y = Math.max(top + lh, y) + 16;
+      rule(y, "#111111", 2); y += 20;
+    };
+
+    /* ---- from / bill-to, two columns ------------------------------------- */
+    const parties = function () {
+      const top = y, colW = (INNER - 40) / 2, xr = M + colW + 40;
+      const put = function (x, label, o) {
+        y = top; T(label, x, 15, true, "#666666"); y += 21;
+        const ls = [];
+        if (o.name) ls.push([o.name, 18, true]);
+        if (o.abn) ls.push(["ABN " + o.abn, 16, false]);
+        String(o.address || "").split("\n").filter(Boolean)
+          .forEach(function (a) { ls.push([a, 16, false]); });
+        if (o.contact) ls.push([o.contact, 16, false]);
+        ls.forEach(function (p) {
+          wrap(p[0], p[1], p[2], colW).forEach(function (line) {
+            T(line, x, p[1], p[2], p[2] ? "#000000" : "#333333"); y += p[1] + 6;
+          });
+        });
+        return y;
+      };
+      const a = put(M, d.fromLabel || "From", d.biz);
+      const b = put(xr, d.party.label || "Billed to", d.party);
+      y = Math.max(a, b) + 18;
+    };
+
+    /* ---- the line table -------------------------------------------------- */
+    const tableHead = function () {
+      T(d.cols.desc || "Description", M, 15, true, "#666666");
+      TR(d.cols.qty || "Qty", X_QTY, 15, true, "#666666");
+      TR(d.cols.unit || "Unit", X_UNIT, 15, true, "#666666");
+      TR(d.cols.amount || "Amount", X_AMT, 15, true, "#666666");
+      y += 22; rule(y, "#111111", 1); y += 12;
+    };
+    const rowHeight = function (r) {
+      const n = wrap(r.desc, 18, false, X_DESC_MAX).length;
+      return n * 24 + (r.note ? 20 : 0) + 14;
+    };
+    const drawRow = function (r, i) {
+      const top = y;
+      const lines = wrap(r.desc, 18, false, X_DESC_MAX);
+      lines.forEach(function (line, k) {
+        T(line, M, 18, false); if (k < lines.length - 1) y += 24;
+      });
+      if (r.note) { y += 20; T(r.note, M, 14, false, "#777777"); }
+      const mid = top;
+      const savedY = y; y = mid;
+      if (r.qty != null) TR(r.qty, X_QTY, 18, false, "#333333");
+      if (r.unit) TR(r.unit, X_UNIT, 18, false, "#333333");
+      TR(r.amount, X_AMT, 18, r.strong === true, r.muted ? "#999999" : "#000000");
+      /* + 24 for the LAST wrapped line (the loop above only advances between
+         lines), + 14 row padding — exactly what rowHeight() reserves. Found
+         by pixel measurement, 19 Aug: without the 24 the rows sat at 14px
+         pitch under an 18px font and the inter-row hairline struck through
+         the text. test_p61 E1 pins the pitch. */
+      y = savedY + 24 + 14;
+      if (i < d.rows.length - 1) { rule(y - 7, "#e2e2e2", 1); }
+    };
+
+    /* ---- totals: never split across a page ------------------------------- */
+    const totalsHeight = function () {
+      return (d.totals || []).reduce(function (a, t) {
+        return a + (t.strong ? 34 : 26);
+      }, 16);
+    };
+    const totals = function () {
+      y += 8; rule(y, "#111111", 1); y += 14;
+      (d.totals || []).forEach(function (t) {
+        const sz = t.strong ? 22 : 17;
+        TR(t.label, X_UNIT, sz, !!t.strong, t.strong ? "#000000" : "#444444");
+        TR(t.value, X_AMT, sz, !!t.strong, t.strong ? (d.accent || "#000000") : "#333333");
+        y += t.strong ? 34 : 26;
+      });
+    };
+
+    const block = function (b) {
+      const need = 30 + b.lines.length * 24;
+      if (!room(need)) { newPage(); }
+      y += 10;
+      T(b.title, M, 15, true, "#666666"); y += 22;
+      b.lines.forEach(function (l) {
+        wrap(l, 16, false, INNER).forEach(function (line) {
+          T(line, M, 16, false, "#333333"); y += 22;
+        });
+      });
+    };
+
+    newPage();
+    header();
+    if (d.banner) {
+      T(d.banner, M, 24, true, "#b71c1c"); y += 38;
+    }
+    parties();
+    tableHead();
+    d.rows.forEach(function (r, i) {
+      if (!room(rowHeight(r))) { newPage(); tableHead(); }
+      drawRow(r, i);
+    });
+    if (!room(totalsHeight())) newPage();
+    totals();
+    (d.blocks || []).forEach(block);
+
+    pages.forEach(function (pg, i) {
+      const c = pg.getContext("2d");
+      c.fillStyle = "#888888";
+      c.font = "15px system-ui, sans-serif";
+      c.textBaseline = "top";
+      /* [61-5] THE FOOTER CARRIES THE BUSINESS, NEVER THE APPLICATION.
+         fsQuotePdf used fsDocBrand(), which is fsCoName() || "EverDue" — so a
+         register with no profile loaded printed the APP'S NAME on a document
+         that goes to a customer. Reece, 18 Aug: "I would want the clientt's
+         logo not the arc adapt or everdue one" — he said it about the logo
+         without knowing the name was already doing it. */
+      c.fillText(d.footer + "  —  page " + (i + 1) + " of " + pages.length, M, H - 46);
+    });
+    /* Same delivery seam fsLinesPdf uses — fsCanvasesToPdf returns a Blob and
+       deliverFile does the rest. Nothing new in the download path. */
+    deliverFile(fsCanvasesToPdf(pages), fname, "application/pdf");
+    return true;
+  });
+}
+/* ===== end PASS 61 ========================================================= */
 
 
 /* ===== PASS 52 — THE INVOICE SCREEN ========================================
@@ -20726,7 +21048,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v69";
+const FS_BUILD = "aa-v70";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
