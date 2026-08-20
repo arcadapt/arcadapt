@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.71 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.72 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -440,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.71 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.72 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -12601,7 +12601,12 @@ function fsPick(title, rows, opts) {
     const draw = () => {
       listEl.innerHTML = view.length
         ? view.map((r, i) =>
+            /* PASS 67 [67-5] — a DOOR is marked in the DOM as a door. Without
+               this the only way to tell "Not in the register" from a site is
+               to read its label, which is exactly the guess that let the
+               count drift in V0.71. */
             '<div class="fsPkRow" data-i="' + i + '" data-k="' + fsEsc(String(r.k == null ? i : r.k)) + '"' +
+            (r.extra ? ' data-extra="1"' : '') +
             ' style="padding:11px 12px;min-height:44px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;' +
             (i ? 'border-top:1px solid #33383f;' : '') +
             (i === sel ? 'background:var(--fs-accent,#2596ab);color:#08191d;' : '') + '">' +
@@ -12610,9 +12615,16 @@ function fsPick(title, rows, opts) {
             '</div>').join("")
         : '<div style="padding:15px;font-size:13px;color:#8b979d">Nothing matches that.</div>';
       /* Honest about what is on screen. The old prompt() silently hid row 61. */
-      countEl.textContent = view.length === all.length
-        ? all.length + (all.length === 1 ? " entry" : " entries")
-        : view.length + " of " + all.length + " shown";
+      /* PASS 67 [67-5] — THE COUNT DESCRIBES THE THINGS YOU ARE CHOOSING
+         FROM, NOT THE ESCAPE HATCH. Pass 66 [66-2] added a "Not in the
+         register" row here and the count counted it, so 75 sites read
+         "76 entries" and a filter read "1 of 76 shown". That shipped in
+         V0.71. Rows marked `extra` are doors, not data. */
+      const dataAll = all.filter(function (r) { return !r.extra; });
+      const dataView = view.filter(function (r) { return !r.extra; });
+      countEl.textContent = dataView.length === dataAll.length
+        ? dataAll.length + (dataAll.length === 1 ? " entry" : " entries")
+        : dataView.length + " of " + dataAll.length + " shown";
       okBtn.disabled = !view.length;
       okBtn.style.opacity = view.length ? "1" : ".45";
       listEl.querySelectorAll(".fsPkRow").forEach(el => {
@@ -14618,7 +14630,9 @@ async function fsQuoteStart() {
      that no longer render; it stays for the day the row moves. */
   const hit = await fsPick("Which site is this quote for?",
     list.map((x, i) => ({ k: i, label: x.site, sub: x.client }))
-        .concat([{ k: -1, label: "Not in the register", sub: "Type the customer and site yourself" }]),
+        /* PASS 67 [67-5] — `extra` marks this as a DOOR, not a site, so the
+           picker's count stops claiming there is one more site than there is. */
+        .concat([{ k: -1, extra: true, label: "Not in the register", sub: "Type the customer and site yourself" }]),
     { confirm: "Start quote",
       empty: "There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later." });
   if (!hit) return null;
@@ -15514,6 +15528,86 @@ function fsInvoiceWork(inv) { return inv && inv.workId ? fsWorkFind(inv.workId) 
    "No number until issued". A VOID invoice prints — [52-5]: readable for
    ever includes handing it to an auditor — marked VOID in red with date and
    reason, via the "f" tag fsLinesPdf already renders red.                  */
+/* PASS 67 [67-2] — THE INDEX IS THE WHOLE PASS. Returns the position of a
+   payment in the invoice's ledger, or -1. fsInvoicePayments filters the
+   payments array and fsPaymentAdd pushes, so position IS arrival order.
+   NOTHING IN THIS PATH SORTS: p.date is user-editable and defaults to today,
+   so a payment recorded on the 25th can carry the 3rd. Sum "dated on or
+   before mine" and a back-dated payment entered LATER changes the balance on
+   a receipt the customer is already holding. */
+function fsReceiptIndex(inv, payId) {
+  if (!inv) return -1;
+  const ps = fsInvoicePayments(inv.id);
+  for (let i = 0; i < ps.length; i++) if (ps[i].id === payId) return i;
+  return -1;
+}
+/* PASS 67 [67-3] — derived from an immutable invoice number and an
+   append-only position, so it cannot collide and needs no ledger of its own.
+   [51-3]'s allocator exists because duplicate TAX INVOICE numbers surface at
+   an audit; a receipt does not need that machinery and must not inherit its
+   failure mode by having a second copy of it. */
+function fsReceiptNumber(inv, idx) {
+  return String((inv && inv.number) || "") + "-R" + (idx + 1);
+}
+/* PASS 67 [67-1] — NO SNAPSHOT. Everything below is already immutable: the
+   totals are inv.issued's (frozen at issue) and the payments are append-only
+   ([52-4]). Storing a receipt blob would be a second source of truth for
+   figures that cannot change.
+   THE TAX BOUNDARY: this reproduces frozen figures and subtracts recorded
+   payments from them. It never calls fsDocTotals and never reads taxUsed —
+   the same rule fsInvoicePdf follows, for [51-4]'s reason. */
+function fsReceiptPdf(payId) {
+  const p = fsPayments().filter(function (x) { return x.id === payId; })[0];
+  if (!p) return false;
+  const inv = fsInvoiceFind(p.invoiceId);
+  if (!inv || !inv.issued) return false;
+  const idx = fsReceiptIndex(inv, payId);
+  if (idx < 0) return false;
+  const upto = fsInvoicePayments(inv.id).slice(0, idx + 1);
+  const s = inv.issued;
+  const b = s.business || {}, c = s.customer || {};
+  const total = s.totalCents | 0;
+  const paid = upto.reduce(function (n, x) { return n + (x.amountCents | 0); }, 0);
+  const bal = total - paid;
+  const rows = upto.map(function (x) {
+    const neg = (x.amountCents | 0) < 0;
+    return { desc: fsDocDate(x.date) +
+                   (x.method ? "   " + x.method : "") +
+                   (x.reference ? "   " + x.reference : "") +
+                   (neg ? "   (correction)" : ""),
+             qty: "", unit: "", amount: FSMoney.fmt(x.amountCents | 0) };
+  });
+  const totals = [
+    { label: "Invoice total", value: FSMoney.fmt(total) },
+    { label: "Paid to date", value: FSMoney.fmt(paid) },
+    /* the same words Pass 64 [64-4] put on the badge, so the screen and the
+       document cannot disagree about the same state */
+    bal < 0 ? { label: "Overpaid by", value: FSMoney.fmt(-bal), strong: true }
+            : { label: "Balance", value: FSMoney.fmt(bal), strong: true }
+  ];
+  const num = fsReceiptNumber(inv, idx);
+  const stamp = num.replace(/[^A-Za-z0-9_-]+/g, "-");
+  return fsDocPdf({
+    title: "RECEIPT",
+    number: num,
+    meta: ["Payment received: " + fsDocDate(p.date),
+           "For invoice " + String(s.number || inv.number || "")],
+    banner: "",
+    logo: fsLogoGet(s.logoKey || ""),
+    biz: { name: b.name || "", abn: b.abn || "", address: b.address || "",
+           contact: [b.phone, b.email].filter(Boolean).join("   ") },
+    party: { label: "Received from", name: c.name || "", abn: c.abn || "",
+             address: c.address || "" },
+    /* A receipt has ONE column of substance. The composer falls back to
+       "Qty"/"Unit" on an empty string, so a single space is how a two-column
+       table is expressed WITHOUT forking fsDocPdf — which every other
+       document depends on and which this pass has no business changing. */
+    cols: { desc: "Payment received", qty: " ", unit: " ", amount: "Amount" },
+    rows: rows, totals: totals, blocks: [],
+    accent: "#0f5e6b",
+    footer: [b.name || "", "receipt " + num].filter(Boolean).join(" — ")
+  }, "receipt-" + stamp + ".pdf");
+}
 function fsInvoicePdf(inv) {
   if (!inv || !inv.issued) return false;
   const s = inv.issued;
@@ -15936,6 +16030,14 @@ function fsInvScreenWire(invId) {
     }
     fsMarkDirty(); rd();
   };
+  /* PASS 67 [67-4] — self-contained on purpose: the handler resolves the
+     invoice from the PAYMENT's own invoiceId, so both screens that render
+     this form wire it the same way with no closure over their own `inv`.
+     NO EXTRA GATE — the whole invoice surface is already behind
+     money.invoices, and a second guard on one decision is [65-3]. */
+  Array.prototype.forEach.call(document.querySelectorAll(".fsInvReceipt"), function (a) {
+    a.onclick = function () { fsReceiptPdf(a.dataset.id); };
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".fsInvCorrect"), function (a) {
     a.onclick = function () {
       const inv = fsInvoiceFind(invId);
@@ -16434,6 +16536,12 @@ function fsInvPayRows(inv) {
          ([63-1]); this link wearing it made a normal part payment look
          like a fault. */
       (neg ? '' : '<a class="fsInvCorrect" data-id="' + fsEsc(p.id) + '" style="color:var(--fs-sub2);cursor:pointer;font-size:12px;text-decoration:underline">Correct</a>') +
+      /* PASS 67 [67-4] — the door sits on the row it belongs to, which is the
+         screen the user is already standing on when they ask what is still
+         owed ([66-2]). A CORRECTION GETS NO RECEIPT: a reversal is not a
+         receipt. It still appears as a ROW inside any later receipt, which is
+         [52-4] working rather than being worked around. */
+      (neg ? '' : '<a class="fsInvReceipt" data-id="' + fsEsc(p.id) + '" style="color:var(--fs-sub2);cursor:pointer;font-size:12px;text-decoration:underline">Receipt</a>') +
       '</div>';
   }).join("") + '</div>';
 }
@@ -16665,6 +16773,14 @@ function fsInvSectionWire(q, redraw) {
     }
     fsMarkDirty(); rd();
   };
+  /* PASS 67 [67-4] — self-contained on purpose: the handler resolves the
+     invoice from the PAYMENT's own invoiceId, so both screens that render
+     this form wire it the same way with no closure over their own `inv`.
+     NO EXTRA GATE — the whole invoice surface is already behind
+     money.invoices, and a second guard on one decision is [65-3]. */
+  Array.prototype.forEach.call(document.querySelectorAll(".fsInvReceipt"), function (a) {
+    a.onclick = function () { fsReceiptPdf(a.dataset.id); };
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".fsInvCorrect"), function (a) {
     a.onclick = function () {
       const w = fsWorkForQuote(q.id);
@@ -21269,7 +21385,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v75";
+const FS_BUILD = "aa-v76";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
