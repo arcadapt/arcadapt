@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.70 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.71 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -440,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.70 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.71 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -14402,7 +14402,6 @@ function fsTaxNote(doc, tot) {
 
 let fsQuoteId = null;      /* the quote currently open in the editor */
 let fsQuoteBack = "pipe";  /* where the back link returns to */
-let fsQlShowScratch = false;  /* scratch quotes are hidden from the main list */
 
 const FS_QSTATUS = [
   { k: "draft",    label: "Draft",    col: "#7a7a7a" },
@@ -14611,11 +14610,19 @@ function fsQuoteSites() {
    captured from the SITE at creation, exactly as it is for a defect quote. */
 async function fsQuoteStart() {
   const list = fsQuoteSites();
+  /* PASS 66 [66-2] — ONE DOOR, BOTH HAND-BUILT FLAVOURS. The typed path is
+     the picker's last row instead of a second button; the register stays the
+     first-class answer. k === -1 hands over to the same typed editor [56-2]
+     gives Simple-only profiles — same object, same money core. With the row
+     always present the picker is never empty, so the empty copy is bytes
+     that no longer render; it stays for the day the row moves. */
   const hit = await fsPick("Which site is this quote for?",
-    list.map((x, i) => ({ k: i, label: x.site, sub: x.client })),
+    list.map((x, i) => ({ k: i, label: x.site, sub: x.client }))
+        .concat([{ k: -1, label: "Not in the register", sub: "Type the customer and site yourself" }]),
     { confirm: "Start quote",
       empty: "There are no sites in the register yet.\n\nA quote is raised against a client and a site so it still reads correctly months later." });
   if (!hit) return null;
+  if (hit.k === -1) return fsQuoteScratch();
   const x = list[hit.k];
   const q = fsQuoteNew({ client: x.client, site: x.site, c: x.c, s: x.s, node: x.s });
   fsMarkDirty();
@@ -14645,8 +14652,6 @@ function fsQuoteScratch() {
   fsMarkDirty();
   return q;
 }
-function fsScratchOnly(list) { return list.filter(q => !!q.scratch); }
-function fsRealOnly(list) { return list.filter(q => !q.scratch); }
 /* One blank line. Cents stay an INTEGER always — blank is priced:false, never
    null, because the money core refuses a null and 0 is not the same as "unset". */
 function fsScratchAddLine(q) {
@@ -14740,53 +14745,41 @@ function fsQuoteDefect(q) {
 function fsQuoteListRender() {
   const wrap = document.getElementById("fsDashView");
   const all = fsQuotes().slice().sort((a, b) => String(b.created).localeCompare(String(a.created)));
-  /* Scratch quotes are kept but hidden, so the list of real work stays clean. */
-  const nScratch = fsScratchOnly(all).length;
-  const qs = fsQlShowScratch ? fsScratchOnly(all) : fsRealOnly(all);
+  /* PASS 66 [66-1] — ONE LIST. "Scratch" retired as a concept: a typed quote
+     is a draft quote, and the primary door's output is visible where quotes
+     live. Records keep their stored scratch flag — provenance, never
+     rewritten — and the number-sequence and no-send locks are untouched. */
+  const qs = all;
   let html = '<div style="margin-bottom:12px"><a id="fsQlBack" class="fsCrumb">&#8592; Office</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">&#128195; Quotes</h2>' +
     fsQlButtons() +
     '<button class="fsbtn" id="fsQlSeq">&#128290; Numbering</button>' +
     '<button class="fsbtn" id="fsQlAcct">&#127974; Accounting setup</button></div>';
-  if (nScratch) {
-    html += '<div style="display:flex;gap:6px;margin-bottom:10px">' +
-      '<a id="fsQlTog" style="cursor:pointer;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:13px;' +
-      (fsQlShowScratch ? 'background:#6b5ea8;color:#fff' : 'background:#1a1d21;color:var(--fs-sub);border:1px solid var(--fs-border)') +
-      '">&#9998; Scratch (' + nScratch + ')</a>' +
-      (fsQlShowScratch ? '<a id="fsQlTogBack" style="cursor:pointer;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:13px;background:#1a1d21;color:var(--fs-sub);border:1px solid var(--fs-border)">&#8592; Real quotes</a>' : '') +
-      '</div>';
-  }
   html += '<div class="fscard" style="padding:4px 14px">';
   if (!qs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">' +
-    (fsQlShowScratch
-      ? 'No scratch quotes.'
-      : 'No quotes yet. Start one from a defect on the Defect pipeline, press &#65291; New quote for work with no defect behind it, or &#9998; Scratch quote to type one from nothing.') + '</div>';
+    'No quotes yet. Press &#65291; New quote to build one' +
+    (fsQlDoors().fromDefects ? ', or raise one from a defect with Quote from defects' : '') + '.</div>';
   qs.forEach((q, i) => {
     const st = fsQStat(q), tot = fsQuoteTotals(q);
     html += '<div class="fsQlRow" data-id="' + fsEsc(q.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.scratch ? (q.ref || "Scratch quote") : (q.number || "Draft")) + ' &middot; ' +
-          fsEsc(q.scratch ? (q.clientName || "(no customer yet)") : (q.defectDesc || (q.defectId ? "(no defect)" : "Quoted work"))) + '</div>' +
+        '<div style="font-size:14px;font-weight:600">' + fsEsc(q.number || q.ref || "Draft") + ' &middot; ' +
+          fsEsc(q.defectDesc || q.clientName || (q.scratch ? "(no customer yet)" : q.defectId ? "(no defect)" : "Quoted work")) + '</div>' +
         '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(q.siteName) + (q.where ? ' &middot; ' + fsEsc(q.where) : '') +
         ' &middot; ' + fsEsc(String(q.created).slice(0, 10)) + ' &middot; ' + q.lines.length + ' line' + (q.lines.length === 1 ? '' : 's') + '</div></div>' +
       '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsEsc(FSMoney.fmt(tot.subtotalCents)) + '</span>' +
-      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + (q.scratch ? '#6b5ea8' : st.col) + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(q.scratch ? "Scratch" : st.label) + '</span></div>';
+      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(st.label) + '</span></div>';
   });
   html += '</div>';
   wrap.innerHTML = html;
   document.getElementById("fsQlBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsQlAcct").onclick = fsAcctSetup;
-  /* PASS 56 — either of these two can be absent now. */
-  const qlScratchBtn = document.getElementById("fsQlScratch");
-  if (qlScratchBtn) qlScratchBtn.onclick = () => {
-    const q = fsQuoteScratch();
-    fsQuoteId = q.id; fsQuoteBack = "list"; fsDashMode = "quote"; fsScratchRender(q);
-  };
-  const tog = document.getElementById("fsQlTog");
-  if (tog) tog.onclick = () => { fsQlShowScratch = !fsQlShowScratch; fsQuoteListRender(); };
-  const togB = document.getElementById("fsQlTogBack");
-  if (togB) togB.onclick = () => { fsQlShowScratch = false; fsQuoteListRender(); };
+  /* PASS 66 [66-2] — the specialist door goes to its source. Absent when
+     defects are off or pipeline mode is not on; fsQlDoors decided that where
+     the buttons were built, and this only wires what was rendered. */
+  const qlFromDef = document.getElementById("fsQlFromDef");
+  if (qlFromDef) qlFromDef.onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
   const qlNewBtn = document.getElementById("fsQlNew");
   if (qlNewBtn) qlNewBtn.onclick = async () => {
     /* [56-2] On a Simple-only profile the ONE button opens the scratch
@@ -14831,7 +14824,7 @@ function fsQuoteRender() {
   const locked = q.status !== "draft";
 
   let html = '<div style="margin-bottom:12px"><a id="fsQBack" class="fsCrumb">&#8592; ' +
-    (fsQuoteBack === "list" ? 'Quotes' : 'Defect pipeline') + '</a></div>';
+    ((fsQuoteBack === "list" || !fsSiteFeatOn("defects")) ? 'Quotes' : 'Defect pipeline') + '</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
     '<h2 style="font-size:20px;flex:1;min-width:150px">' + fsEsc(q.number || "New quote") + '</h2>' +
     '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 10px">' + fsEsc(st.label) + '</span></div>';
@@ -14960,7 +14953,8 @@ function fsQuoteRender() {
 
   document.getElementById("fsQBack").onclick = () => {
     if (fsQuoteBack === "list") { fsDashMode = "quotes"; fsQuoteListRender(); }
-    else { fsDashMode = "pipeline"; fsPipeRender(); }
+    else if (fsSiteFeatOn("defects")) { fsDashMode = "pipeline"; fsPipeRender(); }
+    else { fsDashMode = "quotes"; fsQuoteListRender(); }   /* PASS 66 [66-3] — no route into a hidden surface */
   };
 
   const pick = async (title, list, fn) => {
@@ -15085,8 +15079,8 @@ function fsScratchRender(q) {
 
   let html = '<div style="margin-bottom:12px"><a id="fsQBack" class="fsCrumb">&#8592; Quotes</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
-    '<h2 style="font-size:20px;flex:1;min-width:150px">' + fsEsc(q.ref || "Scratch quote") + '</h2>' +
-    '<span style="font-size:11px;font-weight:800;color:#fff;background:#6b5ea8;border-radius:11px;padding:2px 10px">Scratch</span></div>';
+    '<h2 style="font-size:20px;flex:1;min-width:150px">' + fsEsc(q.ref || "New quote") + '</h2>' +
+    '<span style="font-size:11px;font-weight:800;color:#fff;background:' + fsQStat(q).col + ';border-radius:11px;padding:2px 10px">' + fsEsc(fsQStat(q).label) + '</span></div>';
 
   html += '<div class="fscard" style="padding:14px;margin-bottom:10px">' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
@@ -15163,7 +15157,7 @@ function fsScratchRender(q) {
   document.getElementById("fsScPdf").onclick = () => fsQuotePdf(q);
   document.getElementById("fsScAcct").onclick = () => fsAcctExport(q);
   document.getElementById("fsScDel2").onclick = () => {
-    if (!confirm("Delete this scratch quote?\n\nNothing else is affected.")) return;
+    if (!confirm("Delete this draft quote?\n\nNothing else is affected.")) return;
     const arr = fsQuotes();
     arr.splice(arr.indexOf(q), 1);
     fsQuoteId = null; fsMarkDirty();
@@ -16585,7 +16579,7 @@ function fsInvSectionHtml(w) {
     fsInvWhoHtml();
   if (!inv) {
     h += '<div style="font-size:13px;color:var(--fs-sub2);margin-bottom:8px">This work is complete and has not been invoiced.</div>' +
-      '<button class="fsbtnP" id="fsQMkInv">Create invoice</button>';
+      '<button class="fsbtnP" id="fsQMkInv">Invoice from completed work</button>';
   } else {
     h += fsInvCardHtml(inv);
   }
@@ -17065,11 +17059,22 @@ function fsQuotingAny() { const m = fsQuoteModes(); return !!(m.simple || m.pipe
    The primary button keeps ONE id and ONE label in every mode — a client on
    Simple should not be told there is a "Scratch" kind of quote, because for
    them it is the only kind.                                                  */
-function fsQlButtons() {
+/* PASS 66 [66-2] — TWO NAMED DOORS, ONE DECIDER. The generic name belongs to
+   the common path ("New quote", hand-built); the specialist path is named for
+   its source ("Quote from defects") and is GONE — not lower in the list —
+   when defects are off. That is GAP-3's whole point, and it is what makes
+   GAP-2 pay off. The buttons and the empty-state copy both read this;
+   neither restates it. */
+function fsQlDoors() {
   const m = fsQuoteModes();
+  return { hand: !!(m.simple || m.pipeline),
+           fromDefects: !!(m.pipeline && fsSiteFeatOn("defects")) };
+}
+function fsQlButtons() {
+  const d = fsQlDoors();
   let h = '';
-  if (m.simple || m.pipeline) h += '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>';
-  if (m.simple && m.pipeline) h += '<button class="fsbtn" id="fsQlScratch">&#9998; Scratch quote</button>';
+  if (d.hand) h += '<button class="fsbtnP" id="fsQlNew">&#65291; New quote</button>';
+  if (d.fromDefects) h += '<button class="fsbtn" id="fsQlFromDef">&#129518; Quote from defects</button>';
   return h;
 }
 /* ===== end PASS 56 ========================================================= */
@@ -17328,6 +17333,10 @@ function fsDashRows() {
   return rows;
 }
 function fsDashRender() {
+  /* PASS 66 [66-3] — fsDashMode IS STICKY, exactly as fsTab was in [65-2]:
+     hidden in the strip must not mean still on screen. Runs before the
+     dispatch below so the surface cannot render once the feature is off. */
+  if (fsDashMode === "pipeline" && !fsSiteFeatOn("defects")) fsDashMode = "sites";
   if (fsDashMode === "pipeline") return fsPipeRender();
   if (fsDashMode === "book") return fsBookRender();
   if (fsDashMode === "quotes") return fsQuoteListRender();
@@ -17342,9 +17351,9 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:19px;height:19px;vertical-align:-2px;margin-right:7px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</h2>' +
-    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button><button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button>' + (fsSiteFeatOn("defects") ? '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' : '') + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
-  html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") + '</div>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + (fsSiteFeatOn("defects") ? chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") : '') + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
   rows.forEach((r, i) => {
     const cyc = fsCycles().map(cy => { const st = fsCycleStatus(r.s, cy); return st.txt === "No record" ? "" : '<span style="font-size:11px;color:' + st.col + ';font-weight:700;white-space:nowrap">' + cy.label + ": " + st.txt + '</span>'; }).filter(Boolean).join(' <span style="color:var(--fs-border)">|</span> ');
@@ -17352,14 +17361,16 @@ function fsDashRender() {
       '<span style="width:10px;height:10px;border-radius:50%;flex:none;background:' + fsSiteWorstDot(r.s) + '"></span>' +
       '<span style="flex:1;min-width:0"><b style="font-size:14px">' + fsEsc(r.s.name) + '</b> <span style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(r.c.name) + '</span><br>' +
       '<span>' + (cyc || '<span style="font-size:11px;color:var(--fs-sub2)">No tests recorded</span>') + '</span></span>' +
-      (r.def ? '<span style="font-size:11.5px;font-weight:800;color:#fff;background:#c62828;border-radius:12px;padding:2px 9px;flex:none">' + r.def + ' defect' + (r.def === 1 ? '' : 's') + '</span>' : '') + '</div>';
+      ((r.def && fsSiteFeatOn("defects")) ? '<span style="font-size:11.5px;font-weight:800;color:#fff;background:#c62828;border-radius:12px;padding:2px 9px;flex:none">' + r.def + ' defect' + (r.def === 1 ? '' : 's') + '</span>' : '') + '</div>';
   });
   html += '</div>';
   wrap.innerHTML = html;
   document.getElementById("fsDashBack").onclick = () => fsShow("fsClientsView");
   document.getElementById("fsDashPdf").onclick = fsDashPdf;
   document.getElementById("fsDashLibBtn").onclick = fsLibOpen;
-  document.getElementById("fsPipeBtn").onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
+  /* PASS 66 [66-3] — gated exactly as the button is rendered ([59]'s rule). */
+  const pipeBtn = document.getElementById("fsPipeBtn");
+  if (pipeBtn) pipeBtn.onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
   document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
   const qBtn = document.getElementById("fsQuotesBtn");
   if (qBtn) qBtn.onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
@@ -17379,11 +17390,11 @@ function fsDashPdf() {
   const over = rows.filter(r => r.days !== null && r.days < 0).length;
   const defs = rows.reduce((a, r) => a + r.def, 0);
   const lines = [["h", "Portfolio overview \u2014 " + new Date().toISOString().slice(0, 10)]];
-  lines.push(["t", rows.length + " sites \u00b7 " + over + " overdue \u00b7 " + defs + " open defects"]);
+  lines.push(["t", rows.length + " sites \u00b7 " + over + " overdue" + (fsSiteFeatOn("defects") ? " \u00b7 " + defs + " open defects" : "")]);
   rows.forEach(r => {
     lines.push(["b", r.s.name + "  (" + r.c.name + ")"]);
     fsCycles().forEach(cy => { const st = fsCycleStatus(r.s, cy); if (st.txt !== "No record") lines.push([st.overdue ? "f" : "t", "  " + cy.label + ": " + st.txt]); });
-    if (r.def) lines.push(["f", "  Open defects: " + r.def]);
+    if (r.def && fsSiteFeatOn("defects")) lines.push(["f", "  Open defects: " + r.def]);
     if (r.last) lines.push(["t", "  Last test finished: " + r.last]);
   });
   fsLinesPdf(lines, fsDocBrand() + " portfolio overview", "portfolio-" + new Date().toISOString().slice(0, 10) + ".pdf");
@@ -21258,7 +21269,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v74";
+const FS_BUILD = "aa-v75";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
