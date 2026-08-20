@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.73 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.74 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -440,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.73 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.74 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1269,6 +1269,14 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <input id="fsBizAddr" autocomplete="off" placeholder="Address" class="fsBizIn">
     <input id="fsBizPhone" autocomplete="off" placeholder="Phone" class="fsBizIn">
     <input id="fsBizEmail" autocomplete="off" placeholder="Email" class="fsBizIn">
+
+    <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Payment details</div>
+    <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">These print on your invoices so a customer knows where to pay. Leave them blank and the payment block is left off the document entirely.</div>
+    <input id="fsBizAccName" autocomplete="off" placeholder="Account name" class="fsBizIn">
+    <input id="fsBizBsb" autocomplete="off" inputmode="numeric" placeholder="BSB, e.g. 062-000" class="fsBizIn">
+    <input id="fsBizAcct" autocomplete="off" inputmode="numeric" placeholder="Account number" class="fsBizIn">
+    <div id="fsBizBankErr" style="display:none;font-size:11.5px;color:#ff8a7a;margin-bottom:6px"></div>
+    <div id="fsBizBankWarn" style="display:none;font-size:11.5px;color:#b58900;margin-bottom:6px"></div>
 
     <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Tax</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="fsBizGst"> This business is registered for GST</label>
@@ -14240,6 +14248,12 @@ const FS_BIZ_DEF = {
   name: "", abn: "", address: "", phone: "", email: "",
   gstRegistered: false, defaultTaxCode: "", lineAmountsInclusive: false,
   invoicePrefix: "INV-", terms: "", bankDetails: "", footer: "",
+  /* PASS 66c [66c-1] — STRUCTURED BANK DETAILS, ADDED BESIDE THE FREE TEXT
+     ABOVE, NEVER INSTEAD OF IT. Every invoice issued before this pass froze
+     only `bankDetails`; drop that and every historic invoice reprints with no
+     payment block, which silently changes documents customers already hold.
+     [57]'s reproducibility rule forbids exactly that. */
+  bank: { accName: "", bsb: "", acct: "" },
   /* PASS 51 [51-7] — §7 Q4. `terms` above is FREE TEXT for the printed
      document; this is the NUMBER the due date is computed from. Without it
      every invoice needs a date typed by hand and `overdue` never means
@@ -15410,6 +15424,14 @@ function fsInvoiceIssue(inv) {
                    they freeze WITH the document. Read live they would make a
                    reprint differ from the document the customer holds. */
                 bankDetails: b.bankDetails || "", terms: b.terms || "",
+                /* PASS 66c [66c-1] — frozen at issue like everything else on
+                   the document. Changing banks must NOT rewrite the payment
+                   details on invoices already sent. Stored normalised (digits
+                   only) so a later display change cannot alter a frozen
+                   record. null when incomplete, so the snapshot never carries
+                   half an account. The line ABOVE is deliberately unchanged:
+                   test_p57 E2 pins it, and old snapshots need it. */
+                bank: fsBankOf(b.bank),
                 footer: b.footer || "" },
     /* ATO: at $1,000 or more the BUYER's identity or ABN is required too.
        Snapshotted rather than resolved at render time, so the document stays
@@ -15650,8 +15672,21 @@ function fsInvoicePdf(inv) {
     totals.push({ label: "Total", value: FSMoney.fmt((s.totalCents != null ? s.totalCents : s.subtotalCents) | 0), strong: true });
   }
   const blocks = [];
-  if (b.bankDetails || b.terms) {
-    blocks.push({ title: "Payment", lines: String(b.bankDetails || "").split("\n")
+  /* PASS 66c [66c-2] — STRUCTURED WINS, FREE TEXT IS THE FALLBACK, DECIDED
+     PER SNAPSHOT. `b` here is s.business, the FROZEN snapshot — never the
+     live business record, because reading live state in the print path is how
+     a reprint stops matching the document the customer is holding.
+     THE IDENTIFIER FOR THE LIVE RECORD IS DELIBERATELY NOT WRITTEN ANYWHERE
+     IN THIS FUNCTION, INCLUDING IN A COMMENT. test_p57 E1 enforces the rule
+     by scanning the function body for it as a SUBSTRING, so a comment saying
+     "never call it here" fails the check that the comment is describing.
+     Caught by that suite when this pass first ran. A snapshot has structured details or it has the old string;
+     it is never both, so there is no second source of truth for one document
+     ([51-5]). Invoices issued before Pass 66c keep printing byte-identically. */
+  const bankLines = fsBankLines(b.bank);
+  if (bankLines.length || b.bankDetails || b.terms) {
+    blocks.push({ title: "Payment", lines: bankLines
+      .concat(bankLines.length ? [] : String(b.bankDetails || "").split("\n"))
       .concat(String(b.terms || "").split("\n")).filter(Boolean) });
   }
   if (b.footer) blocks.push({ title: "", lines: String(b.footer).split("\n").filter(Boolean) });
@@ -16188,6 +16223,58 @@ function fsDocImg(src) {
    what keeps the snapshot honest. */
 /* PASS 64 [64-6] — the DOCUMENT says "20 Aug 2026". The RECORD keeps its
    ISO string untouched ([58-3]); this renders, it does not store. */
+/* ===== PASS 66c — bank details ============================================
+   Pure string handling. No DOM, no money arithmetic, no tax. */
+function fsBankDigits(v) { return String(v == null ? "" : v).replace(/[^0-9]/g, ""); }
+/* A BSB is SIX DIGITS — that part is an actual Australian standard, so it is
+   the one thing here that is validated hard. Displayed XXX-XXX because that
+   is how every bank prints it and how a customer will read it back. */
+function fsBsbFmt(v) {
+  const d = fsBankDigits(v);
+  return d.length === 6 ? d.slice(0, 3) + "-" + d.slice(3) : d;
+}
+/* [66c-3] THE ACCOUNT LENGTH IS A WARNING, NOT A REFUSAL, AND THE COMMENT IS
+   THE RECORD OF WHY. Current sources disagree — 6-9, 6-10, 8-12 — and NAB's
+   own is 9: the length is set per institution, not by a standard. A hard gate
+   at 6-10 would refuse REAL accounts, and a user who cannot save their real
+   number puts it in the free-text box instead, losing all of this. Tighten to
+   a refusal only if a pilot proves 6-10 is universal; loosening a shipped
+   refusal is far harder, because by then people have worked around it. */
+const FS_ACCT_HARD = [5, 12];   // outside this, refuse — it cannot be an account
+const FS_ACCT_SOFT = [6, 10];   // outside this, warn and let the user proceed
+function fsBankCheck(bsb, acct) {
+  const b = fsBankDigits(bsb), a = fsBankDigits(acct);
+  if (!b && !a) return { ok: true, empty: true, err: "", warn: "" };
+  if (b.length !== 6)
+    return { ok: false, empty: false, warn: "",
+             err: "A BSB is exactly 6 digits, like 062-000. That is " + b.length + "." };
+  if (a.length < FS_ACCT_HARD[0] || a.length > FS_ACCT_HARD[1])
+    return { ok: false, empty: false, warn: "",
+             err: "An account number is between " + FS_ACCT_HARD[0] + " and " +
+                  FS_ACCT_HARD[1] + " digits. That is " + a.length + "." };
+  if (a.length < FS_ACCT_SOFT[0] || a.length > FS_ACCT_SOFT[1])
+    return { ok: true, empty: false, err: "",
+             warn: "Most Australian account numbers are " + FS_ACCT_SOFT[0] + "-" +
+                   FS_ACCT_SOFT[1] + " digits and this one is " + a.length +
+                   ". Check it against your bank statement before you save." };
+  return { ok: true, empty: false, err: "", warn: "" };
+}
+/* [66c-5] A HALF-FILLED PAIR RENDERS NOTHING. Half a bank account on an
+   invoice is worse than none, because it looks payable. */
+function fsBankOf(o) {
+  const k = o || {};
+  const b = fsBankDigits(k.bsb), a = fsBankDigits(k.acct);
+  if (b.length !== 6 || a.length < FS_ACCT_HARD[0] || a.length > FS_ACCT_HARD[1]) return null;
+  return { accName: String(k.accName || ""), bsb: b, acct: a };
+}
+function fsBankLines(o) {
+  const k = fsBankOf(o);
+  if (!k) return [];
+  return [k.accName ? "Account name: " + k.accName : "",
+          "BSB: " + fsBsbFmt(k.bsb),
+          "Account: " + k.acct].filter(Boolean);
+}
+/* ===== end PASS 66c bank details ========================================== */
 function fsDocDate(iso) {
   const t = String(iso == null ? "" : iso).slice(0, 10);
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
@@ -21350,9 +21437,15 @@ function fsBizTaxRender() {
 function fsBizOpen() {
   if (!fsRegister) { alert("Load a register first — these settings live inside it."); return; }
   const b = fsBiz(), a = fsAcct();
+  const bk = (b.bank && typeof b.bank === "object") ? b.bank : {};
   [["fsBizName", b.name], ["fsBizAbn", b.abn], ["fsBizAddr", b.address],
-   ["fsBizPhone", b.phone], ["fsBizEmail", b.email], ["fsBizSwitch", a.switchoverDate]
+   ["fsBizPhone", b.phone], ["fsBizEmail", b.email], ["fsBizSwitch", a.switchoverDate],
+   /* PASS 66c — shown FORMATTED, stored as digits. */
+   ["fsBizAccName", bk.accName], ["fsBizBsb", fsBsbFmt(bk.bsb)], ["fsBizAcct", bk.acct]
   ].forEach(p => { const el = document.getElementById(p[0]); if (el) el.value = p[1] || ""; });
+  ["fsBizBankErr", "fsBizBankWarn"].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = "none";
+  });
   document.getElementById("fsBizGst").checked = !!b.gstRegistered;
   document.getElementById("fsBizIncl").checked = !!b.lineAmountsInclusive;
   document.getElementById("fsBizPkg").value = a.package || "";
@@ -21364,6 +21457,43 @@ function fsBizSave() {
   const v = id => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
   b.name = v("fsBizName"); b.abn = v("fsBizAbn"); b.address = v("fsBizAddr");
   b.phone = v("fsBizPhone"); b.email = v("fsBizEmail");
+  /* PASS 66c [66c-3][66c-4] — the only place bank details are written.
+     RETURNS EARLY WITHOUT SAVING ANYTHING and WITHOUT CLOSING THE MODAL if
+     the details are refused or the change is not confirmed: a partial save
+     here would leave the business identity half-updated. */
+  {
+    const bk = (b.bank && typeof b.bank === "object") ? b.bank : { accName: "", bsb: "", acct: "" };
+    const newBsb = fsBankDigits(v("fsBizBsb")), newAcct = fsBankDigits(v("fsBizAcct"));
+    const oldBsb = fsBankDigits(bk.bsb), oldAcct = fsBankDigits(bk.acct);
+    const errEl = document.getElementById("fsBizBankErr");
+    const warnEl = document.getElementById("fsBizBankWarn");
+    if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+    if (warnEl) { warnEl.style.display = "none"; warnEl.textContent = ""; }
+    const res = fsBankCheck(newBsb, newAcct);
+    if (!res.ok) {
+      if (errEl) { errEl.textContent = res.err; errEl.style.display = ""; }
+      return;
+    }
+    if (res.warn && warnEl) { warnEl.textContent = res.warn; warnEl.style.display = ""; }
+    /* [66c-4] A CHANGE to details that were ALREADY SET is the fraud vector,
+       so it is confirmed and the dialog NAMES BOTH VALUES — "are you sure?"
+       with no numbers in it trains people to click yes. First-time entry is
+       not confirmed: nothing can be redirected from an empty field, and
+       friction on the empty state teaches people to dismiss the dialog they
+       actually need to read one day. */
+    const had = !!(oldBsb || oldAcct);
+    const moved = had && (newBsb !== oldBsb || newAcct !== oldAcct);
+    if (moved && !confirm(
+        "Change the bank account your invoices ask customers to pay into?\n\n" +
+        "From:  BSB " + (fsBsbFmt(oldBsb) || "(none)") + "   Account " + (oldAcct || "(none)") + "\n" +
+        "To:      BSB " + (fsBsbFmt(newBsb) || "(none)") + "   Account " + (newAcct || "(none)") + "\n\n" +
+        "Invoices already issued keep the old details. Every NEW invoice will " +
+        "ask for payment into the new account.")) {
+      return;
+    }
+    b.bank = { accName: v("fsBizAccName"), bsb: newBsb, acct: newAcct };
+    if (moved) { try { fsActLog("Bank details changed", "BSB " + fsBsbFmt(newBsb)); } catch (e) {} }
+  }
   b.gstRegistered = document.getElementById("fsBizGst").checked;
   b.lineAmountsInclusive = document.getElementById("fsBizIncl").checked;
   b.defaultTaxCode = v("fsBizCode");
@@ -21396,7 +21526,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v77";
+const FS_BUILD = "aa-v78";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
