@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.78 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.79 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.78 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.79 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -22117,7 +22117,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v82";
+const FS_BUILD = "aa-v83";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -23654,6 +23654,24 @@ function fsPlTraySorted(mo) {
     });
 }
 
+/* PASS 79 [79-2] — W-12. Reece: "on 'this months list' I feel as though this
+   should be able to be minimised or something."
+
+   PERSISTED, AND IT HAS TO BE. fsPlRender() runs on every plan change, every
+   placement and every day tap. A collapse held in a plain variable would
+   spring open on the next render, which is worse than having no control at
+   all — it looks broken rather than absent. localStorage, beside fs-fade,
+   which is the pattern already in this file.
+
+   DEFAULTS TO OPEN: the panel is where sites get placed, and a planner that
+   starts collapsed hides its own primary action from anyone who has never
+   pressed the toggle. */
+function fsPlListMin() {
+  try { return localStorage.getItem("fs-pl-min") === "1"; } catch (e) { return false; }
+}
+function fsPlPanelMin(v) {
+  try { localStorage.setItem("fs-pl-min", v ? "1" : "0"); } catch (e) {}
+}
 function fsPlPanelHtml(mo) {
   const rows = fsPlTraySorted(mo), planned = fsPlPlannedIds(mo);
   const nWant = rows.filter(r => !planned[r.x.siteId] && r.x.src !== "unfit").length;
@@ -23664,7 +23682,15 @@ function fsPlPanelHtml(mo) {
     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
     '<b style="font-size:14.5px;flex:1;min-width:130px">This month’s list</b>' +
     '<span style="font-size:11.5px;color:var(--fs-sub2)">' + nDone + ' planned · ' + nWant + ' to place' +
-    (nUnfit ? ' · <span style="color:#c62828">' + nUnfit + " wouldn’t fit</span>" : '') + '</span></div>' +
+    (nUnfit ? ' · <span style="color:#c62828">' + nUnfit + " wouldn’t fit</span>" : '') + '</span>' +
+    /* [79-2] THE COUNTS STAY VISIBLE WHEN COLLAPSED, DELIBERATELY. They are
+       the only reason to glance at this panel, and a collapse that hid them
+       would be something you had to keep undoing. What folds away is the
+       BULK — the buttons, the date range and the 290px list. */
+    '<button class="fsbtn" id="fsPlPanelToggle" title="' + (fsPlListMin() ? 'Show the list' : 'Minimise the list') + '" style="padding:4px 10px;font-size:13px;line-height:1;min-width:34px">' +
+    (fsPlListMin() ? '&#9662;' : '&#9652;') + '</button></div>';
+  if (fsPlListMin()) return h + '</div>';
+  h +=
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">' +
     '<button class="fsbtn" id="fsPlAddClient" style="padding:7px 12px">&#65291; Add client</button>' +
     '<button class="fsbtn" id="fsPlAddSites" style="padding:7px 12px">&#65291; Add sites</button>' +
@@ -24365,6 +24391,11 @@ function fsPlRender() {
   if (plX) plX.onclick = () => { fsPlPlaceArm = null; fsPlRender(); };
   /* the placement banner's duration box — same helper the ad-hoc row uses */
   if (fsPlPlaceArm && typeof fsPlDurEchoWire === "function") fsPlDurEchoWire("fsPlAddM", "fsPlAddMEcho", "= site standard");
+  /* [79-2] the toggle. It is OUTSIDE the collapse, so it is wired whether the
+     panel is open or shut — a toggle you cannot reach once you have used it
+     would be a one-way door. */
+  const pMin = document.getElementById("fsPlPanelToggle");
+  if (pMin) pMin.onclick = () => { fsPlPanelMin(!fsPlListMin()); fsPlRender(); };
   const pAddC = document.getElementById("fsPlAddClient");
   if (pAddC) pAddC.onclick = () => fsPlAddChooser("client");
   const pAddS = document.getElementById("fsPlAddSites");
@@ -24551,25 +24582,62 @@ function fsPlDayHtml(dk) {
       '<input type="checkbox" class="fsPlDone" data-i="' + i + '"' + (x.done ? ' checked' : '') + ' title="Done" style="width:17px;height:17px;accent-color:#1b8a3f">' +
       '<b class="' + (e ? 'fsPlSiteGo' : '') + '"' + (e ? ' data-i="' + i + '"' : '') + ' style="font-size:14.5px;flex:1;min-width:120px' + (e ? ';cursor:pointer' : '') + '">' + fsEsc(fsPlStopName(x, e)) + (e ? ' <span style="color:var(--fs-sub2);font-weight:400">&rsaquo;</span>' : '') + '</b>' +   /* [60-1] tappable when the stop HAS a site */
       (x.adhoc ? '' : '<button class="fsbtnP fsPlNavB" data-i="' + i + '" style="padding:6px 11px;font-size:12px">&#9654; Navigate</button>') + '</div>' +
-      '<div style="font-size:12px;color:var(--fs-sub);margin-top:3px">' +
-      '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">' + fsEsc(x.start) + '</a>' +
-      ' &rarr; ' + endT + ' (' + fsPlFmtMins(x.mins) + ')' + luNote + (e && e.s.visit && e.s.visit.pref ? ' · pref ' + fsEsc(e.s.visit.pref) : '') + (e ? ' · ' + fsEsc(e.c.name) : (x.adhoc ? ' · ad-hoc job' : '')) +
-      ((fsPlT2M(x.start) != null && fsPlT2M(x.start) < (fsPlT2M(fsPlLoadSettings().dayStart) || 420)) ? ' · <span style="color:#b45f00;font-weight:700">outside set hours</span>' : '') +
-      (x.adhoc ? ' · <a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">rename</a>' : '') +
-      ' · <a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;text-decoration:underline"' +
-      (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'time</a>' +
-      /* V0.20 — tap-to-call from the stop. Only rendered when there is a number
-         that can actually be dialled: a contact with a name and no number is
-         worth storing and is not worth a dead Call link. */
+      /* PASS 79 [79-1] — W-11. This was ONE 12px run carrying seven things,
+         five of them underlined links separated by middots:
+
+           08:00 → 09:30 (1h 30m) · pref · client · time · call · Google
+               · move · remove
+
+         Reece named both halves: "the time, move remove buttons could be
+         larger and nicer. same with the time where it says you arrive on site
+         and how long you are on there". The two facts that matter most — when
+         you arrive and how long you are there — were the same size, weight and
+         colour as the word "remove".
+
+         SPLIT, NOT RESIZED. Making the line bigger is what a previous pass did
+         to W-16's em-dash: bigger, and still illegible, because size was never
+         the problem. Seven things on one line stay seven things on one line.
+
+         LINE 1 — the facts, times promoted to 15px/700. */
+      '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:5px">' +
+      '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;font-size:15px;font-weight:700;color:#e8e8e8;text-decoration:underline;text-underline-offset:3px">' + fsEsc(x.start) + '</a>' +
+      '<span style="font-size:15px;font-weight:700;color:#e8e8e8">&rarr; ' + endT + '</span>' +
+      '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsPlFmtMins(x.mins) + '</span>' +
+      ((fsPlT2M(x.start) != null && fsPlT2M(x.start) < (fsPlT2M(fsPlLoadSettings().dayStart) || 420)) ? '<span style="font-size:12px;color:#b45f00;font-weight:700">outside set hours</span>' : '') +
+      '</div>' +
+      /* LINE 2 — the context that used to be wedged between the links. */
+      '<div style="font-size:12px;color:var(--fs-sub2);margin-top:2px">' +
+      (e ? fsEsc(e.c.name) : (x.adhoc ? 'ad-hoc job' : '')) +
+      (e && e.s.visit && e.s.visit.pref ? ' &middot; pref ' + fsEsc(e.s.visit.pref) : '') +
+      luNote + '</div>' +
+      /* LINE 3 — the ACTIONS, as real buttons. Every class is kept exactly:
+         fsPlWireDay binds these by class and is NOT touched by this pass, so
+         the handlers, the undo behaviour and every suite that clicks them keep
+         working. A layout pass that also rewires is two passes in one hat.
+
+         THE CALL LINK IS GONE, AND THIS IS WHERE IT WENT. `.fsPlCall` was
+         V0.20's tap-to-call and it is the only control here that did something
+         no other one does — it dialled. Removed because Reece said the contact
+         is not needed on this panel. The number still lives on the site, which
+         is one tap away through the stop name above. If he misses it, THIS is
+         the thing to restore, not the contact's name. */
+      '<div class="fsPlStopActs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">' +
+      /* [79-1] CALL — the contact's NAME left this row; the ability to dial did
+         not. V0.20's guard is kept exactly: rendered only when there is a
+         number that can actually be rung, because a contact with a name and no
+         number is worth storing and is not worth a dead link. */
       ((function () {
         var ct = e ? fsCtPrimary(e.s) : null;
         if (!ct) return '';
-        return ' · <a href="tel:' + fsEsc(fsCtTel(ct.num)) + '" class="fsPlCall" style="text-decoration:underline;color:var(--fs-accent);font-weight:700">&#128222; ' +
-               fsEsc(fsCtLabel(ct) || ct.num) + '</a>';
+        return '<a class="fsPlCall" href="tel:' + fsEsc(fsCtTel(ct.num)) + '" style="font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-accent);border-radius:8px;color:var(--fs-accent);font-weight:700;white-space:nowrap">&#128222; Call</a>';
       })()) +
-      ' · <a class="fsPlGcal" href="' + fsEsc(fsPlGcalUrl(dk, x, e)) + '" target="_blank" rel="noopener" style="text-decoration:underline">📅 Google</a>' +
-      ' · <a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;text-decoration:underline">move</a>' +
-      ' · <a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;color:#c62828;text-decoration:underline">remove</a></div></div>';
+      '<a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap"' +
+      (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'Time</a>' +
+      '<a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">Move</a>' +
+      (x.adhoc ? '<a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">Rename</a>' : '') +
+      '<a class="fsPlGcal" href="' + fsEsc(fsPlGcalUrl(dk, x, e)) + '" target="_blank" rel="noopener" style="font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">&#128197; Google</a>' +
+      '<a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid #c62828;border-radius:8px;color:#e5534b;white-space:nowrap">Remove</a>' +
+      '</div></div>';
     prev = x;
   });
   /* V0.16 — the flat <select> is GONE. It listed every site in raw register
