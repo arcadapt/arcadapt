@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.77 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.78 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -411,6 +411,15 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div id="fsSitesView" style="display:none">
       <div style="margin-bottom:12px"><a id="fsBackClients" class="fsCrumb">&#8592; Dashboard</a></div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><h2 id="fsClientTitle" style="font-size:20px;flex:1"></h2><button class="fsbtn" id="fsAddSiteBtn">&#65291; Add site</button></div>
+      <!-- PASS 78 [78-2] — 68-3 / 22b-1. Reece asked for this twice: it was
+           built by the lost cloud pass on 20 Aug, and re-asked in his own
+           words on 22 Aug ("or add a search bar once you have chosen a
+           client"). It lives in STATIC markup, not inside fsRenderSites,
+           because that function is re-run by the row-hold edit mode and an
+           input rebuilt mid-render loses focus and text while you type.
+           #fsSearch on the clients screen is static for the same reason. -->
+      <input type="text" id="fsSiteSearch" class="fsinput" placeholder="Search sites in this client&hellip;" style="padding:11px;font-size:15px;margin-bottom:10px">
+      <div id="fsSiteSearchNote" style="display:none;font-size:12.5px;color:var(--fs-sub2);margin:-4px 0 9px"></div>
       <div id="fsSiteList"></div>
     </div>
 
@@ -440,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.77 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.78 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -18091,13 +18100,38 @@ function fsLerpCol(a, b, t) {
   const pb = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16));
   return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
-function fsClientFadeCol(c) {
-  const d = fsClientDueDays(c);
-  if (d === null) return "var(--fs-sub2)";
-  if (d <= 0) return "#c62828";
-  if (d >= 60) return "#1b8a3f";
-  if (d >= 30) return fsLerpCol("#b58900", "#1b8a3f", (d - 30) / 30);
-  return fsLerpCol("#c62828", "#b58900", d / 30);
+/* PASS 78 [78-3] — 68-5. Reece: "the client dot should agree with the site
+   page." It could not, because the two were not the same KIND of thing: this
+   returned a CONTINUOUS gradient lerped by days-until-due, while every site
+   row and the site page use fsSiteWorstDot's FOUR DISCRETE colours. A smooth
+   yellow-green client sitting above four flat site colours cannot agree with
+   them at any value.
+
+   The site page is the reference, so the client adopts its scale: the worst
+   state of any site inside it, folded by the same rules, buildings included
+   (fsSiteWorstDot already recurses).
+
+   RENAMED from fsClientFadeCol. There is no fade any more, and a name that
+   describes behaviour the function no longer has is how a later pass
+   "restores" the gradient believing that was the intent.
+
+   THE SETTING IS UNTOUCHED, DELIBERATELY. #fsResFade reads "Colour-code the
+   client list by due dates" and governs whether the dot is drawn AT ALL, not
+   which scale it uses. fsClientDueDays and fsLerpCol both keep other callers
+   and are left alone. */
+function fsClientWorstDot(c) {
+  let worst = "#1b8a3f";
+  let any = false;
+  const fold = col => {
+    any = true;
+    if (col === "#c62828") worst = "#c62828";
+    else if (col === "#b58900" && worst !== "#c62828") worst = "#b58900";
+    else if (col === "var(--fs-sub2)" && worst === "#1b8a3f") worst = "var(--fs-sub2)";
+  };
+  (c.sites || []).forEach(s => fold(fsSiteWorstDot(s)));
+  /* A client with no sites has nothing to report — grey, exactly as the old
+     function returned grey for "no due date known". */
+  return any ? worst : "var(--fs-sub2)";
 }
 /* ===================== PASS 33 — ROW EDIT MODE ============================
    Hold a client, site or building row for two seconds: every row in that list
@@ -18227,14 +18261,40 @@ function fsRenderClients() {
   const wrap = document.getElementById("fsClientList");
   wrap.innerHTML = "";
   [...(fsRegister.clients || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric:true })).forEach(c => {
-    const sites = (c.sites || []).filter(s => !q || (c.name + " " + s.name).toLowerCase().includes(q));
-    if (q && !sites.length && !c.name.toLowerCase().includes(q)) return;
+    /* PASS 78 [78-1] — 68-4. `sites` was ALREADY being computed correctly here
+       and then thrown away: it decided whether the client row survived and was
+       never mentioned again.
+
+       TWO QUESTIONS, SEPARATED — and the first draft of this pass conflated
+       them, which test_p78 B1 caught. The old filter prepended `c.name` to
+       every site before matching, so a query on the CLIENT name made every one
+       of its sites "match" and the row reported "1 of 1 sites match" about a
+       search that had nothing to do with its sites. `hits` is the site-level
+       answer and is the only thing the count and the rows are allowed to use;
+       `keep` is the separate question of whether the client survives at all.
+       Site matching also looks at the ADDRESS — on a big client that is often
+       the only thing you remember. */
+    const cliHit = !q || c.name.toLowerCase().includes(q);
+    const hits = (c.sites || []).filter(s => q &&
+        ((s.name || "") + " " + (s.address || "")).toLowerCase().includes(q));
+    if (q && !hits.length && !cliHit) return;
     const row = document.createElement("div");
-    row.className = "fscard";
+    /* PASS 78 [78-1] — NAMED, because #fsClientList is not only client rows:
+       a Projects card is prepended by other code, and [78-1] now appends site
+       rows too. "the divs in the list" stopped being a usable description of a
+       client the moment this pass ran — test_p78 C5 was clicking Projects. */
+    row.className = "fscard fsCliRow";
     row.style.cssText += ";padding:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px";
-    row.innerHTML = (fsFadeOn() ? '<span title="Closest test due across this client\'s sites" style="width:13px;height:13px;border-radius:50%;background:' + fsClientFadeCol(c) + ';flex:0 0 auto"></span>' : '') +
+    row.innerHTML = (fsFadeOn() ? '<span title="The worst cycle state across this client\'s sites" style="width:13px;height:13px;border-radius:50%;background:' + fsClientWorstDot(c) + ';flex:0 0 auto"></span>' : '') +
       '<div style="flex:1"><div style="font-size:16.5px;font-weight:700">' + fsEsc(c.name) +
-      '</div><div style="font-size:12.5px;color:var(--fs-sub2)">' + (c.sites || []).length + ' sites</div></div>' +
+      /* PASS 78 [78-1] — 68-4. THIS LINE WAS THE BUG. It printed
+         (c.sites||[]).length — the TOTAL — while the list above it was
+         filtered, so a search for a site name produced a client card
+         pixel-identical to the unfiltered one. Say the match count when
+         filtering, the total otherwise. */
+      '</div><div style="font-size:12.5px;color:var(--fs-sub2)">' +
+      (hits.length ? (hits.length + ' of ' + (c.sites || []).length + ' sites match')
+                   : ((c.sites || []).length + ' sites')) + '</div></div>' +
       /* PASS 33 — the pencil and the bin are NOT IN THE DOM outside edit mode,
          rather than hidden with CSS. A destructive control that is present but
          invisible is still reachable by a stray tap, by a screen reader and by
@@ -18254,12 +18314,46 @@ function fsRenderClients() {
     /* A Field user cannot rename or delete anything, so the gesture would open
        an empty mode and teach them the app is broken. No hold for tech. */
     if (fsWhoRole() !== "tech") fsAttachRowHold(row, () => fsRenderClients());
-    row.onclick = () => { fsClient = c; fsRenderSites(); fsShow("fsSitesView"); };
+    row.onclick = () => {
+      /* [78-2] a client opened from an UNFILTERED list must not inherit a
+         stale site query from a previous search. */
+      const sb = document.getElementById("fsSiteSearch");
+      if (sb) sb.value = "";
+      fsClient = c; fsRenderSites(); fsShow("fsSitesView");
+    };
     const ren = row.querySelector(".fsCliRen");
     if (ren) ren.onclick = ev => { ev.stopPropagation(); fsClientRename(c); };
     const del = row.querySelector(".fsCliDel");
     if (del) del.onclick = ev => { ev.stopPropagation(); fsClientDelete(c); };
     wrap.appendChild(row);
+    /* PASS 78 [78-1] — 68-4: A MATCHING SITE IS ITS OWN TAPPABLE RESULT.
+       Reece, 22 Aug: "I want to be able to search for sites on in the search
+       bar". Before this, the only thing a site match could do was keep its
+       CLIENT on screen — you then tapped through and searched again by eye.
+
+       Rendered only while filtering, and only for a match on the SITE itself:
+       typing a client's name should not spray every one of its sites down the
+       screen, which would bury the client row the query actually meant.
+       Tapping goes straight to that site, skipping the list entirely. */
+    if (hits.length) {
+      [...hits].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric:true }))
+           .forEach(s => {
+        const hit = document.createElement("div");
+        hit.className = "fscard fsSiteHit";
+        hit.style.cssText += ";padding:11px 14px;margin:-4px 0 10px 22px;cursor:pointer;display:flex;align-items:center;gap:10px";
+        hit.innerHTML = '<span style="width:10px;height:10px;border-radius:50%;background:' + fsSiteWorstDot(s) + ';flex:0 0 auto"></span>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">' + fsEsc(s.name) + '</div>' +
+          (s.address ? '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc(s.address) + '</div>' : '') +
+          '</div><span style="font-size:11.5px;color:var(--fs-faint);flex:none">site</span>';
+        hit.onclick = ev => {
+          ev.stopPropagation();
+          fsClient = c; fsParentSite = null; fsSite = s;
+          fsTab = "overview"; fsInfoEdit = false; fsEquipEdit = false;
+          fsRenderSite(); fsShow("fsSiteView");
+        };
+        wrap.appendChild(hit);
+      });
+    }
   });
 }
 /* V1.30: client rename + delete (Reece 28 Jul - a misspelt client name was stuck).
@@ -18471,6 +18565,11 @@ function fsTodayHtml(d) {
       (isToday ? greet + who : fsEsc(tdd.toLocaleDateString(undefined, { weekday: "long" }))) + '</h1>' +
     '<button class="fsbtn" id="fsTdPrev" title="The day before" style="min-width:40px;font-size:17px;padding:4px 10px">&#8249;</button>' +
     '<button class="fsbtn" id="fsTdNext" title="The day after" style="min-width:40px;font-size:17px;padding:4px 10px">&#8250;</button>' +
+    /* PASS 78 [78-6] — 22b-2. Reece: "I would like to actually select a date
+       too. have an option that opens a little calendar." A native date input
+       IS the little calendar on iPad — iOS draws its own — so nothing is
+       hand-rolled and nothing needs styling to look native. */
+    '<input type="date" id="fsTdPick" title="Jump to a date" value="' + fsEsc(tdk) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;padding:5px 7px;font-size:13px;min-width:34px">' +
     (isToday ? '' : '<button class="fsbtnP" id="fsTdToday" title="Back to today">Today</button>') +
     '</div>' +
     '<div style="color:var(--fs-sub);font-size:13.5px">' +
@@ -18569,6 +18668,17 @@ function fsRenderToday() {
   if (tdN) tdN.onclick = () => { fsTdShift(1); fsRenderToday(); };
   const tdT = document.getElementById("fsTdToday");
   if (tdT) tdT.onclick = () => { fsTdDay = null; fsRenderToday(); };
+  /* [78-6] Uses the SAME snap-to-null rule as fsTdShift, so picking today from
+     the calendar leaves the screen in exactly the state the Today button does
+     — one question, one answer, and the Today button appears exactly when it
+     should. */
+  const tdP2 = document.getElementById("fsTdPick");
+  if (tdP2) tdP2.onchange = () => {
+    const v = tdP2.value;
+    if (!v) return;
+    fsTdDay = (v === fsPlTodayKey()) ? null : v;
+    fsRenderToday();
+  };
   w.querySelectorAll(".fsTdRow").forEach(el => el.onclick = () => {
     const r = (d.stops || [])[+el.dataset.i];
     if (r && r.e) fsTodayOpenSite(r.e);
@@ -18816,7 +18926,27 @@ function fsRenderSites() {
   document.getElementById("fsClientTitle").textContent = fsClient.name;
   const wrap = document.getElementById("fsSiteList");
   wrap.innerHTML = "";
-  [...(fsClient.sites || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric:true })).forEach(s => {
+  /* PASS 78 [78-2] — 68-3 / 22b-1. Matches on the site NAME and its ADDRESS:
+     on a big client the address is often the only thing you remember, and
+     matching only the name would answer half the question. */
+  const sq = ((document.getElementById("fsSiteSearch") || {}).value || "").trim().toLowerCase();
+  const all = fsClient.sites || [];
+  const shown = [...all].filter(s => !sq ||
+      ((s.name || "") + " " + (s.address || "")).toLowerCase().includes(sq));
+  const note = document.getElementById("fsSiteSearchNote");
+  if (note) {
+    /* THE COUNT IS THE POINT. 68-4's defect on the clients screen was a
+       subtitle that printed the TOTAL while showing a filtered list, so a
+       search looked identical to no search. Say what is being shown. */
+    note.style.display = sq ? "" : "none";
+    note.textContent = sq ? (shown.length + " of " + all.length + " sites match \u201c" + sq + "\u201d") : "";
+  }
+  if (sq && !shown.length) {
+    wrap.innerHTML = '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">' +
+      'No site here matches \u201c' + fsEsc(sq) + '\u201d. Searching looks at the site name and its address.</div>';
+    return;
+  }
+  [...shown].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric:true })).forEach(s => {
     const row = document.createElement("div");
     row.className = "fscard";
     row.style.cssText += ";padding:14px 16px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:12px";
@@ -18978,7 +19108,20 @@ function fsRenderSite() {
   html += '<button class="fsbtn fsbtnHero" id="fsOpenWs">' +
           (s.plan && s.plan.levels && s.plan.levels.length ? 'Open workspace' : 'Create workspace') +
           '</button>';
-  html += '<button class="fsbtn" id="fsHubOvf" title="More">&#8943;</button></div></div>';
+  /* PASS 78 [78-4] — 68-7, lost with the cloud pass. The ... overflow held
+     exactly two things: a DUPLICATE "Open Site Workspace" (PASS 50 [50-5]
+     promoted that button out of the menu and left this copy behind), and
+     Coordinates. So the menu existed to hide one button.
+
+     EVERDUE ALREADY SHIPS THE ANSWER — no overflow, Coordinates as a plain
+     header button behind the same fsCoordsParse guard. This is copied from
+     there rather than invented, so the two apps agree instead of drifting.
+
+     The guard is kept exactly: test_p50 F3's no-dead-end rule says a header
+     control must not render when it cannot do anything, and Coordinates means
+     nothing on a site with no coordinates. */
+  if (fsCoordsParse(s)) html += '<button class="fsbtn" id="fsCoordBtn" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>';
+  html += '</div></div>';
 
   /* PASS 45 [45-3] — Rulings 5+16+18: the strip is PROMOTED. It is the one
      service-and-defects surface (the separate Site health / Service summary
@@ -19051,25 +19194,11 @@ function fsRenderSite() {
   if (fsMapB) fsMapB.onclick = () => window.open(s.mapUrl && fsMapsApp() !== "waze" ? s.mapUrl : fsMapsNavUrl(s), "_blank");
   const hubWs = document.getElementById("fsOpenWs");
   if (hubWs) hubWs.onclick = fsEnterWorkspace;
-  /* PASS 45 [45-2] — workspace CREATION lives in the overflow (Ruling 3). */
-  const hubOvf = document.getElementById("fsHubOvf");
-  if (hubOvf) hubOvf.onclick = () => {
-    let m = document.getElementById("fsHubOvfMenu");
-    if (m) { m.remove(); return; }
-    m = document.createElement("div");
-    m.id = "fsHubOvfMenu";
-    m.style.cssText = "position:absolute;right:0;top:44px;background:var(--fs-card);border:1px solid var(--fs-border);border-radius:9px;padding:6px;z-index:60;box-shadow:0 6px 18px rgba(0,0,0,.4)";
-    m.innerHTML = '<button class="fsbtn" id="fsHubOvfWs" style="white-space:nowrap;display:block">Open Site Workspace &nbsp;&#8594;</button>' +
-      /* PASS 63 [63-2] — Coordinates lives here now. Same guard as ever:
-         only when coordinates EXIST (the no-dead-end rule, test_p50 F3
-         moved here with it), same fsCoordsUrl, nothing re-implemented. */
-      (fsCoordsParse(s) ? '<button class="fsbtn" id="fsHubOvfCoord" style="white-space:nowrap;display:block;margin-top:6px" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>' : '');
-    hubOvf.parentElement.style.position = "relative";
-    hubOvf.parentElement.appendChild(m);
-    document.getElementById("fsHubOvfWs").onclick = fsEnterWorkspace;
-    const oc = document.getElementById("fsHubOvfCoord");
-    if (oc) oc.onclick = () => { m.remove(); window.open(fsCoordsUrl(s), "_blank"); };
-  };
+  /* PASS 78 [78-4] — 68-7. The overflow and its menu are GONE; Coordinates is
+     a header button, wired exactly as EverDue wires its own. fsCoordsUrl is
+     untouched and nothing is re-implemented. */
+  const hubCoord = document.getElementById("fsCoordBtn");
+  if (hubCoord) hubCoord.onclick = () => window.open(fsCoordsUrl(s), "_blank");
   document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
       s.testing = s.testing || {};
@@ -20756,6 +20885,10 @@ try {
 } catch (e) {}
 
 document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
+/* PASS 78 [78-2] — the sites-screen box, wired the same way as the clients one. */
+document.getElementById("fsSiteSearch").addEventListener("input", function () {
+  if (fsClient) fsRenderSites();
+});
 document.getElementById("fsBackClients").onclick = () => fsShow("fsClientsView");
 /* C4: add client / add site (ids collision-safe like buildings) */
 document.getElementById("fsAddClientBtn").onclick = () => {
@@ -21984,7 +22117,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v81";
+const FS_BUILD = "aa-v82";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -24371,7 +24504,18 @@ function fsPlDayHtml(dk) {
   const dt = new Date(+dk.slice(0, 4), +dk.slice(5, 7) - 1, +dk.slice(8, 10));
   let html = '<div class="fscard" style="padding:16px;margin-top:12px">';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="font-size:16px;font-weight:800;flex:1">' + dt.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) + '</h3>' +
-    '<button class="fsbtn fsPlLock">' + (mo.locked[dk] ? '&#128274; Locked' : '&#128275; Lock day') + '</button>' +
+    /* PASS 78 [78-5] — 68-1, lost with the cloud pass. Emoji render differently
+       on every platform and cannot take the button's colour; the SVG does both.
+       Reece asked for "Locked/Unlocked" — state words on both sides. RECORDED,
+       NOT OVERRIDDEN: a button labelled purely with a state is ambiguous (is
+       it locked, or does pressing it lock?), and the mixed pair this replaces
+       said what pressing DID. He asked for state, so state ships; if it bites
+       on a device, this note is why and the fix is one string. */
+      '<button class="fsbtn fsPlLock">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">' +
+        '<rect x="4" y="10" width="16" height="11" rx="2"/>' +
+        (mo.locked[dk] ? '<path d="M8 10V7a4 4 0 0 1 8 0v3"/>' : '<path d="M8 10V7a4 4 0 0 1 7.5-2"/>') +
+        '</svg>' + (mo.locked[dk] ? 'Locked' : 'Unlocked') + '</button>' +
     '<button class="fsbtn fsPlDayIcs" title="Opens in Apple / Google / Samsung Calendar">&#128242; Add day to phone calendar</button>' +
     fsIcsHint() +   /* PASS 25 item 13 */
     (stops.length ? '<button class="fsbtn fsPlClrDay" title="Remove every stop on this day">&#128465; Clear day</button>' : '') + '</div>';
