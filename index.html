@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.76 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.77 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -440,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.76 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.77 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3076,7 +3076,38 @@ function getHandles(o) {
   if (o.kind === "sym") {
     const d = symDims(o);
     H.push({ x:o.x + d.w / 2, y:o.y + d.h / 2, set:(nx, ny) => {
-      const k = Math.max((nx - o.x) * 2 * (o.size / d.w), (ny - o.y) * 2 * (o.size / d.h));
+      /* PASS 68b [68b-1] — W-3: "when dragging to resize it goes MASSIVE
+         really fast and hard to control."
+
+         IT WAS NOT ACCELERATION. The brief said growth accelerates with size;
+         symDims() is linear in o.size on every glyph branch, so o.size/d.w is
+         a CONSTANT and the same finger travel gives the same delta at 40px and
+         at 250px. Measured before this was written.
+
+         It was Math.max over two axes of DIFFERENT aspect. Each old term
+         answered "what size puts the grip under the finger, by this axis
+         alone" — exact on its own axis, which is why a straight sideways drag
+         always felt right. But a CORNER grip gets dragged DIAGONALLY, both
+         terms go live, and max takes whichever axis demands the bigger
+         symbol. On a flat glyph the squashed axis demands far more:
+
+             window (1.6 x 0.4), size 40, finger +25,+25
+                 x wants 71 · y wants 165 · max -> 165, four times bigger
+
+         and the grip ends up nowhere near the finger. Worst on battens,
+         windows and doors — the flattest glyphs, and the ones used most.
+
+         As size grows the grip traces a RAY from the centre along (aw, ah).
+         The finger is generally off that ray, so no exact answer exists and
+         one must be chosen: max overshoots (the defect), min undershoots and
+         feels sticky, PROJECTION is the closest point on the ray and is the
+         only defined geometric answer of the three. M1/M2 kill the other two.
+
+         Single-axis drags move by under 3% — the half nobody complained about
+         is preserved, deliberately. This is a bug fix, not a redesign. */
+      const aw = d.w / o.size, ah = d.h / o.size;   /* constant: symDims is linear in size */
+      const den = aw * aw + ah * ah;
+      const k = den > 0 ? 2 * ((nx - o.x) * aw + (ny - o.y) * ah) / den : o.size;
       o.size = Math.max(12, Math.min(400, k));
     }});
   } else if (o.kind === "text") {
@@ -3231,15 +3262,30 @@ function draw() {
   objects.forEach(o => { if (o.kind === "zone") drawObject(ctx, o, view.scale); });
   objects.forEach(o => { if (o.kind !== "zone" && !viewHidden(o)) drawObject(ctx, o, view.scale); });
   if (tempShape) drawObject(ctx, tempShape, view.scale);
-  /* PASS 68 [68ws-5] — the pushpin marker, Revit's contribution. Its own pass,
-     AFTER the objects and BEFORE the selection chrome, so a locked object is
-     identifiable without being selected first. Skipped entirely when nothing
-     is pinned, which is the overwhelmingly common case. */
-  if (objects.some(fsWsPinned)) {
+  /* PASS 68b [68b-3] — THE MARKER IS NOW DRAWN FOR SELECTED OBJECTS ONLY.
+     Reece, 22 Aug: "I don't think I want the marker on" always.
+
+     [68ws-5] drew it over every pinned object on the plan, so that a lock was
+     identifiable without selecting first. That was MY call, from the Revit
+     research, not something he asked for — recorded as mine at the time,
+     which is why reversing it costs no argument. On a plan with the imported
+     background pinned it put a pushpin on screen permanently.
+
+     He also raised "perhaps pinned items should be a view or something".
+     NOT BUILT: a Views system is a large thing nobody has asked for twice,
+     and the complaint does not need one. Decision 22 Aug: selection only.
+
+     THIS IS A RENDER CHANGE AND NOTHING ELSE. Every refusal — move, reshape,
+     rotate, flip, halftone, delete, cut — lives in the handlers and in
+     getHandles, and none of them is touched here. [68ws-5]'s rule stands:
+     lock geometry, not usefulness. M3 deletes a refusal while leaving this
+     marker perfect, because a marker-only diff is exactly what tempts you to
+     stop checking that the lock still bites. */
+  if (selection.some(fsWsPinned)) {
     ctx.save();
     ctx.font = "13px system-ui, sans-serif";
     ctx.textAlign = "left"; ctx.textBaseline = "top";
-    objects.forEach(o => {
+    selection.forEach(o => {
       if (!fsWsPinned(o) || viewHidden(o)) return;
       const b = objectBounds(o);
       ctx.fillText("\ud83d\udccc", b.x1 * view.scale - 2, b.y1 * view.scale - 16);
@@ -21938,7 +21984,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v80";
+const FS_BUILD = "aa-v81";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
