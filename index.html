@@ -319,9 +319,9 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.75 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.76 beta</span>
       <span style="flex:1"></span>
-      <button class="fsbtn" id="fsFileBtn" title="Files &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Files</button>
+      <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
       <button class="fsbtn" id="fsProfileBtn" title="Load your company profile file (branding + equipment fields + test checklists)">&#127970; Profile</button>
       <button class="fsbtn" id="fsDashBtn" style="display:none" title="All-sites overview (admin passcode)"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</button>
@@ -440,7 +440,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.75 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.76 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1126,7 +1126,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 </div>
 <div class="modal" id="fsFileModal" style="z-index:120">
   <div class="modalbox" style="max-width:430px;text-align:left">
-    <h3 style="margin-bottom:4px">&#128193; Files</h3>
+    <h3 style="margin-bottom:4px">&#128193; File</h3>
     <div style="font-size:12px;color:#999;margin-bottom:10px">One file holds everything &mdash; clients, sites, plans, tests and photos. Save after changes; share via OneDrive. Backups live in &#9881; Settings.</div>
     <div id="fsFileSlots" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
     <div class="fsFileGrp">WHERE THIS REGISTER LIVES</div>
@@ -1282,6 +1282,12 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Tax</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="fsBizGst"> This business is registered for GST</label>
     <div id="fsBizGstOff" style="font-size:11.5px;color:#8fa0a8;margin-bottom:10px">While this is off, no tax is worked out or shown anywhere, and documents are titled <b>Invoice</b> rather than <b>Tax invoice</b>.</div>
+    <!-- PASS 76 [76-A4] — THE STATE THAT MATTERS, RENDERED. It was real, it
+         was wrong, and nothing on this screen said so: the tick showed GST on
+         while fsGstOn() was false and every invoice issued untaxed. Same
+         shape as [52-8]. Written by fsBizGstLine() from the SELECT, not from
+         the saved record, so it is honest before Save as well as after. -->
+    <div id="fsBizGstLine" style="display:none;font-size:12px;font-weight:700;margin:-2px 0 10px"></div>
     <div id="fsBizTaxWrap" style="display:none">
       <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">Tax codes are yours, not ours &mdash; nothing is filled in for you. A code is a name your accounting system knows, such as GST_ON_INCOME. Rates are stored as whole basis points, so ten per cent is stored as 1000 and can never become a rounding error.</div>
       <div id="fsBizTaxList" style="margin-bottom:8px"></div>
@@ -13476,8 +13482,24 @@ function fsChargeListRender() {
     '<button class="fsbtn" id="fsScMkInv">&#129534; Invoice selected</button>' +
     '<button class="fsbtn" id="fsScExport">&#127974; Send to accounting</button></div>';
   html += '<div style="font-size:12px;color:var(--fs-sub2);margin-bottom:10px">' +
-    'One completed visit, one charge line. Invoice the selected lines here, or send them to your accounting system — each line can go one way or the other, never both.' +
-    (fsVisitChargeOn() ? '' : ' <b style="color:#ffd873">Charging for visits is currently off</b> — turn it on under Visit prices.') + '</div>';
+    'One completed visit, one charge line. Invoice the selected lines here, or send them to your accounting system — each line can go one way or the other, never both.' + '</div>';
+  /* PASS 76 [76-B3] — W-5, UNREACHABLE FOR THE SECOND WALK RUNNING.
+     The brief asked us to "verify whether that copy actually renders". IT
+     DOES — traced in the V0.75 bytes on 22 Aug, so the brief's suspicion was
+     wrong and the real fault is worse: the copy rendered as a 12px muted
+     sentence fragment, appended to a paragraph about something else, naming
+     a button ("Visit prices") that sits 40px away among two identical
+     siblings. It told Reece the name of the door without being a door.
+
+     So the off state stops being a clause and becomes the screen's subject:
+     its own banner, and the way in is a BUTTON inside it rather than the
+     name of one somewhere else. */
+  if (!fsVisitChargeOn()) {
+    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:12px 14px;margin-bottom:12px">' +
+      '<div style="font-size:14px;font-weight:700;color:#ffd873;margin-bottom:4px">Charging for visits is switched off</div>' +
+      '<div style="font-size:12.5px;color:#e0d6b8;margin-bottom:9px">Nothing lands on this screen until it is on. Turn it on, set a price per visit type, and a charge line appears here every time a visit is completed.</div>' +
+      '<button class="fsbtnP" id="fsScTurnOn">Set up visit charging &#8594;</button></div>';
+  }
 
   html += '<div class="fscard" style="padding:4px 14px">';
   if (!all.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:14px 0">Nothing here yet. Turn charging on under Visit prices and set a price per visit type — a charge line appears here each time a test is recorded.</div>';
@@ -13551,6 +13573,10 @@ function fsChargeListRender() {
   });
   document.getElementById("fsScBack").onclick = () => { fsDashMode = "sites"; fsDashRender(); };
   document.getElementById("fsScRates").onclick = () => { fsBookTab = "visits"; fsDashMode = "book"; fsBookRender(); };
+  /* [76-B3] the banner's own way in — the same destination as the header
+     button, wired separately because the banner is conditional. */
+  const scOn = document.getElementById("fsScTurnOn");
+  if (scOn) scOn.onclick = () => { fsBookTab = "visits"; fsDashMode = "book"; fsBookRender(); };
   document.getElementById("fsScExport").onclick = () => fsChargeExport(open);
   /* PASS 55 [55-1]/[55-5] — READ the rule, never restate it. */
   const mk = document.getElementById("fsScMkInv");
@@ -13624,10 +13650,26 @@ function fsAccessSelect(id, val, extra) {
 
 /* A money cell that can legitimately be EMPTY. Blank means "not priced yet",
    which is different from zero and must never render as $0.00. */
+/* PASS 76 [76-D2] — W-16, RAISED A SECOND TIME. Reece: "where we use '-' in
+   quotes and invoicing as a button to like secure the line... its hard to
+   press... even difficult to see, change it to a tick or something and still
+   make it easier to hit."
+
+   THE FIRST THING TO SAY IS THAT IT WAS NEVER A BUTTON. It is this
+   placeholder — an em-dash sitting in an empty price box — and reading it as
+   a dead button is the correct reading of what it looked like. A previous
+   pass answered the complaint by making it BIGGER, which made a
+   meaningless glyph more prominent. He is asking for a different GLYPH.
+
+   So: the placeholder becomes a WORD, the box gets a bigger tap target and a
+   readable size (12.5px -> 14px, padding 5px -> 8px), and the tick he asked
+   for goes where a tick belongs — on the priced line, in fsInvAdhocEdit
+   below, marking the thing as secured. A tick in the EMPTY box would mean
+   "done" about a line that is not. */
 function fsMoneyIn(cls, id, cents) {
   return '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' +
     (FSMoney.isCents(cents) ? fsEsc(FSMoney.fromCents(cents)) : '') +
-    '" placeholder="—" inputmode="decimal" style="width:76px;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">';
+    '" placeholder="Price" inputmode="decimal" style="width:84px;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:8px 7px;font-size:14px">';
 }
 /* Read a money input back. Empty stays null - it is a real value here. */
 function fsMoneyOut(el) {
@@ -14379,11 +14421,29 @@ let fsDefPhotoTarget = null;
    it: a tax CODE is an opaque string, a RATE is integer basis points, and
    codes survive legislation changes while rates do not. 1000 = ten per cent.
 
-   NO DEFAULT TABLE SHIPS AND NO DEFAULT RATE SHIPS. Seeding "GST_ON_INCOME"
-   at 1000 would be a hardcoded Australian GST rate wearing a settings hat,
-   and it would be silently wrong for every business that is not registered,
-   not Australian, or registered on different codes. The business types its
-   own, once, in Settings -> Business & tax.
+   PASS 76 [76-A2] — THIS DECISION WAS NARROWED, AND HERE IS THE ARGUMENT.
+   It used to read, in capitals: NO DEFAULT TABLE SHIPS AND NO DEFAULT RATE
+   SHIPS, because seeding 1000 would be "a hardcoded Australian GST rate
+   wearing a settings hat, silently wrong for every business that is not
+   registered, not Australian, or registered on different codes."
+
+   It shipped an invoice with no GST on it and no warning, to a man who had
+   ticked the GST box (W-6). Nothing seeded taxTable, so the default-code
+   select had one option — "none" — and fsGstOn() was false for ever while
+   the screen showed GST on. The cost of the rule was a wrong tax document.
+
+   So the rule now applies EXCEPT on the off->on transition of the GST tick,
+   and only into an EMPTY table. Each original objection, answered:
+     not registered  — unreachable: the seed needs an affirmative tick.
+     different codes — the seed skips a non-empty table, and a code you
+                       delete stays deleted, because deleting leaves the
+                       table non-empty.
+     not Australian  — REDUCED, NOT ELIMINATED. NZ/SG operators do get 10%.
+                       The operative word in the old objection was SILENTLY,
+                       and fsBizGstLine() below now states the rate in words
+                       under the toggle. Visible-and-wrong is one tap from
+                       right; invisible-and-wrong issues documents.
+   The business can still type its own, once, in Settings -> Business & tax.
    ========================================================================= */
 const FS_BIZ_DEF = {
   name: "", abn: "", address: "", phone: "", email: "",
@@ -14442,6 +14502,32 @@ function fsTaxDrop(code) {
   delete fsRegister.taxTable[String(code)];
   const b = fsBiz();
   if (b.defaultTaxCode === String(code)) b.defaultTaxCode = "";
+}
+/* PASS 76 [76-A2] — THE SEED. Australian GST, in the app's own storage unit:
+   basis points, so ten per cent is 1000 and can never become a float.
+
+   The code is "GST" and not "GST_ON_INCOME" — the brief chose it and the
+   choice is recorded here so a later pass does not "correct" it. Xero's own
+   code is OUTPUT, MYOB's is GST, and the placeholder text in Business & tax
+   offers GST_ON_INCOME only as an EXAMPLE of the shape. A seeded code is a
+   starting point the operator renames or deletes; a plain one is easier to
+   recognise as yours-to-change than one that looks like it came from an
+   integration. */
+const FS_GST_SEED_CODE = "GST";
+const FS_GST_SEED_BP = 1000;
+/* Fires ONLY from the off->on transition of the GST tick, and ONLY into an
+   empty table. Returns true when it actually seeded, so the caller can
+   re-render; false is the normal, quiet answer.
+
+   THE TRANSITION IS THE WHOLE GUARD. Seeding on every save would silently
+   restore codes a business deliberately deleted, which is the objection the
+   original no-seed rule was built on — see [76-A2] above FS_BIZ_DEF. */
+function fsGstSeed() {
+  if (!fsRegister) return false;
+  if (fsTaxTable()) return false;            /* non-empty — never touch it */
+  fsTaxSet(FS_GST_SEED_CODE, FS_GST_SEED_BP);
+  fsBiz().defaultTaxCode = FS_GST_SEED_CODE;
+  return true;
 }
 /* Percent in, basis points out. The UI talks per cent because that is what a
    human knows; storage is integer basis points because that is what keeps a
@@ -15365,7 +15451,19 @@ function fsQuotePdf(q) {
      customer document must never do. Business name or nothing. */
   return fsDocPdf({
     title: "QUOTE",
-    number: q.scratch ? (q.ref || "") : (q.number || "(draft)"),
+    /* PASS 76 [76-D5] — W-15. Reece: "It worked but it had (draft) on it,
+       assuming because that was in the name of the file....?" It was not the
+       filename, and it was not the site report — both were traced clean
+       before anything here was touched. It was THIS, and it was a quote, as
+       he confirmed on 22 Aug.
+
+       The behaviour is right: an unsent quote has no number, because [51-3]
+       does not burn one until it is sent. What was wrong is that a lowercase
+       parenthetical sat in the NUMBER slot of a customer document, where it
+       reads as a fault rather than as a state. Same move as [66c-1] made for
+       the old BSB: do not change the behaviour, make the document explain
+       itself. */
+    number: q.scratch ? (q.ref || "") : (q.number || "DRAFT \u2014 not yet issued"),
     /* PASS 66b [66b-1] — A HUMAN DATE, THE SAME ONE THE INVOICE PRINTS.
        This read `String(q.created).slice(0, 10)`, so a customer got
        "2026-08-20" on the quote and "20 Aug 2026" on the invoice for the
@@ -15826,9 +15924,19 @@ function fsInvoicePdf(inv) {
      ([51-5]). Invoices issued before Pass 66c keep printing byte-identically. */
   const bankLines = fsBankLines(b.bank);
   if (bankLines.length || b.bankDetails || b.terms) {
+    /* PASS 76 [76-D6] — W-10, "it kept the old bsb". DO NOT FIX. This is
+       [66c-1] working exactly as designed: the issued snapshot is frozen, so
+       an invoice reprints byte-identically for ever and a customer holding a
+       PDF keeps seeing what they were sent. Rewriting it would make a
+       document disagree with the copy already in someone's inbox.
+
+       So the document explains itself instead. One line, and it is the
+       sentence that turns a apparent bug into a stated policy — which is
+       also what an accountant needs to read on a reprint. */
     blocks.push({ title: "Payment", lines: bankLines
       .concat(bankLines.length ? [] : String(b.bankDetails || "").split("\n"))
-      .concat(String(b.terms || "").split("\n")).filter(Boolean) });
+      .concat(String(b.terms || "").split("\n"))
+      .concat(["Payment details as at the date of issue."]).filter(Boolean) });
   }
   if (b.footer) blocks.push({ title: "", lines: String(b.footer).split("\n").filter(Boolean) });
   /* PASS 64 [64-6] — ISO on a customer document reads like a database dump. */
@@ -15978,6 +16086,17 @@ function fsInvAdhocBlock(inv) {
    spawned it. Void invoices stay listed — [52-5]'s readable-for-ever now has
    a home that does not depend on refinding the parent quote. A LIST, not the
    C5 money work queue: no aging, no filters, no totals strip, by scope. */
+/* PASS 76 [76-B2] — ONE label for a list row. The payment state WINS over
+   the document state whenever there is one, because fsInvoicePayState only
+   returns non-null for an issued invoice: so draft and void keep their own
+   label and everything issued reports money. Derived, never stored — it is
+   fsInvStat and fsInvPayLabel choosing, not a third source of truth. */
+function fsInvOneLabel(inv) {
+  const pl = fsInvPayLabel(inv);
+  if (pl) return pl;
+  const st = fsInvStat(inv);
+  return { t: st.label, col: st.col };
+}
 function fsInvListRender() {
   const wrap = document.getElementById("fsDashView");
   const all = fsInvoices().slice().sort(function (a, b) {
@@ -15994,7 +16113,7 @@ function fsInvListRender() {
       'or raise one from completed work on a quote.</div>';
   }
   all.forEach(function (inv, i) {
-    const st = fsInvStat(inv), pl = fsInvPayLabel(inv), v = fsInvView(inv), who = fsInvWho(inv);
+    const one = fsInvOneLabel(inv), v = fsInvView(inv), who = fsInvWho(inv);
     const nLines = (inv.lines || []).length;
     html += '<div class="fsInvLRow" data-id="' + fsEsc(inv.id) + '" style="display:flex;gap:10px;align-items:center;padding:10px 0;' + (i ? 'border-top:1px solid var(--fs-border);' : '') + 'cursor:pointer">' +
       '<div style="flex:1;min-width:0">' +
@@ -16003,8 +16122,18 @@ function fsInvListRender() {
           fsEsc(String(inv.created).slice(0, 10)) + ' &middot; ' + nLines + ' line' + (nLines === 1 ? '' : 's') +
           (inv.workNumber ? ' &middot; work ' + fsEsc(inv.workNumber) : '') + '</div></div>' +
       '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsEsc(FSMoney.fmt(v.taxKnown ? v.totalCents : v.subtotalCents)) + '</span>' +
-      (pl ? '<span style="font-size:11px;font-weight:800;color:#fff;background:' + pl.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(pl.t) + '</span>' : '') +
-      '<span style="font-size:11px;font-weight:800;color:#fff;background:' + st.col + ';border-radius:11px;padding:2px 9px;flex:none">' + fsEsc(st.label) + '</span></div>';
+      /* PASS 76 [76-B2] — W-8, "the invoices that are part paid do not show
+         they are part paid or fully paid". THEY DID. walk-p76.py measured an
+         amber 11px "Part paid" pill on V0.75 — sitting immediately beside a
+         blue 11px "Issued" pill. Two same-shaped badges at the end of a
+         crowded row read as one decoration, and on a phone the row is
+         already carrying number, client, site, date and line count.
+
+         ONE pill now, and it says the thing that is worth knowing: once an
+         invoice is issued, "Issued" is the least useful fact about it and
+         the money state is the most. fsInvOneLabel picks. Both fsInvStat and
+         fsInvPayLabel are UNCHANGED and still used elsewhere. */
+      '<span style="font-size:12.5px;font-weight:800;color:#fff;background:' + one.col + ';border-radius:11px;padding:3px 11px;flex:none">' + fsEsc(one.t) + '</span></div>';
   });
   html += '</div>';
   wrap.innerHTML = html;
@@ -16077,8 +16206,12 @@ function fsInvAdhocEdit(inv) {
         '<div style="width:62px"><input type="text" class="fsInvQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
           '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
         '<div style="width:96px">' + fsMoneyIn("fsInvPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
-        '<span style="width:84px;text-align:right;font-size:13.5px;font-weight:700;padding-top:7px;color:' + (l.priced === false ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
-          (l.priced === false ? '&mdash;' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
+        /* PASS 76 [76-D2] — THE TICK. A priced line is a SECURED line, which is
+           the word Reece used, and it now says so: a green tick beside the
+           amount. An unpriced line says what is missing in words instead of
+           a second em-dash — the glyph that started this. */
+        '<span style="width:96px;text-align:right;font-size:13.5px;font-weight:700;padding-top:9px;color:' + (l.priced === false ? '#ffd873' : '#e8e8e8') + '">' +
+          (l.priced === false ? 'No price' : '<span style="color:#6fcf8e">\u2713</span> ' + fsEsc(FSMoney.fmt(cents))) + '</span>' +
         '<a class="fsInvDelLn" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:7px">&#10005;</a>' +
       '</div></div>';
   });
@@ -16780,7 +16913,13 @@ function fsInvPayRows(inv) {
          owed ([66-2]). A CORRECTION GETS NO RECEIPT: a reversal is not a
          receipt. It still appears as a ROW inside any later receipt, which is
          [52-4] working rather than being worked around. */
-      (neg ? '' : '<a class="fsInvReceipt" data-id="' + fsEsc(p.id) + '" style="color:var(--fs-sub2);cursor:pointer;font-size:12px;text-decoration:underline">Receipt</a>') +
+      /* PASS 76 [76-B1] — W-9, "I don't see anywhere to give a receipt". It
+         was here the whole time. walk-p76.py measured it on V0.75: an <a> at
+         12px in rgb(139,151,157), which is --fs-sub2, nested inside a payment
+         sub-row and present only after a payment exists. Every assertion that
+         it EXISTED passed. A real button, in the app's own class, at the
+         app's own size — the change is legibility, not capability. */
+      (neg ? '' : '<button class="fsbtn fsInvReceipt" data-id="' + fsEsc(p.id) + '" style="font-size:12.5px;padding:4px 10px">\u{1F9FE} Receipt</button>') +
       '</div>';
   }).join("") + '</div>';
 }
@@ -16813,8 +16952,16 @@ function fsInvPayForm(inv) {
   return '<div id="fsInvPayBox" style="margin-top:10px;border-top:1px solid var(--fs-border);padding-top:9px">' +
     '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Record a payment received</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
-    fsMoneyIn("fsInvPayAmt", inv.id, null) +
-    '<input type="date" id="fsInvPayDate" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    /* PASS 76 [76-D1] — W-7, "the box between the payment value and [method]".
+       It was an unlabelled empty date input. A type="date" cannot carry a
+       placeholder — the browser owns that slot — so the hint has to be a
+       label, and the emptiness is fixed by DEFAULTING TO TODAY, which is the
+       right answer for a payment being recorded now and one tap from any
+       other date. */
+    '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Amount' +
+    fsMoneyIn("fsInvPayAmt", inv.id, null) + '</label>' +
+    '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Date' +
+    '<input type="date" id="fsInvPayDate" value="' + fsEsc(fsLocalIso().slice(0, 10)) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' + '</label>' +
     /* PASS 64 [64-2] — B3. A <select> needs no keyboard, so it cannot be a
        field you are unable to type into. The list is FIXED on purpose: the
        brief wants to report on method later and free text does not group. */
@@ -17195,12 +17342,31 @@ function fsBizIdNow() { return fsBizIdOf(fsRegister); }
 
 /* THE SINGLE DECISION. fsInvoiceIssue refuses on it and the UI READS it to say
    why. Neither restates it. Returns "" when issuing is allowed.              */
+/* PASS 76 [76-A3] — THE TAX HALF OF THE REFUSAL, SPLIT OUT SO ITS REMEDY CAN
+   BE. A business that says it is GST-registered but cannot compute GST must
+   not issue a document: before this pass it issued clean, burned a number
+   from the [51-3] ledger, and carried no tax. That is not a UI bug, it is an
+   incorrect tax document in a customer's hands (W-6).
+
+   Returns "" when there is nothing wrong, INCLUDING for a business that is
+   not GST-registered at all — an unregistered business issuing an untaxed
+   invoice is correct and must not be blocked. */
+function fsInvGstBlock() {
+  const b = fsBiz();
+  if (!b.gstRegistered) return "";
+  if (fsGstOn()) return "";
+  return "GST is switched on but no tax code is set";
+}
 function fsInvIssueBlock() {
   const id = fsBizIdNow();
   if (!id.name && !id.abn) return "no business name and no ABN are set";
   if (!id.name) return "no business name is set";
   if (!id.abn) return "no ABN is set";
-  return "";
+  /* STILL THE SINGLE DECISION. fsInvoiceIssue refuses on this one function
+     and the screens still only read it — the tax rule is CALLED from here,
+     not duplicated beside it. Identity comes first because a business with
+     nothing set should be told about its name before its tax codes. */
+  return fsInvGstBlock();
 }
 
 /* PASS 64 [64-1] — THE REMEDY BELONGS TO THE REASON. Before this every
@@ -17218,6 +17384,18 @@ function fsInvIssueWhy(inv) {
   }
   const who = fsInvIssueBlock();
   if (who) {
+    /* PASS 76 [76-A3] — [64-1] AGAIN: THE REMEDY BELONGS TO THE REASON. The
+       ABN paragraph below is the wrong advice for a missing tax code, and
+       sending it would repeat the 20 Aug fault verbatim — a message naming a
+       cause that is not the cause.
+
+       Compared against fsInvGstBlock() rather than matched as a string, so
+       the reason and its remedy cannot drift apart when either is reworded.
+       Changing the sentence in one place changes it in both. */
+    if (who === fsInvGstBlock()) {
+      return { why: who,
+               fix: "Set a tax code under Business & tax — or switch GST off if this business is not registered for it." };
+    }
     return { why: who,
              fix: "A tax invoice must carry your business name and ABN. Set them in Business & tax, then issue." };
   }
@@ -18158,12 +18336,35 @@ function fsNavSync(view) {
     if (el) el.classList.toggle("on", map[view] === id);
   });
 }
+/* PASS 76 [76-C1] — THE VIEWED DAY. null means literally today, which is why
+   it is null and not a date string: a stored "today" goes stale at midnight
+   and the screen would keep showing yesterday to anyone who left the app open.
+
+   REBUILD of item 68-6, asked for on 20 Aug, built by the cloud session and
+   lost with the other six items. Reece, 22 Aug: "I cant do any of those
+   things so I cant check this" — the day stepping is what makes every other
+   planner item testable, which is why its loss cost two walks. */
+let fsTdDay = null;
+function fsTdKey() { return fsTdDay || fsPlTodayKey(); }
+function fsTdShift(days) {
+  const k = fsTdKey();
+  const d = new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
+  d.setDate(d.getDate() + days);
+  const nk = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+             "-" + String(d.getDate()).padStart(2, "0");
+  /* Snap back to null when we land on today, so "am I on today" is ONE
+     question with one answer everywhere, not a string comparison repeated
+     at every call site. */
+  fsTdDay = (nk === fsPlTodayKey()) ? null : nk;
+}
 function fsTodayStops() {
   /* today's plan, sorted by start. null = the IDB read has not landed yet
      (fsRenderToday kicks it and re-renders — the hub's own pattern);
      [] = loaded and genuinely empty. Ad-hoc jobs ride along with e:null. */
   if (typeof fsPlPlans === "undefined" || !fsPlPlans) return null;
-  const tk = fsPlTodayKey(), mo = fsPlPlans[tk.slice(0, 7)];
+  /* [76-C1] THE ONE THAT FOLLOWS THE VIEWED DAY. Its twin in fsHubToday does
+     NOT — see the note there. */
+  const tk = fsTdKey(), mo = fsPlPlans[tk.slice(0, 7)];
   const day = (mo && mo.days && mo.days[tk]) || [];
   return day.filter(Boolean)
     .map(x => ({ x: x, e: x.adhoc ? null : fsPlById(x.siteId) }))
@@ -18213,10 +18414,22 @@ function fsTodayHtml(d) {
   const odSites = fsPlSites().map(e => fsSiteOverdueN(e.s)).filter(n => n > 0);
   const odTotal = odSites.reduce((a, n) => a + n, 0);
   const visitsAtOd = (stops || []).filter(r => r.e && fsSiteOverdueN(r.e.s) > 0).length;
+  /* PASS 76 [76-C1] — the greeting is only true of TODAY. Stepping to another
+     day replaces it with the day itself rather than wishing you good morning
+     on a Thursday in three weeks. */
+  const tdk = fsTdKey(), isToday = !fsTdDay;
+  const tdd = new Date(+tdk.slice(0, 4), +tdk.slice(5, 7) - 1, +tdk.slice(8, 10));
   let h = '<div id="fsTodayHead" style="margin:6px 0 14px">' +
-    '<h1 style="font-size:26px;margin:0">' + greet + who + '</h1>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<h1 style="font-size:26px;margin:0;flex:1;min-width:0">' +
+      (isToday ? greet + who : fsEsc(tdd.toLocaleDateString(undefined, { weekday: "long" }))) + '</h1>' +
+    '<button class="fsbtn" id="fsTdPrev" title="The day before" style="min-width:40px;font-size:17px;padding:4px 10px">&#8249;</button>' +
+    '<button class="fsbtn" id="fsTdNext" title="The day after" style="min-width:40px;font-size:17px;padding:4px 10px">&#8250;</button>' +
+    (isToday ? '' : '<button class="fsbtnP" id="fsTdToday" title="Back to today">Today</button>') +
+    '</div>' +
     '<div style="color:var(--fs-sub);font-size:13.5px">' +
-    fsEsc(new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })) +
+    fsEsc(tdd.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })) +
+    (isToday ? '' : ' \u00b7 not today') +
     '</div></div>';
   /* stat tiles. The mock's two commercial tiles land in THIS grid with the
      commercial layer — designed-in space, NOT built (the Money-ownership
@@ -18252,7 +18465,10 @@ function fsTodayHtml(d) {
             ? ["Now", "background:rgba(37,150,171,.20);color:var(--fs-accent)"]
             : ["Booked", "background:#22262b;color:var(--fs-sub)"];
         const label = fsPlStopName(r.x, r.e);
-        const due = (!r.x.adhoc && r.e) ? fsPlDueCycles(r.e.s, fsPlTodayKey().slice(0, 7)).map(c => c.label).join(" + ") : "";
+        /* [76-C1] follows the viewed day: the cycles due in AUGUST are not the
+           cycles due in September, and a stepped-to date in another month
+           would otherwise label its stops from the wrong month. */
+        const due = (!r.x.adhoc && r.e) ? fsPlDueCycles(r.e.s, fsTdKey().slice(0, 7)).map(c => c.label).join(" + ") : "";
         h += '<div class="fsTdRow" data-i="' + i + '" style="display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--fs-border)' + (r.e ? ';cursor:pointer' : '') + '">' +
           '<div style="width:58px;font-weight:700;font-size:13px;white-space:nowrap">' + fsEsc(r.x.start || "—") + '</div>' +
           '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(label) + '</div>' +
@@ -18299,6 +18515,14 @@ function fsRenderToday() {
   w.innerHTML = fsTodayHtml(d);
   const pl = document.getElementById("fsTodayPlanner");
   if (pl) pl.onclick = () => document.getElementById("fsPlannerBtn").click();
+  /* [76-C1] the three controls. fsTdShift snaps to null on today, so pressing
+     next from yesterday leaves the screen in the same state as Today does. */
+  const tdP = document.getElementById("fsTdPrev");
+  if (tdP) tdP.onclick = () => { fsTdShift(-1); fsRenderToday(); };
+  const tdN = document.getElementById("fsTdNext");
+  if (tdN) tdN.onclick = () => { fsTdShift(1); fsRenderToday(); };
+  const tdT = document.getElementById("fsTdToday");
+  if (tdT) tdT.onclick = () => { fsTdDay = null; fsRenderToday(); };
   w.querySelectorAll(".fsTdRow").forEach(el => el.onclick = () => {
     const r = (d.stops || [])[+el.dataset.i];
     if (r && r.e) fsTodayOpenSite(r.e);
@@ -18310,6 +18534,9 @@ function fsRenderToday() {
 }
 document.getElementById("fsNavToday").onclick = () => {
   if (!fsRegister) return;                 /* the import screen keeps its own CTAs */
+  /* [76-C1] pressing Today in the nav MEANS today. Without this the screen
+     keeps whatever day was stepped to an hour ago, and the tab lies. */
+  fsTdDay = null;
   fsRenderToday(); fsShow("fsTodayView");
 };
 document.getElementById("fsNavSites").onclick = () => {
@@ -18332,6 +18559,17 @@ function fsHubToday(s) {
      lazily — fsHubWire kicks the load once and re-renders; null here just
      means "no card yet", never an invented booking. */
   if (typeof fsPlPlans === "undefined" || !fsPlPlans) return null;
+  /* PASS 76 [76-C1] — THIS LINE IS THE TWIN OF THE ONE IN fsTodayStops AND IT
+     STAYS ON fsPlTodayKey() DELIBERATELY. The trap was recorded in
+     HANDOFF-2026-08-21.md §6.5 before either was touched: the two lines are
+     byte-identical and mean different things.
+
+     A site hub says "you are booked here at 9:00". If it followed the Today
+     screen's viewed day, then leaving Today on next Thursday and opening a
+     site would show a Thursday booking as if it were now — an invented
+     booking on the screen a tech reads before walking in. That is a worse
+     bug than the one [76-C1] fixes. M9 moves this line to fsTdKey() to prove
+     the suite notices. */
   const tk = fsPlTodayKey(), mo = fsPlPlans[tk.slice(0, 7)];
   const day = mo && mo.days && mo.days[tk];
   if (!day) return null;
@@ -21375,7 +21613,7 @@ async function fsStoreRender() {
     '<div style="margin-top:6px;color:#7ddb8f">As a .fsbundle this register would be about <b>' +
       fsMB(Math.round(cen.bytes * 0.75) + Math.max(0, JSON.stringify(fsRegister).length - cen.bytes)) +
       '</b> instead of ' + fsMB(JSON.stringify(fsRegister).length) +
-      ' &mdash; switch from &#128193; Files.</div>';
+      ' &mdash; switch from &#128193; File.</div>';
 
   const rows = [];
   (fsRegister.clients || []).forEach(c => (c.sites || []).forEach(s => {
@@ -21574,6 +21812,31 @@ function fsBizTaxRender() {
   Array.prototype.forEach.call(list.querySelectorAll(".fsBizTaxDel"), a => {
     a.onclick = () => { fsTaxDrop(a.getAttribute("data-code")); fsMarkDirty(); fsBizTaxRender(); };
   });
+  /* PASS 76 [76-A4] — live, so changing the dropdown updates the sentence
+     without a re-render that would rebuild the select and throw away the
+     choice being made. */
+  sel.onchange = () => fsBizGstLine();
+  fsBizGstLine();
+}
+/* PASS 76 [76-A4] — reads the LIVE controls, never the saved record, because
+   the whole defect was a screen that disagreed with what would happen. */
+function fsBizGstLine() {
+  const el = document.getElementById("fsBizGstLine");
+  if (!el) return;
+  const gst = document.getElementById("fsBizGst");
+  const sel = document.getElementById("fsBizCode");
+  if (!gst || !gst.checked) { el.style.display = "none"; return; }
+  el.style.display = "";
+  const code = sel ? String(sel.value || "") : "";
+  const t = (fsRegister && fsRegister.taxTable) || {};
+  const has = code && Object.prototype.hasOwnProperty.call(t, code);
+  if (has) {
+    el.style.color = "#6fcf8e";
+    el.textContent = "\u2713 GST " + fsTaxPctFromBp(t[code]) + "% will appear on invoices, and they will be titled \u201cTax invoice\u201d.";
+  } else {
+    el.style.color = "#ffd873";
+    el.textContent = "\u26a0 GST is on but no tax code is set \u2014 invoices will NOT show GST and cannot be issued.";
+  }
 }
 function fsBizOpen() {
   if (!fsRegister) { alert("Load a register first — these settings live inside it."); return; }
@@ -21651,7 +21914,15 @@ document.getElementById("fsBizBtn").onclick = () => {
 };
 document.getElementById("fsBizClose").onclick = () => document.getElementById("fsBizModal").classList.remove("show");
 document.getElementById("fsBizSave").onclick = () => fsBizSave();
-document.getElementById("fsBizGst").onchange = () => fsBizTaxRender();
+document.getElementById("fsBizGst").onchange = function () {
+  /* PASS 76 [76-A2] — THE TRANSITION, and the only place the seed can fire.
+     This handler runs on a USER TICK only: fsBizOpen assigns .checked
+     directly and calls fsBizTaxRender() itself, which does not dispatch
+     change, so merely opening Business & tax on a registered business never
+     seeds anything. */
+  if (this.checked && fsGstSeed()) fsMarkDirty();
+  fsBizTaxRender();
+};
 document.getElementById("fsBizAddTax").onclick = () => {
   const err = document.getElementById("fsBizTaxErr");
   const code = String(document.getElementById("fsBizNewCode").value || "").trim();
@@ -21667,7 +21938,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v79";
+const FS_BUILD = "aa-v80";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -22690,6 +22961,60 @@ function fsPlMinsFor(s, month) {
    at the margin, which is why every caller shows the parse back through
    fsPlFmtMins BEFORE it commits.
    Accepts: 90 · 1h30 · 1h 30m · 1.5h · 2:30 · 90m · 1d · 1d 2h 30m */
+/* PASS 76 [76-B4] — W-13, "what save button". There wasn't one: this was a
+   window.prompt(), and a prompt offers OK and Cancel. Reece confirmed on
+   22 Aug that it was the planner and that the site register's own Save
+   "works well", so the site register is deliberately NOT touched.
+
+   Modelled on askFileName() — the app already replaced prompt() once, for
+   the same reason, and a second dialog idiom would be a second thing to
+   maintain. What a prompt could not carry and this does: the LIVE PARSE
+   ECHO. Every other duration field in the app shows you how your typing was
+   read before you commit it (that is what makes "a bare number means
+   minutes" safe as a rule), and this was the one field that could not.
+
+   cb(mins) fires on Save with a parsed whole-minute number, never a string,
+   so no caller re-parses. Cancel and the X both close without calling back. */
+function fsPlDurEdit(opts, cb) {
+  const o = opts || {};
+  const d = document.createElement("div");
+  d.className = "modal show";
+  d.style.zIndex = "400";
+  d.innerHTML = '<div class="modalbox" style="max-width:380px">' +
+    '<h3 style="margin-bottom:6px">' + fsEsc(o.title || "Time on site") + '</h3>' +
+    (o.note ? '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' + fsEsc(o.note) + '</div>' : '') +
+    '<input id="fsPlDurIn" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:16px">' +
+    '<div id="fsPlDurEcho" style="font-size:12.5px;color:var(--fs-sub2);margin-top:6px;min-height:17px"></div>' +
+    '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:4px">' + fsEsc(FS_DUR_HELP) + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px">' +
+    '<button class="fsbtn" id="fsPlDurX" style="flex:1">Cancel</button>' +
+    '<button class="fsbtnP" id="fsPlDurGo" style="flex:2">Save</button></div></div>';
+  document.body.appendChild(d);
+  const inp = d.querySelector("#fsPlDurIn");
+  const echo = d.querySelector("#fsPlDurEcho");
+  inp.value = o.value == null ? "" : String(o.value);
+  const draw = () => {
+    const raw = inp.value.trim();
+    if (!raw && o.allowEmpty) { echo.style.color = "var(--fs-sub2)"; echo.textContent = o.emptyNote || ""; return; }
+    const n = fsPlParseDur(raw);
+    if (n > 0) { echo.style.color = "#6fcf8e"; echo.textContent = "\u2713 " + fsPlFmtMins(n); }
+    else { echo.style.color = "#ff8a7a"; echo.textContent = raw ? "Can't read that as a length of time" : ""; }
+  };
+  inp.oninput = draw; draw();
+  const close = () => d.remove();
+  d.querySelector("#fsPlDurX").onclick = close;
+  d.querySelector("#fsPlDurGo").onclick = () => {
+    const raw = inp.value.trim();
+    if (!raw && o.allowEmpty) { close(); cb(null); return; }
+    const n = fsPlParseDur(raw);
+    /* The refusal stays INSIDE the dialog: a prompt had to alert() and throw
+       the typing away, which is how "couldn't read that" became a dead end. */
+    if (!(n > 0)) { draw(); inp.focus(); return; }
+    close(); cb(n);
+  };
+  inp.onkeydown = ev => { if (ev.key === "Enter") d.querySelector("#fsPlDurGo").onclick(); };
+  try { inp.focus(); inp.select(); } catch (e) {}
+}
 function fsPlParseDur(v) {
   const s = String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, "");
   if (!s) return null;
@@ -24082,20 +24407,22 @@ function fsPlWireDay() {
   document.querySelectorAll(".fsPlTrv").forEach(a => a.onclick = () => {
     const x = sorted()[+a.dataset.i];
     if (!x) return;
-    const cur = (typeof x.trvSet === "number") ? String(x.trvSet) : "";
-    const v = window.prompt("Driving time to this stop, in minutes.\n\n"
-      + "Leave it EMPTY to go back to the calculated time.", cur);
-    if (v === null) return;
-    const t = v.trim();
-    if (!t) delete x.trvSet;
-    else {
-      const n2 = parseInt(t, 10);
-      /* A wrong rejection is loud; a wrong acceptance is silent (V0.15). */
-      if (!(n2 >= 0) || !/^\d+$/.test(t)) { alert("That is not a number of minutes.\n\nType a whole number, or leave it empty to go back to the calculated time."); return; }
-      x.trvSet = n2;
-    }
-    fsPlSavePlans();
-    fsPlRender();
+    /* PASS 76 [76-B4] DECLARED ADDITION — not named in the brief. This is the
+       SAME window.prompt shape two handlers above, in the same panel Reece was
+       standing in when he asked "what save button". Fixing the duration and
+       leaving this one means the complaint's whole class survives one tap
+       away, and the editor is already built. */
+    const cur = (typeof x.trvSet === "number") ? fsPlFmtMins(x.trvSet) : "";
+    fsPlDurEdit({
+      title: "Driving time to this stop",
+      note: "Leave it empty to go back to the calculated time.",
+      value: cur, allowEmpty: true,
+      emptyNote: "Back to the calculated driving time"
+    }, function (n) {
+      if (n == null) delete x.trvSet; else x.trvSet = n;
+      fsPlSavePlans();
+      fsPlRender();
+    });
   });
   document.querySelectorAll(".fsPlClrDay").forEach(b => b.onclick = () => {
     const arr = mo.days[dk] || [];
@@ -24157,15 +24484,17 @@ function fsPlWireDay() {
        no-op. A prompt() cannot carry a live echo like the two boxes below it
        can, but the stop re-renders with the parsed time immediately underneath
        and it is one tap to redo. */
-    const v = window.prompt("Time on site for this day only\n\n" + FS_DUR_HELP
-      + (std ? "\n\nThis site's standard visit is " + fsPlFmtMins(std) + ". Changing it here does NOT change the site register, and next month goes back to standard." : ""),
-      fsPlFmtMins(x.mins));
-    if (v === null) return;
-    const n = fsPlParseDur(v);
-    if (!(n > 0)) { alert("Couldn't read \"" + v + "\" as a length of time.\n\n" + FS_DUR_HELP); return; }
-    x.mins = n;
-    if (std != null && n === std) delete x.minsSet; else x.minsSet = true;
-    fsPlSavePlans(); fsPlRender();
+    /* PASS 76 [76-B4] — was window.prompt(). See fsPlDurEdit. */
+    fsPlDurEdit({
+      title: "Time on site for this day",
+      note: std ? ("This site's standard visit is " + fsPlFmtMins(std) +
+                   ". Changing it here does not change the site register, and next month goes back to standard.") : "",
+      value: fsPlFmtMins(x.mins)
+    }, function (n) {
+      x.mins = n;
+      if (std != null && n === std) delete x.minsSet; else x.minsSet = true;
+      fsPlSavePlans(); fsPlRender();
+    });
   });
   /* V0.15 — the live echo. A free-text duration can only be trusted if you can
      see how it was read BEFORE you commit it, so every keystroke prints the
@@ -24200,6 +24529,54 @@ document.getElementById("fsPlannerBtn").onclick = async () => {
   fsPlRender();
   fsShow("fsPlannerView");
 };
+
+/* PASS 76 [76-D3] — W-17: "Any little box that shows something... they should
+   have little X in the top right corner for closing. like we did for add
+   client and add sites in the planner tool."
+
+   THERE ARE 42 `.modal` ELEMENTS. Editing 42 blocks by hand is 42 chances to
+   miss one, 42 anchors for every later pass to keep in step, and a modal
+   added next month arrives without one. So the X is INSTALLED, once, over
+   every `.modal > .modalbox` in the document.
+
+   THE PART THAT IS EASY TO GET WRONG: closing a modal is not always just
+   dropping the `show` class. Several of these have Close handlers that do
+   real work — clearing state, releasing a camera, re-rendering a parent. So
+   the X PREFERS TO CLICK THE MODAL'S OWN CLOSE CONTROL and only falls back
+   to removing the class when there isn't one. An X that bypassed those
+   handlers would look identical and silently stop the cleanup.
+
+   Opt out with data-nox on the .modal for anything that must be answered
+   rather than dismissed. */
+function fsModalXInstall() {
+  Array.prototype.forEach.call(document.querySelectorAll(".modal"), function (m) {
+    if (m.hasAttribute("data-nox")) return;
+    const box = m.querySelector(":scope > .modalbox");
+    if (!box || box.querySelector(":scope > .fsModalX")) return;
+    /* The box scrolls (max-height:80vh; overflow-y:auto), so an absolutely
+       positioned X scrolls off the top of a long modal. Sticky keeps it on
+       screen; float keeps it out of the heading's flow. */
+    const btn = document.createElement("button");
+    btn.className = "fsModalX";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Close");
+    btn.title = "Close";
+    btn.innerHTML = "&#10005;";
+    btn.style.cssText = "position:sticky;top:-6px;float:right;margin:-8px -6px 0 10px;" +
+      "z-index:9;width:32px;height:32px;line-height:1;border-radius:8px;border:1px solid #4a5057;" +
+      "background:#2c3138;color:#cfd8dc;font-size:15px;cursor:pointer;flex:none";
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      /* the modal's OWN close, so its cleanup still runs */
+      const own = box.querySelector('[id$="Close"],[id$="Cancel"],[id$="Done"]');
+      if (own && own !== btn && typeof own.click === "function") { own.click(); return; }
+      m.classList.remove("show");
+    };
+    box.insertBefore(btn, box.firstChild);
+  });
+}
+document.addEventListener("DOMContentLoaded", fsModalXInstall);
+if (document.readyState !== "loading") fsModalXInstall();
 
 (async () => {
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
