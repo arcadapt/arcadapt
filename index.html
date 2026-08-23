@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.79 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.80 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.79 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.80 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3116,8 +3116,34 @@ function getHandles(o) {
          is preserved, deliberately. This is a bug fix, not a redesign. */
       const aw = d.w / o.size, ah = d.h / o.size;   /* constant: symDims is linear in size */
       const den = aw * aw + ah * ah;
-      const k = den > 0 ? 2 * ((nx - o.x) * aw + (ny - o.y) * ah) / den : o.size;
+      /* PASS 80 [80-2] — R-3. THE OBJECT IS ANCHORED AT ITS OPPOSITE CORNER
+         NOW, NOT ITS CENTRE, AND THAT IS THE WHOLE FIX.
+
+         V0.77 changed max() to a projection and reported square glyphs as
+         "already correct — 0.0% change". 0.0% meant UNTOUCHED: for aw == ah
+         the projection and max ARE the same number, so a smoke detector
+         resized byte-identically before and after. Reece hit exactly that.
+
+         The real cause is older than the aspect-ratio problem and applies to
+         EVERY glyph: o.x,o.y is the CENTRE, so moving the grip 20px moves the
+         far edge 20px the other way and the size changes by 40. Every drag has
+         been 2x the finger since the beginning — "grows massive very fast",
+         and it also grows up-and-left, which is the running-away feeling.
+
+         Hold the top-left still and let the grip land under the finger, as
+         every drawing app does. THE FACTOR OF 2 IS GONE — it was the bug. The
+         [68b-2] projection stays and still does its own job: resolving a
+         diagonal drag on a glyph that is not square. */
+      const left = o.x - d.w / 2, top = o.y - d.h / 2;
+      const k = den > 0 ? ((nx - left) * aw + (ny - top) * ah) / den : o.size;
       o.size = Math.max(12, Math.min(400, k));
+      /* Put the anchored corner back where it was. Self-consistent: left/top
+         recompute to the same numbers on the next pointermove, so the anchor
+         cannot creep across a drag. pushUndo() already fired at pointerdown,
+         so moving x/y here costs no extra undo entry. */
+      const d2 = symDims(o);
+      o.x = left + d2.w / 2;
+      o.y = top + d2.h / 2;
     }});
   } else if (o.kind === "text") {
     const b = objectBounds(o);
@@ -13721,6 +13747,57 @@ function fsAccessSelect(id, val, extra) {
    for goes where a tick belongs — on the priced line, in fsInvAdhocEdit
    below, marking the thing as secured. A tick in the EMPTY box would mean
    "done" about a line that is not. */
+/* PASS 80 [80-1] — R-4, THE CONTROL REECE HAS ASKED FOR AT LEAST FOUR TIMES.
+   "I want something at the end that I can click like I could the '-' … a tick
+   or something that secures the line for me."
+
+   THE '-' WAS NEVER A BUTTON. It is fsMoneyIn's placeholder, sitting exactly
+   where a commit control belongs — which is why it has been read as one for
+   months. Twice that placeholder has been RESTYLED in answer (most recently
+   V0.76, which made it the word "Price"), and twice the actual complaint
+   survived, because the complaint is that THERE IS NOTHING TO PRESS.
+
+   This is that something. It commits by blurring the focused input, which
+   fires the very `onchange` each editor already binds — so the line goes
+   through the existing commit path and nothing is re-implemented. Filled green
+   when the line is priced, hollow when it is not, so the row says at a glance
+   whether it is secured. That is the second half of the ask and the reason a
+   plain button would not have done.
+
+   ONE helper for all three editors — the scratch quote, the ad-hoc invoice and
+   the quote's hand-added line — because "invoices and quotes" is what he said,
+   and V0.76 doing only one of them is what put us here. */
+function fsLineTick(cls, id, priced) {
+  return '<button type="button" class="' + cls + ' fsLineTick" data-id="' + fsEsc(id) + '"' +
+    ' title="' + (priced ? 'This line is priced' : 'Set the price to secure this line') + '"' +
+    ' style="flex:none;width:38px;height:38px;border-radius:9px;cursor:pointer;font-size:17px;line-height:1;' +
+    'border:2px solid ' + (priced ? '#1b8a3f' : 'var(--fs-border)') + ';' +
+    'background:' + (priced ? '#1b8a3f' : 'transparent') + ';' +
+    'color:' + (priced ? '#fff' : 'var(--fs-faint)') + '">\u2713</button>';
+}
+/* HOW THIS ACTUALLY COMMITS, stated accurately because the first draft of this
+   comment was wrong. Tapping any button BLURS the focused input by itself, and
+   that browser-native blur is what fires the `onchange` each editor binds — so
+   the price is already saved before this handler runs. Mutant M2 proved it:
+   deleting the explicit blur below changed nothing.
+
+   THE EXPLICIT BLUR STAYS ANYWAY, as a named guard rather than as the
+   mechanism. The moment anyone adds `preventDefault` to this button's
+   mousedown — the standard trick for stopping focus flicker on a toolbar
+   control — the native blur stops happening and the typed price is silently
+   swallowed by the re-render. That pairing is M2, and it is caught only
+   because this line is here.
+
+   Deliberately NOT a second write path: a control that re-implemented the save
+   would be a second source of truth for the price. */
+function fsLineTickWire(cls, rerender) {
+  document.querySelectorAll("." + cls).forEach(function (b) {
+    b.onclick = function () {
+      try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
+      rerender();
+    };
+  });
+}
 function fsMoneyIn(cls, id, cents) {
   return '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' +
     (FSMoney.isCents(cents) ? fsEsc(FSMoney.fromCents(cents)) : '') +
@@ -15169,7 +15246,7 @@ function fsQuoteRender() {
             (isLab
               ? (l.minutes == null ? 'no time set' : l.minutes + ' min' +
                  (l.basis && l.basis.accessPct !== 100 ? ' (' + l.basis.baseMinutes + ' min &times; ' + fsEsc(l.basis.accessLabel) + ' ' + l.basis.accessPct + '%)' : ''))
-              : (l.qty == null ? 1 : l.qty) + ' &times; ' + (FSMoney.isCents(l.unitPriceCents) && !unpriced ? fsEsc(FSMoney.fmt(l.unitPriceCents)) : '—')) +
+              : (l.qty == null ? 1 : l.qty) + ' &times; ' + (FSMoney.isCents(l.unitPriceCents) && !unpriced ? fsEsc(FSMoney.fmt(l.unitPriceCents)) : 'no price')) +
           '</div>' +
           /* [56-4] THE FIX. A hand-added line is the one line whose price
              cannot come from anywhere but a person, so it gets the same
@@ -15188,9 +15265,14 @@ function fsQuoteRender() {
             (l.kind === 'manual' ? 'No price set yet' : 'No price in the pricebook') +
           '</div>' : '') +
         '</div>' +
-        '<span style="width:86px;text-align:right;font-size:13.5px;font-weight:700;color:' + (unpriced || needsConfirm ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
-          (unpriced ? '—' : fsEsc(FSMoney.fmt(lineCents))) + '</span>' +
-        (locked ? '' : '<a class="fsQDel" data-id="' + fsEsc(l.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a>') +
+        '<span style="width:88px;text-align:right;font-size:13.5px;font-weight:700;color:' + (unpriced ? '#ffd873' : (needsConfirm ? 'var(--fs-faint)' : '#e8e8e8')) + '">' +
+          (unpriced ? 'No price' : fsEsc(FSMoney.fmt(lineCents))) + '</span>' +
+        /* PASS 80 [80-1] — only the HAND-ADDED line gets the tick. A pricebook
+           item or a remedy task is already priced by the book; there is nothing
+           for a person to secure, and a control that did nothing would be the
+           dead '-' all over again. */
+        ((l.kind === 'manual' && !locked) ? fsLineTick('fsQmTick', l.id, l.priced !== false) : '') +
+        (locked ? '' : '<a class="fsQDel" data-id="' + fsEsc(l.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer;padding-top:11px">&#10005;</a>') +
       '</div></div>';
   });
   html += '</div>';
@@ -15318,6 +15400,7 @@ function fsQuoteRender() {
     el.oninput = apply;
     el.onchange = () => { apply(); fsQuoteRender(); };
   });
+  fsLineTickWire("fsQmTick", () => fsQuoteRender());
   wrap.querySelectorAll(".fsQDel").forEach(a => a.onclick = () => {
     const l = q.lines.filter(x => x.id === a.dataset.id)[0];
     if (!l) return;
@@ -15416,9 +15499,12 @@ function fsScratchRender(q) {
         '<div style="width:62px"><input type="text" class="fsScQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
           '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
         '<div style="width:96px">' + fsMoneyIn("fsScPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
-        '<span style="width:84px;text-align:right;font-size:13.5px;font-weight:700;padding-top:7px;color:' + (l.priced === false ? 'var(--fs-faint)' : '#e8e8e8') + '">' +
-          (l.priced === false ? '—' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
-        '<a class="fsScDel" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:7px">&#10005;</a>' +
+        /* PASS 80 [80-1] — the em-dash here is the SAME glyph W-16 was about,
+           on a screen V0.76 never touched. Words, not a dash. */
+        '<span style="width:88px;text-align:right;font-size:13.5px;font-weight:700;padding-top:9px;color:' + (l.priced === false ? '#ffd873' : '#e8e8e8') + '">' +
+          (l.priced === false ? 'No price' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
+        fsLineTick('fsScTick', l.id, l.priced !== false) +
+        '<a class="fsScDel" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:11px">&#10005;</a>' +
       '</div></div>';
   });
   html += '</div>';
@@ -15458,6 +15544,7 @@ function fsScratchRender(q) {
     l.priced = c != null;
     l.unitPriceCents = c == null ? 0 : c;
   });
+  fsLineTickWire("fsScTick", () => fsScratchRender(q));
   wrap.querySelectorAll(".fsScDel").forEach(a => a.onclick = () => {
     const l = line(a.dataset.id); if (!l) return;
     q.lines.splice(q.lines.indexOf(l), 1);
@@ -16267,7 +16354,11 @@ function fsInvAdhocEdit(inv) {
            a second em-dash — the glyph that started this. */
         '<span style="width:96px;text-align:right;font-size:13.5px;font-weight:700;padding-top:9px;color:' + (l.priced === false ? '#ffd873' : '#e8e8e8') + '">' +
           (l.priced === false ? 'No price' : '<span style="color:#6fcf8e">\u2713</span> ' + fsEsc(FSMoney.fmt(cents))) + '</span>' +
-        '<a class="fsInvDelLn" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:7px">&#10005;</a>' +
+        /* PASS 80 [80-1] — V0.76 put a tick on the AMOUNT of this row and
+           called W-16 done. The amount is a READOUT; he asked for something to
+           PRESS. Same control as the other two editors. */
+        fsLineTick('fsInvTick', l.id, l.priced !== false) +
+        '<a class="fsInvDelLn" data-id="' + fsEsc(l.id) + '" style="width:22px;text-align:center;color:#c62828;cursor:pointer;padding-top:11px">&#10005;</a>' +
       '</div></div>';
   });
   html += '</div>';
@@ -16320,6 +16411,7 @@ function fsInvAdhocEdit(inv) {
     l.priced = c != null;
     l.unitPriceCents = c == null ? 0 : c;
   });
+  fsLineTickWire("fsInvTick", function () { fsInvScreenRender(); });
   wrap.querySelectorAll(".fsInvDelLn").forEach(function (a) {
     a.onclick = function () {
       const l = line(a.dataset.id); if (!l) return;
@@ -16929,7 +17021,31 @@ function fsInvPayLabel(inv) {
     if (over > 0) return { t: "Overpaid by " + FSMoney.fmt(over), col: "#b58900" };
     return { t: "Paid", col: "#1b8a3f" };
   }
-  if (ps === "overdue") return { t: "Overdue", col: "#c62828" };
+  /* PASS 80 [80-3] — R-1. Reece: "the invoices still don't show if they are
+     partly paid… the receipt shows it."
+
+     fsInvoicePayState tests overdue BEFORE part paid, so an overdue customer
+     who HAS paid you something looked identical to one who has paid nothing:
+
+         part paid, not overdue  ->  Part paid
+         part paid, OVERDUE      ->  Overdue      <- the money vanished
+         nothing paid, overdue   ->  Overdue      <- same label
+
+     That is [51-5]'s ordering and it predates V0.76 — but DEPLOY-V0.76's
+     receipt claimed part-paid was now visible, and on an overdue invoice it
+     never was.
+
+     THE STATE MACHINE IS NOT TOUCHED. fsInvoicePayState still returns its four
+     values and every suite pinning it reads what it always read. The fix
+     belongs here, where PRESENTATION is already derived — [64-4] set that
+     precedent adding "Overpaid by $x" without disturbing "paid". Overdue stays
+     red, because being overdue is the headline; it just stops lying about
+     whether anything has come in. */
+  if (ps === "overdue") {
+    const paid = fsInvoicePaidCents(inv);
+    if (paid > 0) return { t: "Overdue \u00b7 part paid", col: "#c62828" };
+    return { t: "Overdue", col: "#c62828" };
+  }
   if (ps === "part paid") return { t: "Part paid", col: "#b58900" };
   return { t: "Unpaid", col: "#7a7a7a" };
 }
@@ -22117,7 +22233,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v83";
+const FS_BUILD = "aa-v84";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -24613,24 +24729,16 @@ function fsPlDayHtml(dk) {
       /* LINE 3 — the ACTIONS, as real buttons. Every class is kept exactly:
          fsPlWireDay binds these by class and is NOT touched by this pass, so
          the handlers, the undo behaviour and every suite that clicks them keep
-         working. A layout pass that also rewires is two passes in one hat.
-
-         THE CALL LINK IS GONE, AND THIS IS WHERE IT WENT. `.fsPlCall` was
-         V0.20's tap-to-call and it is the only control here that did something
-         no other one does — it dialled. Removed because Reece said the contact
-         is not needed on this panel. The number still lives on the site, which
-         is one tap away through the stop name above. If he misses it, THIS is
-         the thing to restore, not the contact's name. */
+         working. A layout pass that also rewires is two passes in one hat. */
       '<div class="fsPlStopActs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">' +
-      /* [79-1] CALL — the contact's NAME left this row; the ability to dial did
-         not. V0.20's guard is kept exactly: rendered only when there is a
-         number that can actually be rung, because a contact with a name and no
-         number is worth storing and is not worth a dead link. */
-      ((function () {
-        var ct = e ? fsCtPrimary(e.s) : null;
-        if (!ct) return '';
-        return '<a class="fsPlCall" href="tel:' + fsEsc(fsCtTel(ct.num)) + '" style="font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-accent);border-radius:8px;color:var(--fs-accent);font-weight:700;white-space:nowrap">&#128222; Call</a>';
-      })()) +
+      /* PASS 80 [80-4] — R-11. V0.79 kept a Call button here against Reece's
+         words, because test_p17 protected tap-to-call and deleting a working
+         capability on one reading of one sentence looked like the wrong call.
+         It was flagged on the walk sheet and put to him directly. He answered:
+         "I don't think it is necessary." So it goes.
+
+         fsCtPrimary / fsCtTel and the dialable-only guard are untouched and
+         still in use on the site card, the run sheet and the calendar line. */
       '<a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap"' +
       (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'Time</a>' +
       '<a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">Move</a>' +
