@@ -132,6 +132,24 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   #swatches { display:flex; align-items:center; gap:5px; }
   .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .swatch.active { border-color:#fff; box-shadow:0 0 0 2px #ff5a3c; }
+  /* PASS 85 [85-1] - R-13. The markup row is the workspace's swatch row and
+     wants to LOOK identical, but the plan's 22px circles sit in a toolbar you
+     hit with a stylus or a mouse. These are hit with a thumb, in a modal, on a
+     phone - and "hard to press" is a complaint Reece has now made three times
+     (W-16, R-4, W-11). Same circle, bigger target. */
+  .swatch.fsAnnSwatch { width:28px; height:28px; }
+  /* PASS 85 [85-5] - 68-1 settled this: an SVG, not a glyph. The first cut used
+     the character U+25AE for the highlighter, and rendered at 430px it is a thin
+     bar that reads as a text cursor.
+
+     Same 24-box, currentColor, stroke-width-2 convention the fs button icons
+     use - deliberately NOT that class, because this modal is workspace chrome,
+     and deliberately not naming it in this comment either: test_p60 C8 is a
+     census that counts that class name in the source, and a mention in a
+     comment would have incremented it. The census was right to trip. */
+  .fsAnnIco { width:15px; height:15px; display:inline-block; vertical-align:-2px;
+    margin-right:6px; fill:none; stroke:currentColor; stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round; }
   .spacer { flex:1; }
   #status { font-size:11px; color:#888; width:100%; }
 
@@ -319,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.84 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.85 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.84 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.85 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -881,21 +899,43 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 <div class="modal" id="fsAnnModal" style="z-index:124">
   <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
     <h3 style="margin-bottom:2px">Mark up the photo</h3>
-    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Draw on it to point at the problem. The markup is burnt into the picture, so it survives the quote PDF and the export.</div>
+    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Draw on it to point at the problem. Hold a colour for two seconds to remove it, or hold the wheel colour to pin it. The markup is burnt into the picture when you save, so it survives the quote PDF and the export.</div>
+    <!-- PASS 85 [85-0] - R-13. Three fixed colours became the workspace's own
+         swatch row, and pen / highlighter / eraser are iOS Markup's three. The
+         rows wrap on a phone rather than scrolling sideways. -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <button class="btn fsAnnCol" data-c="#ff2d2d" type="button" title="Draw in red" style="background:#ff2d2d;color:#fff;min-width:44px">Red</button>
-      <button class="btn fsAnnCol" data-c="#ffd400" type="button" style="background:#ffd400;color:#101214;min-width:44px">Yellow</button>
-      <button class="btn fsAnnCol" data-c="#ffffff" type="button" style="background:#fff;color:#101214;min-width:44px">White</button>
-      <span style="flex:1"></span>
-      <button class="btn" id="fsAnnUndo" type="button">&#8617; Undo</button>
-      <button class="btn" id="fsAnnClear" type="button">Clear</button>
+      <button class="btn fsAnnTool" id="fsAnnPen" data-t="pen" type="button" title="Pen" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20.5l1-4L15.5 6a2.1 2.1 0 0 1 3 3L8 19.5Z"/><path d="M14 7.5l2.5 2.5"/></svg>Pen</button>
+      <button class="btn fsAnnTool" id="fsAnnHl" data-t="hl" type="button" title="Highlighter" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3.5l6.5 6.5-7.5 7H7.5L4 13.5Z"/><path d="M6 21h13" stroke-width="4"/></svg>Highlighter</button>
+      <button class="btn fsAnnTool" id="fsAnnEr" data-t="er" type="button" title="Eraser &mdash; tap or drag over a mark to take the whole mark off" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.6" y="8.4" width="15.4" height="8.6" rx="1.6" transform="rotate(-38 10.3 12.7)"/><path d="M8.9 6.6 16.6 14.3"/><path d="M8.4 19.4H21"/></svg>Eraser</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <button class="btn" id="fsAnnUndo" type="button" title="Undo" style="min-height:40px">&#8617; Undo</button>
+      <button class="btn" id="fsAnnRedo" type="button" title="Redo" style="min-height:40px">&#8618; Redo</button>
+      <button class="btn" id="fsAnnClear" type="button" style="min-height:40px">Clear</button>
+    </div>
+    <div id="fsAnnColWrap" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;color:#8fa2ab">Colour</span>
+      <div id="fsAnnSwRow" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
+    </div>
+    <div id="fsAnnSizeWrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:12px;color:#8fa2ab">
+      <label style="display:flex;align-items:center;gap:6px">Size
+        <input type="range" id="fsAnnSize" min="1" max="8" step="1" value="3" style="width:104px">
+      </label>
+      <label id="fsAnnStyleWrap" style="display:flex;align-items:center;gap:6px">Line
+        <select id="fsAnnStyle" style="background:#1a1d21;color:#e8e8e8;border:1px solid #4a5057;border-radius:6px;padding:6px">
+          <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
+        </select>
+      </label>
     </div>
     <div style="background:#000;border-radius:8px;overflow:auto;max-height:62vh;text-align:center">
       <canvas id="fsAnnCanvas" style="max-width:100%;touch-action:none;cursor:crosshair"></canvas>
     </div>
     <div class="row" style="margin-top:10px">
-      <button class="btn" id="fsAnnCancel" type="button">Cancel</button>
-      <button class="btn primary" id="fsAnnSave" type="button">Save markup</button>
+      <!-- PASS 85 - matched to the toolbar above them. F2 measured these at
+           31px on a 430px screen: the two buttons that decide whether the
+           markup is kept were the smallest targets in the modal. -->
+      <button class="btn" id="fsAnnCancel" type="button" style="min-height:40px">Cancel</button>
+      <button class="btn primary" id="fsAnnSave" type="button" style="min-height:40px">Save markup</button>
     </div>
   </div>
 </div>
@@ -4925,7 +4965,12 @@ function applyPenColor(c) {
   refreshSwatchActive();
 }
 function refreshSwatchActive() {
-  document.querySelectorAll(".swatch").forEach(x => {
+  /* PASS 85 [85-3] - SCOPED, and it always meant to be. This ran across the
+     whole document and toggled .active against the PLAN's pen colour. The photo
+     markup row uses the same class on purpose and stays in the DOM after its
+     modal closes, so picking a colour on the plan would have quietly changed
+     which swatch the markup showed as selected. */
+  swatchesEl.querySelectorAll(".swatch").forEach(x => {
     x.classList.toggle("active", !!x.dataset.col && x.dataset.col.toLowerCase() === penColor.toLowerCase());
   });
 }
@@ -4946,7 +4991,37 @@ function commitSwatchReorder(col, clientX) {
   buildSwatches();
 }
 
-function attachSwatchGestures(el, col, isTemp) {
+/* PASS 85 [85-0] - R-13. Photo markup wanted the same swatch row, and the
+   honest way to give it one is to SHARE this gesture code rather than copy it.
+   What is in here was learned the hard way and a second copy would rot:
+     PASS 34  the 1500ms favourite is ARMED here and committed in `finish`, and
+              disarmed by any movement - at 500 vs 1500 a pause on the way to a
+              drag used to DELETE a colour.
+     PASS 36  .favarm, so an armed hold is visible.
+     C4       contextmenu is swallowed, or a phone long-press never reaches the
+              2s timer at all.
+   The workspace's two call sites pass no context and get exactly what they had;
+   the object below is the behaviour they always had, named. */
+const FS_SW_PLAN = {
+  add: function (c2) {
+    if (!swColors.some(function (x) { return x.toLowerCase() === c2.toLowerCase(); })) {
+      swColors.push(c2); saveSwatches();
+    }
+  },
+  /* returns whether anything actually changed - a 2s hold on the last two
+     colours is a no-op, and a no-op must not repaint as if it were not. */
+  drop: function (c2) {
+    if (swColors.length <= 2) return false;
+    swColors = swColors.filter(function (x) { return x !== c2; });
+    saveSwatches();
+    return true;
+  },
+  clearTemp: function () { curCustom = null; },
+  rebuild: function () { buildSwatches(); },
+  reorder: function (c2, x) { commitSwatchReorder(c2, x); }
+};
+function attachSwatchGestures(el, col, isTemp, ctx) {
+  ctx = ctx || FS_SW_PLAN;
   let liftTimer = null, favTimer = null, lifted = false, moved2 = false, favArmed = false;
   let down = false, x0 = 0, y0 = 0, suppress = false;
   el.addEventListener("click", e => {
@@ -4996,13 +5071,11 @@ function attachSwatchGestures(el, col, isTemp) {
       el.style.transform = "";
       suppress = true;
       if (isTemp) {
-        if (!swColors.some(c2 => c2.toLowerCase() === col.toLowerCase())) { swColors.push(col); saveSwatches(); }
-        curCustom = null;
-        buildSwatches();
-      } else if (swColors.length > 2) {
-        swColors = swColors.filter(c2 => c2 !== col);
-        saveSwatches();
-        buildSwatches();
+        ctx.add(col);
+        ctx.clearTemp();
+        ctx.rebuild();
+      } else if (ctx.drop(col)) {
+        ctx.rebuild();
       }
       return;
     }
@@ -5010,7 +5083,7 @@ function attachSwatchGestures(el, col, isTemp) {
     if (lifted) {
       el.classList.remove("lift");
       el.style.transform = "";
-      if (moved2) commitSwatchReorder(col, e.clientX);
+      if (moved2) ctx.reorder(col, e.clientX);
       lifted = false;
     }
   };
@@ -14276,18 +14349,235 @@ function fsDefTypeLibLoad(key) {
 
 let fsAnnStrokes = [], fsAnnCol = "#ff2d2d", fsAnnImg = null, fsAnnDone = null, fsAnnDrawing = false;
 
+/* PASS 85 [85-1] - R-13. "similar to the workspace with a colour wheel with
+   saved colours ... a rubber or highlighter ... changing the size or texture of
+   your lines".
+
+   ITS OWN LIST, NOT THE PLAN'S. The plan's palette is drawing-convention colour
+   - a red circuit, a blue zone - and it is reordered to suit a drawing. These
+   are contrast against a photograph. Sharing one list would mean pinning a
+   colour for a photo silently rearranging the plan's toolbar. The first three
+   are the exact three that were hard-coded here before, so nobody loses the
+   colours they already had; the rest are the plan's defaults. */
+const FS_ANN_SW_DEF = ["#ff2d2d", "#ffd400", "#ffffff", "#111111", "#1b8a3f", "#0057d8"];
+let fsAnnSw = FS_ANN_SW_DEF.slice();
+try {
+  const fsAnnSwJ = JSON.parse(localStorage.getItem("fs-ann-swatches") || "null");
+  if (Array.isArray(fsAnnSwJ) && fsAnnSwJ.length >= 2) fsAnnSw = fsAnnSwJ.slice();
+} catch (e) {}
+function fsAnnSwSave() {
+  try { localStorage.setItem("fs-ann-swatches", JSON.stringify(fsAnnSw)); } catch (e) {}
+}
+let fsAnnCustom = null;              /* last wheel colour not yet pinned */
+let fsAnnTool = "pen";               /* pen | hl | er */
+let fsAnnStyle = "solid";            /* solid | dash | dot - pen only */
+/* REMEMBERED PER TOOL, which is what iOS Markup does: a fat highlighter must
+   not make the pen fat when you switch back. 3 is x1.00 - see fsAnnPaint. */
+let fsAnnW = { pen: 3, hl: 6 };
+let fsAnnUndoS = [], fsAnnRedoS = [];
+/* Strokes are immutable once finished, so a history state is a SHALLOW COPY of
+   the array - cheap enough to keep 60 of, unlike a deep copy of every point. */
+function fsAnnSnapOf(arr) {
+  fsAnnUndoS.push(arr);
+  if (fsAnnUndoS.length > 60) fsAnnUndoS.shift();
+  fsAnnRedoS = [];
+}
+function fsAnnSnap() { fsAnnSnapOf(fsAnnStrokes.slice()); }
+function fsAnnHistSync() {
+  const u = document.getElementById("fsAnnUndo"), r = document.getElementById("fsAnnRedo");
+  if (u) u.disabled = !fsAnnUndoS.length;
+  if (r) r.disabled = !fsAnnRedoS.length;
+  const cl = document.getElementById("fsAnnClear");
+  if (cl) cl.disabled = !fsAnnStrokes.length;
+}
+/* The wheel-and-swatches context. Mirrors FS_SW_PLAN so ONE gesture
+   implementation drives both rows - see [85-0]. */
+const FS_SW_ANN = {
+  add: function (c2) {
+    if (!fsAnnSw.some(function (x) { return x.toLowerCase() === c2.toLowerCase(); })) {
+      fsAnnSw.push(c2); fsAnnSwSave();
+    }
+  },
+  drop: function (c2) {
+    if (fsAnnSw.length <= 2) return false;
+    fsAnnSw = fsAnnSw.filter(function (x) { return x !== c2; });
+    fsAnnSwSave();
+    return true;
+  },
+  clearTemp: function () { fsAnnCustom = null; },
+  rebuild: function () { fsAnnSwBuild(); },
+  reorder: function (c2, x) { fsAnnSwReorder(c2, x); }
+};
+function fsAnnSwReorder(col, clientX) {
+  const host = document.getElementById("fsAnnSwRow");
+  if (!host) return;
+  const tiles = [].slice.call(host.querySelectorAll(".swatch"))
+    .filter(function (el) { return el.dataset.col && !el.classList.contains("temp"); });
+  const rest = tiles.map(function (el) { return el.dataset.col; })
+    .filter(function (c2) { return c2 !== col; });
+  let insert = rest.length;
+  for (let i = 0; i < rest.length; i++) {
+    const el = tiles.filter(function (t2) { return t2.dataset.col === rest[i]; })[0];
+    const r = el.getBoundingClientRect();
+    if (clientX < r.left + r.width / 2) { insert = i; break; }
+  }
+  rest.splice(insert, 0, col);
+  fsAnnSw = rest;
+  fsAnnSwSave();
+  fsAnnSwBuild();
+}
+function fsAnnSwActive() {
+  const host = document.getElementById("fsAnnSwRow");
+  if (!host) return;
+  host.querySelectorAll(".swatch").forEach(function (x) {
+    x.classList.toggle("active",
+      !!x.dataset.col && x.dataset.col.toLowerCase() === String(fsAnnCol).toLowerCase());
+  });
+}
+function fsAnnSwBuild() {
+  const host = document.getElementById("fsAnnSwRow");
+  if (!host) return;
+  host.innerHTML = "";
+  fsAnnSw.forEach(function (col) {
+    const s = document.createElement("div");
+    s.className = "swatch fsAnnSwatch";
+    s.dataset.col = col;
+    s.style.background = col;
+    s.title = "Hold half a second to drag \u00b7 hold 2s to remove";
+    s.onclick = function () { fsAnnCol = col; fsAnnSwActive(); };
+    attachSwatchGestures(s, col, false, FS_SW_ANN);
+    host.appendChild(s);
+  });
+  if (fsAnnCustom && !fsAnnSw.some(function (x) {
+        return x.toLowerCase() === fsAnnCustom.toLowerCase(); })) {
+    const t = document.createElement("div");
+    t.className = "swatch fsAnnSwatch temp";
+    t.dataset.col = fsAnnCustom;
+    t.style.background = fsAnnCustom;
+    t.title = "Wheel colour \u2014 hold 2s to pin it as a swatch";
+    t.onclick = function () { fsAnnCol = fsAnnCustom; fsAnnSwActive(); };
+    attachSwatchGestures(t, fsAnnCustom, true, FS_SW_ANN);
+    host.appendChild(t);
+  }
+  /* THE WHEEL. The real <input type=color> sits transparently ON TOP of the
+     conic-gradient circle so a finger tap lands directly on the input - iPad
+     Safari will not open the picker for a programmatic click on a div. This is
+     the workspace's fix, lifted whole; do not "tidy" the opacity:0 away.
+
+     IT IS INSET BY THE BORDER, WHICH THE WORKSPACE'S IS NOT. An absolutely
+     positioned child sizes against the PADDING box, so a plain width:100% stops
+     2px short of the circle you can see all the way round - and a tap on that
+     ring lands on the div, which opens nothing. Found by D1 measuring the two
+     rectangles rather than checking the input existed. The plan's wheel has the
+     same 2px dead ring and is logged as R-31 rather than fixed from here. */
+  const wheel = document.createElement("div");
+  wheel.className = "swatch fsAnnSwatch";
+  wheel.id = "fsAnnWheel";
+  wheel.title = "Custom colour";
+  wheel.style.background = "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)";
+  wheel.style.position = "relative";
+  const inp = document.createElement("input");
+  inp.type = "color";
+  inp.id = "fsAnnWheelInput";
+  inp.value = fsAnnCustom || "#ff8800";
+  inp.style.cssText = "position:absolute;left:-2px;top:-2px;width:calc(100% + 4px);height:calc(100% + 4px);opacity:0;border:none;padding:0;margin:0;cursor:pointer";
+  wheel.appendChild(inp);
+  inp.addEventListener("input", function () {
+    fsAnnCol = inp.value; fsAnnCustom = inp.value; fsAnnSwActive();
+  });
+  inp.addEventListener("change", function () {
+    fsAnnCol = inp.value; fsAnnCustom = inp.value; fsAnnSwBuild();
+  });
+  host.appendChild(wheel);
+  fsAnnSwActive();
+}
+function fsAnnToolSync() {
+  document.querySelectorAll(".fsAnnTool").forEach(function (b) {
+    const on = b.dataset.t === fsAnnTool;
+    /* PASS 85 [85-4] - A LITERAL, NOT var(--fs-accent). Those variables are
+       declared on #fsReg and this modal is not inside it, so the variable
+       resolved to nothing, outline-style computed to `none`, and the ring never
+       drew. The three colour buttons this row replaces used the identical line
+       since the day markup shipped - which is to say nothing in this modal has
+       ever shown you what was selected. Found by rendering it and looking,
+       #0d-3; E3 now reads the COMPUTED style, because the inline string was
+       there and correct the whole time. #ff5a3c is the same orange the selected
+       swatch already rings itself with, so the modal has ONE selection colour. */
+    b.style.outline = on ? "3px solid #ff5a3c" : "none";
+    b.style.outlineOffset = on ? "1px" : "0";
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  const er = fsAnnTool === "er";
+  const cw = document.getElementById("fsAnnColWrap");
+  const sw = document.getElementById("fsAnnSizeWrap");
+  const st = document.getElementById("fsAnnStyleWrap");
+  /* The eraser has no colour and no width - it takes whole marks. Showing
+     controls that do nothing is how a toolbar starts lying. */
+  if (cw) cw.style.display = er ? "none" : "flex";
+  if (sw) sw.style.display = er ? "none" : "flex";
+  /* A dashed highlighter is not a thing in any editor worth copying. */
+  if (st) st.style.display = fsAnnTool === "pen" ? "flex" : "none";
+  const sl = document.getElementById("fsAnnSize");
+  if (sl && !er) sl.value = String(fsAnnW[fsAnnTool] || 3);
+  const cv = document.getElementById("fsAnnCanvas");
+  if (cv) cv.style.cursor = er ? "cell" : "crosshair";
+}
+/* THE ERASER IS AN OBJECT ERASER, and not only because iOS Markup's is. A
+   stroke here is an object right up until Save flattens it, so a pixel eraser
+   would have to rasterise the whole markup layer and would take undo with it. */
+function fsAnnSegD(a, b, p) {
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const L = vx * vx + vy * vy;
+  let t = L ? ((p.x - a.x) * vx + (p.y - a.y) * vy) / L : 0;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  return Math.hypot(a.x + t * vx - p.x, a.y + t * vy - p.y);
+}
+function fsAnnStrokeHit(s, p, r) {
+  const pts = s.pts;
+  if (!pts || !pts.length) return false;
+  if (pts.length === 1) return Math.hypot(pts[0].x - p.x, pts[0].y - p.y) <= r;
+  for (let i = 1; i < pts.length; i++) {
+    if (fsAnnSegD(pts[i - 1], pts[i], p) <= r) return true;
+  }
+  return false;
+}
+function fsAnnErase(p) {
+  const c = document.getElementById("fsAnnCanvas");
+  if (!c) return false;
+  const base = fsAnnBaseW(c);
+  const keep = fsAnnStrokes.filter(function (s) {
+    return !fsAnnStrokeHit(s, p, fsAnnStrokeW(s, base) / 2 + base);
+  });
+  if (keep.length === fsAnnStrokes.length) return false;
+  fsAnnStrokes = keep;
+  return true;
+}
+
 function fsAnnOpen(src, onSave) {
-  fsAnnStrokes = []; fsAnnDone = onSave || null;
+  /* PASS 85 [85-1] - the history belongs to THIS photo. Carrying it across
+     would let Undo on one picture restore a mark drawn on another. */
+  fsAnnStrokes = []; fsAnnUndoS = []; fsAnnRedoS = []; fsAnnDone = onSave || null;
   const im = new Image();
   im.onload = () => {
     fsAnnImg = im;
     const c = document.getElementById("fsAnnCanvas");
     c.width = im.naturalWidth; c.height = im.naturalHeight;
     fsAnnPaint();
+    fsAnnSwBuild(); fsAnnToolSync(); fsAnnHistSync();
     document.getElementById("fsAnnModal").classList.add("show");
   };
   im.onerror = () => alert("Couldn't open that photo.");
   im.src = src;
+}
+/* Line width scales with the picture so markup reads the same on a 4000px photo
+   and an 800px one. PASS 85 [85-1] keeps that EXACTLY and makes it the base the
+   size slider multiplies: slider 3 is x1.00, so a photo marked up without
+   touching the slider is the same picture V0.84 would have produced. */
+function fsAnnBaseW(c) {
+  return Math.max(3, Math.round(Math.max(c.width, c.height) / 220));
+}
+function fsAnnStrokeW(s, base) {
+  return Math.max(1, base * ((s.w || 3) / 3) * (s.tool === "hl" ? 3 : 1));
 }
 function fsAnnPaint() {
   const c = document.getElementById("fsAnnCanvas");
@@ -14295,17 +14585,40 @@ function fsAnnPaint() {
   const g = c.getContext("2d");
   g.clearRect(0, 0, c.width, c.height);
   g.drawImage(fsAnnImg, 0, 0);
-  /* line width scales with the picture so markup reads the same on a 4000px
-     photo and an 800px one */
-  const w = Math.max(3, Math.round(Math.max(c.width, c.height) / 220));
-  g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = w;
+  const base = fsAnnBaseW(c);
   fsAnnStrokes.forEach(s => {
-    if (s.pts.length < 2) return;
+    const lw = fsAnnStrokeW(s, base);
+    const hl = s.tool === "hl";
+    g.save();
+    g.lineJoin = "round";
+    /* butt caps and one translucent pass per stroke - a highlighter that
+       composited twice where it crossed itself would blotch, which is exactly
+       what a second stroke() per segment would do. */
+    g.lineCap = hl ? "butt" : "round";
+    g.lineWidth = lw;
+    g.globalAlpha = hl ? 0.35 : 1;
     g.strokeStyle = s.col;
-    g.beginPath();
-    g.moveTo(s.pts[0].x, s.pts[0].y);
-    for (let i = 1; i < s.pts.length; i++) g.lineTo(s.pts[i].x, s.pts[i].y);
-    g.stroke();
+    g.fillStyle = s.col;
+    /* THE SAME RATIOS THE PLAN USES for a dashed or dotted line, so "Dotted"
+       means one thing in this product. */
+    if (!hl && s.st === "dash") g.setLineDash([lw * 3.2, lw * 2.2]);
+    else if (!hl && s.st === "dot") { g.setLineDash([0.01, lw * 2.4]); g.lineCap = "round"; }
+    else g.setLineDash([]);
+    if (s.pts.length < 2) {
+      /* PASS 85 [85-2] - A TAP MUST LEAVE A MARK. This used to `return`, so a
+         tap drew nothing; harmless when Undo was a bare pop(), a real bug the
+         moment there is a history to press Undo against. */
+      g.setLineDash([]);
+      g.beginPath();
+      g.arc(s.pts[0].x, s.pts[0].y, lw / 2, 0, Math.PI * 2);
+      g.fill();
+    } else {
+      g.beginPath();
+      g.moveTo(s.pts[0].x, s.pts[0].y);
+      for (let i = 1; i < s.pts.length; i++) g.lineTo(s.pts[i].x, s.pts[i].y);
+      g.stroke();
+    }
+    g.restore();
   });
 }
 function fsAnnPt(e) {
@@ -14486,29 +14799,76 @@ function fsDefShowInWorkspace(d) {
 (function () {
   const c = document.getElementById("fsAnnCanvas");
   if (!c) return;
+  /* PASS 85 [85-2] - an eraser gesture that hit NOTHING is not an edit. Without
+     this, tapping bare photo with the eraser would record a history state and
+     the next Undo press would appear to do nothing at all. */
+  let erBefore = null, erHit = false;
   c.addEventListener("pointerdown", e => {
     fsAnnDrawing = true;
     try { c.setPointerCapture(e.pointerId); } catch (x) {}
-    fsAnnStrokes.push({ col: fsAnnCol, pts: [fsAnnPt(e)] });
+    if (fsAnnTool === "er") {
+      erBefore = fsAnnStrokes.slice(); erHit = false;
+      if (fsAnnErase(fsAnnPt(e))) { erHit = true; fsAnnSnapOf(erBefore); fsAnnPaint(); }
+    } else {
+      fsAnnSnap();
+      fsAnnStrokes.push({ col: fsAnnCol, tool: fsAnnTool, w: fsAnnW[fsAnnTool] || 3,
+                          st: fsAnnStyle, pts: [fsAnnPt(e)] });
+      fsAnnPaint();
+    }
+    fsAnnHistSync();
     e.preventDefault();
   });
   c.addEventListener("pointermove", e => {
     if (!fsAnnDrawing) return;
-    fsAnnStrokes[fsAnnStrokes.length - 1].pts.push(fsAnnPt(e));
-    fsAnnPaint();
+    if (fsAnnTool === "er") {
+      if (fsAnnErase(fsAnnPt(e))) {
+        if (!erHit) { erHit = true; fsAnnSnapOf(erBefore); }
+        fsAnnPaint(); fsAnnHistSync();
+      }
+    } else {
+      fsAnnStrokes[fsAnnStrokes.length - 1].pts.push(fsAnnPt(e));
+      fsAnnPaint();
+    }
     e.preventDefault();
   });
-  const stop = () => { fsAnnDrawing = false; };
+  const stop = () => { fsAnnDrawing = false; erBefore = null; erHit = false; fsAnnHistSync(); };
   c.addEventListener("pointerup", stop);
   c.addEventListener("pointercancel", stop);
   c.addEventListener("pointerleave", stop);
 
-  document.querySelectorAll(".fsAnnCol").forEach(b => b.onclick = () => {
-    fsAnnCol = b.dataset.c;
-    document.querySelectorAll(".fsAnnCol").forEach(x => x.style.outline = x === b ? "3px solid var(--fs-accent)" : "none");
+  document.querySelectorAll(".fsAnnTool").forEach(b => b.onclick = () => {
+    fsAnnTool = b.dataset.t;
+    fsAnnToolSync();
   });
-  document.getElementById("fsAnnUndo").onclick = () => { fsAnnStrokes.pop(); fsAnnPaint(); };
-  document.getElementById("fsAnnClear").onclick = () => { fsAnnStrokes = []; fsAnnPaint(); };
+  const szEl = document.getElementById("fsAnnSize");
+  if (szEl) szEl.oninput = () => {
+    if (fsAnnTool === "er") return;
+    fsAnnW[fsAnnTool] = parseInt(szEl.value, 10) || 3;
+  };
+  const stEl = document.getElementById("fsAnnStyle");
+  if (stEl) stEl.onchange = () => { fsAnnStyle = stEl.value; };
+  /* Undo and Redo hand states BETWEEN the two stacks - neither may go through
+     fsAnnSnap, which clears the redo stack by design. */
+  document.getElementById("fsAnnUndo").onclick = () => {
+    if (!fsAnnUndoS.length) return;
+    fsAnnRedoS.push(fsAnnStrokes.slice());
+    fsAnnStrokes = fsAnnUndoS.pop();
+    fsAnnPaint(); fsAnnHistSync();
+  };
+  document.getElementById("fsAnnRedo").onclick = () => {
+    if (!fsAnnRedoS.length) return;
+    fsAnnUndoS.push(fsAnnStrokes.slice());
+    fsAnnStrokes = fsAnnRedoS.pop();
+    fsAnnPaint(); fsAnnHistSync();
+  };
+  /* CLEAR IS UNDOABLE NOW. It used to be the one irreversible thing in a modal
+     whose whole point is that nothing is committed until Save. */
+  document.getElementById("fsAnnClear").onclick = () => {
+    if (!fsAnnStrokes.length) return;
+    fsAnnSnap();
+    fsAnnStrokes = [];
+    fsAnnPaint(); fsAnnHistSync();
+  };
   document.getElementById("fsAnnCancel").onclick = () => document.getElementById("fsAnnModal").classList.remove("show");
   document.getElementById("fsAnnSave").onclick = () => {
     if (!fsAnnStrokes.length) {
@@ -22850,7 +23210,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v88";
+const FS_BUILD = "aa-v89";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
