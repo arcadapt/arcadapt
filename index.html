@@ -337,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.85 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.86 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.85 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.86 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -537,6 +537,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
         <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
       </select>
       <label style="display:flex;align-items:center;gap:4px;margin-left:6px" title="After drawing, switch to Select with the new shape selected"><input type="checkbox" id="selAfterOn" style="width:16px;height:16px"> then select</label>
+    </div>
+    <div id="chainWrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:#aaa">
+      <label id="wsChainLab" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Each new line starts where the last one ended"><input type="checkbox" id="wsChainOn" style="width:16px;height:16px"> Chain</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest 15 degrees"><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> 15&deg;</label>
+      <button id="wsChainFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
       <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
@@ -1213,6 +1218,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   <div class="modalbox" style="max-width:470px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
     <h3 style="margin-bottom:12px">&#9881; Workspace settings</h3>
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSelAfter"> After drawing a shape, switch to Select with it selected</label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSnapOn"> Snap lines to nearby ends, middles, crossings and edges</label>
     <div style="font-size:11.5px;color:#888;margin-bottom:12px">Show / hide overlays (labels, zones, tags, markups) live in the &#128065; Views side tab.</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Autosave: <b id="wsSetAutoT">&mdash;</b></span>
@@ -1248,7 +1254,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PN pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift = straight / 45&deg; snap &middot; Ctrl+Z / Ctrl+Y undo / redo</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PN pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift = straight / 45&deg; snap &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>15&deg;</b> holds the angle, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> is in the Modify tab.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -1709,7 +1715,10 @@ const MODIFY_TOOLS = [
   { id:"m_copy",    label:"Copy",             icon:"📄", btn:"btnCopy" },
   { id:"m_paste",   label:"Paste",            icon:"📋", btn:"btnPaste" },
   { id:"m_flatten", label:"Flatten",          icon:"▣",  btn:"btnFlatten" },
-  { id:"hatch",     label:"Hatch (HT)",       icon:"▨" }
+  { id:"hatch",     label:"Hatch (HT)",       icon:"▨" },
+  /* PASS 86 [86-5] - R-34's "trimming". No `btn`: there is no hidden topbar
+     button to proxy, because this one needs two taps ON THE CANVAS. */
+  { id:"m_trim",    label:"Trim / Extend",    icon:"⌐" }
 ];
 const HATCH_LEGACY = { hatchd:"hatch", hatchx:"hatch", hatchs:"hatch", hatcho:"hatch" };
 const VESDAR_TOOL = { id:"vesdar", label:"VESDA run", icon:'<span style="color:#b06fd0">&#9645;</span>' };
@@ -1747,6 +1756,30 @@ let testPrevOn = false;
 try { testPrevOn = localStorage.getItem("bpm-prevyear") === "1"; } catch (e) {}
 let exportYearCfg = null;   // {years:[...]} — set while rendering export with year badges
 let lineStyle = "solid";
+/* ================= PASS 86 - R-34: chain, object snaps, trim/extend =======
+   Source: claude/PASS-64-BRIEF.md SS Item 2. Deferred by PASS-68-BRIEF, called
+   in by Reece on 24 Aug. Rulings in claude/PASS-86-BRIEF.md. */
+/* [86-2] SCREEN pixels. Divided by view.scale at the moment of the test, so a
+   snap is always the same size under a thumb no matter how far out the plan is
+   zoomed. Held in image units it would swallow a corridor at fit-to-page. */
+const FS_WS_SNAP_PX = 16;
+/* [86-3] The source's number. snap45's 45 degrees on Shift is NOT touched. */
+const FS_WS_ANGLE_DEG = 15;
+const FS_WS_SNAP_LABEL = { end:"END", int:"INT", mid:"MID", perp:"PERP", near:"NEAR" };
+let fsWsChain = true;
+let fsWsAngle = false;
+let fsWsSnapOn = true;
+try {
+  fsWsChain = localStorage.getItem("bpm-chain") !== "0";
+  fsWsAngle = localStorage.getItem("bpm-anglelock") === "1";
+  fsWsSnapOn = localStorage.getItem("bpm-snaps") !== "0";
+} catch (e) {}
+/* A run is POINTS, not object references. undo() replaces `objects` wholesale
+   via JSON.parse, so every reference held across an undo is stale - which is
+   how chain-aware undo would have silently rewound to the wrong vertex. */
+let fsWsRun = null;              /* { pts:[{x,y},...] } while a run is open */
+let fsWsSnapHit = null;          /* {x,y,type} for the indicator, this frame */
+let fsWsTrimA = null;            /* { o, t } after the first trim tap */
 let sitePhotos = [];
 let levels = [];
 let curLevel = 0;
@@ -3068,6 +3101,234 @@ function distToSeg(p, a, b) {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
+/* ============ PASS 86 - R-34 geometry. Pure functions, no DOM, on purpose:
+   every one of them is a thing a suite can assert an exact number about. ==== */
+
+/* Parameter of p projected onto o's INFINITE line. 0 is (x1,y1), 1 is (x2,y2),
+   and values outside [0,1] are the whole point - that is what tells trim from
+   extend without a branch. */
+function fsWsProjT(o, p) {
+  const dx = o.x2 - o.x1, dy = o.y2 - o.y1;
+  const dd = dx * dx + dy * dy;
+  if (!dd) return 0;
+  return ((p.x - o.x1) * dx + (p.y - o.y1) * dy) / dd;
+}
+
+/* INFINITE-line intersection. Parallel returns null and the caller must SAY
+   so - a trim that does nothing and explains nothing is the bug this project
+   keeps finding. The epsilon is scaled by the two lengths so it means the same
+   thing on a 4000px plan as on an 800px one. */
+function fsWsSegIntersect(a, b) {
+  const d1x = a.x2 - a.x1, d1y = a.y2 - a.y1;
+  const d2x = b.x2 - b.x1, d2y = b.y2 - b.y1;
+  const den = d1x * d2y - d1y * d2x;
+  const mag = Math.hypot(d1x, d1y) * Math.hypot(d2x, d2y);
+  if (!mag || Math.abs(den) < mag * 1e-6) return null;
+  const t = ((b.x1 - a.x1) * d2y - (b.y1 - a.y1) * d2x) / den;
+  return { x: a.x1 + t * d1x, y: a.y1 + t * d1y };
+}
+
+/* SEGMENT-segment intersection - the "INT" snap. Both parameters must land
+   inside [0,1] or the crossing is off the end of a line and is not a corner
+   anybody can see. */
+function fsWsSegXSeg(a, b) {
+  const d1x = a.x2 - a.x1, d1y = a.y2 - a.y1;
+  const d2x = b.x2 - b.x1, d2y = b.y2 - b.y1;
+  const den = d1x * d2y - d1y * d2x;
+  if (!den) return null;
+  const t = ((b.x1 - a.x1) * d2y - (b.y1 - a.y1) * d2x) / den;
+  const u = ((b.x1 - a.x1) * d1y - (b.y1 - a.y1) * d1x) / den;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: a.x1 + t * d1x, y: a.y1 + t * d1y };
+}
+
+/* [86-3] 15 degree increments about an anchor. Deliberately NOT snap45 - that
+   one is Shift's, it is 45 degrees, it ships today and it does not change. */
+function fsWsAngleLock(ax, ay, px, py) {
+  const dx = px - ax, dy = py - ay;
+  const d = Math.hypot(dx, dy);
+  if (!d) return { x: px, y: py };
+  const step = FS_WS_ANGLE_DEG * Math.PI / 180;
+  const a = Math.round(Math.atan2(dy, dx) / step) * step;
+  return { x: ax + d * Math.cos(a), y: ay + d * Math.sin(a) };
+}
+
+function fsWsSnapIsLine(o) {
+  return !!(o && o.kind === "shape" && o.cx == null &&
+            (o.shape === "line" || o.shape === "arrow" ||
+             o.shape === "brk" || o.shape === "vesdar"));
+}
+
+/* [86-2] The five snaps SS Item 2 calls the useful 90%.
+
+   `anchor` is the fixed end of whatever is being drawn or dragged: it is what
+   makes a PERPENDICULAR meaningful, and it is also the guard against snapping
+   the live end back onto its own start and producing a zero-length line.
+
+   The pre-filter is not an optimisation for its own sake: intersections are
+   O(n^2) and this runs on every pointermove. Any candidate of any type lies ON
+   one of these lines, so a line whose body is farther than r from the finger
+   cannot contribute one - the filter is exact, not approximate. */
+function fsWsSnap(ip, anchor, skipO) {
+  if (!fsWsSnapOn) return null;
+  const r = FS_WS_SNAP_PX / view.scale;
+  const ls = [];
+  for (let k = 0; k < objects.length; k++) {
+    const o = objects[k];
+    if (o === skipO || !fsWsSnapIsLine(o) || viewHidden(o)) continue;
+    if (distToSeg(ip, { x:o.x1, y:o.y1 }, { x:o.x2, y:o.y2 }) <= r) ls.push(o);
+  }
+  let best = null;
+  const take = (x, y, type, rank) => {
+    const d = Math.hypot(x - ip.x, y - ip.y);
+    if (d > r) return;
+    if (anchor && Math.hypot(x - anchor.x, y - anchor.y) < 0.5) return;
+    if (!best || rank < best.rank || (rank === best.rank && d < best.d)) {
+      best = { x:x, y:y, type:type, rank:rank, d:d };
+    }
+  };
+  for (let i = 0; i < ls.length; i++) {
+    const o = ls[i];
+    take(o.x1, o.y1, "end", 0);
+    take(o.x2, o.y2, "end", 0);
+    take((o.x1 + o.x2) / 2, (o.y1 + o.y2) / 2, "mid", 2);
+    const tn = Math.max(0, Math.min(1, fsWsProjT(o, ip)));
+    take(o.x1 + tn * (o.x2 - o.x1), o.y1 + tn * (o.y2 - o.y1), "near", 4);
+    if (anchor) {
+      const tp = fsWsProjT(o, anchor);
+      if (tp >= 0 && tp <= 1) take(o.x1 + tp * (o.x2 - o.x1), o.y1 + tp * (o.y2 - o.y1), "perp", 3);
+    }
+    for (let j = i + 1; j < ls.length; j++) {
+      const xp = fsWsSegXSeg(o, ls[j]);
+      if (xp) take(xp.x, xp.y, "int", 1);
+    }
+  }
+  return best;
+}
+
+/* [86-5] TRIM / EXTEND TO CORNER. Mutates both lines and returns the corner.
+
+   THE RULE IS A SIDE RULE. On each line, the endpoint lying on the OPPOSITE
+   side of the intersection from the tapped point is the one that moves to it -
+   because Revit's to-Corner asks you to click the part you want to KEEP. The
+   plausible wrong answer is "move whichever endpoint is farther from the tap":
+   it agrees on two crossing lines and disagrees on two gapped ones tapped near
+   their far ends. That is M6. */
+function fsWsTrimCorner(a, ta, b, tb) {
+  const ix = fsWsSegIntersect(a, b);
+  if (!ix) return null;
+  const pairs = [[a, ta], [b, tb]];
+  for (let i = 0; i < pairs.length; i++) {
+    const o = pairs[i][0], tp = pairs[i][1];
+    const ti = fsWsProjT(o, ix), tt = fsWsProjT(o, tp);
+    if (tt < ti) { o.x2 = ix.x; o.y2 = ix.y; }
+    else { o.x1 = ix.x; o.y1 = ix.y; }
+  }
+  return ix;
+}
+
+/* ---------------- the chain run ---------------- */
+function fsWsRunOpen() { return !!(fsWsRun && fsWsRun.pts && fsWsRun.pts.length); }
+function fsWsChainOn() { return fsWsChain && activeTool === "line"; }
+
+function fsWsMakeSeg(a, b) {
+  const o = { kind:"shape", shape:"line", x1:a.x, y1:a.y, x2:b.x, y2:b.y,
+              color:penColor, width:Math.max(1.5, sizeVal() / 8), ls:lineStyle };
+  o.hs = lineEnds.line.hs; o.he = lineEnds.line.he;
+  return o;
+}
+
+/* THE WHOLE OF CHAIN, IN ONE LINE: the run's next point is THIS segment's far
+   end, so the next segment starts exactly there and the two share a vertex by
+   construction. M1 uses the finger-down point instead, which looks joined at
+   100% and is not. */
+function fsWsChainNext(o) {
+  if (!fsWsRun) fsWsRun = { pts: [{ x:o.x1, y:o.y1 }] };
+  fsWsRun.pts.push({ x:o.x2, y:o.y2 });
+  shapeStart = { x:o.x2, y:o.y2 };
+  fsWsRunSync();
+}
+
+/* Tap-to-place, which is Revit's own click-click-click. Returns "start" (the
+   run's first point), "end" (finish), or a segment to commit. */
+function fsWsChainTap(ip) {
+  const sn = fsWsSnap(ip, fsWsRunOpen() ? fsWsRun.pts[fsWsRun.pts.length - 1] : null);
+  const p = sn ? { x:sn.x, y:sn.y } : { x:ip.x, y:ip.y };
+  if (!fsWsRunOpen()) { fsWsRun = { pts: [p] }; fsWsRunSync(); return "start"; }
+  const r = FS_WS_SNAP_PX / view.scale;
+  const last = fsWsRun.pts[fsWsRun.pts.length - 1];
+  /* tapping the LAST point again finishes - which is what a double tap in that
+     spot IS, and one mechanism rather than a second 380ms timer */
+  if (Math.hypot(p.x - last.x, p.y - last.y) <= r) return "end";
+  const first = fsWsRun.pts[0];
+  const close = fsWsRun.pts.length > 2 && Math.hypot(p.x - first.x, p.y - first.y) <= r;
+  const to = close ? { x:first.x, y:first.y } : p;
+  return { seg: fsWsMakeSeg(last, to), close: close };
+}
+
+/* [86-1] selAfterDraw fires HERE, at the end of the run - not per segment. */
+function fsWsRunEnd(applySel) {
+  const had = fsWsRunOpen();
+  fsWsRun = null;
+  fsWsRunSync();
+  if (had && applySel && selAfterDraw) setTool("select");
+}
+
+/* CHAIN-AWARE UNDO. undo() has already rewound `objects`; all this owes is the
+   matching rewind of the run, one POINT per segment. A run with one point left
+   is still open - you are back at "pick the start", which is where Revit
+   leaves you too. M10 drops the whole run instead. */
+function fsWsRunUndo() {
+  if (!fsWsRunOpen()) return;
+  fsWsRun.pts.pop();
+  if (!fsWsRun.pts.length) fsWsRun = null;
+  fsWsRunSync();
+}
+
+function fsWsRunSync() {
+  const b = document.getElementById("wsChainFin");
+  if (b) b.style.display = fsWsRunOpen() ? "inline-block" : "none";
+  if (typeof requestDraw === "function") requestDraw();
+}
+
+/* ---------------- trim, driven from the canvas ----------------
+
+   EVERY MESSAGE IS SET AFTER THE REDRAW, NOT BEFORE IT. draw() ends by calling
+   updateStatus(), which rewrites statusEl unconditionally - so a message set
+   before a draw is a message nobody ever sees. Three refusals were written the
+   obvious way first and all three were silently swallowed, which is exactly the
+   failure they exist to prevent. */
+function fsWsTrimTap(o, ip) {
+  const say = m => { draw(); statusEl.textContent = m; };
+  if (!fsWsSnapIsLine(o)) {
+    say(o && o.kind === "shape" && o.cx != null
+        ? "That line is curved \u2014 trim works on straight lines"
+        : "Tap a line \u2014 trim joins two lines into one corner");
+    return;
+  }
+  if (fsWsPinned(o)) { say("That line is pinned \u2014 unpin it first"); return; }
+  if (!fsWsTrimA) {
+    fsWsTrimA = { o:o, t:{ x:ip.x, y:ip.y } };
+    setSelection([o]);
+    say("Now tap the second line, on the side you want to keep");
+    return;
+  }
+  if (o === fsWsTrimA.o) { say("Tap a different line"); return; }
+  /* ONE undo state for the whole corner. Two would leave a half-trimmed plan
+     reachable by a single Undo press, which is worse than no undo at all. */
+  pushUndo();
+  const ix = fsWsTrimCorner(fsWsTrimA.o, fsWsTrimA.t, o, { x:ip.x, y:ip.y });
+  fsWsTrimA = null;
+  clearSelection();
+  if (!ix) {
+    if (undoStack.length) undoStack.pop();
+    say("Those lines are parallel \u2014 there is no corner to make");
+    return;
+  }
+  scheduleAutosave();
+  say("Corner made");
+}
+
 function hitObject(px, py) {
   const p = toImage(px, py);
   const slack = Math.max(8 / view.scale, 4);
@@ -3491,6 +3752,49 @@ function draw() {
     ctx.restore();
   }
 
+  /* PASS 86 [86-4] - THE SNAP INDICATOR DRAWS ABOVE THE TOUCH POINT, because
+     the finger is on the touch point. It names its type, which is what stands
+     in for the Tab-cycling picker a hover-less tool cannot have. */
+  if (fsWsSnapHit) {
+    const sx = fsWsSnapHit.x * view.scale + view.x;
+    const sy = fsWsSnapHit.y * view.scale + view.y;
+    ctx.save();
+    ctx.strokeStyle = "#00e676"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.rect(sx - 7, sy - 7, 14, 14); ctx.stroke();
+    const lab = FS_WS_SNAP_LABEL[fsWsSnapHit.type] || "";
+    ctx.font = "bold 12px system-ui, sans-serif";
+    const lw = ctx.measureText(lab).width;
+    const ly = sy - 30;
+    ctx.fillStyle = "rgba(0,48,20,0.88)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(sx - lw / 2 - 6, ly - 11, lw + 12, 21, 5);
+    else ctx.rect(sx - lw / 2 - 6, ly - 11, lw + 12, 21);
+    ctx.fill();
+    ctx.fillStyle = "#7dffb0"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lab, sx, ly);
+    ctx.restore();
+  }
+
+  /* PASS 86 [86-1] - an open run says so: a ring on the point the next segment
+     will start from, and a hollow one on the first point you can tap to close.
+     Without them "the tool is still armed" is invisible state. */
+  if (fsWsRunOpen()) {
+    const rp0 = fsWsRun.pts[0], rpL = fsWsRun.pts[fsWsRun.pts.length - 1];
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#ffb300";
+    ctx.beginPath();
+    ctx.arc(rpL.x * view.scale + view.x, rpL.y * view.scale + view.y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    if (fsWsRun.pts.length > 2) {
+      ctx.strokeStyle = "rgba(255,179,0,0.65)";
+      ctx.beginPath();
+      ctx.arc(rp0.x * view.scale + view.x, rp0.y * view.scale + view.y, 9, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // find-device flash (pulsing ring)
   if (flashSym && objects.includes(flashSym.o)) {
     const fo = flashSym.o;
@@ -3549,6 +3853,11 @@ function undo() {
   redoStack.push(JSON.stringify(objects));
   objects = JSON.parse(undoStack.pop());
   clearSelection();
+  /* PASS 86 [86-1] - CHAIN-AWARE UNDO. `objects` is already rewound; this is
+     the matching rewind of the run, one point per segment, so undo mid-run
+     drops the last SEGMENT and leaves you drawing from the one before it.
+     SS Item 2 lists the absence of this as what makes chain infuriating. */
+  fsWsRunUndo();
   draw();
 }
 function redo() {
@@ -4440,6 +4749,12 @@ function buildPalette() {
 /* ---- Modify tab: tiles proxy the (hidden) action buttons ---- */
 function modifyAction(id) {
   if (id === "m_align") { openAlign(); return; }
+  if (id === "m_trim") {
+    setTool(activeTool === "trim" ? "select" : "trim");
+    if (activeTool === "trim") statusEl.textContent = "Tap the first line, on the side you want to keep";
+    refreshModifyTiles();
+    return;
+  }
   const mt = MODIFY_TOOLS.find(m => m.id === id);
   if (!mt || !mt.btn) return;
   const b = document.getElementById(mt.btn);
@@ -4460,6 +4775,7 @@ function refreshModifyTiles() {
     } else if (mt.id === "m_align") {
       el.classList.toggle("pdis", selection.length < 2);
     }
+    if (mt.id === "m_trim") el.classList.toggle("active", activeTool === "trim");
     if (mt.id === "m_multi") el.classList.toggle("active", multiMode);
     if (mt.id === "hatch") el.classList.toggle("active", activeTool === "hatch");
   });
@@ -4659,6 +4975,16 @@ function updateTestCounter() {
   el.style.display = "block";
 }
 function setTool(id) {
+  /* PASS 86 [86-1] - switching tool ends an open run, QUIETLY. Not through
+     fsWsRunEnd: that one can call setTool for selAfterDraw and this would
+     recurse. */
+  fsWsRun = null;
+  fsWsRunSync();          /* UNCONDITIONAL. A sync guarded on `fsWsRun` being
+                             truthy leaves the Finish button on screen after
+                             anything else nulls the run - a control offering
+                             to finish something that is not running. */
+  fsWsTrimA = null;
+  fsWsSnapHit = null;
   activeTool = id;
   /* PASS 24 item 11 — snap the slider to this type's remembered size, so the
      control reads what the next placement will actually be. */
@@ -4676,6 +5002,12 @@ function setTool(id) {
     document.getElementById("endStartSel").value = lineEnds[id].hs;
     document.getElementById("endEndSel").value = lineEnds[id].he;
   }
+  /* PASS 86 - the line row. Chain is the LINE tool only: a chained arrow run
+     puts an arrowhead at every joint and a break-line is a terminator. */
+  const cw = document.getElementById("chainWrap");
+  if (cw) cw.style.display = ["line", "arrow", "brk"].includes(id) ? "flex" : "none";
+  const cl = document.getElementById("wsChainLab");
+  if (cl) cl.style.display = id === "line" ? "flex" : "none";
   document.getElementById("hatchWrap").style.display = id === "hatch" ? "flex" : "none";
   if (id === "hatch") { document.getElementById("hatchStyleSel").value = hatchStyle; document.getElementById("hatchOutlineSel").value = hatchOutline; }
   document.getElementById("measureWrap").style.display = id === "measure" ? "flex" : "none";
@@ -4735,6 +5067,7 @@ document.getElementById("selAfterOn").onchange = ev => { selAfterDraw = ev.targe
 let wsLastAutoT = null;
 document.getElementById("btnWsSet").onclick = () => {
   document.getElementById("wsSetSelAfter").checked = selAfterDraw;
+  document.getElementById("wsSetSnapOn").checked = fsWsSnapOn;
   const vb = document.getElementById("fsVerBadge");
   document.getElementById("wsSetVer").textContent = vb ? vb.textContent : "";
   document.getElementById("wsSetAutoT").textContent = wsLastAutoT ? "last ran " + new Date(wsLastAutoT).toLocaleTimeString() : "runs every 30 s while you work";
@@ -4786,6 +5119,26 @@ document.getElementById("wsSetNew").onclick = () => fsWsCogFire("btnNew");
 document.getElementById("wsSetSaveAs").onclick = () => fsWsCogFire("btnSaveAs");
 document.getElementById("wsSetBin").onclick = () => fsWsCogFire("fsBinBtn");
 document.getElementById("wsSetClose").onclick = () => document.getElementById("wsSetModal").classList.remove("show");
+/* PASS 86 [86-6] - Revit's SO. A thing you set once, so it lives here and not
+   in a toolbar that is already four rows on a phone. */
+document.getElementById("wsSetSnapOn").onchange = ev => {
+  fsWsSnapOn = ev.target.checked;
+  try { localStorage.setItem("bpm-snaps", fsWsSnapOn ? "1" : "0"); } catch (e2) {}
+  fsWsSnapHit = null;
+  requestDraw();
+};
+document.getElementById("wsChainOn").checked = fsWsChain;
+document.getElementById("wsChainOn").onchange = ev => {
+  fsWsChain = ev.target.checked;
+  try { localStorage.setItem("bpm-chain", fsWsChain ? "1" : "0"); } catch (e2) {}
+  if (!fsWsChain) fsWsRunEnd(false);
+};
+document.getElementById("wsAngleOn").checked = fsWsAngle;
+document.getElementById("wsAngleOn").onchange = ev => {
+  fsWsAngle = ev.target.checked;
+  try { localStorage.setItem("bpm-anglelock", fsWsAngle ? "1" : "0"); } catch (e2) {}
+};
+document.getElementById("wsChainFin").onclick = () => fsWsRunEnd(true);
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
   localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0");
@@ -7512,6 +7865,14 @@ cv.addEventListener("pointerdown", e => {
     return;
   }
 
+  /* PASS 86 [86-5] - trim is a TAP tool, and it borrows textTap's shape so a
+     drag still pans. Deciding on pointerUP is what makes that possible. */
+  if (activeTool === "trim") {
+    dragMode = "trimTap";
+    panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    return;
+  }
+
   if (activeTool === "pen" || activeTool === "hl") {
     pushUndo();
     currentStroke = {
@@ -7605,7 +7966,17 @@ cv.addEventListener("pointerdown", e => {
         return;
       }
     }
-    shapeStart = ip;
+    /* PASS 86 [86-1] - while a run is open the next segment starts on the
+       run's last point, wherever the finger actually landed. That IS chain.
+       With no run open the START snaps too, so a new line can begin on an
+       existing end. */
+    if (fsWsChainOn() && fsWsRunOpen()) {
+      const lp = fsWsRun.pts[fsWsRun.pts.length - 1];
+      shapeStart = { x:lp.x, y:lp.y };
+    } else {
+      const s0 = fsWsSnap(ip, null);
+      shapeStart = s0 ? { x:s0.x, y:s0.y } : ip;
+    }
     dragMode = "shape";
     clearSelection();
     return;
@@ -7714,7 +8085,15 @@ cv.addEventListener("pointermove", e => {
        the navigation threshold and must keep its existing meaning for the
        three pan-mode consumers further down. */
     if (downDist <= FS_WS_SLOP_EDIT) return;
-    const hp = (e.shiftKey && handleAnchor) ? snap45(handleAnchor.x, handleAnchor.y, ip.x, ip.y) : ip;
+    /* PASS 86 - a handle drag is how you join a line you did NOT just draw, so
+       it gets the snaps too. Shift's 45 is untouched and still wins over the
+       15 degree toggle; an object snap wins over both [86-3]. */
+    let hp = (e.shiftKey && handleAnchor) ? snap45(handleAnchor.x, handleAnchor.y, ip.x, ip.y)
+           : (fsWsAngle && handleAnchor) ? fsWsAngleLock(handleAnchor.x, handleAnchor.y, ip.x, ip.y)
+           : ip;
+    const hsn = fsWsSnap(ip, handleAnchor, selection[0]);
+    if (hsn) hp = { x:hsn.x, y:hsn.y };
+    fsWsSnapHit = hsn;
     activeHandle.set(hp.x, hp.y);
     requestDraw();
     return;
@@ -7772,7 +8151,14 @@ cv.addEventListener("pointermove", e => {
         color:penColor, alpha:0.14 };
     } else {
       let ep = ip;
-      if (e.shiftKey && (activeTool === "line" || activeTool === "arrow" || activeTool === "brk")) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
+      const straight = (activeTool === "line" || activeTool === "arrow" || activeTool === "brk");
+      if (e.shiftKey && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
+      else if (fsWsAngle && straight) ep = fsWsAngleLock(shapeStart.x, shapeStart.y, ip.x, ip.y);
+      /* [86-3] AN OBJECT SNAP BEATS THE ANGLE LOCK - applied last, and tested
+         against the RAW finger position, never against the angle-locked one. */
+      const ssn = straight ? fsWsSnap(ip, shapeStart) : null;
+      if (ssn) ep = { x:ssn.x, y:ssn.y };
+      fsWsSnapHit = ssn;
       tempShape = { kind:"shape", shape:activeTool, x1:shapeStart.x, y1:shapeStart.y, x2:ep.x, y2:ep.y, color:penColor, width:base.width, ls:lineStyle };
       if (activeTool === "line" || activeTool === "arrow") { tempShape.hs = lineEnds[activeTool].hs; tempShape.he = lineEnds[activeTool].he; }
       if (activeTool === "vesdar") { tempShape.color = "#7b1fa2"; tempShape.width = Math.max(2.5, base.width); tempShape.ls = "solid"; }
@@ -7824,7 +8210,10 @@ cv.addEventListener("pointermove", e => {
     return;
   }
 
-  if ((dragMode === "placeOrPan" || dragMode === "textTap" || dragMode === "testTapOrPan") && moved) dragMode = "pan";
+  /* PASS 86 [86-5] - trimTap joins the three tap-or-pan modes. Without it a
+     drag inside the Trim tool does nothing at all, and a tool you cannot
+     pan out of is a tool you have to leave to use the plan. */
+  if ((dragMode === "placeOrPan" || dragMode === "textTap" || dragMode === "testTapOrPan" || dragMode === "trimTap") && moved) dragMode = "pan";
 
   if (dragMode === "pan" && panStart) {
     view.x = panStart.viewX + (p.x - panStart.x);
@@ -7897,7 +8286,20 @@ function endPointer(e) {
   }
 
   if (dragMode === "shape") {
-    if (tempShape && moved) {
+    /* PASS 86 [86-1] - a TAP places the next vertex. Revit's click-click-click,
+       and the only sane gesture on a tablet for a run of walls. */
+    let chainCommit = false, chainClose = false;
+    if (!moved && !tempShape && fsWsChainOn()) {
+      const ct = fsWsChainTap(ip);
+      if (ct === "start" || ct === "end") {
+        if (ct === "end") fsWsRunEnd(true);
+        tempShape = null; shapeStart = null; dragMode = null; fsWsSnapHit = null;
+        draw();
+        return;
+      }
+      tempShape = ct.seg; chainClose = ct.close; chainCommit = true;
+    }
+    if (tempShape && (moved || chainCommit)) {
       if (activeTool === "callout") {
         openTextCreator({ mode:"callout", shape:tempShape });
       } else if (tempShape.kind === "zone") {
@@ -7912,12 +8314,40 @@ function endPointer(e) {
       } else {
         pushUndo();
         objects.push(tempShape);
-        setSelection([tempShape]);
-        if (tempShape.shape === "hatch" || selAfterDraw) setTool("select");
+        /* PASS 86 [86-1] - while a run is open BOTH the selection and the
+           tool switch are SUPPRESSED. selAfterDraw fires when the RUN ends.
+
+           THE SELECTION IS NOT COSMETIC HERE AND LEAVING IT IN COST AN HOUR.
+           A selected line shows grips, and pointerdown's FIRST act in the
+           shape branch is to hit-test those grips within 14 px. The run's own
+           last vertex is exactly where the next tap lands, so every tap after
+           segment one was swallowed as a handle drag: the run could not be
+           extended, finished, or closed. It looked like the chain gesture was
+           broken; it was the leftover selection.
+
+           Left unconditional the tool ALSO flips to Select after segment one
+           and chain is dead on arrival - that is M2. */
+        if (fsWsChainOn()) {
+          fsWsChainNext(tempShape);
+          if (chainClose) fsWsRunEnd(true);
+        } else {
+          setSelection([tempShape]);
+          if (tempShape.shape === "hatch" || selAfterDraw) setTool("select");
+        }
       }
     }
-    tempShape = null; shapeStart = null; dragMode = null;
+    tempShape = null; shapeStart = null; dragMode = null; fsWsSnapHit = null;
     draw();
+    return;
+  }
+
+  /* PASS 86 [86-5] - the trim tap, decided on lift so a drag panned instead. */
+  if (dragMode === "trimTap") {
+    /* fsWsTrimTap owns its own draw, and the draw has to come BEFORE the
+       message - updateStatus() at the end of draw() would eat it otherwise. */
+    if (!moved) fsWsTrimTap(hitObject(p.x, p.y), ip);
+    else draw();
+    dragMode = null;
     return;
   }
 
@@ -23210,7 +23640,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v89";
+const FS_BUILD = "aa-v90";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
