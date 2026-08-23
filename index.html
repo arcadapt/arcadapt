@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.82 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.83 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.82 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.83 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -16048,6 +16048,31 @@ function fsReceiptNumber(inv, idx) {
    THE TAX BOUNDARY: this reproduces frozen figures and subtracts recorded
    payments from them. It never calls fsDocTotals and never reads taxUsed —
    the same rule fsInvoicePdf follows, for [51-4]'s reason. */
+/* PASS 83 [83-3] — R-29. FOUND BY READING THE LAW, NOT BY REECE.
+
+   Under the Australian Consumer Law every receipt must carry the business name,
+   an ABN or ACN, THE DATE OF THE SALE, DETAILS OF THE GOODS OR SERVICES, and the
+   price. This receipt carried the name, the ABN and the price. Its table lists
+   PAYMENTS — date, method, reference, amount — and it prints the date the money
+   ARRIVED, not the date of the sale. A customer holding it could not tell what
+   they had bought.
+
+   READS inv.issued AND NOTHING LIVE, so it inherits [57-1] and can never
+   disagree with the invoice it belongs to — the rule [67-1] set when the receipt
+   was deliberately built with no snapshot of its own. */
+function fsReceiptWhatBlock(s) {
+  if (!s) return [];
+  const lines = (s.lines || []).map(function (l) {
+    const q = (l.qty == null ? 1 : l.qty);
+    const d = String(l.description || l.desc || "").trim();
+    return d ? ((q !== 1 ? q + " \u00d7 " : "") + d) : "";
+  }).filter(Boolean);
+  if (!lines.length) return [];
+  return [{ title: "What this was for",
+            lines: lines.concat([
+              String(s.docWord || "Invoice") + " " + String(s.number || "") +
+              ", issued " + fsDocDate(s.at) + "."]) }];
+}
 function fsReceiptPdf(payId) {
   const p = fsPayments().filter(function (x) { return x.id === payId; })[0];
   if (!p) return false;
@@ -16095,7 +16120,7 @@ function fsReceiptPdf(payId) {
        table is expressed WITHOUT forking fsDocPdf — which every other
        document depends on and which this pass has no business changing. */
     cols: { desc: "Payment received", qty: " ", unit: " ", amount: "Amount" },
-    rows: rows, totals: totals, blocks: [],
+    rows: rows, totals: totals, blocks: fsReceiptWhatBlock(s),
     accent: "#0f5e6b",
     footer: [b.name || "", "receipt " + num].filter(Boolean).join(" — ")
   }, "receipt-" + stamp + ".pdf");
@@ -16160,6 +16185,38 @@ function fsClientOpenInvoices(inv) {
    customer pays. Xero draws the same line between its Activity and Outstanding
    statements. When nothing is owing it says so in a ROW — a statement with an
    empty table reads as broken software, not as good news. */
+/* PASS 83 [83-2] — R-27. Reece answered the outstanding-vs-history question by
+   refusing it: "should we have both options perhaps? full history can be one".
+
+   Outstanding stays the default — it answers "what do you owe me". This answers
+   "what have we done together", which is the month-end question.
+
+   VOID INVOICES ARE ON NEITHER. A void is not a debt and not a sale. [51-5]
+   keeps it readable inside the app for the auditor who asks what happened to a
+   number; that is a different job from a document sent to a customer. */
+function fsClientAllInvoices(inv) {
+  if (!inv) return [];
+  const uid = inv.clientUid || "";
+  const nm = String(inv.clientName || "").trim();
+  return fsInvoices().filter(function (i) {
+    if (!i || i.status !== "issued" || !i.issued) return false;
+    /* the SAME identity rule as fsClientOpenInvoices, deliberately duplicated
+       in shape rather than shared, because the two lists differ ONLY in the
+       balance filter and a shared helper with a boolean flag reads worse than
+       two functions that each say what they are. Both are pinned by test_p83. */
+    if (uid) return i.clientUid === uid;
+    if (nm) return !i.clientUid && String(i.clientName || "").trim() === nm;
+    return i.id === inv.id;
+  }).sort(function (a, b) {
+    return String(b.issuedAt || "").localeCompare(String(a.issuedAt || ""));
+  });
+}
+/* THE GROWTH OBJECTION IS ANSWERED, NOT WAIVED. [82-2] chose outstanding-only
+   BECAUSE a history grows without limit, and building the history while
+   pretending that reasoning evaporated would be dishonest. Newest first, capped,
+   and WHEN IT TRUNCATES THE DOCUMENT SAYS SO — a statement that silently omits
+   invoices is worse than one that runs long. */
+const FS_STMT_MAX = 40;
 function fsStatementRows(list) {
   if (!list.length) {
     return { rows: [{ desc: "No amounts outstanding", qty: "", unit: "", amount: "", muted: true }],
@@ -16177,7 +16234,32 @@ function fsStatementRows(list) {
   });
   return { rows: rows, invoiced: invoiced, paid: paid, owing: invoiced - paid };
 }
-function fsStatementPdf(inv) {
+/* PASS 83 [83-2] — the history rows. Every issued invoice, paid or not, with
+   what is still on it. Same three totals as the outstanding statement, so the
+   two documents cannot disagree about one customer's arithmetic. */
+function fsStatementFullRows(list) {
+  if (!list.length) {
+    return { rows: [{ desc: "No invoices", qty: "", unit: "", amount: "", muted: true }],
+             invoiced: 0, paid: 0, owing: 0, shown: 0, cut: 0 };
+  }
+  const cut = Math.max(0, list.length - FS_STMT_MAX);
+  const use = list.slice(0, FS_STMT_MAX);
+  let invoiced = 0, paid = 0;
+  const rows = use.map(function (i) {
+    const total = i.issued.totalCents | 0;
+    const bal = fsInvoiceBalance(i);
+    invoiced += total; paid += (total - bal);
+    return { desc: String(i.number || "") + "    issued " + fsDocDate(i.issued.at),
+             qty: "", unit: FSMoney.fmt(total),
+             /* A SETTLED INVOICE SAYS "Paid" RATHER THAN "$0.00". A column of
+                zeroes is read as an error; the word is read as good news. */
+             amount: bal > 0 ? FSMoney.fmt(bal) : "Paid",
+             muted: bal <= 0 };
+  });
+  return { rows: rows, invoiced: invoiced, paid: paid, owing: invoiced - paid,
+           shown: use.length, cut: cut };
+}
+function fsStatementPdf(inv, full) {
   /* ISSUED ONLY. A draft has no total that has been asserted to anybody, and a
      VOID invoice owes nothing — a statement for either is a document claiming
      a debt that does not exist. The guard is inv.status, so the button and the
@@ -16185,8 +16267,8 @@ function fsStatementPdf(inv) {
   if (!inv || !inv.issued || inv.status !== "issued") return false;
   const s = inv.issued;
   const b = s.business || {}, c = s.customer || {};
-  const open = fsClientOpenInvoices(inv);
-  const st = fsStatementRows(open);
+  const open = full ? fsClientAllInvoices(inv) : fsClientOpenInvoices(inv);
+  const st = full ? fsStatementFullRows(open) : fsStatementRows(open);
   const rows = st.rows;
   const totals = [
     { label: "Invoiced", value: FSMoney.fmt(st.invoiced) },
@@ -16205,29 +16287,39 @@ function fsStatementPdf(inv) {
   }
   blocks.push({ title: "About this statement", lines: [
     "This is a statement of account, not a tax invoice.",
-    "It lists the invoices with an amount still outstanding as at the date above. " +
-      "Each tax invoice remains the tax document for its own work."] });
+    full ? ("It lists this account's invoices as at the date above. Each tax " +
+            "invoice remains the tax document for its own work.")
+         : ("It lists the invoices with an amount still outstanding as at the date " +
+            "above. Each tax invoice remains the tax document for its own work.")]
+    /* [83-2] THE TRUNCATION IS ON THE DOCUMENT, not swallowed. */
+    .concat(full && st.cut
+      ? [String(st.cut) + " earlier invoice" + (st.cut === 1 ? " is" : "s are") +
+         " not shown. Ask for a statement covering a specific period."]
+      : []) });
   /* Named for the CUSTOMER now, not the invoice — the file lands in a folder
      beside other documents and the name is the only thing distinguishing it. */
   const stamp = String(c.name || s.number || "account").replace(/[^A-Za-z0-9_-]+/g, "-");
   return fsDocPdf({
-    title: "STATEMENT",
+    title: full ? "STATEMENT OF ACCOUNT" : "STATEMENT",
     number: "",
     /* [82-2] THE HEADER STOPPED BEING ABOUT ONE INVOICE. It said "For invoice
        INV-1005", which is half of why this document read as a receipt. */
     meta: ["As at: " + fsDocDate(fsLocalIso()),
-           open.length === 1 ? "1 invoice outstanding"
-                             : String(open.length) + " invoices outstanding"],
+           full ? ((st.shown === 1 ? "1 invoice" : String(st.shown) + " invoices") +
+                   (st.cut ? " shown" : ""))
+                : (open.length === 1 ? "1 invoice outstanding"
+                                     : String(open.length) + " invoices outstanding")],
     banner: "",
     logo: fsLogoGet(s.logoKey || ""),
     biz: { name: b.name || "", abn: b.abn || "", address: b.address || "",
            contact: [b.phone, b.email].filter(Boolean).join("   ") },
     party: { label: "Account", name: c.name || "", abn: c.abn || "", address: c.address || "" },
-    cols: { desc: "Invoice", qty: " ", unit: "Total", amount: "Outstanding" },
+    cols: { desc: "Invoice", qty: " ", unit: "Total",
+            amount: full ? "Still owing" : "Outstanding" },
     rows: rows, totals: totals, blocks: blocks,
     accent: "#0f5e6b",
     footer: [b.name || "", "statement of account"].filter(Boolean).join(" — ")
-  }, "statement-" + stamp + ".pdf");
+  }, (full ? "statement-history-" : "statement-") + stamp + ".pdf");
 }
 function fsInvoicePdf(inv) {
   if (!inv || !inv.issued) return false;
@@ -16681,6 +16773,12 @@ function fsInvScreenWire(invId) {
       if (sinv) fsStatementPdf(sinv);
     };
   });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invstmtfull]"), function (el) {
+    el.onclick = function () {
+      const sinv = fsInvoiceFind(el.getAttribute("data-invstmtfull"));
+      if (sinv) fsStatementPdf(sinv, true);
+    };
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
     el.onclick = function () {
       const pinv = fsInvoiceFind(el.getAttribute("data-invpdf"));
@@ -16932,6 +17030,27 @@ const FS_PDF_SCALE = 2;
    that reached into it would be untestable without driving a whole PDF.
    Returns true when it actually moved the band, which is what a suite asserts
    on — "the blocks rendered" is true either way and would prove nothing. */
+/* PASS 83 [83-1] — R-26. Reece, looking at a two-page invoice: "is it missing
+   the top part of the invoice...? or am I missing something?"
+
+   He was not missing anything. Page 1 carries the full letterhead; page 2 opened
+   straight into the column header, with the invoice number only in the FOOTER.
+   Separate page 2 from page 1 and you hold a page of money that does not say
+   what it belongs to until you read the fine print at the bottom.
+
+   RETURNS "" FOR PAGE 1, and that is the half that matters — repeating this
+   above the letterhead would be printing the same identity twice.
+
+   Extracted so a suite can call it with a page number instead of driving a
+   whole multi-page PDF to find out. */
+function fsDocContHead(d, pageNo) {
+  if (!d || !(pageNo > 1)) return "";
+  const bits = [String((d.biz && d.biz.name) || "").trim(),
+                String(d.title || "").trim(),
+                String(d.number || "").trim()].filter(Boolean);
+  if (!bits.length) return "";
+  return bits.join("  \u00b7  ") + "   (continued)";
+}
 function fsDocTail(blocks, drawBlock, getY, setY, bottom, rule) {
   if (!blocks || !blocks.length) return false;
   const need = blocks.reduce(function (a, b) {
@@ -17005,6 +17124,15 @@ function fsDocPdf(d, fname) {
       cx.scale(FS_PDF_SCALE, FS_PDF_SCALE);
       cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
       pages.push(cv); y = M;
+      /* PASS 83 [83-1] — R-26. HOOKED HERE, ON THE ONE FUNCTION THAT MAKES A
+         PAGE, rather than on the three places that call it. fsDocContHead
+         answers "" for page 1, so this is a no-op on every single-page
+         document — which is nearly all of them. */
+      const ch = fsDocContHead(d, pages.length);
+      if (ch) {
+        T(ch, M, 15, true, "#666666");
+        y += 24; rule(y - 8, "#e2e2e2", 1); y += 12;
+      }
     };
     const room = function (n) { return y + n <= H - M - 60; };
 
@@ -17449,7 +17577,11 @@ function fsInvCardHtml(inv) {
     h += '<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap">' +
          '<button class="fsbtn" data-invpdf="' + fsEsc(inv.id) + '">&#10515; PDF</button>' +
          (inv.status === "issued"
-            ? '<button class="fsbtn" data-invstmt="' + fsEsc(inv.id) + '">&#128203; Statement</button>'
+            ? '<button class="fsbtn" data-invstmt="' + fsEsc(inv.id) + '">&#128203; Statement</button>' +
+              /* PASS 83 [83-2] — both, because he asked for both. Outstanding is
+                 first and keeps the plain name: it is the one that answers the
+                 question a customer actually asks. */
+              '<button class="fsbtn" data-invstmtfull="' + fsEsc(inv.id) + '">&#128220; Full history</button>'
             : '') +
          '</div>';
   }
@@ -17567,6 +17699,12 @@ function fsInvSectionWire(q, redraw) {
     el.onclick = function () {
       const sinv = fsInvoiceFind(el.getAttribute("data-invstmt"));
       if (sinv) fsStatementPdf(sinv);
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invstmtfull]"), function (el) {
+    el.onclick = function () {
+      const sinv = fsInvoiceFind(el.getAttribute("data-invstmtfull"));
+      if (sinv) fsStatementPdf(sinv, true);
     };
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
@@ -22617,7 +22755,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v86";
+const FS_BUILD = "aa-v87";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
