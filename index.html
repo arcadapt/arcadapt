@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.80 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.81 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.80 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.81 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -15561,6 +15561,37 @@ function fsScratchRender(q) {
     fsDashMode = "quotes"; fsQuoteListRender();
   };
 }
+/* PASS 81 [81-2] — R-18. The block this replaces was HARDCODED with no
+   condition of any kind: every quote, every business, for ever, said "GST is
+   applied by our accounting system and shown on the tax invoice."
+
+   His own INV-1005 disproves it in the same envelope — $1000 + $100 = $1100,
+   computed and printed by THIS app. And "our accounting system" is being read
+   by the CUSTOMER, to whom "our" means theirs.
+
+   NO NEW DECISION IS MADE HERE. fsDocTax already rules on which tax table a
+   document answers from — the frozen snapshot once sent, live only while it is
+   still a draft ([49-4]) — and fsTaxNote already words it for every other
+   surface. This mirrors both. The figures come from the totals the quote has
+   ALREADY computed for its own footer; nothing is re-derived. */
+function fsQuoteGstLines(q, tot) {
+  if (!tot || !tot.taxKnown) {
+    /* Deliberately NOT a promise about someone else's software. It states
+       what is true of the numbers on this page and stops. */
+    return ["GST is not included in the amounts above."];
+  }
+  const tx = fsDocTax(q);
+  const bp = (tx && tx.table && tx.code != null) ? tx.table[tx.code] : null;
+  const pct = Number.isInteger(bp) ? fsTaxPctFromBp(bp) : "";
+  return [(pct ? "GST at " + pct + "% applies." : "GST applies."),
+          /* MONEY-DESIGN §4.3 — the inclusive flag is the most misread number
+             on any document, so it is printed IN WORDS, exactly as fsTaxNote
+             prints it on every other surface. */
+          "Amounts above are entered " +
+            (tot.lineAmountsInclusive ? "INCLUDING" : "EXCLUDING") + " GST.",
+          "GST " + FSMoney.fmt(tot.taxCents | 0) +
+            " — total including GST " + FSMoney.fmt(tot.totalCents | 0) + "."];
+}
 function fsQuotePdf(q) {
   const tot = fsQuoteTotals(q);
   /* [61-2] THE SAME COMPOSER AS THE INVOICE — one business, one look. A
@@ -15584,7 +15615,7 @@ function fsQuotePdf(q) {
   });
   const blocks = [];
   if (q.defectDesc) blocks.push({ title: "Defect", lines: String(q.defectDesc).split("\n").filter(Boolean) });
-  blocks.push({ title: "GST", lines: ["GST is applied by our accounting system and shown on the tax invoice."] });
+  blocks.push({ title: "GST", lines: fsQuoteGstLines(q, tot) });
   if (q.notes) blocks.push({ title: "Notes", lines: String(q.notes).split("\n").filter(Boolean) });
   const stamp = q.scratch ? ((q.ref || "scratch").replace(/[^A-Za-z0-9_-]+/g, "-")) : (q.number || "draft");
   /* [61-5] THE FOOTER CARRIES THE BUSINESS, NEVER THE APPLICATION. The old
@@ -16022,6 +16053,88 @@ function fsReceiptPdf(payId) {
     footer: [b.name || "", "receipt " + num].filter(Boolean).join(" — ")
   }, "receipt-" + stamp + ".pdf");
 }
+/* PASS 81 [81-3] — R-16. Reece: "invoices don't show part paid." ASKED WHICH
+   SURFACE HE MEANT rather than guessing, because guessing that exact question
+   is what produced the last three corrections. He answered: THE PDF.
+
+   THE INVOICE PDF CANNOT ANSWER IT, and that is a rule rather than an
+   oversight. fsInvoicePdf prints from inv.issued and nothing else ([57-2],
+   enforced by test_p57 E1); payments are recorded after issue and are
+   therefore not in the snapshot. Putting them on the invoice would end
+   [57-1] / [66c-1] — a reprint would stop matching the PDF already in the
+   customer's inbox, which is the same guarantee that makes the old BSB on a
+   reprint CORRECT rather than a bug.
+
+   So the consequence was named and the choice was his, and he chose a SECOND
+   DOCUMENT. The invoice is untouched and still reprints byte-identically for
+   ever; this states what is owed TODAY.
+
+   IT IS NOT A TAX INVOICE AND SAYS SO ON ITS FACE. A document carrying a
+   business name, an ABN and a money total that did NOT declare itself would be
+   a second thing an auditor could mistake for the first.
+
+   NO NEW ARITHMETIC AND NO NEW NUMBER SERIES. The three figures are
+   fsReceiptPdf's, read from the frozen total and the append-only payments
+   ([51-4], [52-4]); a statement is not a numbered tax document and must not
+   inherit [51-3]'s allocator, which is the same call [67-3] made for
+   receipts. */
+function fsStatementPdf(inv) {
+  /* ISSUED ONLY. A draft has no total that has been asserted to anybody, and a
+     VOID invoice owes nothing — a statement for either is a document claiming
+     a debt that does not exist. The guard is inv.status, so the button and the
+     function refuse on the same fact ([57-3]'s rule). */
+  if (!inv || !inv.issued || inv.status !== "issued") return false;
+  const s = inv.issued;
+  const b = s.business || {}, c = s.customer || {};
+  const total = s.totalCents | 0;
+  const paid = fsInvoicePaidCents(inv);
+  const bal = total - paid;
+  const ps = fsInvoicePayments(inv.id);
+  const rows = ps.length ? ps.map(function (x) {
+    const neg = (x.amountCents | 0) < 0;
+    return { desc: fsDocDate(x.date) +
+                   (x.method ? "   " + x.method : "") +
+                   (x.reference ? "   " + x.reference : "") +
+                   (neg ? "   (correction)" : ""),
+             qty: "", unit: "", amount: FSMoney.fmt(x.amountCents | 0) };
+  }) : [{ desc: "No payments received", qty: "", unit: "", amount: "" , muted: true }];
+  const totals = [
+    { label: "Invoice total", value: FSMoney.fmt(total) },
+    { label: "Paid to date", value: FSMoney.fmt(paid) },
+    /* THE SAME WORDS THE BADGE AND THE RECEIPT USE ([64-4], [67-1]), so the
+       screen and both documents cannot disagree about one state. */
+    bal < 0 ? { label: "Overpaid by", value: FSMoney.fmt(-bal), strong: true }
+            : { label: "Balance due", value: FSMoney.fmt(bal), strong: true }
+  ];
+  const blocks = [];
+  const bankLines = fsBankLines(b.bank);
+  if (bankLines.length || b.bankDetails) {
+    blocks.push({ title: "Payment", lines: bankLines
+      .concat(bankLines.length ? [] : String(b.bankDetails || "").split("\n"))
+      .concat(["Payment details as at the date of issue."]).filter(Boolean) });
+  }
+  blocks.push({ title: "About this statement", lines: [
+    "This is a statement of account, not a tax invoice.",
+    "It shows what was owing at the date above. The tax invoice it refers to is " +
+      "unchanged and remains the tax document for this work."] });
+  const stamp = String(s.number || "invoice").replace(/[^A-Za-z0-9_-]+/g, "-");
+  return fsDocPdf({
+    title: "STATEMENT",
+    number: "",
+    meta: ["As at: " + fsDocDate(fsLocalIso()),
+           "For invoice " + String(s.number || inv.number || ""),
+           "Issued: " + fsDocDate(s.at) + (s.dueAt ? "    Due: " + fsDocDate(s.dueAt) : "")],
+    banner: "",
+    logo: fsLogoGet(s.logoKey || ""),
+    biz: { name: b.name || "", abn: b.abn || "", address: b.address || "",
+           contact: [b.phone, b.email].filter(Boolean).join("   ") },
+    party: { label: "Account", name: c.name || "", abn: c.abn || "", address: c.address || "" },
+    cols: { desc: "Payments received", qty: " ", unit: " ", amount: "Amount" },
+    rows: rows, totals: totals, blocks: blocks,
+    accent: "#0f5e6b",
+    footer: [b.name || "", "statement for invoice " + (s.number || "")].filter(Boolean).join(" — ")
+  }, "statement-" + stamp + ".pdf");
+}
 function fsInvoicePdf(inv) {
   if (!inv || !inv.issued) return false;
   const s = inv.issued;
@@ -16426,7 +16539,7 @@ function fsInvAdhocEdit(inv) {
     /* READ, not restated — the refusals live in fsInvoiceIssue. Run before
        the confirm so nobody taps through to nothing ([54-3] wiring rule). */
     if (fsInvIssueAlert(inv)) return;
-    if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+    if (!fsInvIssueConfirm(inv)) return;
     if (!fsInvoiceSetStatus(inv, "issued", "")) return;
     fsMarkDirty(); fsInvScreenRender();
   };
@@ -16455,7 +16568,7 @@ function fsInvScreenWire(invId) {
       let reason = "";
       if (k === "issued") {
         if (fsInvIssueAlert(inv)) return;
-        if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+        if (!fsInvIssueConfirm(inv)) return;
       }
       if (k === "void") {
         if (!confirm("Void this invoice?\n\nIt stays readable and its number is never reused.")) return;
@@ -16463,6 +16576,15 @@ function fsInvScreenWire(invId) {
       }
       if (!fsInvoiceSetStatus(inv, k, reason)) return;
       fsMarkDirty(); rd();
+    };
+  });
+  /* PASS 81 [81-3] — wired in BOTH wire functions, beside data-invpdf, because
+     fsInvCardHtml is rendered by both and a control wired in one of them is
+     R-4's disease again: live on one screen, dead on the other. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invstmt]"), function (el) {
+    el.onclick = function () {
+      const sinv = fsInvoiceFind(el.getAttribute("data-invstmt"));
+      if (sinv) fsStatementPdf(sinv);
     };
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
@@ -17187,8 +17309,17 @@ function fsInvCardHtml(inv) {
      fsInvoicePdf itself refuses on, so the button and the function
      cannot disagree. */
   if (inv.issued) {
-    h += '<div style="margin-top:9px"><button class="fsbtn" data-invpdf="' +
-         fsEsc(inv.id) + '">&#10515; PDF</button></div>';
+    /* PASS 81 [81-3] — R-16. The statement sits BESIDE the invoice, on the
+       screen the user is already standing on when they ask what is still owed
+       ([66-2], the same reasoning that put the receipt on the payment row).
+       Offered on an ISSUED invoice only — fsStatementPdf refuses on the same
+       fact, so the button and the function cannot disagree ([57-3]). */
+    h += '<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap">' +
+         '<button class="fsbtn" data-invpdf="' + fsEsc(inv.id) + '">&#10515; PDF</button>' +
+         (inv.status === "issued"
+            ? '<button class="fsbtn" data-invstmt="' + fsEsc(inv.id) + '">&#128203; Statement</button>'
+            : '') +
+         '</div>';
   }
   h += fsInvNextBtns(inv);
   return h;
@@ -17283,7 +17414,7 @@ function fsInvSectionWire(q, redraw) {
         /* [52-3] SAID BEFORE THE TAP, NOT AFTER. fsInvoiceAllocNumber pushes
            to invoiceUsed and the ledger is never pruned, so the number is
            spent the instant this is confirmed. */
-        if (!confirm("Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, and the document freezes — your ABN, the customer, the lines and the tax table.\n\nA mistake after this is corrected by voiding and re-issuing.")) return;
+        if (!fsInvIssueConfirm(inv)) return;
       }
       if (k === "void") {
         if (!confirm("Void this invoice?\n\nIt stays readable and its number is never reused. You can raise a fresh invoice for this work afterwards.")) return;
@@ -17297,6 +17428,15 @@ function fsInvSectionWire(q, redraw) {
      fsInvoiceForWork: that helper excludes void BY DESIGN and the void
      history rows carry this attribute too. Printing changes no record,
      so there is no redraw. */
+  /* PASS 81 [81-3] — wired in BOTH wire functions, beside data-invpdf, because
+     fsInvCardHtml is rendered by both and a control wired in one of them is
+     R-4's disease again: live on one screen, dead on the other. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-invstmt]"), function (el) {
+    el.onclick = function () {
+      const sinv = fsInvoiceFind(el.getAttribute("data-invstmt"));
+      if (sinv) fsStatementPdf(sinv);
+    };
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-invpdf]"), function (el) {
     el.onclick = function () {
       const pinv = fsInvoiceFind(el.getAttribute("data-invpdf"));
@@ -17522,6 +17662,72 @@ function fsBizIdNow() { return fsBizIdOf(fsRegister); }
    Returns "" when there is nothing wrong, INCLUDING for a business that is
    not GST-registered at all — an unregistered business issuing an untaxed
    invoice is correct and must not be blocked. */
+/* PASS 81 [81-1] — R-17. "ABN 775555" — six digits — printed on a document
+   headed TAX INVOICE, with no complaint from anywhere in the app.
+
+   An Australian ABN is ELEVEN digits and carries a published check digit:
+   subtract 1 from the first digit, weight the eleven digits by
+   [10,1,3,5,7,9,11,13,15,17,19], and the sum is divisible by 89. That is the
+   ATO's own algorithm and it is arithmetic, not a lookup — no network, so it
+   works on a roof with no signal, which is where invoices actually get issued.
+
+   IT VALIDATES SHAPE, NOT EXISTENCE. A number that passes here is a
+   well-formed ABN; whether it is REGISTERED is a question only the ABR can
+   answer and this app must never pretend to. That limit is the reason
+   everything below WARNS and nothing REFUSES. */
+function fsAbnDigits(s) {
+  return String(s == null ? "" : s).replace(/[^0-9]/g, "");
+}
+function fsAbnValid(s) {
+  const d = fsAbnDigits(s);
+  if (d.length !== 11) return false;
+  const w = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+  let sum = 0;
+  for (let i = 0; i < 11; i++) sum += (Number(d.charAt(i)) - (i === 0 ? 1 : 0)) * w[i];
+  return sum % 89 === 0;
+}
+/* THE MESSAGE NAMES THE FAULT, because [64-1] is the standing rule here: a
+   remedy that does not match its reason is what Reece hit on 20 Aug. "Six
+   digits, an ABN has eleven" is actionable. "Invalid ABN" is not.
+
+   AND IT QUOTES THE NUMBER. The warning's other reader is standing at a
+   CONFIRM DIALOG with the settings screen nowhere in sight, about to spend an
+   invoice number on a document that will freeze for ever. Being told "that ABN
+   is wrong" without being shown which one is the same shape of fault as the
+   remedy that named the wrong cause.
+
+   An EMPTY ABN returns "" — that is fsInvIssueBlock's refusal, already
+   worded, and restating it here would be two owners for one decision. */
+function fsAbnWarn(s) {
+  const raw = String(s == null ? "" : s).trim();
+  if (!raw) return "";
+  if (fsAbnValid(raw)) return "";
+  const d = fsAbnDigits(raw);
+  if (d.length !== 11) {
+    return "That ABN — " + raw + " — has " + d.length + " digit" +
+           (d.length === 1 ? "" : "s") + ". An ABN has 11.";
+  }
+  return "That ABN — " + raw + " — has 11 digits but fails the ABN check " +
+         "digit, so one of them is probably wrong.";
+}
+/* PASS 81 [81-1] — ONE OWNER FOR ONE SENTENCE. This confirmation was
+   duplicated VERBATIM at three call sites. Hanging a conditional warning off
+   three copies is three places for them to drift, and the drift would be
+   invisible: they only ever appear one at a time.
+
+   WHEN THE ABN IS FINE THIS IS BYTE-IDENTICAL TO WHAT WAS THERE. The warning
+   is a prefix, and it is here rather than in fsInvIssueAlert because
+   fsInvIssueAlert REFUSES — returning true from it would block the invoice,
+   which is exactly what [81-1] must not do. */
+function fsInvIssueConfirm(inv) {
+  const w = fsAbnWarn(fsBizIdNow().abn);
+  return confirm(
+    (w ? "\u26A0 " + w + "\n\nIt will be printed on the tax invoice exactly as it is " +
+         "typed. You can issue anyway, or cancel and fix it in Business & tax.\n\n" : "") +
+    "Issue this invoice?\n\nIt takes its invoice number now, that number is used for ever, " +
+    "and the document freezes — your ABN, the customer, the lines and the tax table." +
+    "\n\nA mistake after this is corrected by voiding and re-issuing.");
+}
 function fsInvGstBlock() {
   const b = fsBiz();
   if (!b.gstRegistered) return "";
@@ -17588,6 +17794,13 @@ function fsBizIdLine() {
   }
   if (!id.abn) return { text: (id.name || "—") + " · ⚠ no ABN", warn: true };
   if (!id.name) return { text: "⚠ no business name · ABN " + id.abn, warn: true };
+  /* PASS 81 [81-1] — THE LINE THAT SITS WHERE THE FIX IS. A warning at issue
+     time is the last chance; this is the FIRST, and it is on the screen that
+     owns the field. Amber, per [63-1]: it is something you need to know, and
+     it is not a refusal — invoices still issue. */
+  if (fsAbnWarn(id.abn)) {
+    return { text: id.name + " · ⚠ ABN " + id.abn + " — check this", warn: true };
+  }
   return { text: id.name + " · ABN " + id.abn, warn: false };
 }
 function fsBizIdRender() {
@@ -22233,7 +22446,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v84";
+const FS_BUILD = "aa-v85";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
