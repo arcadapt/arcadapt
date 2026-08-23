@@ -319,7 +319,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.83 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.84 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -449,7 +449,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.83 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.84 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1317,6 +1317,12 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="margin-bottom:4px;font-size:13px">A quote is valid for</div>
     <input id="fsBizQvd" autocomplete="off" inputmode="numeric" placeholder="30" class="fsBizIn">
     <div style="font-size:11.5px;color:#8fa0a8;margin:-4px 0 8px">Days. Printed on every quote as &ldquo;Valid until&rdquo;. Frozen when the quote is sent, so changing this cannot expire a quote a customer is already holding.</div>
+    <!-- PASS 84 [84-1] — W84-1. Editable, seeded from common Australian trade
+         practice. The disclaimer is not decoration: this is a default, not
+         advice, and the app should say which it is. -->
+    <div style="margin-bottom:4px;font-size:13px">Terms printed on every quote</div>
+    <textarea id="fsBizQTerms" rows="7" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px;line-height:1.45;resize:vertical"></textarea>
+    <div style="font-size:11.5px;color:#8fa0a8;margin:5px 0 8px">One line each. Written from what Australian trade businesses commonly put on a quote &mdash; <b>a starting point, not legal advice</b>. Read it once and make it yours. The payment line and the Australian Consumer Law line are added automatically: the first so it always matches your invoice terms, the second because a term that tries to exclude those rights is void. Frozen when a quote is sent.</div>
 
     <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Accounting package</div>
     <select id="fsBizPkg" style="width:100%;box-sizing:border-box;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:8px;margin-bottom:8px">
@@ -14604,7 +14610,12 @@ const FS_BIZ_DEF = {
      its face, still binding in November — after the price of copper moved.
      30 days is the common default and it is a SETTING, not a constant, for
      the same reason paymentTermsDays is. */
-  quoteValidDays: 30
+  quoteValidDays: 30,
+  /* PASS 84 [84-1] — W84-1. Seeded empty; fsQuoteTerms() supplies the default
+     until he edits it, so an existing register does not silently acquire
+     trading terms the moment it is opened on a new build. The moment he saves
+     the settings screen the text becomes his, stored, and never re-seeded. */
+  quoteTerms: ""
 };
 /* Lives on the REGISTER, not the profile (PASS-49-BRIEF §3.1). A tax invoice
    has to be reproducible from the register file alone — a legal document that
@@ -14823,6 +14834,68 @@ function fsQuoteFind(id) { return fsQuotes().filter(q => q.id === id)[0] || null
    continuing an existing sequence from another system. */
 /* PASS 82 [82-3] — the number, read defensively: a register written before
    this pass has no field, and a hand-edited one could have anything. */
+/* PASS 84 [84-1] — QUOTE TERMS, DRAFTED FROM RESEARCH, NOT COPIED.
+
+   Reece overruled my refusal to build this: "do research on other australian
+   companies and adopt from that". He was right — "it is his commercial policy"
+   was true about the NUMBERS and false about the SHAPE, and I had used it to
+   avoid the harder half of the job.
+
+   READ: business.gov.au on invoicing and payment terms; Australian small-
+   business legal guidance on quote terms; and a real published set of quotation
+   terms from an Australian electrical contractor, to see what this exact trade
+   puts in front of a customer.
+
+   NOT ONE WORD IS COPIED. That contractor document is a six-page, sixteen-clause
+   instrument with PPSA and Privacy Act sections — a lawyer's work, and absurd
+   appended to a $960 quote. What is adopted is the SHAPE that recurs across
+   every source, written fresh and short enough to sit on the face of a quote.
+
+   THE PAYMENT LINE IS NOT IN HERE. It is DERIVED in fsQuoteTermLines from
+   paymentTermsDays, the same field the invoice's due date comes from, so the
+   quote and the invoice cannot disagree about when the money is due. A seeded
+   string saying "14 days" would drift the first time he changed the setting,
+   and the drift would be found by a customer.
+
+   THE ACL LINE IS NOT IN HERE EITHER, and that is deliberate: a term purporting
+   to exclude the consumer guarantees is VOID and invites the ACCC. It is
+   generated, not typed, and says the workmanship guarantee is IN ADDITION TO
+   those rights. */
+const FS_QTERMS_DEF = [
+  "Variations: any change to the work described above changes the price. " +
+    "Variations are quoted and agreed before that work is done.",
+  "Inclusions: the price covers the labour and materials described above.",
+  "Exclusions: it does not cover permits or authority fees, after-hours work, " +
+    "repairs to concealed or pre-existing faults found once work starts, or " +
+    "making good beyond the work area.",
+  "Access: please provide safe, clear access to the work area on the agreed day. " +
+    "Time lost waiting for access may be charged.",
+  "Acceptance: telling us to proceed accepts this quote and these terms."
+].join("\n");
+/* HIS THE MOMENT HE TOUCHES IT. An empty stored value means "never edited", not
+   "deliberately blank" — and that distinction is why the default lives here and
+   not in FS_BIZ_DEF. To print no terms at all he sets a single space, which
+   survives as a stored value and reads as an explicit choice. */
+function fsQuoteTerms() {
+  const t = fsBiz().quoteTerms;
+  return (typeof t === "string" && t.length) ? t : FS_QTERMS_DEF;
+}
+/* The block as printed. FROZEN COPY WINS, exactly as the tax table and the
+   validity date do — [49-4]. A customer holding a quote must not have their
+   terms rewritten by a settings change made afterwards. */
+function fsQuoteTermLines(q) {
+  const frozen = q && typeof q.terms === "string" && q.terms.length ? q.terms : null;
+  const body = frozen !== null ? frozen : fsQuoteTerms();
+  const days = fsInvoiceTermsDays({});
+  const out = ["Payment: " + days + " day" + (days === 1 ? "" : "s") +
+               " from the date of invoice."];
+  String(body).split("\n").map(function (s) { return s.trim(); })
+    .filter(Boolean).forEach(function (s) { out.push(s); });
+  out.push("Workmanship: our work is guaranteed for 12 months. This is in " +
+           "addition to your rights under the Australian Consumer Law, which " +
+           "cannot be excluded.");
+  return out;
+}
 function fsQuoteValidDays() {
   const n = fsBiz().quoteValidDays;
   return Number.isInteger(n) && n > 0 ? n : 30;
@@ -15132,6 +15205,10 @@ function fsQuoteSetStatus(q, k) {
        because this is the instant the document becomes a thing the customer
        holds. fsLocalIso per Pass 58: a date printed on a document is local. */
     q.validUntil = fsLocalIso(new Date(Date.now() + fsQuoteValidDays() * 86400000));
+    /* PASS 84 [84-2] — the FOURTH field into this freeze, and the reasoning has
+       not changed since [49-4]: terms a customer is holding must not be
+       rewritten by a settings change made after they were sent. */
+    q.terms = fsQuoteTerms();
     /* PASS 61 [61-2] — the send freeze GROWS: the same instant that fixes
        the number and the tax table now fixes the identity the document
        prints (q.docBiz) and the logo it carries (q.logoKey, through the
@@ -15656,6 +15733,9 @@ function fsQuotePdf(q) {
   if (q.defectDesc) blocks.push({ title: "Defect", lines: String(q.defectDesc).split("\n").filter(Boolean) });
   blocks.push({ title: "GST", lines: fsQuoteGstLines(q, tot) });
   if (q.notes) blocks.push({ title: "Notes", lines: String(q.notes).split("\n").filter(Boolean) });
+  /* PASS 84 [84-1] — LAST, on purpose. His own note to this customer is the
+     thing worth reading; the standing terms are the thing worth having. */
+  blocks.push({ title: "Terms", lines: fsQuoteTermLines(q) });
   const stamp = q.scratch ? ((q.ref || "scratch").replace(/[^A-Za-z0-9_-]+/g, "-")) : (q.number || "draft");
   /* [61-5] THE FOOTER CARRIES THE BUSINESS, NEVER THE APPLICATION. The old
      footer was fsDocBrand(), which falls back to the APP'S name on a
@@ -15693,7 +15773,15 @@ function fsQuotePdf(q) {
       const m = ["Date: " + fsDocDate(q.created)];
       const vu = fsQuoteValidUntil(q);
       if (vu) m.push("Valid until: " + fsDocDate(vu));
-      m.push("Status: " + fsQStat(q).label);
+      /* PASS 84 [84-3] — R-19. The header said DRAFT twice: "DRAFT — not yet
+         issued" in the number slot and "Status: Draft" two lines under it.
+         [76-D5] put the first there for a good reason and it stays. The status
+         line drops out ONLY when it would repeat that word — Sent, Approved and
+         Declined are untouched, and on a scratch quote (which has a ref, not a
+         number) it is the only status there is, so it stays too. */
+      if (!(fsQStat(q).k === "draft" && !q.scratch && !q.number)) {
+        m.push("Status: " + fsQStat(q).label);
+      }
       return m;
     })(),
     logo: fz ? fsLogoGet(q.logoKey || "") : fsBrandLogo(),
@@ -22652,7 +22740,7 @@ function fsBizOpen() {
   const bk = (b.bank && typeof b.bank === "object") ? b.bank : {};
   [["fsBizName", b.name], ["fsBizAbn", b.abn], ["fsBizAddr", b.address],
    ["fsBizPhone", b.phone], ["fsBizEmail", b.email], ["fsBizSwitch", a.switchoverDate],
-   ["fsBizQvd", String(fsQuoteValidDays())],
+   ["fsBizQvd", String(fsQuoteValidDays())], ["fsBizQTerms", fsQuoteTerms()],
    /* PASS 66c — shown FORMATTED, stored as digits. */
    ["fsBizAccName", bk.accName], ["fsBizBsb", fsBsbFmt(bk.bsb)], ["fsBizAcct", bk.acct]
   ].forEach(p => { const el = document.getElementById(p[0]); if (el) el.value = p[1] || ""; });
@@ -22677,6 +22765,13 @@ function fsBizSave() {
   {
     const qv = parseInt(v("fsBizQvd"), 10);
     if (Number.isInteger(qv) && qv > 0) b.quoteValidDays = qv;
+  }
+  /* [84-1] STORED VERBATIM, INCLUDING WHITESPACE-ONLY. `v()` trims, so an
+     operator who clears the box to print no terms would have it silently
+     re-seeded on the next open — the setting would refuse to take. Read raw. */
+  {
+    const el = document.getElementById("fsBizQTerms");
+    if (el) b.quoteTerms = String(el.value == null ? "" : el.value);
   }
   /* PASS 66c [66c-3][66c-4] — the only place bank details are written.
      RETURNS EARLY WITHOUT SAVING ANYTHING and WITHOUT CLOSING THE MODAL if
@@ -22755,7 +22850,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v87";
+const FS_BUILD = "aa-v88";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
