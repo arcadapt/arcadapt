@@ -337,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.87 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.88 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.87 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.88 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -11858,7 +11858,13 @@ async function fsMsMe() { return await fsGraph("/me"); }
 
    In Stage 3 the same layout moves to a SharePoint document library and
    register.fsbundle becomes the file that gets checked out. Layout does not change. */
-const FS_MS_DIR = "FireSpark";
+/* [88-2] BRIEF-FIRESPARK-PURGE B1, Reece 21 Aug, binding: READ BOTH,
+   WRITE NEW, and PER APP - "clients would only have one or the other
+   app. they wouldnt have both?". Nothing in the customer's drive is
+   moved, copied or renamed; the old folder is theirs to delete.
+   Renaming a folder in someone's personal drive was rejected outright. */
+const FS_MS_DIR = "Arc Adapt";
+const FS_MS_DIR_OLD = "FireSpark";
 const FS_MS_ARCH = "Archive";
 const FS_MS_MAIN = "register.fsbundle";
 const FS_MS_PROF = "profile.fsprofile";
@@ -11866,14 +11872,30 @@ const FS_MS_KEEP = 14;                 /* dated snapshots kept in Archive */
 const FS_MS_SEL = "?$select=id,name,size,eTag,cTag,lastModifiedDateTime,folder,file";
 
 function fsMsEnc(p) { return p.split("/").map(encodeURIComponent).join("/"); }
-function fsMsPath(rel) { return "/me/drive/root:/" + fsMsEnc(FS_MS_DIR + (rel ? "/" + rel : "")); }
+function fsMsPathAt(dir, rel) { return "/me/drive/root:/" + fsMsEnc(dir + (rel ? "/" + rel : "")); }
+/* every WRITE resolves through here, so every write goes to the new folder */
+function fsMsPath(rel) { return fsMsPathAt(FS_MS_DIR, rel); }
 function fsMsIs404(e) { const s = String((e && e.message) || e); return /\b404\b/.test(s) || /itemNotFound/i.test(s); }
 function fsMsProg(msg) { const el = document.getElementById("fsMsProg"); if (el) el.textContent = msg; }
 
 /* metadata for a workspace-relative path; null when it simply isn't there yet */
+async function fsMsItemAt(dir, rel) {
+  try {
+    const it = await fsGraph(fsMsPathAt(dir, rel) + FS_MS_SEL);
+    if (it) it.__dir = dir;              /* which folder this actually came from */
+    return it;
+  } catch (e) { if (fsMsIs404(e)) return null; throw e; }
+}
+/* READ BOTH, newest wins. A device that backed up under the old name keeps
+   finding its register. Reads only - fsMsPath is the write path and it never
+   comes through here, so a hit in the old folder can never be written back to. */
 async function fsMsItem(rel) {
-  try { return await fsGraph(fsMsPath(rel) + FS_MS_SEL); }
-  catch (e) { if (fsMsIs404(e)) return null; throw e; }
+  const cur = await fsMsItemAt(FS_MS_DIR, rel);
+  const old = await fsMsItemAt(FS_MS_DIR_OLD, rel);
+  if (!old) return cur;
+  if (!cur) return old;
+  return Date.parse(old.lastModifiedDateTime || 0) >
+         Date.parse(cur.lastModifiedDateTime || 0) ? old : cur;
 }
 async function fsMsChildren(rel) {
   try {
@@ -11894,10 +11916,15 @@ async function fsMsMkdir(parentRel, name, selfRel) {
   }
 }
 /* creates FireSpark/ and FireSpark/Archive/ when missing. Safe to call every time. */
+/* WRITE SIDE - deliberately fsMsItemAt(FS_MS_DIR, ...) and never fsMsItem().
+   Read-both here would find the OLD folder, decide the workspace already
+   exists, never create the new one, and the app would report "backed up"
+   while the archive silently stopped growing. That is the exact trap
+   BRIEF-FIRESPARK-PURGE names, and it is this function. */
 async function fsMsEnsureWorkspace() {
-  let root = await fsMsItem("");
+  let root = await fsMsItemAt(FS_MS_DIR, "");
   if (!root) root = await fsMsMkdir(null, FS_MS_DIR, "");
-  if (!(await fsMsItem(FS_MS_ARCH))) await fsMsMkdir("", FS_MS_ARCH, FS_MS_ARCH);
+  if (!(await fsMsItemAt(FS_MS_DIR, FS_MS_ARCH))) await fsMsMkdir("", FS_MS_ARCH, FS_MS_ARCH);
   return root;
 }
 
@@ -11948,7 +11975,7 @@ async function fsMsUpload(name, blob, folderPath) {
 async function fsMsArchive(item) {
   try {
     if (!item || !item.id) return;
-    const arch = await fsMsItem(FS_MS_ARCH);
+    const arch = await fsMsItemAt(FS_MS_DIR, FS_MS_ARCH);   /* [88-2] a write target: new folder only */
     if (!arch) return;
     const day = new Date().toISOString().slice(0, 10);
     const stem = String(item.name || FS_MS_MAIN).replace(/\.fsbundle$/i, "");
@@ -11976,7 +12003,7 @@ async function fsMsRemember(item) {
   try {
     await idbPut("fsMsFile", {
       id: item.id, name: item.name || FS_MS_MAIN, ctag: item.cTag || "",
-      path: FS_MS_DIR + "/" + (item.name || FS_MS_MAIN)
+      path: (item.__dir || FS_MS_DIR) + "/" + (item.name || FS_MS_MAIN)
     });
   } catch (e) {}
 }
@@ -12011,7 +12038,7 @@ async function fsMsSync(quiet) {
   if (fsRegister && same && prev.ctag && prev.ctag === item.cTag) return "current";
   if (fsRegister && fsDirty) return "dirty";
   await fsMsOpenItem(item);
-  if (!quiet) alert("✓ Opened the central register — " + FS_MS_DIR + "/" + item.name);
+  if (!quiet) alert("✓ Opened the central register — " + (item.__dir || FS_MS_DIR) + "/" + item.name);
   return "opened";
 }
 /* A brand-new starter signs in to a OneDrive that has a profile but no register yet:
@@ -12212,9 +12239,20 @@ async function fsBlobGC() {
     const idx = await idbGet("fsIdx");
     if (!idx || !idx.clients) return;                /* nothing trustworthy to compare against */
     scan(idx);
+    /* [88-1] A snapshot whose index will not parse leaves the live set
+       INCOMPLETE, and the loop below would then reap exactly the blobs it
+       could not see - silently, permanently, and only for the photos a
+       register cannot regenerate. A collector that cannot prove a blob is
+       dead must not delete it, so one bad index abandons the WHOLE run
+       rather than skipping that snapshot. A pre-split snapshot carries
+       b.json instead of b.idx and embeds its images, so it has no external
+       refs to protect: absent is not the same as unreadable. */
+    let fsBakIdxOk = true;
     ((await idbGet("fsRegBackups")) || []).forEach(b => {
-      try { if (b && b.idx) scan(JSON.parse(b.idx)); } catch (e) {}
+      if (!b || !b.idx) return;
+      try { scan(JSON.parse(b.idx)); } catch (e) { fsBakIdxOk = false; }
     });
+    if (!fsBakIdxOk) return;
     for (const k of await fsStoreKeys()) {
       if (typeof k === "string" && k.indexOf("fsBlob:") === 0 && !live.has(k.slice(7))) {
         await idbDel(k);
@@ -23645,7 +23683,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v91";
+const FS_BUILD = "aa-v92";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
