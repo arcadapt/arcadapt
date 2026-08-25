@@ -337,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.91 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.92 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.91 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.92 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1254,7 +1254,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = one axis only &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>15&deg;</b> holds the angle, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = one axis only &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>Angle</b> holds each line to the nearest step (15&deg; at normal zoom, finer as you zoom in), and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -3765,17 +3765,46 @@ function draw() {
       ctx.lineTo(pt[0] + 9 * Math.sin(ang), pt[1] - 9 * Math.cos(ang));
       ctx.stroke();
     });
-    const label = curScaleMpp ? fmtMetres(dpx * curScaleMpp) : "no scale set";
-    const mx2 = (x1 + x2) / 2, my2 = (y1 + y2) / 2 - 16;
-    ctx.font = "bold 14px system-ui, sans-serif";
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = "rgba(0,40,48,0.85)";
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(mx2 - tw / 2 - 7, my2 - 12, tw + 14, 23, 6); else ctx.rect(mx2 - tw / 2 - 7, my2 - 12, tw + 14, 23);
-    ctx.fill();
-    ctx.fillStyle = "#7fe7f7"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(label, mx2, my2);
+    /* PASS 92 [92-A2] — the pill this block used to draw inline now lives in
+       fsScalePill, so the measure label and the live-dimension labels are one
+       renderer with three callers. Pixel-identical by D1. */
+    fsScalePill(ctx, (x1 + x2) / 2, (y1 + y2) / 2 - 16,
+                curScaleMpp ? fmtMetres(dpx * curScaleMpp) : "no scale set");
     ctx.restore();
+  }
+
+  /* PASS 92 [92-A2] — THE TWO NEW CALLERS.
+
+     tempShape: above the top edge, because mid-drag his finger IS on the
+     shape — the same reason [86-4] puts the snap label above the touch point.
+
+     Selection: BELOW the bottom edge. The brief said "above the geometry" for
+     both, and above is already taken — the free-rotate handle draws a disc at
+     `U.y1 * scale + view.y - 34` with a stem down to the bbox top. A selected
+     object is also not under his finger; it is sitting still.
+
+     SINGLE SELECTION ONLY, deliberately. A union W x H across a multi-select
+     describes a group box the app cannot resize: there is no group resize,
+     `selection.length > 1` appears once in this file, and the size slider —
+     the only control a multi-selection answers — sets STROKE WIDTH. That is
+     A-4, it is Pass 93, and printing the number before the handles exist just
+     makes the same confusion look official.
+
+     RENDER ONLY. Neither pill is ever consulted by hit-testing. [86-1] cost a
+     pass because a stale selection ate taps within 14px of a chain vertex; a
+     label near the working end must not repeat it. */
+  const fsDimTemp = tempShape ? fsScaleLiveDims(tempShape) : null;
+  if (fsDimTemp) {
+    const bt = objectBounds(tempShape);
+    fsScalePill(ctx, ((bt.x1 + bt.x2) / 2) * view.scale + view.x,
+                bt.y1 * view.scale + view.y - 16, fsDimTemp);
+  } else if (activeTool === "select" && selection.length === 1 && !marquee && !viewHidden(selection[0])) {
+    const fsDimSel = fsScaleLiveDims(selection[0]);
+    if (fsDimSel) {
+      const bs = objectBounds(selection[0]);
+      fsScalePill(ctx, ((bs.x1 + bs.x2) / 2) * view.scale + view.x,
+                  bs.y2 * view.scale + view.y + 22, fsDimSel);
+    }
   }
 
   /* PASS 86 [86-4] - THE SNAP INDICATOR DRAWS ABOVE THE TOUCH POINT, because
@@ -4955,6 +4984,45 @@ function fmtMetres(m) {
   if (!isFinite(m)) return "?";
   if (m < 1) return (m * 100).toFixed(0) + " cm";
   return (m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)) + " m";
+}
+/* ================= PASS 92 [92-A2] =================================
+   THE CANVAS SAYS HOW BIG YOU ARE DRAWING.
+
+   Reece, V0.90 walk: "I drew the outline of a building and didn't know how
+   big I was drawing and then I tried to put a door and the door was tiny."
+
+   fsScalePill is the measure label's own body, EXTRACTED rather than copied,
+   so the measure pill and the two new ones cannot drift. Pass 91 had to undo
+   snap45 / fsWsAngleLock for exactly that reason. The save()/restore() is new
+   and load-bearing: the inline original sat inside the measure block's save,
+   and without it the extra callers leak font and fillStyle into the next draw.
+
+   fsScaleLiveDims returns null for anything whose bounding box is not a
+   dimension of a real thing, and says "no scale set" — the measure label's
+   own words — rather than quietly reporting pixels. Pixels dressed as a
+   measurement are what put the tiny door on the plan.                     */
+function fsScalePill(c, sx, sy, label) {
+  c.save();
+  c.font = "bold 14px system-ui, sans-serif";
+  const tw = c.measureText(label).width;
+  c.fillStyle = "rgba(0,40,48,0.85)";
+  c.beginPath();
+  if (c.roundRect) c.roundRect(sx - tw / 2 - 7, sy - 12, tw + 14, 23, 6); else c.rect(sx - tw / 2 - 7, sy - 12, tw + 14, 23);
+  c.fill();
+  c.fillStyle = "#7fe7f7"; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText(label, sx, sy);
+  c.restore();
+}
+function fsScaleLiveDims(o) {
+  if (!o) return null;
+  if (o.kind === "ink" || o.kind === "sym" || o.kind === "text" || o.kind === "img") return null;
+  if (!curScaleMpp) return "no scale set";
+  if (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow" || o.shape === "brk" || o.shape === "vesdar")) {
+    return fmtMetres(Math.hypot(o.x2 - o.x1, o.y2 - o.y1) * curScaleMpp);
+  }
+  const b = objectBounds(o);
+  if (!b || !isFinite(b.x1) || !isFinite(b.x2) || !isFinite(b.y1) || !isFinite(b.y2)) return null;
+  return fmtMetres((b.x2 - b.x1) * curScaleMpp) + " × " + fmtMetres((b.y2 - b.y1) * curScaleMpp);
 }
 function refreshMeasureNote() {
   const note = document.getElementById("measureNote");
@@ -23864,7 +23932,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v95";
+const FS_BUILD = "aa-v96";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
