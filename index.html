@@ -336,8 +336,8 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
-      <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == FireSpark V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.88 beta</span>
+      <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.89 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.88 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.89 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -11852,9 +11852,12 @@ async function fsMsMe() { return await fsGraph("/me"); }
    possible the central model is gone - so the app owns the layout and nobody has to
    decide where anything lives:
 
-     OneDrive/FireSpark/register.fsbundle    <- the central register
-     OneDrive/FireSpark/profile.fsprofile    <- the company profile (onboarding)
-     OneDrive/FireSpark/Archive/             <- one dated snapshot per day
+     OneDrive/<FS_MS_DIR>/register.fsbundle  <- the central register
+     OneDrive/<FS_MS_DIR>/profile.fsprofile  <- the company profile (onboarding)
+     OneDrive/<FS_MS_DIR>/Archive/           <- one dated snapshot per day
+
+   FS_MS_DIR is this app's own name; reads also check the legacy folder
+   (FS_MS_DIR_OLD) - read both, write new, [88-2].
 
    In Stage 3 the same layout moves to a SharePoint document library and
    register.fsbundle becomes the file that gets checked out. Layout does not change. */
@@ -11915,7 +11918,7 @@ async function fsMsMkdir(parentRel, name, selfRel) {
     throw e;
   }
 }
-/* creates FireSpark/ and FireSpark/Archive/ when missing. Safe to call every time. */
+/* creates the app's own folder (FS_MS_DIR) and its Archive/ when missing. Safe to call every time. */
 /* WRITE SIDE - deliberately fsMsItemAt(FS_MS_DIR, ...) and never fsMsItem().
    Read-both here would find the OLD folder, decide the workspace already
    exists, never create the new one, and the app would report "backed up"
@@ -12155,7 +12158,7 @@ async function fsMsSaveNow() {
     const prev = await idbGet("fsMsFile").catch(() => null);
     /* Where does this save go? Back to the file we OPENED if it still exists, otherwise
        the central register, otherwise create the central register. The old code always
-       wrote a fresh copy into FireSpark/ - so opening from anywhere else and saving
+       wrote a fresh copy into the fixed workspace folder - so opening from anywhere else and saving
        silently produced two files with the same name that then drifted apart. */
     let item = null;
     if (prev && prev.id) {
@@ -23683,7 +23686,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v92";
+const FS_BUILD = "aa-v93";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -25467,7 +25470,19 @@ function fsPlIcs(dates, fname) {
          Apple and Google forgive it; Outlook and several Android importers do
          not, and the symptom is an import that silently does nothing. */
       "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z",
-      "UID:" + dk + "-" + i + "-" + (x.adhoc ? "adhoc" : x.siteId) + "@firespark",
+      /* [89-1] BRIEF-FIRESPARK-PURGE B2, Reece 21 Aug, binding: change it
+         NOW - the duplicate-event cost only grows. A UID is how a calendar
+         decides update-vs-create. The LOCAL PART dk-i-siteId IS the event's
+         identity and is untouched - only the domain changes, so events
+         already imported from an old export duplicate ONCE on the next
+         overlapping import, and re-exports update in place again after
+         that. Tombstones (cancel-events under the old UIDs) were considered
+         and REJECTED: cancellation on FILE import is client-dependent, it
+         doubles every export forever, and it keeps writing the old string.
+         PER APP, like PRODID and the OneDrive folder: a shared domain would
+         let the two apps silently overwrite each other's events in any
+         calendar that imports both. */
+      "UID:" + dk + "-" + i + "-" + (x.adhoc ? "adhoc" : x.siteId) + "@arcadapt",
       "DTSTART:" + dk.replace(/-/g, "") + "T" + x.start.replace(":", "") + "00",
       "DTEND:" + dk.replace(/-/g, "") + "T" + endT.replace(":", "") + "00",
       "SUMMARY:" + fsPlIcsEsc(x.adhoc ? (x.title || "Job") : (e.s.name + " - routine test")),
