@@ -337,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.89 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.90 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.89 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.90 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -5483,7 +5483,14 @@ function buildSwatches() {
   customInput = document.createElement("input");
   customInput.type = "color";
   customInput.value = curCustom || "#ff8800";
-  customInput.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;border:none;padding:0;margin:0;cursor:pointer";
+  /* PASS 90 [90-1] - R-31, the plan wheel's 2px dead ring. .swatch carries a
+     2px border and an absolutely positioned child sizes against the PADDING
+     box, so width:100% stopped 2px short of the circle you can SEE all the
+     way round - and a thumb on that outer ring hit the div, which opens
+     nothing. [85-0]'s markup-wheel fix, ported verbatim: inset by the
+     border, oversize by both borders. Found by test_p85 D1 measuring the
+     two rectangles rather than checking the input existed. */
+  customInput.style.cssText = "position:absolute;left:-2px;top:-2px;width:calc(100% + 4px);height:calc(100% + 4px);opacity:0;border:none;padding:0;margin:0;cursor:pointer";
   customSw.appendChild(customInput);
   customInput.addEventListener("input", applyCustomColour);
   customInput.addEventListener("change", () => {
@@ -14944,8 +14951,8 @@ function fsAnnSwBuild() {
      positioned child sizes against the PADDING box, so a plain width:100% stops
      2px short of the circle you can see all the way round - and a tap on that
      ring lands on the div, which opens nothing. Found by D1 measuring the two
-     rectangles rather than checking the input existed. The plan's wheel has the
-     same 2px dead ring and is logged as R-31 rather than fixed from here. */
+     rectangles rather than checking the input existed. The plan's wheel HAD the
+     same 2px dead ring, logged as R-31 from here and closed by [90-1]. */
   const wheel = document.createElement("div");
   wheel.className = "swatch fsAnnSwatch";
   wheel.id = "fsAnnWheel";
@@ -18452,13 +18459,18 @@ function fsInvPayForm(inv) {
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">This records a payment you have received. It does not take one.</div></div>';
 }
 function fsInvCardHtml(inv) {
-  const st = fsInvStat(inv);
-  const pl = fsInvPayLabel(inv);
+  /* PASS 90 [90-2] - R-21. [76-B2]'s one-pill ruling, reaching the screen it
+     never touched: the LIST got fsInvOneLabel on V0.76 and this card kept
+     rendering Issued beside Part paid at 11.5px - two same-shaped badges
+     that read as one decoration. Once an invoice is issued, "Issued" is the
+     least useful fact about it and the money state is the most; a draft and
+     a void keep their own word. fsInvOneLabel PICKS - fsInvStat and
+     fsInvPayLabel are untouched and still used elsewhere. */
+  const one = fsInvOneLabel(inv);
   const v = fsInvView(inv);
   const who = fsInvWho(inv);
   let h = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
-    '<span style="background:' + st.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(st.label) + '</span>' +
-    (pl ? '<span style="background:' + pl.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(pl.t) + '</span>' : '') +
+    '<span style="background:' + one.col + ';color:#fff;border-radius:5px;padding:2px 8px;font-size:11.5px">' + fsEsc(one.t) + '</span>' +
     '<span style="font-size:13px">' + (inv.number ? fsEsc(inv.number) : '<span style="color:var(--fs-faint)">No number until issued</span>') + '</span>' +
     '</div>';
   h += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' +
@@ -23686,7 +23698,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v93";
+const FS_BUILD = "aa-v94";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
