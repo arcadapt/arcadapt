@@ -209,6 +209,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   .modebtn { font-size:15px; min-width:46px; padding:3px 8px; }
   .modebtn.testmode { min-width:58px; }
   #toolrow { padding:5px 8px 0 8px; }
+  /* PASS 93 [93-A8] - the door keeps its glyph on a phone and loses
+     its word. #toolrow is flex with NO wrap; the full label pushes
+     the row past 430px and the row must not start wrapping. */
+  #btnSetScale .sslbl { display:none; }
+  #btnSetScale { padding:6px 9px; }
   body.chesthide #sideTabs, body.chesthide #palette { display:none; }
   #chestHandle { position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:30; width:22px; height:56px; display:flex; align-items:center; justify-content:center; background:rgba(35,39,45,.9); border:1px solid #444; border-left:none; border-radius:0 10px 10px 0; color:#bbb; font-size:16px; cursor:pointer; user-select:none; touch-action:manipulation; }
   #chestHandle:active { background:#3a2b27; }
@@ -337,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.92 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.93 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.92 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.93 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -503,6 +508,13 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div class="modebtn testmode" id="mode-test" title="Test mode — tap in and out; tap devices to mark them tested"><span>&#10003;<span class="dot"></span></span><span class="lbl">Test mode</span></div>
     <button class="btn bigur" id="btnUndo" title="Undo (Ctrl+Z)">&#8630;</button>
     <button class="btn bigur" id="btnRedo" title="Redo (Ctrl+Y)">&#8631;</button>
+    <!-- PASS 93 [93-A8] - Reece, V0.93 walk, said twice on one sheet:
+         "we should have a set scale button next to the Undo/redo button
+         that disappears once scale is set." It arms Measure and it hides
+         itself, and fsScaleDoorSync owns the hiding on all TEN paths that
+         write curScaleMpp. display:none is the honest start state: at load
+         there is no plan, so there is no scale to set yet. -->
+    <button class="btn" id="btnSetScale" style="display:none;align-self:center;font-size:12.5px;padding:6px 12px;white-space:nowrap;border-color:#00b8d4;color:#7fe7f7" title="Set scale &mdash; drag a line along a known distance to set it">&#128207;<span class="sslbl"> Set scale</span></button>
     <span style="flex:1"></span>
     <button class="btn bigur" id="btnFocus" title="Focus — hide all bars and maximise the plan">&#x26F6;</button>
   </div>
@@ -1219,6 +1231,19 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <h3 style="margin-bottom:12px">&#9881; Workspace settings</h3>
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSelAfter"> After drawing a shape, switch to Select with it selected</label>
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSnapOn"> Snap lines to nearby ends, middles, crossings and edges</label>
+    <!-- PASS 93 [93-A10] - mm is the DEFAULT; this is the way back out of
+         it. Same pattern as wsAngleOn (markup here, wiring beside the
+         other cog handlers, localStorage) - a select rather than a
+         checkbox because there are three modes. The PATTERN is copied,
+         not the widget; there is still only one preference mechanism. -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="flex:1;font-size:13.5px;min-width:110px">Dimension units</span>
+      <select id="wsSetUnits" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px;font-size:12.5px">
+        <option value="mm">Millimetres &mdash; 24000 mm</option>
+        <option value="mmm">mm under a metre, m above &mdash; 800 mm / 24.0 m</option>
+        <option value="cm">Centimetres and metres &mdash; 80 cm / 24.0 m</option>
+      </select>
+    </div>
     <div style="font-size:11.5px;color:#888;margin-bottom:12px">Show / hide overlays (labels, zones, tags, markups) live in the &#128065; Views side tab.</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Autosave: <b id="wsSetAutoT">&mdash;</b></span>
@@ -1254,7 +1279,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = one axis only &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>Angle</b> holds each line to the nearest step (15&deg; at normal zoom, finer as you zoom in), and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -3799,12 +3824,22 @@ function draw() {
     fsScalePill(ctx, ((bt.x1 + bt.x2) / 2) * view.scale + view.x,
                 bt.y1 * view.scale + view.y - 16, fsDimTemp);
   } else if (activeTool === "select" && selection.length === 1 && !marquee && !viewHidden(selection[0])) {
-    const fsDimSel = fsScaleLiveDims(selection[0]);
+    /* PASS 93 [93-A11] - Reece: "when drawing on revit it shows the length of
+       the line while dragging and then the line disappears, if you select it,
+       it would show you the distance but it doesn't always sit there.
+       That's how lines should behave."
+
+       The DRAG pill above is right and is untouched. This one showed for as
+       long as the selection lasted. Now it is transient. */
+    const fsDimSel = fsScaleDimFade(selection[0]) ? fsScaleLiveDims(selection[0]) : null;
     if (fsDimSel) {
       const bs = objectBounds(selection[0]);
       fsScalePill(ctx, ((bs.x1 + bs.x2) / 2) * view.scale + view.x,
                   bs.y2 * view.scale + view.y + 22, fsDimSel);
     }
+  } else {
+    /* Nothing selected: clear the timer, do not leave one pending. */
+    fsScaleDimFade(null);
   }
 
   /* PASS 86 [86-4] - THE SNAP INDICATOR DRAWS ABOVE THE TOUCH POINT, because
@@ -4980,10 +5015,59 @@ function zoomFlashDevice(o) {
 }
 
 /* ---- Measure / per-level scale ---- */
+/* ================= PASS 93 [93-A10] ================================
+   MILLIMETRES, BECAUSE THAT IS WHAT A DRAWING IS DIMENSIONED IN.
+
+   Reece: "mm should be the default scale, however option to change it in
+   settings cog in workspace." Australian construction drawings dimension in
+   mm - convention, not preference (rule #0e), so mm is the DEFAULT and the
+   other two modes are the option, not the other way round.
+
+   fmtMetres is still THE SINGLE PLACE UNITS ARE DECIDED. Three callers
+   (the measure label and the two live-dimension labels), all canvas, none in
+   renderExportCanvasInner and none in anything persisted - checked, not
+   assumed, because A-10 must not be able to reach an export or a stored
+   value. The metres in, and every stored scaleMpp, are untouched: this
+   function's ARGUMENT is metres in all three modes and only its STRING
+   changes.
+
+   No toLocaleString: "24,000 mm" is not how a drawing writes it, and a
+   locale-dependent separator is not something a suite can assert on.        */
+let fsUnitMode = "mm";
+try { fsUnitMode = localStorage.getItem("bpm-units") || "mm"; } catch (e) {}
+if (fsUnitMode !== "mm" && fsUnitMode !== "mmm" && fsUnitMode !== "cm") fsUnitMode = "mm";
 function fmtMetres(m) {
   if (!isFinite(m)) return "?";
+  if (fsUnitMode === "mm") return String(Math.round(m * 1000)) + " mm";
+  if (fsUnitMode === "mmm") {
+    if (m < 1) return String(Math.round(m * 1000)) + " mm";
+    return (m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)) + " m";
+  }
   if (m < 1) return (m * 100).toFixed(0) + " cm";
   return (m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)) + " m";
+}
+/* ================= PASS 93 [93-A8] =================================
+   THE SCALE DOOR, AND THE ONE FUNCTION THAT HIDES IT.
+
+   Reece said it twice on one sheet: a Set scale button by Undo/Redo that
+   disappears once the scale is set.
+
+   THIS READS curScaleMpp EVERY TIME AND HOLDS NOTHING. Scale is PER LEVEL
+   and he switches levels; a cached "scale is set" flag is the single most
+   likely bug in this pass and there is deliberately no such flag anywhere.
+
+   It is called from inside refreshMeasureNote so that the door and the
+   measure note can never disagree - one place decides, four existing callers
+   get it free, and the six paths that never called refreshMeasureNote are
+   given the call by this patch. curScaleMpp is written in TEN places; the
+   brief listed six. The four it missed - setImage on a new plan, New blank
+   plan, and the two workspace-exit doors - are all paths that CLEAR the
+   scale, so building against the brief's list would have left the button
+   hidden with no scale set, which is exactly the failure the brief names.  */
+function fsScaleDoorSync() {
+  const b = document.getElementById("btnSetScale");
+  if (!b) return;
+  b.style.display = (img && !curScaleMpp) ? "inline-block" : "none";
 }
 /* ================= PASS 92 [92-A2] =================================
    THE CANVAS SAYS HOW BIG YOU ARE DRAWING.
@@ -5001,6 +5085,40 @@ function fmtMetres(m) {
    dimension of a real thing, and says "no scale set" — the measure label's
    own words — rather than quietly reporting pixels. Pixels dressed as a
    measurement are what put the tiny door on the plan.                     */
+/* ================= PASS 93 [93-A11] ================================
+   THE SELECTION DIMENSION IS TRANSIENT.
+
+   TWO WAYS TO GET THIS WRONG, AND BOTH ARE EASY:
+
+   1. draw() runs on every pan, every zoom and every animation frame. A timer
+      restamped from inside draw() restarts forever and the "transient" label
+      is permanent with extra steps. This restamps ONLY when the selected
+      object is a DIFFERENT object - identity, not truthiness.
+
+   2. A fade driven by an animation-frame loop keeps running against an idle
+      canvas and costs battery on a phone on a roof. There is no such loop
+      here. There is ONE setTimeout, cleared on every change, and its only job
+      is to ask for the single redraw that erases the pill. Selection cleared
+      -> timer cleared -> nothing pending.
+
+   undo() replaces `objects` wholesale via JSON.parse, so any reference held
+   across an undo is a different object afterwards. The identity compare
+   therefore re-shows the pill after an undo, which is correct: it IS a new
+   selection as far as anything downstream can tell.                        */
+let fsScaleDimLast = null, fsScaleDimUntil = 0, fsScaleDimTimer = null;
+const FS_DIM_MS = 1600;
+function fsScaleDimFade(sel) {
+  if (sel !== fsScaleDimLast) {
+    fsScaleDimLast = sel;
+    fsScaleDimUntil = sel ? (Date.now() + FS_DIM_MS) : 0;
+    if (fsScaleDimTimer) { clearTimeout(fsScaleDimTimer); fsScaleDimTimer = null; }
+    if (sel) fsScaleDimTimer = setTimeout(() => {
+      fsScaleDimTimer = null;
+      if (typeof requestDraw === "function") requestDraw();
+    }, FS_DIM_MS + 30);
+  }
+  return !!sel && Date.now() < fsScaleDimUntil;
+}
 function fsScalePill(c, sx, sy, label) {
   c.save();
   c.font = "bold 14px system-ui, sans-serif";
@@ -5016,7 +5134,22 @@ function fsScalePill(c, sx, sy, label) {
 function fsScaleLiveDims(o) {
   if (!o) return null;
   if (o.kind === "ink" || o.kind === "sym" || o.kind === "text" || o.kind === "img") return null;
-  if (!curScaleMpp) return "no scale set";
+  /* PASS 93 [93-A9] - Reece: "The tag is readable but not EVERY plan will
+     have a scale and therefore we don't want tags everywhere", and separately
+     "In the way - it covers what I am drawing". V0.93 returned the string
+     "no scale set" here and put it on every shape. It returns null.
+
+     THIS REVERSES MY OWN FLAGGED V0.93 DECISION. I argued that saying nothing
+     when no scale is set is what let the tiny door happen. His answer is
+     better: the cure is a VISIBLE DOOR (A-8), not a tag on every shape.
+
+     THE TRAP IS ONE WORD WIDE. The MEASURE TOOL'S label must KEEP saying
+     "no scale set" - he has deliberately picked Measure up and is owed an
+     answer. That string is built at its own call site inside draw(), not
+     here; the two share fsScalePill but not the text decision. A test that
+     greps the file for the absence of "no scale set" FAILS the correct
+     implementation and PASSES the broken one. Assert per caller. */
+  if (!curScaleMpp) return null;
   if (o.kind === "shape" && (o.shape === "line" || o.shape === "arrow" || o.shape === "brk" || o.shape === "vesdar")) {
     return fmtMetres(Math.hypot(o.x2 - o.x1, o.y2 - o.y1) * curScaleMpp);
   }
@@ -5025,6 +5158,11 @@ function fsScaleLiveDims(o) {
   return fmtMetres((b.x2 - b.x1) * curScaleMpp) + " × " + fmtMetres((b.y2 - b.y1) * curScaleMpp);
 }
 function refreshMeasureNote() {
+  /* PASS 93 [93-A8] - the door rides with the note. Anything that changes
+     the scale already had to tell the note; now that is the only thing it
+     has to tell. A second sync mechanism beside this one is how the two
+     drift apart on the one path nobody tested. */
+  fsScaleDoorSync();
   const note = document.getElementById("measureNote");
   const clr = document.getElementById("measureClearScale");
   if (!note) return;
@@ -5259,6 +5397,29 @@ document.getElementById("wsAngleOn").onchange = ev => {
   fsWsAngle = ev.target.checked;
   try { localStorage.setItem("bpm-anglelock", fsWsAngle ? "1" : "0"); } catch (e2) {}
 };
+/* PASS 93 [93-A10] - the unit switch, wired exactly where wsAngleOn is
+   wired. Changing it must repaint: the measure note and every live dimension
+   already on screen are stale the instant the mode changes. */
+(function () {
+  const u = document.getElementById("wsSetUnits");
+  if (!u) return;
+  u.value = fsUnitMode;
+  u.onchange = ev => {
+    const v = ev.target.value;
+    fsUnitMode = (v === "mm" || v === "mmm" || v === "cm") ? v : "mm";
+    try { localStorage.setItem("bpm-units", fsUnitMode); } catch (e2) {}
+    if (typeof refreshMeasureNote === "function") refreshMeasureNote();
+    if (typeof draw === "function") draw();
+  };
+})();
+/* PASS 93 [93-A8] - the door's other half. It must ARM THE MEASURE TOOL and
+   say what to do; the existing note already has the words ("No scale - drag a
+   line along a known distance to set it") and setTool("measure") is what puts
+   that note on screen. A door that hides itself correctly and opens onto
+   nothing is the half of this item that gets forgotten - caught by D6, which
+   clicks the real button and reads activeTool rather than reading the markup
+   and believing it. */
+document.getElementById("btnSetScale").onclick = () => setTool("measure");
 document.getElementById("wsChainFin").onclick = () => fsWsRunEnd(true);
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
@@ -5658,7 +5819,7 @@ function setImage(im, dataUrl, keepObjects, keepView) {
   clearSelection();
   document.getElementById("dropHint").classList.add("hidden");
   if (keepView) draw(); else fitView();
-  if (!keepObjects) { curScaleMpp = null; measureLive = null; levels = [{ name:"Level 1", image:imgDataUrl, pageBaseH:pageBaseH, objects:objects, scaleMpp:null }]; curLevel = 0; }
+  if (!keepObjects) { curScaleMpp = null; measureLive = null; levels = [{ name:"Level 1", image:imgDataUrl, pageBaseH:pageBaseH, objects:objects, scaleMpp:null }]; curLevel = 0; } if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   else syncLevel();
   refreshLevelSel();
   scheduleAutosave();
@@ -6591,7 +6752,7 @@ function loadProjectFile(file) {
         objects = lv.objects || [];
         if (typeof proj.labelsOn === "boolean") { labelsOn = proj.labelsOn; refreshLabelsBtn(); }
         siteNotes = proj.siteNotes || "";
-        pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null;
+        pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
         sitePhotos = proj.sitePhotos || [];
         undoStack = []; redoStack = [];
         currentProjId = null;
@@ -6774,7 +6935,7 @@ async function tryRestoreAutosave() {
       objects = lv.objects || [];
       if (typeof a.labelsOn === "boolean") { labelsOn = a.labelsOn; refreshLabelsBtn(); }
       siteNotes = a.siteNotes || "";
-      pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null;
+      pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
       sitePhotos = a.sitePhotos || [];
       setImage(im, lv.image, true);
       lastSaveNote = "Restored autosave from " + new Date(a.t).toTimeString().slice(0, 5); updateStatus();
@@ -6854,7 +7015,7 @@ async function openPlan(id) {
     objects = lv.objects || [];
     labelsOn = d.labelsOn !== false; refreshLabelsBtn();
     siteNotes = d.siteNotes || "";
-    pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null;
+    pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     sitePhotos = d.sitePhotos || [];
     undoStack = []; redoStack = [];
     fileHandle = null;
@@ -6875,7 +7036,7 @@ document.getElementById("btnNew").onclick = () => {
   undoStack = []; redoStack = [];
   siteNotes = ""; pageBaseH = null; sitePhotos = [];
   levels = []; curLevel = 0; refreshLevelSel();
-  curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null;
+  curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   currentProjId = null; fileHandle = null;
   document.getElementById("dropHint").classList.remove("hidden");
   idbDel(fsAutoKey()).catch(() => {});
@@ -6965,7 +7126,7 @@ function switchLevel(i) {
     if (gen !== levelGen) return;      /* a newer switch won; this load is stale */
     levelLoading = false;
     objects = lv.objects || [];
-    pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null;
+    pageBaseH = lv.pageBaseH || null; curScaleMpp = lv.scaleMpp || null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     img = im; imgDataUrl = lv.image;
     clearSelection();
     undoStack = []; redoStack = [];
@@ -8015,6 +8176,38 @@ function fsSnapAngle(ax, ay, px, py, scale) {
 function snap45(ax, ay, px, py) {
   return fsSnapAngle(ax, ay, px, py, (typeof view !== "undefined" && view) ? view.scale : 1);
 }
+/* ================= PASS 93 [93-C9] =================================
+   THE MOVE LOCK, WHICH IS NOT snap45 AND MUST NOT BECOME IT.
+
+   snap45 is misnamed: it delegates to fsSnapAngle with fsSnapStepFor(scale),
+   the zoom-dependent Revit LADDER (90/45/30/15/5/1 deg). I said in the Pass 93
+   read that C-9 could just call it. IT CANNOT. At high zoom that ladder is a
+   1-degree step, and a move that snaps to 1 degree is not an axis lock at all
+   - it is the drawing angle-lock wearing a move's clothes.
+
+   Fixed 45 here, always, at every zoom. Same maths shape, different question:
+   snap45 asks "what angle is this line", fsWsMoveLock asks "which of eight
+   directions is this move". Deliberately NOT a fork - neither function can
+   answer the other's question, so there is nothing shared to drift.
+
+   AND IT PROJECTS PERPENDICULARLY, IT DOES NOT RE-AIM THE RAY. snap45 puts
+   the point at the ORIGINAL DISTANCE along the snapped angle, which is right
+   for a line - the length you dragged is the length you meant. For a MOVE it
+   is wrong: drag (100, 40) and the nearest direction is horizontal, but the
+   full 107.7px ray would slide the object 7.7px further right than the finger
+   went. The object leads the finger and pops. Dropping the perpendicular
+   component instead gives dx=100, dy=0 - which is EXACTLY what V0.93 shipped
+   for horizontal and vertical, so this pass takes nothing away from him and
+   only adds the diagonals. The same pop argument killed option (a) in
+   mutate-p68ws.py; this is that lesson, applied to the other axis.          */
+function fsWsMoveLock(dx, dy) {
+  if (!dx && !dy) return { dx:0, dy:0 };
+  const step = Math.PI / 4;
+  const a = Math.round(Math.atan2(dy, dx) / step) * step;
+  const ux = Math.cos(a), uy = Math.sin(a);
+  const dot = dx * ux + dy * uy;
+  return { dx:dot * ux, dy:dot * uy };
+}
 let handleAnchor = null;   // other endpoint while dragging a line/arrow handle
 function setHandleAnchor(hd) {
   handleAnchor = null;
@@ -8425,7 +8618,14 @@ cv.addEventListener("pointermove", e => {
        wins, the other is zeroed - Revit's behaviour, and it gives him
        left/right as well as up/down. That extra axis is MY call against his
        words, so it gets its own box on the walk sheet. */
-    if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+    /* PASS 93 [93-C9] - "Shift while moving - should it lock to one axis, or
+       both?" -> "both". THE ONLY AMBIGUOUS ANSWER ON THE SHEET. Constraining
+       both axes literally means the object cannot move, so "both" cannot mean
+       that. Revit's answer, adopted and named rather than asking him the same
+       question twice: horizontal, vertical AND the 45 diagonals. A superset of
+       what V0.93 shipped, so nothing he already relies on is taken away.
+       JUDGEMENT CALL AGAINST AN AMBIGUOUS ANSWER - walk-sheet box. */
+    if (e.shiftKey) { const lk = fsWsMoveLock(dx, dy); dx = lk.dx; dy = lk.dy; }
     selection.forEach((o, i) => {
       const orig = JSON.parse(moveOrig[i]);
       if (o.kind === "ink") o.points = orig.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
@@ -22731,7 +22931,7 @@ document.getElementById("fsBack").onclick = async () => {
   img = null; imgDataUrl = null; objects = []; clearSelection();
   undoStack = []; redoStack = []; siteNotes = ""; pageBaseH = null; sitePhotos = [];
   levels = []; curLevel = 0; refreshLevelSel();
-  curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null;
+  curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   currentProjId = null; fileHandle = null;
   document.getElementById("dropHint").classList.remove("hidden");
   document.getElementById("app").style.display = "none";
@@ -23932,7 +24132,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v96";
+const FS_BUILD = "aa-v97";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -28379,7 +28579,7 @@ try {
     img = null; imgDataUrl = null; objects = []; clearSelection();
     undoStack = []; redoStack = []; siteNotes = ""; pageBaseH = null; sitePhotos = [];
     levels = []; curLevel = 0; refreshLevelSel();
-    curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null;
+    curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     currentProjId = null; fileHandle = null;
     document.getElementById("dropHint").classList.remove("hidden");
     document.getElementById("app").style.display = "none";
