@@ -337,7 +337,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.90 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.91 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -467,7 +467,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.90 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.91 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -540,7 +540,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div id="chainWrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:#aaa">
       <label id="wsChainLab" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Each new line starts where the last one ended"><input type="checkbox" id="wsChainOn" style="width:16px;height:16px"> Chain</label>
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest 15 degrees"><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> 15&deg;</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest angle step - 15&deg; at normal zoom, finer as you zoom in (90/45/30/15/5/1&deg;), the way Revit does it. Shift does the same on a keyboard."><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> Angle</label>
       <button id="wsChainFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
@@ -1254,7 +1254,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PN pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift = straight / 45&deg; snap &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>15&deg;</b> holds the angle, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> is in the Modify tab.</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = one axis only &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, <b>15&deg;</b> holds the angle, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -1718,7 +1718,10 @@ const MODIFY_TOOLS = [
   { id:"hatch",     label:"Hatch (HT)",       icon:"▨" },
   /* PASS 86 [86-5] - R-34's "trimming". No `btn`: there is no hidden topbar
      button to proxy, because this one needs two taps ON THE CANVAS. */
-  { id:"m_trim",    label:"Trim / Extend",    icon:"⌐" }
+  { id:"m_trim",    label:"Trim / Extend",    icon:"⌐" },
+  /* PASS 91 [91-S2] - fsRegionPick's seventh door. No `btn`: there is no
+     hidden topbar button to proxy, it opens the picker directly. */
+  { id:"m_crop",    label:"Crop plan",        icon:"✂" }
 ];
 const HATCH_LEGACY = { hatchd:"hatch", hatchx:"hatch", hatchs:"hatch", hatcho:"hatch" };
 const VESDAR_TOOL = { id:"vesdar", label:"VESDA run", icon:'<span style="color:#b06fd0">&#9645;</span>' };
@@ -3147,14 +3150,21 @@ function fsWsSegXSeg(a, b) {
 }
 
 /* [86-3] 15 degree increments about an anchor. Deliberately NOT snap45 - that
-   one is Shift's, it is 45 degrees, it ships today and it does not change. */
+   one is Shift's, it is 45 degrees, it ships today and it does not change.
+
+   PASS 91 [91-C4b] - BOTH HALVES OF THAT COMMENT ARE NOW OUT OF DATE, so
+   here is the replacement rather than a second copy of the same maths.
+   Shift is no longer 45: C-4 put it on Revit's zoom-dependent ladder. And
+   this toggle is the ONLY angle constraint that exists on Reece's iPad,
+   because an iPad has no Shift key - which is why Pass 86 built it. Leaving
+   it flat while Shift got the ladder would have shipped the headline item of
+   Canvas Pass 1 to the one device he does not work from.
+
+   The ladder is centred so that 1:1 zoom IS FS_WS_ANGLE_DEG. At the zoom
+   test_p86 pins, this returns the same multiples of 15 it always did. */
 function fsWsAngleLock(ax, ay, px, py) {
-  const dx = px - ax, dy = py - ay;
-  const d = Math.hypot(dx, dy);
-  if (!d) return { x: px, y: py };
-  const step = FS_WS_ANGLE_DEG * Math.PI / 180;
-  const a = Math.round(Math.atan2(dy, dx) / step) * step;
-  return { x: ax + d * Math.cos(a), y: ay + d * Math.sin(a) };
+  return fsSnapAngle(ax, ay, px, py,
+                     (typeof view !== "undefined" && view) ? view.scale : 1);
 }
 
 function fsWsSnapIsLine(o) {
@@ -3607,6 +3617,17 @@ function draw() {
   ctx.scale(view.scale, view.scale);
   ctx.imageSmoothingEnabled = !interacting;
   if (!interacting) ctx.imageSmoothingQuality = "high";
+  /* PASS 91 [91-S1] - Reece: "Should we make the workspace background
+     automatically white? Like revit? At the moment I am making like a white
+     background with hatch and then drawing on that but I have to flatten it".
+
+     renderExportCanvasInner() has filled #ffffff before drawImage since it
+     was written; draw() never did. The screen and the export have always
+     disagreed, and the hatch-rectangle workaround was him making the screen
+     match what the export was already doing. Same colour, same order, same
+     rectangle - so the two now agree by construction. */
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
   ctx.drawImage(img, 0, 0);
   ctx.restore();
 
@@ -4742,7 +4763,7 @@ function buildPalette() {
       if (t.id === "sitenotes") { document.getElementById("btnNotes").onclick(); return; }
       if (t.id === "importsheet") { document.getElementById("btnOpenProj").onclick(); return; }
       if (t.id !== "hatch" && MODIFY_TOOLS.some(m => m.id === t.id)) { modifyAction(t.id); return; }
-      setTool(t.id);
+      fsToolToggle(t.id);      /* [91-C2] press again to put it down */
     };
     attachLongPress(d, t.id);
     paletteEl.appendChild(d);
@@ -4754,8 +4775,12 @@ function buildPalette() {
 /* ---- Modify tab: tiles proxy the (hidden) action buttons ---- */
 function modifyAction(id) {
   if (id === "m_align") { openAlign(); return; }
+  if (id === "m_crop") { fsWsCropCanvas(); return; }   /* [91-S2] */
   if (id === "m_trim") {
-    setTool(activeTool === "trim" ? "select" : "trim");
+    /* [91-C2] this used to toggle to "select"; it now toggles to neutral
+       like every other tool. A REAL change under his fingers - named on the
+       walk sheet rather than slipped in. */
+    fsToolToggle("trim");
     if (activeTool === "trim") statusEl.textContent = "Tap the first line, on the side you want to keep";
     refreshModifyTiles();
     return;
@@ -4979,6 +5004,15 @@ function updateTestCounter() {
   }
   el.style.display = "block";
 }
+/* PASS 91 [91-C2/C3] - NEUTRAL HAS ONE NAME NOW.
+   Before this pass three things disagreed about what "no tool active" meant:
+   Esc went to "pan", the Trim tile toggled to "select", and the palette did
+   not toggle at all - so Reece had no way to put the canvas down. Three
+   opinions about neutral is not a bug list, it IS root cause C.
+   Everything that can return the canvas to neutral goes through these two. */
+const FS_TOOL_NEUTRAL = "pan";
+function fsToolToggle(id) { setTool(activeTool === id ? FS_TOOL_NEUTRAL : id); }
+
 function setTool(id) {
   /* PASS 86 [86-1] - switching tool ends an open run, QUIETLY. Not through
      fsWsRunEnd: that one can call setTool for selAfterDraw and this would
@@ -4990,6 +5024,20 @@ function setTool(id) {
                              to finish something that is not running. */
   fsWsTrimA = null;
   fsWsSnapHit = null;
+  /* PASS 91 [91-C1] - Reece: the trim tool "doesnt automatically deselect
+     whatever I had last selected".
+
+     NOT UNCONDITIONAL, AND THAT IS THE WHOLE POINT. Five sites call
+     setSelection(...) and THEN setTool("select") - fsWsRunEnd, insertImage,
+     pasteClipboard, the draw-then-select branch, the text modal - so an
+     unconditional clear here wipes the selection they just made and
+     select-after-draw dies QUIETLY: the object is there, just not selected.
+     That is M1, and it is the version that would have shipped.
+
+     Clearing on change EXCEPT to "select" answers the complaint (trim
+     clears, every drawing tool clears) and matches Revit, where Modify is
+     where you go to work WITH a selection rather than lose it. */
+  if (id !== activeTool && id !== "select") clearSelection();
   activeTool = id;
   /* PASS 24 item 11 — snap the slider to this type's remembered size, so the
      control reads what the next placement will actually be. */
@@ -5034,9 +5082,9 @@ function setTool(id) {
   if (id === "pan") clearSelection();
   draw();
 }
-document.getElementById("mode-pan").onclick = () => setTool("pan");
-document.getElementById("mode-select").onclick = () => setTool("select");
-document.getElementById("mode-test").onclick = () => setTool(activeTool === "test" ? "pan" : "test");
+document.getElementById("mode-pan").onclick = () => setTool(FS_TOOL_NEUTRAL);
+document.getElementById("mode-select").onclick = () => fsToolToggle("select");
+document.getElementById("mode-test").onclick = () => fsToolToggle("test");
 let multiMode = false;
 document.getElementById("btnMulti").onclick = () => {
   multiMode = !multiMode;
@@ -5548,6 +5596,53 @@ function setImage(im, dataUrl, keepObjects, keepView) {
   scheduleAutosave();
 }
 
+/* PASS 91 [91-S2] - THE SEVENTH DOOR.
+   Reece: "I thought we added a cut tool like what we have when we import a
+   plan for the first time and you can draw around the outside and cut/copy
+   it out, but thats not in the tool chest? why not?"
+
+   He is right that it is not in the tool chest and wrong that it is missing.
+   fsRegionPick() has six call sites and every one of them is import-time
+   (first plan, add level, insert as object, add photo, replace plan). This
+   is the seventh, and the only one that runs on a plan you have already
+   drawn on - which is why it is the only one that has to move the drawing.
+
+   keepObjects is TRUE here. Every other caller starts a new sheet; this one
+   must not throw away the work. */
+function fsWsShiftObj(o, dx, dy) {
+  if (o.kind === "ink") o.points = o.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
+  else if (o.pts) o.pts = o.pts.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
+  else if (o.kind === "shape" || o.kind === "callout") {
+    o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy;
+    if (o.cx != null) { o.cx += dx; o.cy += dy; }
+  } else { o.x += dx; o.y += dy; }
+}
+
+async function fsWsCropCanvas() {
+  if (!img) { alert("Load a block plan first."); return; }
+  const c0 = document.createElement("canvas");
+  c0.width = img.naturalWidth; c0.height = img.naturalHeight;
+  const cx0 = c0.getContext("2d");
+  cx0.fillStyle = "#ffffff"; cx0.fillRect(0, 0, c0.width, c0.height);
+  cx0.drawImage(img, 0, 0);
+  const cc = await fsRegionPick(c0);
+  if (!cc) { updateStatus(); return; }
+  const dx = cc.fsRgnDx || 0, dy = cc.fsRgnDy || 0;
+  const dataUrl = fsEncodePlan(cc, 0.92);
+  const im2 = new Image();
+  im2.onload = () => {
+    pushUndo();
+    /* THE LOAD-BEARING LINE. The plan origin has moved to (dx, dy), so every
+       object moves the other way or the whole drawing slides off the
+       building. M8 deletes this and the suite catches it by MEASURING a
+       symbol against the crop, not by looking for the call. */
+    objects.forEach(o => fsWsShiftObj(o, -dx, -dy));
+    setImage(im2, dataUrl, true, false);
+  };
+  im2.onerror = () => { updateStatus(); alert("That crop could not be displayed."); };
+  im2.src = dataUrl;
+}
+
 function loadImageFile(file) {
   if (!file || !file.type || file.type.indexOf("image") !== 0) return;
   const reader = new FileReader();
@@ -5717,19 +5812,24 @@ function fsPdfTrim(c, auto) {
         }
       }
     }
-    if (maxX < 0) return c;                              // blank page — nothing to crop to
+    if (maxX < 0) { c.fsTrimDx = 0; c.fsTrimDy = 0; return c; }                              // blank page — nothing to crop to
     const pad = 10;
     minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
     maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
     const cw = maxX - minX + 1, ch = maxY - minY + 1;
     const saved = 1 - (cw * ch) / (w * h);
-    if (saved < (auto ? 0.002 : 0.05)) return c;         // full-bleed page — not worth asking (auto: the box was the consent)
-    if (!auto && !window.confirm("Trimmed " + Math.round(saved * 100) + "% white margin off the page.\n\nOK = keep the crop · Cancel = keep the full page")) return c;
+    if (saved < (auto ? 0.002 : 0.05)) { c.fsTrimDx = 0; c.fsTrimDy = 0; return c; }         // full-bleed page — not worth asking (auto: the box was the consent)
+    if (!auto && !window.confirm("Trimmed " + Math.round(saved * 100) + "% white margin off the page.\n\nOK = keep the crop · Cancel = keep the full page")) { c.fsTrimDx = 0; c.fsTrimDy = 0; return c; }
     const c2 = document.createElement("canvas");
     c2.width = cw; c2.height = ch;
     c2.getContext("2d").drawImage(c, minX, minY, cw, ch, 0, 0, cw, ch);
+    /* PASS 91 [91-S2] - WHERE THE TRIM STARTED, reported instead of thrown
+       away. Nothing in the import flow reads these; the canvas-crop door
+       cannot be correct without them, because a crop that moves the plan and
+       leaves the symbols behind is a plan that LOOKS fine and is wrong. */
+    c2.fsTrimDx = minX; c2.fsTrimDy = minY;
     return c2;
-  } catch (e) { return c; }
+  } catch (e) { c.fsTrimDx = 0; c.fsTrimDy = 0; return c; }
 }
 
 /* V0.25 PASS 22 — the picker keeps two shapes: box and outline.
@@ -6102,7 +6202,13 @@ function fsRegionPick(srcCanvas, forObject) {
         const cx2 = c2.getContext("2d");
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, w, h);
         cx2.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
-        finish(fsPdfTrim(c2, true));
+        /* [91-S2] the pick rectangle PLUS whatever fsPdfTrim shaved off it.
+           Two offsets, composed here because this is the only place that can
+           see both. */
+        const cutB = fsPdfTrim(c2, true);
+        cutB.fsRgnDx = x + (cutB.fsTrimDx || 0);
+        cutB.fsRgnDy = y + (cutB.fsTrimDy || 0);
+        finish(cutB);
         return;
       }
       if (pts.length < 3) return;
@@ -6156,6 +6262,8 @@ function fsRegionPick(srcCanvas, forObject) {
          alpha instead of flattening the notch to white (or, on JPEG, black) */
       const cut = fsPdfTrim(c2, true);
       cut.__fsAlpha = true;
+      cut.fsRgnDx = x + (cut.fsTrimDx || 0);   /* [91-S2] */
+      cut.fsRgnDy = y + (cut.fsTrimDy || 0);
       finish(cut);
     };
     /* PASS 22 item 10 — undo is a stack now, not a pop. The V0.24 version
@@ -7798,12 +7906,46 @@ function localXY(e) {
 }
 
 // Shift = dead straight: snap a point to the nearest 45° about an anchor
-function snap45(ax, ay, px, py) {
+/* PASS 91 [91-C4] - REVIT'S ANGLE SNAP, ZOOM AND ALL.
+   Reece: lines "go out of 180 degree" holding shift. Confirmed against
+   Autodesk's docs and LOCKED by him ("if it does it in revit then its
+   probably like that for a reason"): the increments are 90/45/30/15/5/1
+   degrees AND THEY ARE ZOOM-DEPENDENT - coarse zoomed out, finer as you zoom
+   in. The zoom dependence is not trim, it is the reason Revit's snapping
+   does not fight you; a flat 15-degree snap misses the point and is M4.
+
+   Every step divides 180, so 180 is reachable at every zoom - which is the
+   literal complaint. snap45 stays as a wrapper so all four call sites (shape
+   draw, handle drag, measure, chain) inherit this at once instead of each
+   growing its own copy. */
+/* THE BANDS ARE CENTRED ON 1:1 = 15 DEGREES ON PURPOSE, and that is the
+   whole reason this is safe to ship to a device Reece uses every day.
+   FS_WS_ANGLE_DEG (15) is Pass 86's angle-lock increment and it is still the
+   fourth rung, so AT 1:1 ZOOM NOTHING HE ALREADY USES BEHAVES DIFFERENTLY -
+   it only gets finer as he zooms in and coarser as he zooms out, which is
+   the Revit behaviour he asked for. Bands chosen the other way round (30 at
+   1:1) would have been "more Revit" on paper and a daily regression in the
+   hand. test_p86 B13/B14 pin the 15 at scale 1 and stay green untouched. */
+const FS_SNAP_STEPS = [90, 45, 30, FS_WS_ANGLE_DEG, 5, 1];
+function fsSnapStepFor(scale) {
+  const s = scale || 1;
+  if (s < 0.25) return FS_SNAP_STEPS[0];
+  if (s < 0.5)  return FS_SNAP_STEPS[1];
+  if (s < 1.0)  return FS_SNAP_STEPS[2];
+  if (s < 2.0)  return FS_SNAP_STEPS[3];
+  if (s < 4.0)  return FS_SNAP_STEPS[4];
+  return FS_SNAP_STEPS[5];
+}
+function fsSnapAngle(ax, ay, px, py, scale) {
   const dx = px - ax, dy = py - ay;
   const d = Math.hypot(dx, dy);
   if (!d) return { x:px, y:py };
-  const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  const step = fsSnapStepFor(scale) * Math.PI / 180;
+  const a = Math.round(Math.atan2(dy, dx) / step) * step;
   return { x:ax + d * Math.cos(a), y:ay + d * Math.sin(a) };
+}
+function snap45(ax, ay, px, py) {
+  return fsSnapAngle(ax, ay, px, py, (typeof view !== "undefined" && view) ? view.scale : 1);
 }
 let handleAnchor = null;   // other endpoint while dragging a line/arrow handle
 function setHandleAnchor(hd) {
@@ -8208,7 +8350,14 @@ cv.addEventListener("pointermove", e => {
        which does not answer the complaint. (a) is M2 in mutate-p68ws.py and it
        dies. */
     if (!moveRebased) { moveStartImg = ip; moveRebased = true; }
-    const dx = ip.x - moveStartImg.x, dy = ip.y - moveStartImg.y;
+    let dx = ip.x - moveStartImg.x, dy = ip.y - moveStartImg.y;
+    /* PASS 91 [91-C5] - Reece: "when I am moving an item whether a line,
+       detector anything and holding shift I should only be able to move up
+       or down." This branch had no shiftKey check at all. Dominant axis
+       wins, the other is zeroed - Revit's behaviour, and it gives him
+       left/right as well as up/down. That extra axis is MY call against his
+       words, so it gets its own box on the walk sheet. */
+    if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
     selection.forEach((o, i) => {
       const orig = JSON.parse(moveOrig[i]);
       if (o.kind === "ink") o.points = orig.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
@@ -10126,7 +10275,18 @@ document.getElementById("focusRedo").onclick = () => document.getElementById("bt
 
 /* Revit-style two-letter hotkeys (PC keyboards) */
 let hkBuf = "", hkTime = 0;
-const HOTKEY_TOOLS = { dl:"line", ar:"arrow", re:"rect", el:"ellipse", cd:"cloud", tx:"text", pn:"pen", hl:"hl", ht:"hatch", mv:"select", pa:"pan", ts:"test", zn:"zones" };
+/* PASS 91 [91-C6] - AUDITED against Revit's shipped defaults, not extended
+   on a whim. Four codes here mean something else in Revit: AR=Array,
+   RE=Scale, EL=Elevation, PN=Pin. LOCKED: nothing changes under Reece's
+   fingers unannounced, so this pass moves ONLY the codes whose Revit meaning
+   is a feature this app ALREADY HAS -
+     PN  pen -> PE, freeing PN for Pin (btnPin / m_pin, Pass 68ws)
+     TR  -> trim     (Trim/Extend, R-34, Pass 86)
+     DI  -> measure  (Revit's Aligned Dimension; the Measure tool exists)
+   AR / RE / EL / HL keep their meanings and go on the walk sheet as a named
+   proposal, old and new side by side. RE is the one to watch - Revit's RE is
+   Scale and the A-block will want it. */
+const HOTKEY_TOOLS = { dl:"line", ar:"arrow", re:"rect", el:"ellipse", cd:"cloud", tx:"text", pe:"pen", hl:"hl", ht:"hatch", mv:"select", pa:"pan", ts:"test", zn:"zones", tr:"trim", di:"measure" };
 const HOTKEY_ACTS = {
   ro:() => { if (!btnRotate.disabled) btnRotate.onclick(); },
   co:() => { if (!btnDup.disabled) btnDup.onclick(); },
@@ -10135,7 +10295,10 @@ const HOTKEY_ACTS = {
   ug:() => { const b = document.getElementById("btnUngroup"); if (!b.disabled) b.onclick(); },
   fh:() => { if (!btnFlipH.disabled) btnFlipH.onclick(); },
   fv:() => { if (!btnFlipV.disabled) btnFlipV.onclick(); },
-  ss:() => { const b = document.getElementById("btnSame"); if (!b.disabled) b.onclick(); }
+  ss:() => { const b = document.getElementById("btnSame"); if (!b.disabled) b.onclick(); },
+  /* [91-C6] PN is Revit's Pin, and pinning already exists here - the code was
+     just taken by the pen tool, which has moved to PE. */
+  pn:() => { const b = document.getElementById("btnPin"); if (b && !b.disabled) b.onclick(); }
 };
 function runHotkey(code) {
   if (HOTKEY_TOOLS[code]) { setTool(HOTKEY_TOOLS[code]); statusEl.textContent = code.toUpperCase() + " → " + HOTKEY_TOOLS[code]; return true; }
@@ -10154,7 +10317,10 @@ window.addEventListener("keydown", e => {
   else if ((e.ctrlKey || e.metaKey) && k === "v") { if (clipboardObjs.length) { e.preventDefault(); pasteClipboard(); } }
   else if ((e.ctrlKey || e.metaKey) && k === "s") { e.preventDefault(); saveProject(); }
   else if (e.key === "Delete" || e.key === "Backspace") { if (selection.length) { e.preventDefault(); btnDel.onclick(); } }
-  else if (e.key === "Escape") { hkBuf = ""; clearSelection(); setTool("pan"); draw(); }
+  /* [91-C3] ALREADY BUILT before this pass - only re-pointed at the shared
+     constant so Esc and the toggle cannot drift apart. Probed anyway: an
+     unprobed shipped behaviour is where rule #0c says the next loss hides. */
+  else if (e.key === "Escape") { hkBuf = ""; clearSelection(); setTool(FS_TOOL_NEUTRAL); draw(); }
   else if (!e.ctrlKey && !e.metaKey && !e.altKey && /^[a-z]$/.test(k)) {
     const now = Date.now();
     if (now - hkTime > 900) hkBuf = "";
@@ -23698,7 +23864,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v94";
+const FS_BUILD = "aa-v95";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
