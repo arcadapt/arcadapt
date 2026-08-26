@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.94 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.95 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.94 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.95 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -20752,7 +20752,7 @@ function fsHubEvents(s) {
   const ev = [];
   (s.history || []).forEach(r => {
     if (r && r.finished) ev.push({ d: String(r.finished).slice(0, 10),
-      t: (r.label || r.mode || "Test") + (r.manual ? " (recorded manually)" : ""),
+      t: (r.label || r.mode || "Test") + (r.manual ? " (" + fsRecTag(r, "recorded manually") + ")" : ""),
       w: r.tech || "" });
   });
   (s.defects || []).forEach(d => {
@@ -21165,6 +21165,24 @@ function fsRenderSite() {
     html += '<div class="fsCyc" style="flex:1;min-width:104px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
       '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
+      /* PASS 95 [P-3] — Reece: "purely for the routine monthly testing". The
+         button exists on the Monthly cell and nowhere else, so a cycle that
+         needs evidence cannot be closed with a tap.
+
+         [P-5] PLACEMENT IS HIS, from the V0.95 renders: "locate it next to
+         the date, or above the progress line?" — ABOVE THE PROGRESS LINE, of
+         his two. Next to the date does not fit: at 430 the Monthly cell has
+         ~166px of usable width and the date input alone takes 110px, which
+         leaves ~50px for a two-word label. Measured, not guessed.
+
+         [P-5b/P-5c] The words are his. He asked for "Site Tested" and then,
+         one message later, "sorry, perhaps 'Test Complete' would be better."
+         The LATER one ships. Note the two say different things and both are
+         fine: the BUTTON is what the tech is claiming (I finished the monthly
+         test), the RECORD TAG is how it was captured (a tap, not a guided
+         session). Provenance stays with the record, where an auditor reads
+         it. */
+      (c.key === "lastMonthly" ? '<button class="fsbtn" id="fsTestedBtn" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session" style="display:block;width:100%;margin:2px 0 5px;padding:7px 4px;font-size:11.5px;font-weight:700;white-space:nowrap">&#10003; Test Complete</button>' : '') +
       '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;margin:3px 0 4px"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
       '</div>';
@@ -21224,6 +21242,10 @@ function fsRenderSite() {
      untouched and nothing is re-implemented. */
   const hubCoord = document.getElementById("fsCoordBtn");
   if (hubCoord) hubCoord.onclick = () => window.open(fsCoordsUrl(s), "_blank");
+  /* PASS 95 [P-3] — wired beside the date input it sits under: same cell,
+     same authority. Absent on every cycle but Monthly, hence the guard. */
+  const fsTb = document.getElementById("fsTestedBtn");
+  if (fsTb) fsTb.onclick = fsTestedTap;
   document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
       s.testing = s.testing || {};
@@ -21341,7 +21363,7 @@ function fsRenderTab() {
       const failBits = (r.checklist && r.checklist.f ? r.checklist.f : 0) + ((r.failedDevices || []).length);
       html += '<details style="border-top:1px solid var(--fs-border);padding:9px 0">';
       html += '<summary style="cursor:pointer;font-weight:700;font-size:14.5px">' + fsEsc(r.label || r.mode) + ' &mdash; ' + fsEsc((r.finished || "").slice(0, 10)) + (r.tech ? ' &middot; ' + fsEsc(r.tech) : '') +
-        (r.manual ? ' &middot; <span style="color:var(--fs-sub2)">added manually</span>' : (failBits ? ' &middot; <span style="color:#c62828">' + failBits + ' fail' + (failBits > 1 ? 's' : '') + '</span>' : ' &middot; <span style="color:#1b8a3f">no fails</span>')) + '</summary>';
+        (r.manual ? ' &middot; <span style="color:var(--fs-sub2)">' + fsRecTag(r, 'added manually') + '</span>' : (failBits ? ' &middot; <span style="color:#c62828">' + failBits + ' fail' + (failBits > 1 ? 's' : '') + '</span>' : ' &middot; <span style="color:#1b8a3f">no fails</span>')) + '</summary>';
       html += '<div style="font-size:13px;padding:6px 2px;color:var(--fs-sub)">';
       if (r.checklist) html += 'Checklist: <b style="color:#1b8a3f">' + r.checklist.p + ' P</b> &middot; <b style="color:#c62828">' + r.checklist.f + ' F</b> &middot; ' + r.checklist.na + ' N/A' + (r.checklist.total ? ' (of ' + r.checklist.total + ')' : '') + '<br>';
       if (r.devices && r.devices.total) html += 'Devices tested: <b>' + r.devices.tested + ' / ' + r.devices.total + '</b> (' + fsEsc(String(r.year || "")) + ')<br>';
@@ -22662,6 +22684,122 @@ function fsModeLabel(m) {
   const b = FS_HIST_MODES.find(x => x[0] === m);
   return b ? b[1] : m;
 }
+/* ===================== PASS 95 — the Tested button (P-3) =====================
+   Reece, 26 Aug: "purely for the routine monthly testing". One tap on the
+   Monthly cell of the site strip records the monthly test. On a site with
+   buildings it opens the prompt he described — every building listed, all
+   ticked, untick what you did not do — and the SITE ITSELF is in that list
+   and ticked too, which is his Q1 answer.
+
+   [F6], 14 Aug, and it governs every line below: "yes, but it records who
+   tapped it and when, and it is VISIBLY DISTINCT from a date set by a
+   completed test session. That distinction is the whole design." So a tap
+   writes a real history record (name + date, undoable by the existing
+   delete), and FOUR surfaces tag it: the history tab, the hub activity
+   list, the year summary PDF and the AFSS pack. The two PDFs did not tag
+   manual records AT ALL before this pass — see the header. */
+const FS_TESTED_TAG = "marked tested";
+/* One copy of the new words. `plain` is whatever that surface ALREADY says
+   for a manual record, so this pass adds a tag and renames nothing. */
+function fsRecTag(r, plain) { return (r && r.quick) ? FS_TESTED_TAG : plain; }
+let fsQuickN = 0;   /* two nodes written in the same millisecond still get
+                       distinct ids — Date.now() alone does not guarantee it
+                       when the buildings loop writes N records in one go */
+function fsQuickTestedWrite(node, date, tech) {
+  node.history = node.history || [];
+  node.history.unshift({
+    id: "h" + Date.now() + "q" + (++fsQuickN) + Math.random().toString(16).slice(2, 6),
+    mode: "monthly", label: fsModeLabel("monthly"),
+    started: date + "T09:00:00", finished: date + "T12:00:00",
+    tech: tech, obs: "", manual: true, quick: true
+  });
+  fsHistBump(node, "monthly", date);
+}
+/* The stamp identity, not a new one: fs-user is what the manual modal
+   prefills and what register export asks for when it is empty. Returns null
+   for "cancelled" — an unnamed compliance record is not worth having. */
+function fsTestedWho() {
+  let who = "";
+  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  if (who) return who;
+  const t = prompt("Your name — it goes on the record, so the site history says who marked it tested.");
+  if (t === null) return null;
+  const v = t.trim();
+  if (!v) return null;
+  try { localStorage.setItem("fs-user", v); } catch (e2) {}
+  return v;
+}
+function fsTestedTap() {
+  const s = fsSite;
+  if (!s) return;
+  const tech = fsTestedWho();
+  if (tech === null) return;
+  const date = new Date().toISOString().slice(0, 10);
+  /* Same sort the Buildings tab uses, so the two lists agree instead of
+     drifting. Object references are held directly — no index mapping. */
+  const blds = [...(s.buildings || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+  if (!blds.length) {
+    /* No confirmation on a plain site (or on a building page, where
+       s.buildings is empty). One tap is the entire point; the undo is the
+       history delete, which already recalculates the due date. */
+    fsQuickTestedWrite(s, date, tech);
+    fsMarkDirty();
+    fsRenderSite();
+    return;
+  }
+  fsTestedModal(s, blds, date, tech);
+}
+function fsTestedModal(s, blds, date, tech) {
+  const sel = { "-1": true };            /* -1 = the site itself */
+  blds.forEach((b, i) => { sel[String(i)] = true; });
+  const d = document.createElement("div");
+  d.id = "fsTestedWrap";
+  d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
+  const row = (i, name, sub) =>
+    '<div class="fsTestedRow" data-i="' + i + '" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--fs-border);cursor:pointer">' +
+    '<span class="fsTestedDot" data-i="' + i + '" style="width:22px;height:22px;border-radius:50%;flex:0 0 auto;border:2px solid #1b8a3f;background:#1b8a3f"></span>' +
+    '<div style="flex:1;min-width:0"><div class="fsTestedName" style="font-size:15px;font-weight:600">' + fsEsc(name) + '</div>' +
+    (sub ? '<div style="font-size:12px;color:var(--fs-sub2)">' + sub + '</div>' : '') + '</div></div>';
+  d.innerHTML = '<div class="fscard" id="fsTestedCard" style="padding:20px;max-width:420px;width:100%;max-height:86vh;overflow:auto">' +
+    '<h3 style="font-size:16px;font-weight:800;margin-bottom:4px">Monthly — mark as tested</h3>' +
+    '<div style="font-size:13px;color:var(--fs-sub);margin-bottom:6px">' + fsEsc(date) + ' &middot; ' + fsEsc(tech) +
+    '. Everything is ticked — untick anything you did not do. Each one gets its own Test history record, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.</div>' +
+    row(-1, s.name, "the site itself") +
+    blds.map((b, i) => row(i, b.name, "")).join("") +
+    '<div style="display:flex;gap:8px;margin-top:14px">' +
+    '<button class="fsbtn" id="fsTestedGo" style="flex:1;padding:12px;font-weight:700">Mark tested</button>' +
+    '<button class="fsbtn" id="fsTestedX" style="flex:0 0 auto;padding:12px 16px">Cancel</button></div></div>';
+  document.body.appendChild(d);
+  const go = d.querySelector("#fsTestedGo");
+  const paint = () => {
+    d.querySelectorAll(".fsTestedDot").forEach(el => {
+      const on = !!sel[el.dataset.i];
+      el.style.background = on ? "#1b8a3f" : "transparent";
+      el.style.borderColor = on ? "#1b8a3f" : "var(--fs-border)";
+    });
+    const n = Object.keys(sel).filter(k => sel[k]).length;
+    /* No dead end (test_p50 F3): a confirm that would write nothing says so
+       instead of pretending to work. */
+    go.textContent = n ? ("Mark tested (" + n + ")") : "Nothing ticked";
+    go.disabled = !n;
+    go.style.opacity = n ? "1" : ".5";
+  };
+  d.querySelectorAll(".fsTestedRow").forEach(r => {
+    r.onclick = () => { const k = r.dataset.i; sel[k] = !sel[k]; paint(); };
+  });
+  d.querySelector("#fsTestedX").onclick = () => d.remove();
+  go.onclick = () => {
+    const targets = [];
+    if (sel["-1"]) targets.push(s);
+    blds.forEach((b, i) => { if (sel[String(i)]) targets.push(b); });
+    if (!targets.length) return;
+    targets.forEach(n2 => fsQuickTestedWrite(n2, date, tech));
+    d.remove();
+    fsMarkDirty();
+    fsRenderSite();
+  };
+  paint();
+}
 function fsHistRecalc(s2, mode) {
   const key = FS_HIST_KEY[mode];
   if (!key) return;
@@ -23085,7 +23223,9 @@ function fsAfssPdf(opts) {
     const recs = (s2.history || []).filter(r => String(r.finished || "").slice(0, 4) === String(yr));
     if (!recs.length) L.push("(no tests recorded in " + yr + ")");
     recs.slice().reverse().forEach(r => {
+      /* PASS 95 [P-3] — same hole as fsYearPdf, same fix. */
       L.push("\u2022 " + (r.finished || "").slice(0, 10) + "  " + (r.label || r.mode) + (r.tech ? "  \u2014 " + r.tech : "") +
+        (r.manual ? "  (" + fsRecTag(r, "recorded manually") + ")" : "") +
         (r.checklist ? "  \u2014 " + r.checklist.p + " pass / " + r.checklist.f + " fail / " + r.checklist.na + " N/A" : "") +
         (r.devices && r.devices.total ? "  \u2014 devices " + r.devices.tested + "/" + r.devices.total : ""));
       (r.failsChecklist || []).forEach(x => L.push("     FAIL " + x.k + ": " + x.t.slice(0, 80) + (x.note ? " \u2014 " + x.note : "")));
@@ -24203,7 +24343,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v98";
+const FS_BUILD = "aa-v99";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -25025,7 +25165,11 @@ function fsYearPdf(site, year) {
   L("h2", "Tests carried out in " + year);
   if (!recs.length) L("t", "No tests recorded for " + year + ".");
   recs.forEach(r => {
-    L("b", (r.finished || "").slice(0, 10) + " — " + (r.label || r.mode) + (r.tech ? " — " + r.tech : ""));
+    /* PASS 95 [P-3] — this document goes to a building owner and it listed
+       EVERY record as a test carried out, manual ones included, with no
+       marker at all. F6's ruling says a record that is not a completed test
+       session must be visibly distinct wherever it is read. */
+    L("b", (r.finished || "").slice(0, 10) + " — " + (r.label || r.mode) + (r.tech ? " — " + r.tech : "") + (r.manual ? " (" + fsRecTag(r, "recorded manually") + ")" : ""));
     if (r.checklist) L("t", "  Checklist: " + r.checklist.p + " pass" + dot + r.checklist.f + " fail" + dot + r.checklist.na + " N/A (of " + r.checklist.total + " items)");
     if (r.devices && r.devices.total) L("t", "  Devices tested: " + r.devices.tested + " / " + r.devices.total);
     (r.failsChecklist || []).forEach(x => L("f", "  ✗ " + x.k + " — " + x.t + (x.note ? " — " + x.note : "")));
