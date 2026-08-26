@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.99 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.100 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.99 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.100 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3667,7 +3667,15 @@ function fsWsCropRegion(geom, cut) {
     draw();
   };
   piece.onload = () => {
-    const o = { kind:"img", src:dataUrl, x:cc.fsRgnDx || 0, y:cc.fsRgnDy || 0,
+    /* PASS 100 [W97-6] - the COPY lands BESIDE its source: dx = its own
+       width via fsWsSideOff, dy = 0. The CUT stays exactly over its white
+       hole - his words named copy and duplicate, and a cut piece offset
+       sideways would sit next to a hole it no longer covers. fsRgnDx/Dy
+       still mean "where it came from" (test_p98 B2 pins that): the offset
+       is composed HERE, at the commit, in the copy branch only. */
+    const o = { kind:"img", src:dataUrl,
+                x:(cc.fsRgnDx || 0) + (cut ? 0 : fsWsSideOff(cc.width)),
+                y:cc.fsRgnDy || 0,
                 w:cc.width, h:cc.height };
     if (!cut) {
       pushUndo();
@@ -3675,7 +3683,7 @@ function fsWsCropRegion(geom, cut) {
       setSelection([o]);
       fsWsCropReset();
       setTool("select");
-      statusEl.textContent = "Copied out of the plan - drag it where you want it";
+      statusEl.textContent = "Copied out of the plan - placed beside it, drag it where you want it";
       draw();
       return;
     }
@@ -4555,6 +4563,23 @@ function updateSelButtons() {
   if (typeof refreshModifyTiles === "function") refreshModifyTiles();
 }
 
+/* PASS 100 [W97-6] - the sideways offset, ONE seam for Duplicate and the
+   crop Copy so the two doors cannot drift apart. dx = the piece/selection
+   bounding WIDTH (min 30 so a hairline vertical object still visibly
+   moves), dy = 0 - "directly sideways", direction RIGHT (ruled by Reece,
+   27 Aug via Dispatch). */
+function fsWsObjSpan(list) {
+  let lo = Infinity, hi = -Infinity;
+  const see = x => { if (typeof x !== "number" || isNaN(x)) return; if (x < lo) lo = x; if (x > hi) hi = x; };
+  (list || []).forEach(o => {
+    if (o.kind === "ink") (o.points || []).forEach(p => see(p.x));
+    else if (o.pts) o.pts.forEach(p => see(p.x));
+    else if (o.kind === "shape" || o.kind === "callout") { see(o.x1); see(o.x2); }
+    else { see(o.x); see((o.x || 0) + (o.w || o.size || 0)); }
+  });
+  return hi > lo ? hi - lo : 0;
+}
+function fsWsSideOff(w) { return Math.max(30, Math.round(w || 0)); }
 btnDup.onclick = () => {
   if (!selection.length) return;
   pushUndo();
@@ -4566,12 +4591,19 @@ btnDup.onclick = () => {
        would do is unpin it. Copying a locked object is explicitly allowed by
        Bluebeam's rule — this decides only what the COPY inherits. */
     delete c.pin;
-    const off = 30;
-    if (c.kind === "ink") c.points.forEach(pt => { pt.x += off; pt.y += off; });
-    else if (c.pts) c.pts.forEach(pt => { pt.x += off; pt.y += off; });
-    else if (c.kind === "shape" || c.kind === "callout") { c.x1 += off; c.y1 += off; c.x2 += off; c.y2 += off; }
-    else { c.x += off; c.y += off; }
     return c;
+  });
+  /* PASS 100 [W97-6] - "Directly sideways though so 180 degrees for copy or
+     duplicate." RULING SUPERSESSION of the +30,+30 diagonal: x only, by the
+     selection's own width, so the copy lands BESIDE the original instead of
+     45 degrees down-right. All copies shift by the SAME offset so a
+     multi-select keeps its internal geometry. */
+  const off = fsWsSideOff(fsWsObjSpan(copies));
+  copies.forEach(c => {
+    if (c.kind === "ink") c.points.forEach(pt => { pt.x += off; });
+    else if (c.pts) c.pts.forEach(pt => { pt.x += off; });
+    else if (c.kind === "shape" || c.kind === "callout") { c.x1 += off; c.x2 += off; }
+    else { c.x += off; }
   });
   objects.push(...copies);
   setSelection(copies);
@@ -12913,8 +12945,7 @@ async function fsRegisterBlob(asBundle) {
 /* deliberate format switch, from the register-file menu */
 async function fsSaveAsFormat(asBundle) {
   if (!fsRegister) return;
-  let who = "";
-  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  let who = fsWho();   /* PASS 100 [W97-14] - the signed-in seam, not raw localStorage */
   fsRegister.updated = new Date().toISOString().slice(0, 10);
   if (who) fsRegister.savedBy = who;
   fsActLog("Register saved", "file");
@@ -13351,8 +13382,7 @@ async function fsMsListRender() {
 }
 async function fsMsSaveNow() {
   if (!fsRegister) { alert("No register is open."); return; }
-  let who = "";
-  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  let who = fsWho();   /* PASS 100 [W97-14] - the signed-in seam, not raw localStorage */
   try {
     fsMsProg("Checking the cloud copy…");
     await fsMsEnsureWorkspace();
@@ -23512,8 +23542,15 @@ function fsQuickTestedWrite(node, date, tech) {
    prefills and what register export asks for when it is empty. Returns null
    for "cancelled" — an unnamed compliance record is not worth having. */
 function fsTestedWho() {
-  let who = "";
-  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  /* PASS 100 [W97-14] - "It asks for my name, if I am logged in as a tech
+     then I wouldnt expect it to do that because it would have that
+     information." The read moves UP to fsWho(), the v1.31 identity seam,
+     which checks sessionStorage FIRST - where "stay signed in"-unticked puts
+     the signed-in name. Reading localStorage directly is exactly what fired
+     the prompt at a signed-in tech. The prompt below STAYS: it is the
+     no-login flow on a shared device, and its localStorage write is that
+     device's persistence. */
+  const who = fsWho();
   if (who) return who;
   const t = prompt("Your name — it goes on the record, so the site history says who marked it tested.");
   if (t === null) return null;
@@ -23561,15 +23598,15 @@ function fsTestedModal(s, blds, date, tech) {
   d.id = "fsTestedWrap";
   d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
   const row = (i, name, sub) =>
-    '<div class="fsTestedRow" data-i="' + i + '" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--fs-border);cursor:pointer">' +
+    '<div class="fsTestedRow" data-i="' + i + '" style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--fs-border);cursor:' + (i === -1 ? 'default' : 'pointer') + '">' +
     '<span class="fsTestedDot" data-i="' + i + '" style="width:22px;height:22px;border-radius:50%;flex:0 0 auto;border:2px solid #1b8a3f;background:#1b8a3f"></span>' +
     '<div style="flex:1;min-width:0"><div class="fsTestedName" style="font-size:15px;font-weight:600">' + fsEsc(name) + '</div>' +
     (sub ? '<div style="font-size:12px;color:var(--fs-sub2)">' + sub + '</div>' : '') + '</div></div>';
   d.innerHTML = '<div class="fscard" id="fsTestedCard" style="padding:20px;max-width:420px;width:100%;max-height:86vh;overflow:auto">' +
     '<h3 style="font-size:16px;font-weight:800;margin-bottom:4px">Monthly — mark as tested</h3>' +
     '<div style="font-size:13px;color:var(--fs-sub);margin-bottom:6px">' + fsEsc(date) + ' &middot; ' + fsEsc(tech) +
-    '. Everything is ticked — untick anything you did not do. Each one gets its own Test history record, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.</div>' +
-    row(-1, s.name, "the site itself") +
+    '. Everything is ticked — untick any building you did not do; the site itself is always recorded. Each one gets its own Test history record, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.</div>' +
+    row(-1, s.name, "the site itself — always recorded") +
     blds.map((b, i) => row(i, b.name, "")).join("") +
     '<div style="display:flex;gap:8px;margin-top:14px">' +
     '<button class="fsbtn" id="fsTestedGo" style="flex:1;padding:12px;font-weight:700">Mark tested</button>' +
@@ -23589,8 +23626,17 @@ function fsTestedModal(s, blds, date, tech) {
     go.disabled = !n;
     go.style.opacity = n ? "1" : ".5";
   };
+  /* PASS 100 [W97-15] - THE SITE ROW IS NOT DESELECTABLE. Reece, 26 Aug:
+     "it should all be ticked as its assumed the whole site including the
+     site itself is being tested." RULING SUPERSESSION of V0.95's
+     deselectable row; test_p95 D4* repointed to this ruling, not edited
+     green. Buildings keep their toggles (test_p95 D3 must still pass), so
+     the confirm count can fall - but never below the site's own 1, which
+     is why the "Nothing ticked" guard below is now unreachable. It stays
+     as a defensive guard. */
+  const fsTestedSiteLock = k => k === "-1";
   d.querySelectorAll(".fsTestedRow").forEach(r => {
-    r.onclick = () => { const k = r.dataset.i; sel[k] = !sel[k]; paint(); };
+    r.onclick = () => { const k = r.dataset.i; if (fsTestedSiteLock(k)) return; sel[k] = !sel[k]; paint(); };
   });
   d.querySelector("#fsTestedX").onclick = () => d.remove();
   go.onclick = () => {
@@ -23629,8 +23675,8 @@ function fsHistModalOpen(rec) {
   if (!rec && use.indexOf("monthly") >= 0) sel.value = "monthly";
   document.getElementById("fsHmTitle").textContent = rec ? "Edit test record" : "Add a test record";
   document.getElementById("fsHmNote").style.display = rec ? "none" : "block";
-  document.getElementById("fsHmDate").value = rec ? (rec.finished || "").slice(0, 10) : new Date().toISOString().slice(0, 10);
-  document.getElementById("fsHmTech").value = rec ? (rec.tech || "") : (localStorage.getItem("fs-user") || "");
+  document.getElementById("fsHmDate").value = rec ? (rec.finished || "").slice(0, 10) : fsTodayLocal();   /* PASS 100 [P100-N1] - local, not UTC: a 7am manual record no longer pre-fills yesterday */
+  document.getElementById("fsHmTech").value = rec ? (rec.tech || "") : (fsWho() || "");   /* PASS 100 [W97-14] */
   document.getElementById("fsHmObs").value = rec ? (rec.obs || "") : "";
   document.getElementById("fsHistModal").classList.add("show");
 }
@@ -23784,8 +23830,7 @@ document.getElementById("fsDemoBtn").onclick = () => {
 })();
 document.getElementById("fsExportReg").onclick = async () => {
   if (!fsRegister) return;
-  let who = "";
-  try { who = localStorage.getItem("fs-user") || ""; } catch (e) {}
+  let who = fsWho();   /* PASS 100 [W97-14] - the signed-in seam, not raw localStorage */
   if (!who) {
     who = window.prompt("Your name (stamped on saves):", "") || "";
     try { localStorage.setItem("fs-user", who); } catch (e) {}
@@ -23998,7 +24043,7 @@ function fsAfssPdf(opts) {
   const L = [];
   L.push("Site: " + (s2.name || "") + (s2.address ? "  \u2014  " + s2.address : ""));
   L.push("Client: " + (fsClient ? fsClient.name : ""));
-  L.push("Prepared " + new Date().toISOString().slice(0, 10) + " by " + fsDocBrand() + " \u00b7 routine service to AS 1851-2012");
+  L.push("Prepared " + fsTodayLocal() + " by " + fsDocBrand() + " \u00b7 routine service to AS 1851-2012");
   L.push("");
   if (opts.meas) {
     L.push("FIRE SAFETY MEASURES / EQUIPMENT ON SITE");
@@ -24127,7 +24172,7 @@ function fsRenderTest() {
     const openDef = ((fsSite && fsSite.defects) || []).filter(d => !d.closed).length;
     let html = '<h3 style="margin-bottom:10px">Start test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>';
     if (openDef) html += '<div style="background:#3a2320;border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
-    html += '<label>Done by</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(localStorage.getItem("fs-user") || "") + '">';
+    html += '<label>Done by</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(fsWho() || "") + '">';   /* PASS 100 [W97-14] */
     html += '<label style="margin-top:10px">Test type</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">';
     Object.entries((fsChecklists && fsChecklists.modes) || {}).filter(([m]) => typeof fsCycModeOn !== "function" || fsCycModeOn(m)).forEach(([m, md]) => {
       html += '<button class="btn fsModePick" data-mode="' + fsEsc(m) + '" style="flex:1;min-width:110px;padding:14px 8px;font-size:15px;font-weight:700">' + fsEsc((md && md.label) || m) + '</button>';
@@ -25148,7 +25193,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v103";
+const FS_BUILD = "aa-v104";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -25961,7 +26006,7 @@ function fsYearPdf(site, year) {
   L("h", "Test summary " + year + " — " + site.name);
   if (fsClient) L("t", "Client: " + fsClient.name + (fsParentSite ? "   " + dot + "   Building of: " + fsParentSite.name : ""));
   if (site.address) L("t", "Address: " + site.address);
-  L("t", "Generated " + new Date().toISOString().slice(0, 10) + " — " + recs.length + " test" + (recs.length === 1 ? "" : "s") + " recorded in " + year);
+  L("t", "Generated " + fsTodayLocal() + " — " + recs.length + " test" + (recs.length === 1 ? "" : "s") + " recorded in " + year);
   const cyc = fsCycles().filter(c => (site.testing || {})[c.key]);
   if (cyc.length) {
     L("h2", "Test cycle status");
@@ -27059,7 +27104,7 @@ function fsPlExportMenu() {
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
   d.innerHTML = '<div class="fscard" style="padding:20px;max-width:420px;width:100%">' +
-    '<h3 style="font-size:16px;font-weight:800;margin-bottom:10px">Export ' + fsPlMonthName() + '</h3>' +
+    '<h3 style="font-size:16px;font-weight:800;margin-bottom:10px">Export / Import &mdash; ' + fsPlMonthName() + '</h3>' +
     '<button class="fsbtn" id="fsPlExGridP" style="width:100%;text-align:left;margin-bottom:8px;padding:11px">&#128197; Month calendar &mdash; PDF</button>' +
     '<button class="fsbtn" id="fsPlExGridW" style="width:100%;text-align:left;margin-bottom:8px;padding:11px">&#128221; Month calendar &mdash; Word</button>' +
     '<button class="fsbtn" id="fsPlExList" style="width:100%;text-align:left;margin-bottom:8px;padding:11px">&#128203; Day-by-day run sheet &mdash; PDF</button>' +
@@ -27354,7 +27399,7 @@ function fsPlRender() {
     '<button class="fsbtn" id="fsPlPrev" title="Previous month">&#8249;</button>' +
     '<button class="fsbtn" id="fsPlNext" title="Next month">&#8250;</button>' +
     '<span style="flex:1"></span>' +
-    '<button class="fsbtn" id="fsPlExpBtn" title="Calendar &amp; run sheet exports">&#128228; Export</button>' +
+    '<button class="fsbtn" id="fsPlExpBtn" title="Calendar &amp; run sheet exports, and import a plan file">&#128228; Export / Import</button>' +
     '<button class="fsbtn" id="fsPlClrMonth" title="Remove every planned stop this month" style="color:#c62828">&#128465; Clear month</button>' +
     '<button class="fsbtn" id="fsPlCfg" title="Working hours, base, buffer">&#9881;</button></div>';
   /* V0.21 — table-layout:fixed is the whole of the "planner gets too wide" fix.
@@ -27367,7 +27412,7 @@ function fsPlRender() {
   html += '<div class="fscard" style="padding:8px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:' + fsPlGridPx(st) + 'px">';
   html += '<tr>' + ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(d2 => '<th style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:1px;padding:4px;border-bottom:2px solid var(--fs-border)">' + d2 + '</th>').join("") + '</tr>';
   let day = 1;
-  const todayK = new Date().toISOString().slice(0, 10);
+  const todayK = fsTodayLocal();   /* PASS 100 [P100-N1] - the today ring rang YESTERDAY before 10am local */
   for (let w = 0; w < 6 && day <= dim; w++) {
     html += "<tr>";
     for (let dow = 0; dow < 7; dow++) {
