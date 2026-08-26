@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.95 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.96 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.95 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.96 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -552,7 +552,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div id="chainWrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:#aaa">
       <label id="wsChainLab" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Each new line starts where the last one ended"><input type="checkbox" id="wsChainOn" style="width:16px;height:16px"> Chain</label>
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest angle step - 15&deg; at normal zoom, finer as you zoom in (90/45/30/15/5/1&deg;), the way Revit does it. Shift does the same on a keyboard."><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> Angle</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest angle step - 15&deg; at normal zoom, finer as you zoom in (90/45/30/15/5/1&deg;). On a keyboard, Shift holds lines to 0, 45 or 90&deg; instead."><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> Angle</label>
       <button id="wsChainFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
@@ -1279,7 +1279,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = the Revit angle steps (90/45/30/15/5/1&deg;, finer as you zoom in); Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = 0/45/90&deg; only; Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -1811,6 +1811,8 @@ try {
    how chain-aware undo would have silently rewound to the wrong vertex. */
 let fsWsRun = null;              /* { pts:[{x,y},...] } while a run is open */
 let fsWsSnapHit = null;          /* {x,y,type} for the indicator, this frame */
+let fsWsGuides = null;           /* PASS 96 [P-7] - alignment guides while moving, this frame */
+let fsWsMoveUB = null;           /* [P-7] union bounds of the selection, captured at rebase */
 let fsWsTrimA = null;            /* { o, t } after the first trim tap */
 let sitePhotos = [];
 let levels = [];
@@ -3179,7 +3181,8 @@ function fsWsSegXSeg(a, b) {
 
    PASS 91 [91-C4b] - BOTH HALVES OF THAT COMMENT ARE NOW OUT OF DATE, so
    here is the replacement rather than a second copy of the same maths.
-   Shift is no longer 45: C-4 put it on Revit's zoom-dependent ladder. And
+   Shift took C-4's zoom ladder and PASS 96 [P-6] took it back to a fixed
+   0/45/90 at Reece's word; the ladder now lives HERE alone. And
    this toggle is the ONLY angle constraint that exists on Reece's iPad,
    because an iPad has no Shift key - which is why Pass 86 built it. Leaving
    it flat while Shift got the ladder would have shipped the headline item of
@@ -3840,6 +3843,29 @@ function draw() {
   } else {
     /* Nothing selected: clear the timer, do not leave one pending. */
     fsScaleDimFade(null);
+  }
+
+  /* PASS 96 [P-7] - the alignment guides: dashed, screen-space width, drawn
+     through the pair of edges or centres that agree, spanning both boxes. */
+  if (fsWsGuides) {
+    ctx.save();
+    ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
+    fsWsGuides.forEach(g => {
+      const pad = 24 / view.scale;
+      ctx.beginPath();
+      if (g.v) {
+        const gx = g.at * view.scale + view.x;
+        ctx.moveTo(gx, (g.a - pad) * view.scale + view.y);
+        ctx.lineTo(gx, (g.b + pad) * view.scale + view.y);
+      } else {
+        const gy = g.at * view.scale + view.y;
+        ctx.moveTo((g.a - pad) * view.scale + view.x, gy);
+        ctx.lineTo((g.b + pad) * view.scale + view.x, gy);
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
   }
 
   /* PASS 86 [86-4] - THE SNAP INDICATOR DRAWS ABOVE THE TOUCH POINT, because
@@ -8173,15 +8199,32 @@ function fsSnapAngle(ax, ay, px, py, scale) {
   const a = Math.round(Math.atan2(dy, dx) / step) * step;
   return { x:ax + d * Math.cos(a), y:ay + d * Math.sin(a) };
 }
+/* PASS 96 [P-6] - Reece, 26 Aug: "when holding shift when drawing lines it
+   should only draw at 0, 45 or 90 degrees." SUPERSEDES [91-C4] FOR SHIFT
+   ONLY - he used the ladder on the PC and did not love it. The ladder is
+   not deleted: fsWsAngleLock (the Angle toggle, the only angle constraint
+   an iPad has) still climbs it, and he did not raise the toggle. Fixed
+   45-degree directions at every zoom, and the point stays at the ORIGINAL
+   DISTANCE along the snapped ray - a line's length is the length you
+   dragged, which is why this is not fsWsMoveLock (that one projects, see
+   [93-C9] below). Third legitimate copy of the angle maths, third named
+   paddock - test_p91 C7c counts all three. */
 function snap45(ax, ay, px, py) {
-  return fsSnapAngle(ax, ay, px, py, (typeof view !== "undefined" && view) ? view.scale : 1);
+  const dx = px - ax, dy = py - ay;
+  const d = Math.hypot(dx, dy);
+  if (!d) return { x:px, y:py };
+  const step = Math.PI / 4;
+  const a = Math.round(Math.atan2(dy, dx) / step) * step;
+  return { x:ax + d * Math.cos(a), y:ay + d * Math.sin(a) };
 }
 /* ================= PASS 93 [93-C9] =================================
    THE MOVE LOCK, WHICH IS NOT snap45 AND MUST NOT BECOME IT.
 
-   snap45 is misnamed: it delegates to fsSnapAngle with fsSnapStepFor(scale),
-   the zoom-dependent Revit LADDER (90/45/30/15/5/1 deg). I said in the Pass 93
-   read that C-9 could just call it. IT CANNOT. At high zoom that ladder is a
+   snap45 WAS misnamed when this was written: it delegated to fsSnapAngle's
+   zoom ladder (90/45/30/15/5/1 deg). PASS 96 [P-6] made it a true fixed 45
+   at Reece's word, so the name is honest now - but the argument below still
+   governs the LADDER. I said in the Pass 93
+   read that C-9 could just call the ladder. IT CANNOT. At high zoom it is a
    1-degree step, and a move that snaps to 1 degree is not an axis lock at all
    - it is the drawing angle-lock wearing a move's clothes.
 
@@ -8207,6 +8250,58 @@ function fsWsMoveLock(dx, dy) {
   const ux = Math.cos(a), uy = Math.sin(a);
   const dot = dx * ux + dy * uy;
   return { dx:dot * ux, dy:dot * uy };
+}
+/* ================= PASS 96 [P-7] ===================================
+   ALIGNMENT GUIDES WHILE MOVING. Reece, 26 Aug: "when you're moving an item
+   that it shows when it is in line with other items or central to another
+   item." Edges and centres of the MOVING selection against edges and centres
+   of every other visible object. Within FS_WS_SNAP_PX (screen px, so zoom
+   does not change the feel) the move snaps flush and a dashed guide is drawn
+   through the pair. A fourth thing, deliberately none of the other three:
+   the align TOOL acts on a finished selection, the move LOCK constrains
+   direction not relationship, and fsWsSnap joins line ENDS while drawing.
+   Gated on fsWsSnapOn - one switch, one idea: "snap to other things". */
+function fsWsSelUnionBounds() {
+  const U = { x1:Infinity, y1:Infinity, x2:-Infinity, y2:-Infinity };
+  selection.forEach(o => {
+    const b = objectBounds(o);
+    U.x1 = Math.min(U.x1, b.x1); U.y1 = Math.min(U.y1, b.y1);
+    U.x2 = Math.max(U.x2, b.x2); U.y2 = Math.max(U.y2, b.y2);
+  });
+  return isFinite(U.x1) ? U : null;
+}
+function fsWsMoveGuides(dx, dy) {
+  const out = { dx:dx, dy:dy, guides:null };
+  if (!fsWsSnapOn || !fsWsMoveUB) return out;
+  const U = fsWsMoveUB;
+  const r = FS_WS_SNAP_PX / view.scale;
+  const mx = [U.x1 + dx, (U.x1 + U.x2) / 2 + dx, U.x2 + dx];
+  const my = [U.y1 + dy, (U.y1 + U.y2) / 2 + dy, U.y2 + dy];
+  let bx = null, by = null;
+  for (let k = 0; k < objects.length; k++) {
+    const o = objects[k];
+    if (selection.includes(o) || viewHidden(o)) continue;
+    const b = objectBounds(o);
+    const cxs = [b.x1, (b.x1 + b.x2) / 2, b.x2];
+    const cys = [b.y1, (b.y1 + b.y2) / 2, b.y2];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        const ddx = cxs[j] - mx[i];
+        if (Math.abs(ddx) <= r && (!bx || Math.abs(ddx) < Math.abs(bx.d))) bx = { d:ddx, x:cxs[j], b:b };
+        const ddy = cys[j] - my[i];
+        if (Math.abs(ddy) <= r && (!by || Math.abs(ddy) < Math.abs(by.d))) by = { d:ddy, y:cys[j], b:b };
+      }
+    }
+  }
+  if (bx) out.dx = dx + bx.d;
+  if (by) out.dy = dy + by.d;
+  const g = [];
+  /* The guide spans BOTH boxes with a little air, so the eye can see WHAT
+     agreed, not just that something did. */
+  if (bx) g.push({ v:true, at:bx.x, a:Math.min(U.y1 + out.dy, bx.b.y1), b:Math.max(U.y2 + out.dy, bx.b.y2) });
+  if (by) g.push({ v:false, at:by.y, a:Math.min(U.x1 + out.dx, by.b.x1), b:Math.max(U.x2 + out.dx, by.b.x2) });
+  out.guides = g.length ? g : null;
+  return out;
 }
 let handleAnchor = null;   // other endpoint while dragging a line/arrow handle
 function setHandleAnchor(hd) {
@@ -8610,7 +8705,7 @@ cv.addEventListener("pointermove", e => {
        crossing — trading a small unwanted move for a small unwanted jump,
        which does not answer the complaint. (a) is M2 in mutate-p68ws.py and it
        dies. */
-    if (!moveRebased) { moveStartImg = ip; moveRebased = true; }
+    if (!moveRebased) { moveStartImg = ip; moveRebased = true; fsWsMoveUB = fsWsSelUnionBounds(); /* [P-7] nothing has moved yet - these are the true bounds */ }
     let dx = ip.x - moveStartImg.x, dy = ip.y - moveStartImg.y;
     /* PASS 91 [91-C5] - Reece: "when I am moving an item whether a line,
        detector anything and holding shift I should only be able to move up
@@ -8626,6 +8721,14 @@ cv.addEventListener("pointermove", e => {
        what V0.93 shipped, so nothing he already relies on is taken away.
        JUDGEMENT CALL AGAINST AN AMBIGUOUS ANSWER - walk-sheet box. */
     if (e.shiftKey) { const lk = fsWsMoveLock(dx, dy); dx = lk.dx; dy = lk.dy; }
+    /* PASS 96 [P-7] - guides only when Shift is NOT down: Shift is his
+       direction lock, and an alignment snap tugging the object off the
+       locked ray would fight the constraint he is holding. JUDGEMENT CALL
+       against Revit (which guides under its lock too) - walk-sheet box. */
+    if (!e.shiftKey) {
+      const fsG = fsWsMoveGuides(dx, dy);
+      dx = fsG.dx; dy = fsG.dy; fsWsGuides = fsG.guides;
+    } else fsWsGuides = null;
     selection.forEach((o, i) => {
       const orig = JSON.parse(moveOrig[i]);
       if (o.kind === "ink") o.points = orig.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
@@ -8802,6 +8905,7 @@ function endPointer(e) {
   }
 
   if (dragMode === "moveSel") {
+    fsWsGuides = null; fsWsMoveUB = null;   /* [P-7] guides live only during the drag */
     if (!moved) {
       // was a tap on an object, not a drag — undo entry not needed
       if (undoStack.length) undoStack.pop();
@@ -18854,7 +18958,12 @@ function fsInvPayMethodWire() {
   const sel = document.getElementById("fsInvPayMethod");
   const oth = document.getElementById("fsInvPayMethodOther");
   if (!sel || !oth) return;
-  const sync = function () { oth.style.display = sel.value === "Other" ? "" : "none"; };
+  /* [P-10] Which? now sits inside a caption label; hiding the input alone
+     would leave an orphan caption on screen, so the LABEL is what toggles.
+     Both toggle: test_p64 B3-B6 read the INPUT's computed display and a
+     child of a display:none label computes to "none" either way. */
+  const lab = document.getElementById("fsInvPayOtherLab");
+  const sync = function () { const on = sel.value === "Other"; if (lab) lab.style.display = on ? "flex" : "none"; oth.style.display = on ? "" : "none"; };
   sel.onchange = sync;
   sync();
 }
@@ -18883,12 +18992,22 @@ function fsInvPayForm(inv) {
     /* PASS 64 [64-2] — B3. A <select> needs no keyboard, so it cannot be a
        field you are unable to type into. The list is FIXED on purpose: the
        brief wants to report on method later and free text does not group. */
+    /* PASS 96 [P-10] - Reece: "'amount' and 'date' boxes line up but 'method'
+       is above them and it looks weird. They should all be aligned." Amount
+       and Date are caption-over-input labels; this select was a BARE control
+       in an align-items:center row, so it centred against their two-line
+       height and floated high. Same label shell for it and for Which?, all
+       columns align. The select keeps its id, options, order and width, so
+       fsInvPayMethodWire / fsInvPayMethodValue read exactly what they did. */
+    '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Method' +
     '<select id="fsInvPayMethod" style="width:120px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
     ["", "Bank transfer", "Cash", "Card", "Cheque", "Other"].map(function (o) {
       return '<option value="' + fsEsc(o) + '">' + fsEsc(o || "Method") + '</option>';
     }).join("") +
-    '</select>' +
-    '<input type="text" id="fsInvPayMethodOther" placeholder="Which?" style="display:none;width:96px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '</select></label>' +
+    '<label id="fsInvPayOtherLab" style="display:none;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Which?' +
+    '<input type="text" id="fsInvPayMethodOther" placeholder="Which?" style="width:96px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '</label>' +
     '<button class="fsbtnP" id="fsInvPayAdd">Add</button></div>' +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">This records a payment you have received. It does not take one.</div></div>';
 }
@@ -24343,7 +24462,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v99";
+const FS_BUILD = "aa-v100";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
