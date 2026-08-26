@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.98 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.99 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.98 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.99 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1865,6 +1865,28 @@ function fsWsCropMovePx(t) { return (t === "touch" || t === "pen") ? FS_WS_CROP_
 const FS_MAX_CANVAS_PX = 16000000;
 let fsWsSnapHit = null;          /* {x,y,type} for the indicator, this frame */
 let fsWsGuides = null;           /* PASS 96 [P-7] - alignment guides while moving, this frame */
+/* PASS 99 [W97-11] - "what about ipad with keyboard though?"
+   The PC/iPad split he is asking about DOES NOT EXIST IN THE CODE - every
+   canvas read of Shift is a bare e.shiftKey with no pointer-type test. What
+   is genuinely uncertain is whether a TOUCH PointerEvent on iPadOS carries
+   shiftKey while a Magic Keyboard holds the key, and I could not confirm that
+   from Apple or WebKit documentation. So this does not bet on it: Shift is
+   tracked from keydown/keyup, which a hardware keyboard on iPadOS certainly
+   does fire.
+
+   fsShift() trusts the EVENT first, so a mouse is byte-for-byte unchanged and
+   the tracked flag is never consulted for one. The flag is only ever a
+   fallback for a coarse pointer, and window blur clears it so a missed keyup
+   cannot leave Shift stuck on after an app switch. */
+let fsShiftHeld = false;
+window.addEventListener("keydown", e => { if (e.key === "Shift") fsShiftHeld = true; }, true);
+window.addEventListener("keyup", e => { if (e.key === "Shift") fsShiftHeld = false; }, true);
+window.addEventListener("blur", () => { fsShiftHeld = false; });
+function fsShift(e) {
+  if (e && e.shiftKey) return true;
+  if (e && (e.pointerType === "touch" || e.pointerType === "pen")) return fsShiftHeld;
+  return false;
+}
 let fsWsMoveUB = null;           /* [P-7] union bounds of the selection, captured at rebase */
 let fsWsTrimA = null;            /* { o, t } after the first trim tap */
 let sitePhotos = [];
@@ -4257,14 +4279,20 @@ function draw() {
     fsScaleDimFade(null);
   }
 
-  /* PASS 96 [P-7] - the alignment guides: dashed, screen-space width, drawn
-     through the pair of edges or centres that agree, spanning both boxes. */
+  /* PASS 96 [P-7], quietened in PASS 99 [W97-9a / W97-10]. Reece said it
+     twice - "make them lighter and half tone", then "too shouty too much
+     going on, make them more faint" - so this goes clearly quieter rather
+     than marginally: the same hue at 0.42 alpha instead of solid, 1px
+     instead of 1.5, half the ink in the dash, and half the overshoot past
+     the two boxes. Revit's own alignment lines are faint dashed, which is
+     the direction he was pointing at. Screen-space width is unchanged, so
+     zoom still does not change the feel. */
   if (fsWsGuides) {
     ctx.save();
-    ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = "rgba(79,195,247,0.42)"; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 8]);
     fsWsGuides.forEach(g => {
-      const pad = 24 / view.scale;
+      const pad = 12 / view.scale;
       ctx.beginPath();
       if (g.v) {
         const gx = g.at * view.scale + view.x;
@@ -8779,31 +8807,62 @@ function fsWsSelUnionBounds() {
   });
   return isFinite(U.x1) ? U : null;
 }
-function fsWsMoveGuides(dx, dy) {
+/* PASS 99 [W97-9b] - THE VISIBLE SHEET, IN PLAN PIXELS. There was no such
+   helper in the app; viewHidden() is layer visibility, which is a different
+   question. Built from the STAGE RECT and not from cv.width: resizeCanvas
+   sets cv.width to CSS px TIMES devicePixelRatio, while `view` is in CSS px
+   exactly as fitView computes it from this same rect. A rect built from
+   cv.width would be DPR times too large - on his iPad it would cull nothing
+   at all, which is the one device the complaint came from. */
+function fsWsViewRect() {
+  const r = stage.getBoundingClientRect();
+  const a = toImage(0, 0), b = toImage(r.width, r.height);
+  return { x1:Math.min(a.x, b.x), y1:Math.min(a.y, b.y),
+           x2:Math.max(a.x, b.x), y2:Math.max(a.y, b.y) };
+}
+/* PASS 99 [W97-9b/9c/W97-8] - Reece, 26 Aug: "Only have the guidelines
+   working with other items that are in the current field of view. Also, only
+   make the guidelines on the center axis of the items, horizontal or
+   vertical."
+
+   CENTRE AXIS ONLY retires half of P-7 on purpose: the 3x3 grid of edges and
+   centres, nine comparisons per axis per object, becomes one centre against
+   one centre. Fewer lines IS the ask - "less going on", said twice.
+
+   HORIZONTAL AND VERTICAL ONLY was already true and is not built here. A
+   guide has only ever been {v:true} or {v:false}. Probed, not billed.
+
+   `bind` false means COMPUTE AND DRAW THE GUIDE BUT DO NOT MOVE ANYTHING -
+   that is W97-8's answer, and the reason the snap and the guide are finally
+   two separate things instead of one. */
+function fsWsMoveGuides(dx, dy, bind) {
   const out = { dx:dx, dy:dy, guides:null };
   if (!fsWsSnapOn || !fsWsMoveUB) return out;
   const U = fsWsMoveUB;
   const r = FS_WS_SNAP_PX / view.scale;
-  const mx = [U.x1 + dx, (U.x1 + U.x2) / 2 + dx, U.x2 + dx];
-  const my = [U.y1 + dy, (U.y1 + U.y2) / 2 + dy, U.y2 + dy];
+  const V = fsWsViewRect();
+  const mx = (U.x1 + U.x2) / 2 + dx;
+  const my = (U.y1 + U.y2) / 2 + dy;
   let bx = null, by = null;
   for (let k = 0; k < objects.length; k++) {
     const o = objects[k];
     if (selection.includes(o) || viewHidden(o)) continue;
     const b = objectBounds(o);
-    const cxs = [b.x1, (b.x1 + b.x2) / 2, b.x2];
-    const cys = [b.y1, (b.y1 + b.y2) / 2, b.y2];
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        const ddx = cxs[j] - mx[i];
-        if (Math.abs(ddx) <= r && (!bx || Math.abs(ddx) < Math.abs(bx.d))) bx = { d:ddx, x:cxs[j], b:b };
-        const ddy = cys[j] - my[i];
-        if (Math.abs(ddy) <= r && (!by || Math.abs(ddy) < Math.abs(by.d))) by = { d:ddy, y:cys[j], b:b };
-      }
-    }
+    /* [W97-9b] off screen, no guide. A guide drawn to something three
+       screens away is most of "too much going on". */
+    if (b.x2 < V.x1 || b.x1 > V.x2 || b.y2 < V.y1 || b.y1 > V.y2) continue;
+    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+    const ddx = cx - mx;
+    if (Math.abs(ddx) <= r && (!bx || Math.abs(ddx) < Math.abs(bx.d))) bx = { d:ddx, x:cx, b:b };
+    const ddy = cy - my;
+    if (Math.abs(ddy) <= r && (!by || Math.abs(ddy) < Math.abs(by.d))) by = { d:ddy, y:cy, b:b };
   }
-  if (bx) out.dx = dx + bx.d;
-  if (by) out.dy = dy + by.d;
+  /* [W97-8] the snap moves him; the guide only tells him. Under a direction
+     lock the second is still welcome and the first is not. */
+  if (bind !== false) {
+    if (bx) out.dx = dx + bx.d;
+    if (by) out.dy = dy + by.d;
+  }
   const g = [];
   /* The guide spans BOTH boxes with a little air, so the eye can see WHAT
      agreed, not just that something did. */
@@ -9046,7 +9105,7 @@ cv.addEventListener("pointerdown", e => {
     }
     const hit = hitObject(p.x, p.y);
     if (hit) {
-      const multi = multiMode || e.shiftKey;
+      const multi = multiMode || fsShift(e);
       const members = hit.grp ? objects.filter(o => o.grp === hit.grp) : [hit];
       pendingDeselect = null;
       if (multi) {
@@ -9067,7 +9126,7 @@ cv.addEventListener("pointerdown", e => {
     } else {
       dragMode = "marquee";
       marquee = { x1:p.x, y1:p.y, x2:p.x, y2:p.y };
-      marqueeAdd = multiMode || e.shiftKey;
+      marqueeAdd = multiMode || fsShift(e);
     }
     return;
   }
@@ -9125,7 +9184,7 @@ cv.addEventListener("pointermove", e => {
     /* PASS 86 - a handle drag is how you join a line you did NOT just draw, so
        it gets the snaps too. Shift's 45 is untouched and still wins over the
        15 degree toggle; an object snap wins over both [86-3]. */
-    let hp = (e.shiftKey && handleAnchor) ? snap45(handleAnchor.x, handleAnchor.y, ip.x, ip.y)
+    let hp = (fsShift(e) && handleAnchor) ? snap45(handleAnchor.x, handleAnchor.y, ip.x, ip.y)
            : (fsWsAngle && handleAnchor) ? fsWsAngleLock(handleAnchor.x, handleAnchor.y, ip.x, ip.y)
            : ip;
     const hsn = fsWsSnap(ip, handleAnchor, selection[0]);
@@ -9144,7 +9203,7 @@ cv.addEventListener("pointermove", e => {
        wants a hit within 16 px — that makes the bug rarer, not absent. */
     if (downDist <= FS_WS_SLOP_EDIT) return;
     let ang = Math.atan2(ip.y - rotDrag.pivot.y, ip.x - rotDrag.pivot.x) - rotDrag.startAng;
-    if (e.shiftKey) {
+    if (fsShift(e)) {
       const snap = Math.PI / 12;   // 15°
       ang = Math.round(ang / snap) * snap;
     }
@@ -9154,7 +9213,7 @@ cv.addEventListener("pointermove", e => {
   }
 
   if (dragMode === "measure" && measureStart) {
-    const ep = e.shiftKey ? snap45(measureStart.x, measureStart.y, ip.x, ip.y) : ip;
+    const ep = fsShift(e) ? snap45(measureStart.x, measureStart.y, ip.x, ip.y) : ip;
     measureLive = { x1:measureStart.x, y1:measureStart.y, x2:ep.x, y2:ep.y };
     requestDraw();
     return;
@@ -9189,7 +9248,7 @@ cv.addEventListener("pointermove", e => {
     } else {
       let ep = ip;
       const straight = (activeTool === "line" || activeTool === "arrow" || activeTool === "brk");
-      if (e.shiftKey && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
+      if (fsShift(e) && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
       else if (fsWsAngle && straight) ep = fsWsAngleLock(shapeStart.x, shapeStart.y, ip.x, ip.y);
       /* [86-3] AN OBJECT SNAP BEATS THE ANGLE LOCK - applied last, and tested
          against the RAW finger position, never against the angle-locked one. */
@@ -9270,15 +9329,21 @@ cv.addEventListener("pointermove", e => {
        question twice: horizontal, vertical AND the 45 diagonals. A superset of
        what V0.93 shipped, so nothing he already relies on is taken away.
        JUDGEMENT CALL AGAINST AN AMBIGUOUS ANSWER - walk-sheet box. */
-    if (e.shiftKey) { const lk = fsWsMoveLock(dx, dy); dx = lk.dx; dy = lk.dy; }
-    /* PASS 96 [P-7] - guides only when Shift is NOT down: Shift is his
-       direction lock, and an alignment snap tugging the object off the
-       locked ray would fight the constraint he is holding. JUDGEMENT CALL
-       against Revit (which guides under its lock too) - walk-sheet box. */
-    if (!e.shiftKey) {
-      const fsG = fsWsMoveGuides(dx, dy);
-      dx = fsG.dx; dy = fsG.dy; fsWsGuides = fsG.guides;
-    } else fsWsGuides = null;
+    if (fsShift(e)) { const lk = fsWsMoveLock(dx, dy); dx = lk.dx; dy = lk.dy; }
+    /* PASS 99 [W97-8] - "Why do the guidelines not appear when holding
+       shift?" ANSWERED, AND THE ANSWER CHANGED THE CODE. V0.96 skipped the
+       whole guide path under Shift because a snap would tug the object off
+       the locked ray. That is correct about the SNAP and wrong about the
+       GUIDE: one moves him, the other only tells him something, and V0.96
+       had them welded together. Revit does not suppress alignment feedback
+       under a modifier either - so the old note's claim that this matched
+       Revit was backwards. Under Shift the guides are now computed and
+       DRAWN with bind=false, which leaves dx/dy exactly as the direction
+       lock left them. He gets the line without the tug.
+       JUDGEMENT CALL against his question rather than an answer to it -
+       walk-sheet box. */
+    const fsG = fsWsMoveGuides(dx, dy, !fsShift(e));
+    dx = fsG.dx; dy = fsG.dy; fsWsGuides = fsG.guides;
     selection.forEach((o, i) => {
       const orig = JSON.parse(moveOrig[i]);
       if (o.kind === "ink") o.points = orig.points.map(pt => ({ x:pt.x + dx, y:pt.y + dy }));
@@ -23457,12 +23522,24 @@ function fsTestedWho() {
   try { localStorage.setItem("fs-user", v); } catch (e2) {}
   return v;
 }
+/* PASS 99 [P99-1] - THE TECHNICIAN'S DATE IS HIS DATE, NOT UTC'S.
+   toISOString() is a UTC date. Newcastle is UTC+10, so a tap at 7am local
+   used to stamp the record with YESTERDAY. On a compliance record that is
+   not a cosmetic difference: it is the date an auditor reads, and it is what
+   the next-due calculation counts from. Assembled from the LOCAL getters -
+   the same three lines test_p95's TODAY helper has always used, which is why
+   that suite caught this the first time a pass happened to run before 10am. */
+function fsTodayLocal() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+         + "-" + String(d.getDate()).padStart(2, "0");
+}
 function fsTestedTap() {
   const s = fsSite;
   if (!s) return;
   const tech = fsTestedWho();
   if (tech === null) return;
-  const date = new Date().toISOString().slice(0, 10);
+  const date = fsTodayLocal();
   /* Same sort the Buildings tab uses, so the two lists agree instead of
      drifting. Object references are held directly — no index mapping. */
   const blds = [...(s.buildings || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
@@ -25071,7 +25148,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v102";
+const FS_BUILD = "aa-v103";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
