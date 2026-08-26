@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.97 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.98 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.97 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.98 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1838,6 +1838,31 @@ let fsWsRun = null;              /* { pts:[{x,y},...] } while a run is open */
 let fsWsCrop = null;
 let fsWsCropCut = false;         /* [P-9] false = Copy, true = Cut */
 let fsWsCropOutline = false;     /* [P-9] false = Box, true = Outline */
+/* PASS 98 [W97-20] - the press, ported from fsRegionPick's disp.onpointerdown.
+   {rx,ry} is where the finger went down in SCREEN px, {vx,vy} the view at
+   that moment, `knob` the index of the point grabbed or -1, `moved` whether
+   this press has become a drag. It is what lets one gesture be a tap, a pan
+   and a knob-drag without three modes. */
+let fsWsCropPress = null;
+/* 14px to grab a knob, same as the picker's HITPX.
+
+   THE DRAG THRESHOLD IS NOT ONE NUMBER, AND THAT IS THE POINT. The picker
+   uses 6px and so did V0.97's outline - and MEASURED on a touch pointer, five
+   corner taps carrying 5px of wobble landed ZERO of five, because 5px
+   diagonally is 7.07px of travel. A mouse never wobbles; a finger always
+   does. So a coarse pointer gets a coarse threshold: the press records what
+   kind of pointer opened it and judges itself by that.
+
+   6px for a mouse keeps the picker's feel exactly where he already knows it.
+   14px for a finger is the same distance the app already accepts as "you
+   meant to grab this knob", so the two tolerances agree instead of one
+   silently undercutting the other. */
+const FS_WS_CROP_HITPX = 14, FS_WS_CROP_MOVEPX = 6, FS_WS_CROP_MOVEPX_TOUCH = 14;
+function fsWsCropMovePx(t) { return (t === "touch" || t === "pen") ? FS_WS_CROP_MOVEPX_TOUCH : FS_WS_CROP_MOVEPX; }
+/* PASS 98 [W97-1] - iOS returns a BLANK canvas past this area and never
+   throws. The copy path no longer builds anything this big; the cut path
+   must, so it checks first and refuses out loud. */
+const FS_MAX_CANVAS_PX = 16000000;
 let fsWsSnapHit = null;          /* {x,y,type} for the indicator, this frame */
 let fsWsGuides = null;           /* PASS 96 [P-7] - alignment guides while moving, this frame */
 let fsWsMoveUB = null;           /* [P-7] union bounds of the selection, captured at rebase */
@@ -3394,8 +3419,14 @@ function fsWsCropSync() {
   const w = document.getElementById("cropWrap");
   if (w) w.style.display = fsWsCropOn() ? "flex" : "none";
   const f = document.getElementById("wsCropFin");
-  if (f) f.style.display = (fsWsCrop && fsWsCrop.mode === "outline"
-                            && fsWsCrop.pts.length > 2) ? "inline-block" : "none";
+  if (f) {
+    const on = !!(fsWsCrop && fsWsCrop.mode === "outline" && fsWsCrop.pts.length > 2);
+    f.style.display = on ? "inline-block" : "none";
+    /* [W97-20] one button, two jobs, and the label says which: an open loop
+       gets closed and cropped in one press (the picker's Keep), a closed one
+       he has been adjusting just gets cropped. */
+    if (on) f.textContent = fsWsCrop.closed ? "\u2702 Crop it" : "Close & crop";
+  }
   const cp = document.getElementById("wsCropCopy"), ct = document.getElementById("wsCropCut");
   if (cp) cp.checked = !fsWsCropCut;
   if (ct) ct.checked = fsWsCropCut;
@@ -3407,26 +3438,70 @@ function fsWsCropSync() {
 
 function fsWsCropReset() { fsWsCrop = null; fsWsCropSync(); }
 
-/* Outline tap. Same contract as fsWsChainTap so the two gestures feel
-   identical: tap to add, tap the FIRST point again to close. Returns
-   "add" or "close". */
+/* ================= PASS 98 [W97-20] ================================
+   THE OUTLINE IS THE IMPORT PICKER'S OUTLINE NOW. Reece, 26 Aug: "The PC crop
+   with outline doesnt behave the same as the outline tool behaves when
+   importing though. it needs to change to that, like how it ends up with
+   multiple grab points, like a hatch."
+
+   He is right, and the bytes had already told me. fsRegionPick's Outline was
+   reworked in V0.25 after his own 7 Aug field verdict and its header reads:
+   "every placed point is a draggable knob that stays draggable AFTER the loop
+   closes ... A point is placed on pointer UP, which is what makes pan and
+   knob-drag distinguishable from a tap at all."
+
+   THAT SENTENCE IS ALSO THE FIX FOR W97-2. V0.97's outline threw a tap away
+   whenever the press travelled more than FS_WS_SLOP (6px) - a NAVIGATION
+   constant - so on a finger it swallowed everything: measured, five corner
+   taps with 5px of wobble landed ZERO of five. The answer is not a bigger
+   slop, it is this gesture: the press remembers what it grabbed, so a drag
+   pans or moves a knob and only a genuine tap places a point. W97-2's planned
+   FS_WS_SLOP_TAP is cancelled.
+
+   Same constants as the picker (14px grab, 6px drag) because he has had them
+   under his hands for months. */
+function fsWsCropKnob(ip) {
+  if (!fsWsCrop || fsWsCrop.mode !== "outline") return -1;
+  const rr = FS_WS_CROP_HITPX / view.scale;
+  /* newest first: the point just placed wins a tie against an older one under
+     the same finger. Runs whether or not the loop is closed - adjusting a
+     CLOSED outline is the whole of his ask. */
+  for (let i = fsWsCrop.pts.length - 1; i >= 0; i--) {
+    const p = fsWsCrop.pts[i];
+    if (Math.hypot(ip.x - p.x, ip.y - p.y) <= rr) return i;
+  }
+  return -1;
+}
+
+/* Place a point. Called from pointerUP and only for a press that neither
+   panned nor grabbed a knob. Returns "add", "close" or "none". */
 function fsWsCropTap(ip) {
   if (!fsWsCrop || fsWsCrop.mode !== "outline") {
-    fsWsCrop = { mode:"outline", pts:[{ x:ip.x, y:ip.y }] };
+    fsWsCrop = { mode:"outline", pts:[{ x:ip.x, y:ip.y }], closed:false };
     fsWsCropSync();
     return "add";
   }
-  const r = FS_WS_SNAP_PX / view.scale;
-  const first = fsWsCrop.pts[0];
-  if (fsWsCrop.pts.length > 2 && Math.hypot(ip.x - first.x, ip.y - first.y) <= r) return "close";
+  if (fsWsCrop.closed) return "none";   /* taps stop at the close; knobs do not */
   fsWsCrop.pts.push({ x:ip.x, y:ip.y });
   fsWsCropSync();
   return "add";
 }
 
-/* The plan as a canvas, white-grounded. Same three lines fsWsCropCanvas and
-   loadImageFile both open with; a transparent PNG plan would otherwise
-   extract as transparent and encode to black on JPEG. */
+/* Tapping the FIRST knob closes the loop - the picker's gesture, and the one
+   his hint has promised since V0.24. Closing does NOT commit any more: he
+   adjusts the knobs and then presses Crop it. */
+function fsWsCropClose() {
+  if (!fsWsCrop || fsWsCrop.mode !== "outline") return false;
+  if (fsWsCrop.closed || fsWsCrop.pts.length < 3) return false;
+  fsWsCrop.closed = true;
+  fsWsCropSync();
+  return true;
+}
+
+/* The WHOLE plan as a canvas, white-grounded. Only the CUT path needs this
+   now - see fsWsCropExtract, which stopped needing it in Pass 98. A
+   transparent PNG plan would otherwise extract as transparent and encode to
+   black on JPEG. */
 function fsWsCropPlanCanvas() {
   const c = document.createElement("canvas");
   c.width = img.naturalWidth; c.height = img.naturalHeight;
@@ -3436,43 +3511,64 @@ function fsWsCropPlanCanvas() {
   return c;
 }
 
+/* PASS 98 [W97-1] - the picked region's bounding box in PLAN pixels, clamped
+   to the sheet. One place computes it so the extract and the white-out can
+   never disagree about where the pick was. */
+function fsWsCropRect(geom) {
+  let mnx, mny, mxx, mxy;
+  if (geom.mode === "box") {
+    mnx = Math.min(geom.box.x1, geom.box.x2); mxx = Math.max(geom.box.x1, geom.box.x2);
+    mny = Math.min(geom.box.y1, geom.box.y2); mxy = Math.max(geom.box.y1, geom.box.y2);
+  } else {
+    if (!geom.pts || geom.pts.length < 3) return null;
+    mnx = mny = 1e9; mxx = mxy = -1e9;
+    for (let i = 0; i < geom.pts.length; i++) {
+      if (geom.pts[i].x < mnx) mnx = geom.pts[i].x;
+      if (geom.pts[i].x > mxx) mxx = geom.pts[i].x;
+      if (geom.pts[i].y < mny) mny = geom.pts[i].y;
+      if (geom.pts[i].y > mxy) mxy = geom.pts[i].y;
+    }
+  }
+  const x = Math.max(0, Math.min(img.naturalWidth - 1, Math.round(mnx)));
+  const y = Math.max(0, Math.min(img.naturalHeight - 1, Math.round(mny)));
+  const w = Math.max(1, Math.min(img.naturalWidth - x, Math.round(mxx) - x));
+  const h = Math.max(1, Math.min(img.naturalHeight - y, Math.round(mxy) - y));
+  return { x:x, y:y, w:w, h:h };
+}
+
+/* PASS 98 [W97-1] - a data URL that is not a picture. toDataURL returns the
+   string "data:," rather than throwing when iOS runs out of room, and the
+   V0.97 copy path pushed whatever came back straight into `objects`. */
+function fsWsCropUrlOk(u) {
+  return typeof u === "string" && u.indexOf("data:image/") === 0 && u.length > 512;
+}
+
 /* fsRegionPick's maths WITHOUT fsRegionPick's modal. Returns a canvas
    carrying fsRgnDx/fsRgnDy - the pick origin composed with whatever
    fsPdfTrim shaved off - which is what lets the piece land exactly over the
    pixels it came from. */
-function fsWsCropExtract(src, geom) {
+function fsWsCropExtract(geom) {
+  const r = fsWsCropRect(geom);
+  if (!r) return null;
+  const x = r.x, y = r.y, w = r.w, h = r.h;
   if (geom.mode === "box") {
-    let x = Math.round(Math.min(geom.box.x1, geom.box.x2));
-    let y = Math.round(Math.min(geom.box.y1, geom.box.y2));
-    let w = Math.round(Math.abs(geom.box.x2 - geom.box.x1));
-    let h = Math.round(Math.abs(geom.box.y2 - geom.box.y1));
-    x = Math.max(0, Math.min(src.width - 1, x));
-    y = Math.max(0, Math.min(src.height - 1, y));
-    w = Math.max(1, Math.min(src.width - x, w));
-    h = Math.max(1, Math.min(src.height - y, h));
     const c2 = document.createElement("canvas");
     c2.width = w; c2.height = h;
     const k = c2.getContext("2d");
     k.fillStyle = "#ffffff"; k.fillRect(0, 0, w, h);
-    k.drawImage(src, x, y, w, h, 0, 0, w, h);
+    /* PASS 98 [W97-1] - STRAIGHT OUT OF `img`. V0.97 painted the entire sheet
+       into a canvas first and then cut a room out of it, which on his iPad
+       meant allocating ~3,700 x 2,600 px to fetch a 400px room. The import
+       picker never did that - it caps its own working canvas at 1400px on the
+       long edge - and that is why the import crop works on the device this
+       one failed on. */
+    k.drawImage(img, x, y, w, h, 0, 0, w, h);
     const out = fsPdfTrim(c2, true);
     out.fsRgnDx = x + (out.fsTrimDx || 0);
     out.fsRgnDy = y + (out.fsTrimDy || 0);
     return out;
   }
   const pts = geom.pts;
-  if (!pts || pts.length < 3) return null;
-  let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
-  for (let i = 0; i < pts.length; i++) {
-    if (pts[i].x < mnx) mnx = pts[i].x;
-    if (pts[i].x > mxx) mxx = pts[i].x;
-    if (pts[i].y < mny) mny = pts[i].y;
-    if (pts[i].y > mxy) mxy = pts[i].y;
-  }
-  const x = Math.max(0, Math.min(src.width - 1, Math.round(mnx)));
-  const y = Math.max(0, Math.min(src.height - 1, Math.round(mny)));
-  const w = Math.max(1, Math.min(src.width - x, Math.round(mxx) - x));
-  const h = Math.max(1, Math.min(src.height - y, Math.round(mxy) - y));
   const c2 = document.createElement("canvas");
   c2.width = w; c2.height = h;
   const k = c2.getContext("2d");
@@ -3488,7 +3584,7 @@ function fsWsCropExtract(src, geom) {
   for (let i = 1; i < pts.length; i++) k.lineTo(pts[i].x - x, pts[i].y - y);
   k.closePath();
   k.clip("evenodd");
-  k.drawImage(src, x, y, w, h, 0, 0, w, h);
+  k.drawImage(img, x, y, w, h, 0, 0, w, h);   /* [W97-1] */
   k.restore();
   const out = fsPdfTrim(c2, true);
   out.__fsAlpha = true;
@@ -3523,41 +3619,85 @@ function fsWsCropWhiteOut(c, geom) {
    which is only honest because [S-2b] put the plan in the entry. */
 function fsWsCropRegion(geom, cut) {
   if (!img) { alert("Load a block plan first."); return; }
-  const src = fsWsCropPlanCanvas();
-  const cc = fsWsCropExtract(src, geom);
+  const cc = fsWsCropExtract(geom);
   if (!cc || cc.width < 2 || cc.height < 2) {
     statusEl.textContent = "That pick was too small to crop";
     fsWsCropReset();
     return;
   }
   const dataUrl = fsEncodePlan(cc, 0.92);
-  pushUndo();
-  const o = { kind:"img", src:dataUrl, x:cc.fsRgnDx || 0, y:cc.fsRgnDy || 0,
-              w:cc.width, h:cc.height };
-  objects.push(o);
-  setSelection([o]);
-  fsWsCropReset();
-  if (!cut) {
-    setTool("select");
-    statusEl.textContent = "Copied out of the plan - drag it where you want it";
+  /* PASS 98 [W97-1] - NOTHING IS COMMITTED UNTIL THE PICTURE EXISTS. V0.97
+     pushed the object first and never looked at the url, so an encode that
+     failed left a correctly-sized object with nothing inside it - which is
+     what Reece photographed - and autosave then wrote it into his register.
+     A decode is the only honest proof, and it is asynchronous, so the whole
+     commit moved inside the onload. */
+  if (!fsWsCropUrlOk(dataUrl)) {
+    statusEl.textContent = "That crop was too big for this device to copy - try a smaller area";
+    fsWsCropReset();
     draw();
     return;
   }
-  const holed = fsWsCropWhiteOut(fsWsCropPlanCanvas(), geom);
-  const planUrl = fsReEncodePlan(holed, imgDataUrl, 0.92);
-  const im2 = new Image();
-  im2.onload = () => {
-    /* keepObjects TRUE and keepView TRUE: the sheet is the same size and in
-       the same place, only a hole is new. A fitView here would throw the
-       user's zoom away mid-edit. */
-    setImage(im2, planUrl, true, true);
-    setSelection([o]);
-    setTool("select");
-    statusEl.textContent = "Cut out of the plan - drag it where you want it";
+  const piece = new Image();
+  piece.onerror = () => {
+    statusEl.textContent = "That crop could not be read back - nothing was changed";
+    fsWsCropReset();
     draw();
   };
-  im2.onerror = () => { statusEl.textContent = "That cut could not be displayed."; draw(); };
-  im2.src = planUrl;
+  piece.onload = () => {
+    const o = { kind:"img", src:dataUrl, x:cc.fsRgnDx || 0, y:cc.fsRgnDy || 0,
+                w:cc.width, h:cc.height };
+    if (!cut) {
+      pushUndo();
+      objects.push(o);
+      setSelection([o]);
+      fsWsCropReset();
+      setTool("select");
+      statusEl.textContent = "Copied out of the plan - drag it where you want it";
+      draw();
+      return;
+    }
+    /* THE CUT'S OWN ALLOCATION. Copying a room no longer needs the whole
+       sheet, but rewriting the sheet does. Check BEFORE touching anything:
+       a refusal costs him nothing, a blank canvas encoded over his plan
+       costs him the plan. */
+    if (img.naturalWidth * img.naturalHeight > FS_MAX_CANVAS_PX) {
+      statusEl.textContent = "This plan is too large for this device to cut - copy works, or cut it on a computer";
+      fsWsCropReset();
+      draw();
+      return;
+    }
+    const holed = fsWsCropWhiteOut(fsWsCropPlanCanvas(), geom);
+    const planUrl = fsReEncodePlan(holed, imgDataUrl, 0.92);
+    if (!fsWsCropUrlOk(planUrl)) {
+      statusEl.textContent = "This plan is too large for this device to cut - copy works, or cut it on a computer";
+      fsWsCropReset();
+      draw();
+      return;
+    }
+    const im2 = new Image();
+    im2.onload = () => {
+      pushUndo();
+      objects.push(o);
+      setSelection([o]);
+      /* keepObjects TRUE and keepView TRUE: the sheet is the same size and in
+         the same place, only a hole is new. A fitView here would throw the
+         user's zoom away mid-edit. */
+      setImage(im2, planUrl, true, true);
+      setSelection([o]);
+      fsWsCropReset();
+      setTool("select");
+      statusEl.textContent = "Cut out of the plan - drag it where you want it";
+      draw();
+    };
+    im2.onerror = () => {
+      statusEl.textContent = "That cut could not be displayed - nothing was changed";
+      fsWsCropReset();
+      draw();
+    };
+    im2.src = planUrl;
+  };
+  piece.src = dataUrl;
 }
 
 /* ---------------- trim, driven from the canvas ----------------
@@ -4010,20 +4150,32 @@ function draw() {
       ctx.fillRect(x, y, w, h);
       ctx.strokeRect(x, y, w, h);
     } else if (fsWsCrop.pts.length) {
-      ctx.beginPath();
-      fsWsCrop.pts.forEach((pt, i) => {
-        const sx = pt.x * view.scale + view.x, sy = pt.y * view.scale + view.y;
-        if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy);
-      });
-      if (fsWsCrop.pts.length > 2) { ctx.save(); ctx.closePath(); ctx.fill("evenodd"); ctx.restore(); }
-      ctx.stroke();
-      /* the first point wears a ring: it is the one you tap to close, and
-         nothing on screen said so before. */
-      const p0 = fsWsCrop.pts[0];
+      /* PASS 98 [W97-20] - SOLID AND HALOED, not thin and dashed. The picker
+         went that way in V0.25 for the same reason: a dashed hairline over a
+         busy sheet is unreadable at his zooms. */
+      const S = pt => ({ x:pt.x * view.scale + view.x, y:pt.y * view.scale + view.y });
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.arc(p0.x * view.scale + view.x, p0.y * view.scale + view.y, 6, 0, Math.PI * 2);
-      ctx.stroke();
+      fsWsCrop.pts.forEach((pt, i) => {
+        const s = S(pt);
+        if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+      });
+      if (fsWsCrop.closed) ctx.closePath();
+      if (fsWsCrop.pts.length > 2) { ctx.save(); ctx.closePath(); ctx.fill("evenodd"); ctx.restore(); }
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = "#ffb300"; ctx.stroke();
+      /* EVERY point is a knob, because every point is draggable - "multiple
+         grab points, like a hatch", his words. The first one is filled: it is
+         the one that closes the loop. */
+      fsWsCrop.pts.forEach((pt, i) => {
+        const s = S(pt);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, i === 0 ? 7 : 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? "#ffb300" : "#ffffff";
+        ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.stroke();
+      });
     }
     ctx.restore();
   }
@@ -5583,6 +5735,7 @@ function setTool(id) {
      same reason fsWsRunSync above is: a sync guarded on fsWsCrop being
      truthy leaves the footer on screen after something else nulls the pick. */
   fsWsCrop = null;
+  fsWsCropPress = null;   /* PASS 98 [W97-20] */
   /* PASS 91 [91-C1] - Reece: the trim tool "doesnt automatically deselect
      whatever I had last selected".
 
@@ -5793,6 +5946,16 @@ document.getElementById("wsCropFin").onclick = () => {
     fsWsCropRegion({ mode:"outline", pts:fsWsCrop.pts.slice() }, fsWsCropCut);
   }
 };
+/* [W97-20] a closed outline is still live: undo pops the last point rather
+   than doing nothing, the way the picker's undo does. */
+function fsWsCropUndoPt() {
+  if (!fsWsCrop || fsWsCrop.mode !== "outline" || !fsWsCrop.pts.length) return false;
+  fsWsCrop.closed = false;
+  fsWsCrop.pts.pop();
+  if (!fsWsCrop.pts.length) fsWsCrop = null;
+  fsWsCropSync();
+  return true;
+}
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
   localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0");
@@ -8726,7 +8889,11 @@ cv.addEventListener("pointerdown", e => {
      instead of dropping a corner where the finger started. */
   if (activeTool === "cropreg") {
     if (fsWsCropOutline) {
+      /* [W97-20] the picker's press: remember the knob under the finger, the
+         screen point and the view, and decide on pointerUP what this was. */
       dragMode = "cropTap";
+      fsWsCropPress = { rx:p.x, ry:p.y, vx:view.x, vy:view.y, moved:false,
+                        knob:fsWsCropKnob(ip), slop:fsWsCropMovePx(e.pointerType) };
       panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
     } else {
       dragMode = "cropBox";
@@ -9049,6 +9216,23 @@ cv.addEventListener("pointermove", e => {
     return;
   }
 
+  if (dragMode === "cropTap" && fsWsCropPress) {   /* PASS 98 [W97-20] */
+    const pr = fsWsCropPress;
+    if (Math.hypot(p.x - pr.rx, p.y - pr.ry) > (pr.slop || FS_WS_CROP_MOVEPX)) pr.moved = true;
+    if (pr.knob >= 0 && fsWsCrop && fsWsCrop.pts[pr.knob]) {
+      /* dragging a knob, closed loop or not - his "multiple grab points" */
+      fsWsCrop.pts[pr.knob] = { x:ip.x, y:ip.y };
+      requestDraw();
+    } else if (pr.moved) {
+      /* not on a knob: this is a pan, and the outline must stay welded to the
+         sheet while it happens */
+      view.x = pr.vx + (p.x - pr.rx);
+      view.y = pr.vy + (p.y - pr.ry);
+      requestDraw();
+    }
+    return;
+  }
+
   if (dragMode === "moveSel" && moveOrig) {
     /* PASS 68 [68ws-1] — THE DEFECT. `moved` is computed at the top of this
        handler and consumed correctly by placeOrPan / textTap / testTapOrPan
@@ -9266,16 +9450,25 @@ function endPointer(e) {
     return;
   }
 
-  if (dragMode === "cropTap") {   /* PASS 97 [P-9] - Outline */
+  if (dragMode === "cropTap") {   /* PASS 98 [W97-20] - Outline, picker rules */
     dragMode = null;
-    if (moved) { draw(); return; }        /* it was a pan */
-    const r = fsWsCropTap(ip);
-    if (r === "close" && fsWsCrop && fsWsCrop.pts.length > 2) {
-      fsWsCropRegion({ mode:"outline", pts:fsWsCrop.pts.slice() }, fsWsCropCut);
+    const pr = fsWsCropPress;
+    fsWsCropPress = null;
+    if (!pr) { draw(); return; }
+    if (pr.knob >= 0) {
+      /* a knob TAP (not a drag) on the FIRST point closes the loop; a knob
+         drag has already happened in pointermove and just ends here */
+      if (!pr.moved && pr.knob === 0) fsWsCropClose();
+      statusEl.textContent = (fsWsCrop && fsWsCrop.closed)
+        ? "Drag any dot to adjust it, then Crop it"
+        : "Tap the first dot to close the loop";
+      draw();
       return;
     }
+    if (pr.moved) { draw(); return; }     /* that was a pan, not a placement */
+    fsWsCropTap(ip);
     statusEl.textContent = (fsWsCrop && fsWsCrop.pts.length > 2)
-      ? "Tap the first point again to close, or use Finish outline"
+      ? "Tap the first dot to close the loop, or use Close & crop"
       : "Keep tapping the corners";
     draw();
     return;
@@ -21636,6 +21829,14 @@ function fsRenderSite() {
   if (addr) html += '<div style="color:var(--fs-sub);font-size:15px">' + fsEsc(addr) + '</div>';
   html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px;flex-wrap:wrap">';
   if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn fsbtnHero" id="fsMapBtn">Navigate</button>';
+  /* PASS 98 [W97-13] - the Test Complete button's new home. "A button can fit
+     without making another row": this row ALREADY EXISTS and already wraps,
+     so the button costs no height anywhere and the cycle strip goes back to
+     what it looked like before Pass 95. Gating is unchanged from [P-3] -
+     monthly cycle only, and only when that cycle is switched on for the
+     site - so a cycle that needs evidence still cannot be closed with a tap. */
+  if (typeof fsCycOn !== "function" || fsCycOn("lastMonthly"))
+    html += '<button class="fsbtn" id="fsTestedBtn" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session">&#10003; Test Complete</button>';
   /* PASS 50 [50-5] — F3. This REVERSES the Pass 45 [45-2] ruling above and
      it is recorded rather than done quietly. That ruling said "a primary CTA
      that dead-ends on most sites is worse than no CTA", and it was right —
@@ -21699,7 +21900,17 @@ function fsRenderSite() {
          test), the RECORD TAG is how it was captured (a tap, not a guided
          session). Provenance stays with the record, where an auditor reads
          it. */
-      (c.key === "lastMonthly" ? '<button class="fsbtn" id="fsTestedBtn" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session" style="display:block;width:100%;margin:2px 0 5px;padding:7px 4px;font-size:11.5px;font-weight:700;white-space:nowrap">&#10003; Test Complete</button>' : '') +
+      /* PASS 98 [W97-13] - THE BUTTON IS GONE FROM HERE. Reece, on the
+         V0.97 walk: "the test button is way too big, it takes up a whole row
+         on that monthly test ... I want it to look exactly how it did before
+         and I told you to make the button smaller and I said put it up the
+         top or down the bottom so it doesn't make the row bigger."
+         MEASURED before it was moved: display:block;width:100% inside this
+         cell made the Monthly cell 109px against the third cell's 75px at
+         430, and it sat exactly where his eye expects the date and the
+         progress bar. His last-test dates were never lost - they were
+         underneath it. The cell is back to its pre-V0.95 markup; the button
+         now rides the header action row next to Navigate. */
       '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;margin:3px 0 4px"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
       '</div>';
@@ -24860,7 +25071,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v101";
+const FS_BUILD = "aa-v102";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
