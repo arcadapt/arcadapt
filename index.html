@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.96 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.97 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.96 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.97 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -554,6 +554,19 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
       <label id="wsChainLab" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Each new line starts where the last one ended"><input type="checkbox" id="wsChainOn" style="width:16px;height:16px"> Chain</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest angle step - 15&deg; at normal zoom, finer as you zoom in (90/45/30/15/5/1&deg;). On a keyboard, Shift holds lines to 0, 45 or 90&deg; instead."><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> Angle</label>
       <button id="wsChainFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
+    </div>
+    <!-- PASS 97 [P-9] - "Have a little tick box down the bottom like the line
+         tool and other tools have, one can be copy and one can be cut."
+         chainWrap's shape, deliberately: he named that row as the pattern.
+         Each pair behaves as a radio - two boxes because that is what he
+         asked to see, one truth because Copy and Cut cannot both be on. -->
+    <div id="cropWrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:#aaa">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Leave the plan as it is and take a copy of what you crop around"><input type="checkbox" id="wsCropCopy" checked style="width:16px;height:16px"> Copy</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Lift it out of the plan and leave white behind"><input type="checkbox" id="wsCropCut" style="width:16px;height:16px"> Cut</label>
+      <span style="opacity:.45">|</span>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Drag a box around it"><input type="checkbox" id="wsCropBox" checked style="width:16px;height:16px"> Box</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Tap corner by corner, then tap the first point again to close"><input type="checkbox" id="wsCropOutline" style="width:16px;height:16px"> Outline</label>
+      <button id="wsCropFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish outline</button>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
       <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
@@ -1746,7 +1759,14 @@ const MODIFY_TOOLS = [
   { id:"m_trim",    label:"Trim / Extend",    icon:"⌐" },
   /* PASS 91 [91-S2] - fsRegionPick's seventh door. No `btn`: there is no
      hidden topbar button to proxy, it opens the picker directly. */
-  { id:"m_crop",    label:"Crop plan",        icon:"✂" }
+  { id:"m_crop",    label:"Crop plan",        icon:"✂" },
+  /* PASS 97 [P-9] - the in-plan crop, sat next to the whole-plan one so the
+     pair reads as a pair. It cannot be called Crop, Cut or Copy on this tab:
+     all three names are taken (m_crop above, m_cut and m_copy for objects),
+     which is exactly the collision that made him say the crop tool "doesn't
+     do what I was trying to get across to you". No `btn`: like m_trim it
+     needs taps ON THE CANVAS, so there is no hidden topbar button to proxy. */
+  { id:"m_cropreg", label:"Crop in plan",     icon:"⬚✂" }
 ];
 const HATCH_LEGACY = { hatchd:"hatch", hatchx:"hatch", hatchs:"hatch", hatcho:"hatch" };
 const VESDAR_TOOL = { id:"vesdar", label:"VESDA run", icon:'<span style="color:#b06fd0">&#9645;</span>' };
@@ -1810,6 +1830,14 @@ try {
    via JSON.parse, so every reference held across an undo is stale - which is
    how chain-aware undo would have silently rewound to the wrong vertex. */
 let fsWsRun = null;              /* { pts:[{x,y},...] } while a run is open */
+/* PASS 97 [P-9] - the in-plan crop. fsWsCrop holds the PENDING selection
+   while the tool is armed: {mode:"box", box:{x1,y1,x2,y2}} in image coords,
+   or {mode:"outline", pts:[{x,y},...]}. Null means armed but nothing picked
+   yet, which is the state the tool starts in - he asked for exactly that:
+   "I don't want it to select the whole plan or anything when I hit it". */
+let fsWsCrop = null;
+let fsWsCropCut = false;         /* [P-9] false = Copy, true = Cut */
+let fsWsCropOutline = false;     /* [P-9] false = Box, true = Outline */
 let fsWsSnapHit = null;          /* {x,y,type} for the indicator, this frame */
 let fsWsGuides = null;           /* PASS 96 [P-7] - alignment guides while moving, this frame */
 let fsWsMoveUB = null;           /* [P-7] union bounds of the selection, captured at rebase */
@@ -3334,6 +3362,204 @@ function fsWsRunSync() {
   if (typeof requestDraw === "function") requestDraw();
 }
 
+/* ================= PASS 97 [P-9] ===================================
+   CROP SOMETHING *IN* THE PLAN. Reece, 26 Aug: "I want it to be able to
+   crop something IN the plan, not the whole plan... one can be copy and one
+   can be cut, then I want to be able to crop around something and it will
+   copy or cut that out of the plan."
+
+   Second misread of this item, so what it is NOT is worth stating: it is
+   not fsRegionPick with a new door (that was S-2, Pass 91, and it crops the
+   WHOLE plan), and it does not replace the import-time crop, which he says
+   is right. It is a new tool that happens to share the word.
+
+   HIS TWO RULINGS, both load-bearing:
+     1. The PLAN PIXELS ride with the piece. His drawn items stay put - the
+        drawings are his, the plan is the sheet underneath them.
+     2. BOTH modes from day one, "just like the crop tool when importing":
+        drag a Box, or tap Outline corner by corner and tap the first point
+        again to close.
+
+   WHAT IS BORROWED AND WHAT IS NOT. The extraction maths is fsRegionPick's,
+   lifted out of its modal: the box branch fills white and crops; the
+   polygon branch clips with "evenodd" and keeps alpha so an L-shaped pick
+   does not paint a white notch over whatever is underneath (Pass 22/23
+   fought that twice - see the essay at fsRegionPick). The MODAL is not
+   borrowed. Every one of its seven doors takes the screen over with a copy
+   of the sheet, and that takeover is precisely the behaviour he is
+   complaining about. */
+function fsWsCropOn() { return activeTool === "cropreg"; }
+
+function fsWsCropSync() {
+  const w = document.getElementById("cropWrap");
+  if (w) w.style.display = fsWsCropOn() ? "flex" : "none";
+  const f = document.getElementById("wsCropFin");
+  if (f) f.style.display = (fsWsCrop && fsWsCrop.mode === "outline"
+                            && fsWsCrop.pts.length > 2) ? "inline-block" : "none";
+  const cp = document.getElementById("wsCropCopy"), ct = document.getElementById("wsCropCut");
+  if (cp) cp.checked = !fsWsCropCut;
+  if (ct) ct.checked = fsWsCropCut;
+  const bx = document.getElementById("wsCropBox"), ol = document.getElementById("wsCropOutline");
+  if (bx) bx.checked = !fsWsCropOutline;
+  if (ol) ol.checked = fsWsCropOutline;
+  if (typeof requestDraw === "function") requestDraw();
+}
+
+function fsWsCropReset() { fsWsCrop = null; fsWsCropSync(); }
+
+/* Outline tap. Same contract as fsWsChainTap so the two gestures feel
+   identical: tap to add, tap the FIRST point again to close. Returns
+   "add" or "close". */
+function fsWsCropTap(ip) {
+  if (!fsWsCrop || fsWsCrop.mode !== "outline") {
+    fsWsCrop = { mode:"outline", pts:[{ x:ip.x, y:ip.y }] };
+    fsWsCropSync();
+    return "add";
+  }
+  const r = FS_WS_SNAP_PX / view.scale;
+  const first = fsWsCrop.pts[0];
+  if (fsWsCrop.pts.length > 2 && Math.hypot(ip.x - first.x, ip.y - first.y) <= r) return "close";
+  fsWsCrop.pts.push({ x:ip.x, y:ip.y });
+  fsWsCropSync();
+  return "add";
+}
+
+/* The plan as a canvas, white-grounded. Same three lines fsWsCropCanvas and
+   loadImageFile both open with; a transparent PNG plan would otherwise
+   extract as transparent and encode to black on JPEG. */
+function fsWsCropPlanCanvas() {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const k = c.getContext("2d");
+  k.fillStyle = "#ffffff"; k.fillRect(0, 0, c.width, c.height);
+  k.drawImage(img, 0, 0);
+  return c;
+}
+
+/* fsRegionPick's maths WITHOUT fsRegionPick's modal. Returns a canvas
+   carrying fsRgnDx/fsRgnDy - the pick origin composed with whatever
+   fsPdfTrim shaved off - which is what lets the piece land exactly over the
+   pixels it came from. */
+function fsWsCropExtract(src, geom) {
+  if (geom.mode === "box") {
+    let x = Math.round(Math.min(geom.box.x1, geom.box.x2));
+    let y = Math.round(Math.min(geom.box.y1, geom.box.y2));
+    let w = Math.round(Math.abs(geom.box.x2 - geom.box.x1));
+    let h = Math.round(Math.abs(geom.box.y2 - geom.box.y1));
+    x = Math.max(0, Math.min(src.width - 1, x));
+    y = Math.max(0, Math.min(src.height - 1, y));
+    w = Math.max(1, Math.min(src.width - x, w));
+    h = Math.max(1, Math.min(src.height - y, h));
+    const c2 = document.createElement("canvas");
+    c2.width = w; c2.height = h;
+    const k = c2.getContext("2d");
+    k.fillStyle = "#ffffff"; k.fillRect(0, 0, w, h);
+    k.drawImage(src, x, y, w, h, 0, 0, w, h);
+    const out = fsPdfTrim(c2, true);
+    out.fsRgnDx = x + (out.fsTrimDx || 0);
+    out.fsRgnDy = y + (out.fsTrimDy || 0);
+    return out;
+  }
+  const pts = geom.pts;
+  if (!pts || pts.length < 3) return null;
+  let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i].x < mnx) mnx = pts[i].x;
+    if (pts[i].x > mxx) mxx = pts[i].x;
+    if (pts[i].y < mny) mny = pts[i].y;
+    if (pts[i].y > mxy) mxy = pts[i].y;
+  }
+  const x = Math.max(0, Math.min(src.width - 1, Math.round(mnx)));
+  const y = Math.max(0, Math.min(src.height - 1, Math.round(mny)));
+  const w = Math.max(1, Math.min(src.width - x, Math.round(mxx) - x));
+  const h = Math.max(1, Math.min(src.height - y, Math.round(mxy) - y));
+  const c2 = document.createElement("canvas");
+  c2.width = w; c2.height = h;
+  const k = c2.getContext("2d");
+  /* NO white fill, and "evenodd" is not decoration - both are fsRegionPick's
+     hard-won settings. Outside the path stays TRANSPARENT so an L-shaped
+     pick shows what is under it instead of washing white over it (Reece
+     reported that white notch twice, V0.24 and V0.25), and evenodd matches
+     the rule the preview uses there so a self-crossing trace cannot keep a
+     patch the user thought they had discarded. */
+  k.save();
+  k.beginPath();
+  k.moveTo(pts[0].x - x, pts[0].y - y);
+  for (let i = 1; i < pts.length; i++) k.lineTo(pts[i].x - x, pts[i].y - y);
+  k.closePath();
+  k.clip("evenodd");
+  k.drawImage(src, x, y, w, h, 0, 0, w, h);
+  k.restore();
+  const out = fsPdfTrim(c2, true);
+  out.__fsAlpha = true;
+  out.fsRgnDx = x + (out.fsTrimDx || 0);
+  out.fsRgnDy = y + (out.fsTrimDy || 0);
+  return out;
+}
+
+/* Paint the picked geometry white on the plan. THE GEOMETRY THE USER DREW
+   AROUND, not the trimmed piece: fsPdfTrim shrinks the extract to its ink,
+   and a hole the size of the ink would leave a frame of the old plan around
+   the gap. */
+function fsWsCropWhiteOut(c, geom) {
+  const k = c.getContext("2d");
+  k.save();
+  k.fillStyle = "#ffffff";
+  if (geom.mode === "box") {
+    k.fillRect(Math.min(geom.box.x1, geom.box.x2), Math.min(geom.box.y1, geom.box.y2),
+               Math.abs(geom.box.x2 - geom.box.x1), Math.abs(geom.box.y2 - geom.box.y1));
+  } else {
+    k.beginPath();
+    k.moveTo(geom.pts[0].x, geom.pts[0].y);
+    for (let i = 1; i < geom.pts.length; i++) k.lineTo(geom.pts[i].x, geom.pts[i].y);
+    k.closePath();
+    k.fill("evenodd");
+  }
+  k.restore();
+  return c;
+}
+
+/* THE COMMIT. One pushUndo() covers the object add AND the plan mutation,
+   which is only honest because [S-2b] put the plan in the entry. */
+function fsWsCropRegion(geom, cut) {
+  if (!img) { alert("Load a block plan first."); return; }
+  const src = fsWsCropPlanCanvas();
+  const cc = fsWsCropExtract(src, geom);
+  if (!cc || cc.width < 2 || cc.height < 2) {
+    statusEl.textContent = "That pick was too small to crop";
+    fsWsCropReset();
+    return;
+  }
+  const dataUrl = fsEncodePlan(cc, 0.92);
+  pushUndo();
+  const o = { kind:"img", src:dataUrl, x:cc.fsRgnDx || 0, y:cc.fsRgnDy || 0,
+              w:cc.width, h:cc.height };
+  objects.push(o);
+  setSelection([o]);
+  fsWsCropReset();
+  if (!cut) {
+    setTool("select");
+    statusEl.textContent = "Copied out of the plan - drag it where you want it";
+    draw();
+    return;
+  }
+  const holed = fsWsCropWhiteOut(fsWsCropPlanCanvas(), geom);
+  const planUrl = fsReEncodePlan(holed, imgDataUrl, 0.92);
+  const im2 = new Image();
+  im2.onload = () => {
+    /* keepObjects TRUE and keepView TRUE: the sheet is the same size and in
+       the same place, only a hole is new. A fitView here would throw the
+       user's zoom away mid-edit. */
+    setImage(im2, planUrl, true, true);
+    setSelection([o]);
+    setTool("select");
+    statusEl.textContent = "Cut out of the plan - drag it where you want it";
+    draw();
+  };
+  im2.onerror = () => { statusEl.textContent = "That cut could not be displayed."; draw(); };
+  im2.src = planUrl;
+}
+
 /* ---------------- trim, driven from the canvas ----------------
 
    EVERY MESSAGE IS SET AFTER THE REDRAW, NOT BEFORE IT. draw() ends by calling
@@ -3768,6 +3994,40 @@ function draw() {
     rotHandleScreen = { x:hx, y:hy, pivot:{ x:(U.x1 + U.x2) / 2, y:(U.y1 + U.y2) / 2 } };
   }
 
+  /* PASS 97 [P-9] - the pending pick. Drawn in IMAGE coords through the view
+     transform (unlike the marquee, which is a screen-space rubber band)
+     because the pick has to stay welded to the plan while you pinch-zoom
+     mid-outline on an iPad. */
+  if (fsWsCrop) {
+    ctx.save();
+    ctx.strokeStyle = "#ffb300"; ctx.fillStyle = "rgba(255,179,0,0.12)";
+    ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    if (fsWsCrop.mode === "box") {
+      const bx = fsWsCrop.box;
+      const x = Math.min(bx.x1, bx.x2) * view.scale + view.x;
+      const y = Math.min(bx.y1, bx.y2) * view.scale + view.y;
+      const w = Math.abs(bx.x2 - bx.x1) * view.scale, h = Math.abs(bx.y2 - bx.y1) * view.scale;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+    } else if (fsWsCrop.pts.length) {
+      ctx.beginPath();
+      fsWsCrop.pts.forEach((pt, i) => {
+        const sx = pt.x * view.scale + view.x, sy = pt.y * view.scale + view.y;
+        if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy);
+      });
+      if (fsWsCrop.pts.length > 2) { ctx.save(); ctx.closePath(); ctx.fill("evenodd"); ctx.restore(); }
+      ctx.stroke();
+      /* the first point wears a ring: it is the one you tap to close, and
+         nothing on screen said so before. */
+      const p0 = fsWsCrop.pts[0];
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p0.x * view.scale + view.x, p0.y * view.scale + view.y, 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   if (marquee) {
     ctx.save();
     ctx.strokeStyle = "#00e5ff"; ctx.fillStyle = "rgba(0,229,255,0.08)";
@@ -3959,16 +4219,68 @@ function updateStatus() {
 }
 
 /* ================= Undo / redo ================= */
+/* ================= PASS 97 [S-2b] ==================================
+   UNDO CARRIES THE PLAN IMAGE. Found by this pass, not asked for, and live
+   in V0.96: pushUndo stored `objects` and nothing else, while
+   fsWsCropCanvas shifts every object by (-dx,-dy) to follow the moved plan
+   origin. Ctrl+Z therefore put the DRAWING back at its pre-crop coordinates
+   on a plan that was STILL CROPPED, leaving every symbol out by exactly the
+   crop offset. Measured, both apps, tests/_probe_p97_undo.py:
+
+       before 512px symbol(300,260) -> crop 260px symbol(180,180)
+       -> undo 260px symbol(300,260)          objects back, plan NOT
+
+   test_p91 F5 asserts `undoStack.length > 0` and called that "the crop is
+   undoable", which is the "the element exists" class of check the house
+   rule names. test_p97 D-block measures the plan instead.
+
+   COST, because this is a hot path called on every drag: imgDataUrl is an
+   IMMUTABLE STRING. An entry whose plan did not change stores a POINTER to
+   the same string, so 80 entries of an unchanged plan cost 80 pointers.
+   Only a real plan change ever holds a second string.
+
+   ASYNC, stated: an Image has to decode, so objects are restored
+   synchronously and the plan lands on load. Both undo() and redo() go
+   through fsUndoApply so the two can never drift apart. */
+function fsUndoSnap() {
+  return { o: JSON.stringify(objects), img: (typeof imgDataUrl !== "undefined" ? imgDataUrl : null) };
+}
+function fsUndoApply(s) {
+  objects = JSON.parse(s.o);
+  clearSelection();
+  if (s.img && typeof imgDataUrl !== "undefined" && s.img !== imgDataUrl) {
+    const im = new Image();
+    im.onload = () => {
+      img = im; imgDataUrl = s.img;
+      /* the level owns a copy of the plan too; leaving it stale means the
+         restored plan survives until the next level switch and then quietly
+         reverts to the cropped one. */
+      if (typeof syncLevel === "function") syncLevel();
+      if (typeof scheduleAutosave === "function") scheduleAutosave();
+      draw();
+    };
+    /* PASS 42 [42-1] finding #7's rule reaches here too: a failed load must
+       FAIL LOUDLY. A silent onerror would satisfy test_p42 A2 and still leave
+       the user looking at a cropped plan that they just pressed undo on,
+       with no idea the undo half-worked. */
+    im.onerror = () => {
+      if (typeof statusEl !== "undefined" && statusEl) {
+        statusEl.textContent = "Undo could not restore the plan image";
+      }
+      draw();
+    };
+    im.src = s.img;
+  }
+}
 function pushUndo() {
-  undoStack.push(JSON.stringify(objects));
+  undoStack.push(fsUndoSnap());
   if (undoStack.length > MAX_UNDO) undoStack.shift();
   redoStack = [];
 }
 function undo() {
   if (!undoStack.length) return;
-  redoStack.push(JSON.stringify(objects));
-  objects = JSON.parse(undoStack.pop());
-  clearSelection();
+  redoStack.push(fsUndoSnap());
+  fsUndoApply(undoStack.pop());
   /* PASS 86 [86-1] - CHAIN-AWARE UNDO. `objects` is already rewound; this is
      the matching rewind of the run, one point per segment, so undo mid-run
      drops the last SEGMENT and leaves you drawing from the one before it.
@@ -3978,9 +4290,8 @@ function undo() {
 }
 function redo() {
   if (!redoStack.length) return;
-  undoStack.push(JSON.stringify(objects));
-  objects = JSON.parse(redoStack.pop());
-  clearSelection();
+  undoStack.push(fsUndoSnap());
+  fsUndoApply(redoStack.pop());
   draw();
 }
 
@@ -4866,6 +5177,16 @@ function buildPalette() {
 function modifyAction(id) {
   if (id === "m_align") { openAlign(); return; }
   if (id === "m_crop") { fsWsCropCanvas(); return; }   /* [91-S2] */
+  if (id === "m_cropreg") {                            /* PASS 97 [P-9] */
+    fsToolToggle("cropreg");
+    if (activeTool === "cropreg") {
+      statusEl.textContent = fsWsCropOutline
+        ? "Tap around it corner by corner, then tap the first point again"
+        : "Drag a box around the part of the plan you want";
+    }
+    refreshModifyTiles();
+    return;
+  }
   if (id === "m_trim") {
     /* [91-C2] this used to toggle to "select"; it now toggles to neutral
        like every other tool. A REAL change under his fingers - named on the
@@ -4896,6 +5217,7 @@ function refreshModifyTiles() {
       el.classList.toggle("pdis", selection.length < 2);
     }
     if (mt.id === "m_trim") el.classList.toggle("active", activeTool === "trim");
+    if (mt.id === "m_cropreg") el.classList.toggle("active", activeTool === "cropreg");   /* [P-9] */
     if (mt.id === "m_multi") el.classList.toggle("active", multiMode);
     if (mt.id === "hatch") el.classList.toggle("active", activeTool === "hatch");
   });
@@ -5256,6 +5578,11 @@ function setTool(id) {
                              to finish something that is not running. */
   fsWsTrimA = null;
   fsWsSnapHit = null;
+  /* PASS 97 [P-9] - a half-drawn outline does not survive changing tool, and
+     Esc reaches here through setTool(FS_TOOL_NEUTRAL). UNCONDITIONAL for the
+     same reason fsWsRunSync above is: a sync guarded on fsWsCrop being
+     truthy leaves the footer on screen after something else nulls the pick. */
+  fsWsCrop = null;
   /* PASS 91 [91-C1] - Reece: the trim tool "doesnt automatically deselect
      whatever I had last selected".
 
@@ -5293,6 +5620,7 @@ function setTool(id) {
   if (cw) cw.style.display = ["line", "arrow", "brk"].includes(id) ? "flex" : "none";
   const cl = document.getElementById("wsChainLab");
   if (cl) cl.style.display = id === "line" ? "flex" : "none";
+  fsWsCropSync();   /* PASS 97 [P-9] - after activeTool is set, not before */
   document.getElementById("hatchWrap").style.display = id === "hatch" ? "flex" : "none";
   if (id === "hatch") { document.getElementById("hatchStyleSel").value = hatchStyle; document.getElementById("hatchOutlineSel").value = hatchOutline; }
   document.getElementById("measureWrap").style.display = id === "measure" ? "flex" : "none";
@@ -5447,6 +5775,24 @@ document.getElementById("wsAngleOn").onchange = ev => {
    and believing it. */
 document.getElementById("btnSetScale").onclick = () => setTool("measure");
 document.getElementById("wsChainFin").onclick = () => fsWsRunEnd(true);
+/* PASS 97 [P-9] - each pair is a radio wearing tick boxes. Clicking the one
+   that is already on re-checks it rather than turning both off, because
+   "neither Copy nor Cut" is not a state this tool has. */
+document.getElementById("wsCropCopy").onclick = () => { fsWsCropCut = false; fsWsCropSync(); };
+document.getElementById("wsCropCut").onclick = () => { fsWsCropCut = true; fsWsCropSync(); };
+document.getElementById("wsCropBox").onclick = () => {
+  fsWsCropOutline = false; fsWsCrop = null; fsWsCropSync();
+  if (fsWsCropOn()) statusEl.textContent = "Drag a box around the part of the plan you want";
+};
+document.getElementById("wsCropOutline").onclick = () => {
+  fsWsCropOutline = true; fsWsCrop = null; fsWsCropSync();
+  if (fsWsCropOn()) statusEl.textContent = "Tap around it corner by corner, then tap the first point again";
+};
+document.getElementById("wsCropFin").onclick = () => {
+  if (fsWsCrop && fsWsCrop.mode === "outline" && fsWsCrop.pts.length > 2) {
+    fsWsCropRegion({ mode:"outline", pts:fsWsCrop.pts.slice() }, fsWsCropCut);
+  }
+};
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
   localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0");
@@ -8375,6 +8721,20 @@ cv.addEventListener("pointerdown", e => {
     return;
   }
 
+  /* PASS 97 [P-9] - Box drags, Outline taps. Both decide on pointerUP, the
+     same way trim below does, so a drag on the Outline mode still pans
+     instead of dropping a corner where the finger started. */
+  if (activeTool === "cropreg") {
+    if (fsWsCropOutline) {
+      dragMode = "cropTap";
+      panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    } else {
+      dragMode = "cropBox";
+      fsWsCrop = { mode:"box", box:{ x1:ip.x, y1:ip.y, x2:ip.x, y2:ip.y } };
+    }
+    return;
+  }
+
   /* PASS 86 [86-5] - trim is a TAP tool, and it borrows textTap's shape so a
      drag still pans. Deciding on pointerUP is what makes that possible. */
   if (activeTool === "trim") {
@@ -8683,6 +9043,12 @@ cv.addEventListener("pointermove", e => {
     return;
   }
 
+  if (dragMode === "cropBox" && fsWsCrop) {   /* PASS 97 [P-9] */
+    fsWsCrop.box.x2 = ip.x; fsWsCrop.box.y2 = ip.y;
+    requestDraw();
+    return;
+  }
+
   if (dragMode === "moveSel" && moveOrig) {
     /* PASS 68 [68ws-1] — THE DEFECT. `moved` is computed at the top of this
        handler and consumed correctly by placeOrPan / textTap / testTapOrPan
@@ -8880,6 +9246,38 @@ function endPointer(e) {
     if (!moved) fsWsTrimTap(hitObject(p.x, p.y), ip);
     else draw();
     dragMode = null;
+    return;
+  }
+
+  if (dragMode === "cropBox") {   /* PASS 97 [P-9] */
+    dragMode = null;
+    const g = fsWsCrop;
+    /* A TAP IS NOT A CROP. Without this an accidental tap on the plan lifts a
+       1px sliver and, on Cut, punches a hole nobody asked for. */
+    if (!moved || !g || Math.abs(g.box.x2 - g.box.x1) * view.scale < 6
+        || Math.abs(g.box.y2 - g.box.y1) * view.scale < 6) {
+      fsWsCropReset();
+      statusEl.textContent = "Drag a box around the part of the plan you want";
+      draw();
+      return;
+    }
+    fsWsCropRegion({ mode:"box", box:{ x1:g.box.x1, y1:g.box.y1, x2:g.box.x2, y2:g.box.y2 } },
+                   fsWsCropCut);
+    return;
+  }
+
+  if (dragMode === "cropTap") {   /* PASS 97 [P-9] - Outline */
+    dragMode = null;
+    if (moved) { draw(); return; }        /* it was a pan */
+    const r = fsWsCropTap(ip);
+    if (r === "close" && fsWsCrop && fsWsCrop.pts.length > 2) {
+      fsWsCropRegion({ mode:"outline", pts:fsWsCrop.pts.slice() }, fsWsCropCut);
+      return;
+    }
+    statusEl.textContent = (fsWsCrop && fsWsCrop.pts.length > 2)
+      ? "Tap the first point again to close, or use Finish outline"
+      : "Keep tapping the corners";
+    draw();
     return;
   }
 
@@ -24462,7 +24860,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v100";
+const FS_BUILD = "aa-v101";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
