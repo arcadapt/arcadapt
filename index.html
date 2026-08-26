@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.93 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.94 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.93 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.94 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -20623,15 +20623,16 @@ function fsTodayHtml(d) {
     h += '</div>';
   }
   /* priority sites — absent when nothing needs attention (Ruling 4; no
-     "great work" panel). Photos are s.photo, the field the hub card shows. */
+     "great work" panel). Photos are s.displayPhoto first — PASS 94 [P-1b], the field
+     exists to BE this photo — falling back to s.photo. */
   if (d.pri.length) {
     h += '<div class="fscard" id="fsTodayPriority" style="padding:16px">' +
       '<h3 style="font-size:15px;font-weight:700;margin-bottom:10px">Priority sites</h3>' +
       '<div id="fsTdPriRow" style="display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch">';
     d.pri.forEach((r, i) => {
       h += '<div class="fsTdPriCard" data-i="' + i + '" style="flex:0 0 150px;border:1px solid var(--fs-border);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--fs-bg)">' +
-        (r.e.s.photo
-          ? '<img src="' + r.e.s.photo + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
+        ((r.e.s.displayPhoto || r.e.s.photo)
+          ? '<img src="' + (r.e.s.displayPhoto || r.e.s.photo) + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
           : '<div style="width:100%;height:74px;display:flex;align-items:center;justify-content:center;background:#22262b;color:var(--fs-sub2);font-size:22px;font-weight:800">' + fsEsc((r.e.s.name || "?").slice(0, 1)) + '</div>') +
         '<div style="padding:8px 9px">' +
         '<div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.name) + '</div>' +
@@ -20760,6 +20761,12 @@ function fsHubEvents(s) {
   });
   return ev.sort((a, b) => String(b.d).localeCompare(String(a.d))).slice(0, 3);
 }
+/* PASS 94 [P-1a] — Reece, 26 Aug device findings: "Site photo window could
+   be larger/perhaps longer. No reason why it can't show the full photo."
+   The crop WAS the window: fixed-height object-fit:cover boxes. ONE copy of
+   the full-aspect style, used by every slot on the hub card and the info
+   card, so the two cards cannot drift apart. */
+const FS_PHOTO_FULL = "width:100%;height:auto;max-height:70vh;object-fit:contain;border-radius:10px;cursor:pointer";
 function fsHubHtml(s) {
   /* rev D — THE FIXED SLOT MAP (Reece, 12 Aug, via Dispatch, after the
      rev C renders still moved visually: "Your pictures you sent me don't
@@ -20870,12 +20877,20 @@ function fsHubHtml(s) {
   if (mh) h += '<div id="fsHubColM" style="flex:1.2;min-width:250px;display:flex;flex-direction:column;gap:10px">' + mh + '</div>';
   /* RIGHT — the photo card, always the right-hand slot when a photo
      exists (Rulings 15+19). */
-  if (s.photo || s.entryPhoto) {
+  /* PASS 94 [P-1b] — his order, his names: "the Display photo would be at
+     the top and is the photo that is displayed on the Today screen, then
+     Site, then Entry below it. They don't all need to be populated." Each
+     slot renders only when set — the entry photo's existing behaviour,
+     which he named as the pattern. [P-1a]: every slot full-aspect. */
+  if (s.displayPhoto || s.photo || s.entryPhoto) {
     h += '<div class="fscard" id="fsHubPhotoCard" style="flex:1;min-width:230px;padding:16px;display:flex;flex-direction:column;gap:8px">' +
       '<div style="margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Site photo</h3></div>';
-    if (s.photo) h += '<img id="fsHubPhoto" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+    if (s.displayPhoto) h += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Display</div>' +
+      '<img id="fsHubDisplayPhoto" src="' + s.displayPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+    if (s.photo) h += (s.displayPhoto ? '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site</div>' : '') +
+      '<img id="fsHubPhoto" src="' + s.photo + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
     if (s.entryPhoto) h += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
-      '<img id="fsHubEntryPhoto" src="' + s.entryPhoto + '" style="width:100%;height:132px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+      '<img id="fsHubEntryPhoto" src="' + s.entryPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
     h += '</div>';
   }
   return h + '</div>';
@@ -20893,6 +20908,9 @@ function fsHubWire(s) {
   if (ph) ph.onclick = () => fsViewPhoto(s.photo, { kind: "siteIdx", i: 0 });
   const ep = document.getElementById("fsHubEntryPhoto");
   if (ep) ep.onclick = () => fsViewPhoto(s.entryPhoto, { kind: "siteEntry" });
+  /* PASS 94 [P-1b] */
+  const dp = document.getElementById("fsHubDisplayPhoto");
+  if (dp) dp.onclick = () => fsViewPhoto(s.displayPhoto, { kind: "siteDisplay" });
   document.querySelectorAll(".fsHubDefRow").forEach(r =>
     r.onclick = () => { fsTab = "defects"; fsEquipEdit = false; fsRenderSite(); });
   const va = document.getElementById("fsHubActAll");
@@ -21059,19 +21077,27 @@ function fsInfoPhotoHtml() {
      viewer (index 0 = s.photo). */
   html += '<div class="fscard" style="flex:1;min-width:230px;padding:14px;display:flex;flex-direction:column;gap:8px">';
   html += '<div style="font-size:14px;font-weight:700;color:var(--fs-sub)">Site photo</div>';
+  /* PASS 94 [P-1b] — the Display slot, above the site photo: a single named
+     field, add/replace button, shows only when set — the entry photo's
+     pattern (Pass 45), which Reece named as the way all three should act. */
+  if (s.displayPhoto) {
+    html += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Display</div>' +
+      '<img id="fsDisplayTile" src="' + s.displayPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+  }
   if (!s.photo) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
     /* PASS 26 item 16 — no delete badge on the tiles; deleting happens in
        the viewer. */
-    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + s.photo + '" style="width:100%;height:180px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size"></div>';
+    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + s.photo + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size"></div>';
   }
   if (s.entryPhoto) {
     html += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
-      '<img id="fsEntryTile" src="' + s.entryPhoto + '" style="width:100%;height:132px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+      '<img id="fsEntryTile" src="' + s.entryPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
   }
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
   if (s.photo) html += '<button class="fsbtn" id="fsSitePhotoAdd">&#65291; Add photo</button>';
+  html += '<button class="fsbtn" id="fsDisplayPhotoBtn">' + (s.displayPhoto ? 'Replace display photo' : '&#65291; Add display photo') + '</button>';
   html += '<button class="fsbtn" id="fsEntryPhotoBtn">' + (s.entryPhoto ? 'Replace entry photo' : '&#65291; Add entry photo') + '</button>';
   html += '</div>';
   html += '</div></div>';
@@ -21409,7 +21435,7 @@ function fsRenderTab() {
   }
   if (fsTab === "files") {
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap"><h3 style="font-size:16px;font-weight:700;flex:1">Files &amp; photos</h3><button class="fsbtn" id="fsFilesAdd">&#128247; Add photo</button><button class="fsbtn" id="fsFileAnyAdd">&#128206; Add file</button></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap"><h3 style="font-size:16px;font-weight:700;flex:1">Files &amp; photos</h3><button class="fsbtn" id="fsFileAnyAdd">&#128247; Add file / photo</button></div>';
     const ph = s.photos || [];
     if (!ph.length && !(s.files || []).length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No photos or files yet.</div>';
     else {
@@ -21521,6 +21547,11 @@ function fsRenderTab() {
     if (epBtn) epBtn.onclick = () => { fsPhotoTarget = { kind:"siteEntry" }; document.getElementById("fsPhotoInput").click(); };
     const epTile = document.getElementById("fsEntryTile");
     if (epTile) epTile.onclick = () => fsViewPhoto(s.entryPhoto, { kind:"siteEntry" });
+    /* PASS 94 [P-1b] — display photo add/replace + view, entry pattern. */
+    const dpBtn = document.getElementById("fsDisplayPhotoBtn");
+    if (dpBtn) dpBtn.onclick = () => { fsPhotoTarget = { kind:"siteDisplay" }; document.getElementById("fsPhotoInput").click(); };
+    const dpTile = document.getElementById("fsDisplayTile");
+    if (dpTile) dpTile.onclick = () => fsViewPhoto(s.displayPhoto, { kind:"siteDisplay" });
     document.querySelectorAll(".fsSpTile").forEach(im => {
       im.onclick = () => fsViewPhoto(im.src, { kind:"siteIdx", i:+im.dataset.i });
     });
@@ -21787,7 +21818,10 @@ function fsRenderTab() {
     });
   }
   if (fsTab === "files") {
-    document.getElementById("fsFilesAdd").onclick = () => { fsPhotoTarget = { kind:"files" }; document.getElementById("fsPhotoInput").click(); };
+    /* PASS 94 [P-2] — fsFilesAdd is gone: one Add file / photo button.
+       Images still take the photo pipeline — the routing lives in the
+       fsFileAnyInput handler. The intake's kind:"files" branch stays: it
+       is shared plumbing and other targets are one refactor away from it. */
     /* PASS 45 [45-5] — the relocated site-photo extras: view + the same
        viewer delete, with the promote rule in scope here too. */
     document.querySelectorAll(".fsSpTile").forEach(im => {
@@ -22449,7 +22483,9 @@ function fsViewPhoto(src, replaceTarget) {
   if (lbDel) lbDel.style.display = ((fsLbTarget && fsLbTarget.kind === "siteIdx"
                                     && typeof fsSitePhotoDelete === "function")
                                     /* PASS 45 — the entry photo is a site photo too */
-                                    || (fsLbTarget && fsLbTarget.kind === "siteEntry"))
+                                    || (fsLbTarget && fsLbTarget.kind === "siteEntry")
+                                    /* PASS 94 — the display photo too */
+                                    || (fsLbTarget && fsLbTarget.kind === "siteDisplay"))
                                    ? "inline-block" : "none";
   lb.style.display = "block";
 }
@@ -22470,6 +22506,13 @@ document.getElementById("fsLbDelete").onclick = e => {
   e.stopPropagation();
   /* PASS 45 — Ruling 19: the entry photo deletes here too. Its own branch:
      it is a single named field, not an index into the photo list. */
+  /* PASS 94 [P-1b] — the display photo's delete, entry pattern. */
+  if (fsLbTarget && fsLbTarget.kind === "siteDisplay") {
+    if (!confirm("Remove the display photo?")) return;
+    fsLbClose();
+    if (typeof fsSite !== "undefined" && fsSite) { delete fsSite.displayPhoto; fsMarkDirty(); fsRenderSite(); }
+    return;
+  }
   if (fsLbTarget && fsLbTarget.kind === "siteEntry") {
     if (!confirm("Remove the site entry photo?")) return;
     fsLbClose();
@@ -22504,6 +22547,7 @@ document.getElementById("fsPhotoInput").addEventListener("change", e => {
     changed = true;
     if (target.kind === "site") fsSite.photo = src;
     else if (target.kind === "siteEntry") fsSite.entryPhoto = src;   /* PASS 45 — Ruling 19 */
+    else if (target.kind === "siteDisplay") fsSite.displayPhoto = src;   /* PASS 94 — [P-1b] */
     else if (target.kind === "siteAdd") {
       if (!fsSite.photo) fsSite.photo = src;
       else { fsSite.photoExtra = fsSite.photoExtra || []; fsSite.photoExtra.push(src); }
@@ -22567,9 +22611,36 @@ document.getElementById("fsFileAnyInput").addEventListener("change", e => {
     fsMarkDirty();
     fsRenderSite();
     if (big.length) alert("Too big to attach (over 8 MB \u2014 the register travels as a file, keep attachments small):\n" + big.join("\n"));
-    if (bad.length) alert("Couldn't read:\n" + bad.join("\n"));
+    if (bad.length) alert("Couldn't read:\n" + bad.join("\n") + "\n\nUsual cause for photos: HEIC format (iPhone/iPad default) \u2014 share/export as JPEG, or in the iPad Files app use Quick Actions > Convert Image. Screenshots always work.");
   };
   all.forEach(f => {
+    /* PASS 94 [P-2] — one button, two pipelines. An image is a PHOTO: the
+       same 1600px / 0.82 JPEG downscale as fsPhotoInput's intake, into
+       s.photos, so merging the buttons cannot bloat the register file. A
+       non-image is an attachment: raw, 8 MB cap, into s.files, unchanged. */
+    if ((f.type || "").indexOf("image/") === 0) {
+      const reader = new FileReader();
+      reader.onerror = () => { bad.push(f.name || "photo"); fin(); };
+      reader.onload = () => {
+        const im = new Image();
+        im.onerror = () => { bad.push(f.name || "photo"); fin(); };
+        im.onload = () => {
+          try {
+            const mx = 1600;
+            const sc = Math.min(1, mx / Math.max(im.naturalWidth, im.naturalHeight));
+            const c = document.createElement("canvas");
+            c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+            c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+            s2.photos = s2.photos || [];
+            s2.photos.push({ src: c.toDataURL("image/jpeg", 0.82), t: Date.now() });
+          } catch (err) { bad.push(f.name || "photo"); }
+          fin();
+        };
+        im.src = reader.result;
+      };
+      reader.readAsDataURL(f);
+      return;
+    }
     if (f.size > 8 * 1024 * 1024) { big.push(f.name || "file"); fin(); return; }
     const reader = new FileReader();
     reader.onerror = () => { bad.push(f.name || "file"); fin(); };
@@ -24132,7 +24203,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v97";
+const FS_BUILD = "aa-v98";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -25969,6 +26040,72 @@ function fsPlPdf() {
   });
   fsLinesPdf(lines, fsDocBrand() + " month plan — " + fsPlMonthName(), "plan-" + fsPlMonth + ".pdf");
 }
+/* PASS 94 [P-4] — THE PLAN FILE. Reece, 26 Aug: "The planner SHOULD have an
+   import option. I planned my month on my iPad and it doesn't show up on my
+   phone and now I can't import it." This supersedes IN PART his own 14 Jul
+   plans-are-device-local ruling — by his own ask. The fix is a FILE, the
+   register's own pattern, not sync: deliverFile out, validated JSON in.
+   The month object {days,locked,tray} carries ad-hoc jobs ({adhoc:true} stops
+   inside days) and locked days for free. Settings and stars stay device-local
+   on purpose — their card is labelled "(this device)". Import REPLACES the
+   month after a confirm; merge semantics were not asked for and would invent
+   answers to questions nobody posed. */
+function fsPlCountStops(mo) {
+  return Object.keys((mo && mo.days) || {}).reduce((n, dk) => n + ((mo.days[dk] || []).length), 0);
+}
+function fsPlFileExport() {
+  const mo = fsPlMonthObj();
+  const payload = { app: "arcadapt-plan", version: 1, month: fsPlMonth,
+                    exported: new Date().toISOString(),
+                    plan: { days: mo.days || {}, locked: mo.locked || {}, tray: mo.tray || [] } };
+  deliverFile(new Blob([JSON.stringify(payload)], { type: "application/json" }),
+              "plan-" + fsPlMonth + ".json", "application/json");
+}
+let fsPlanFileInputEl = null;
+function fsPlanFileInput() {
+  if (fsPlanFileInputEl) return fsPlanFileInputEl;
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "application/json,.json";
+  inp.style.display = "none"; inp.id = "fsPlanFileInput";
+  document.body.appendChild(inp);
+  inp.addEventListener("change", e2 => {
+    const f = (e2.target.files || [])[0];
+    e2.target.value = "";
+    if (!f) return;
+    const r = new FileReader();
+    r.onerror = () => alert("Couldn't read that file.");
+    r.onload = () => {
+      let p = null;
+      try { p = JSON.parse(r.result); } catch (err) {}
+      /* The app tag is the contract: a register file, a profile file or a
+         random JSON all fail HERE, before any state is touched. */
+      if (!p || p.app !== "arcadapt-plan" || !/^\d{4}-\d{2}$/.test(p.month || "") ||
+          !p.plan || typeof p.plan.days !== "object" || Array.isArray(p.plan.days)) {
+        alert("That isn't a plan file.\n\nExpected one made by Planner \u2192 Export \u2192 Plan file \u2014 move to another device.");
+        return;
+      }
+      const mo = { days: p.plan.days || {}, locked: p.plan.locked || {},
+                   tray: Array.isArray(p.plan.tray) ? p.plan.tray : [] };
+      const stops = fsPlCountStops(mo);
+      if (!fsPlPlans) fsPlPlans = {};
+      const exStops = fsPlCountStops(fsPlPlans[p.month]);
+      if (exStops && !confirm("This device already has " + exStops + " stop" + (exStops === 1 ? "" : "s") +
+          " planned in " + p.month + ".\n\nReplace them with the file's " + stops + "?")) return;
+      fsPlPlans[p.month] = mo;
+      fsPlSavePlans();
+      fsPlMonth = p.month;
+      fsPlSelDay = null;
+      fsPlRender();
+      alert("\u2713 Imported " + p.month + " \u2014 " + stops + " stop" + (stops === 1 ? "" : "s") +
+            " across " + Object.keys(mo.days).length + " day" + (Object.keys(mo.days).length === 1 ? "" : "s") +
+            ". Locked days and the unplanned list came with it.");
+    };
+    r.readAsText(f);
+  });
+  fsPlanFileInputEl = inp;
+  return inp;
+}
+function fsPlFileImportPick() { fsPlanFileInput().click(); }
 function fsPlExportMenu() {
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:250;background:rgba(10,14,16,.97);display:flex;align-items:center;justify-content:center;padding:16px";
@@ -25979,6 +26116,8 @@ function fsPlExportMenu() {
     '<button class="fsbtn" id="fsPlExList" style="width:100%;text-align:left;margin-bottom:8px;padding:11px">&#128203; Day-by-day run sheet &mdash; PDF</button>' +
     '<button class="fsbtn" id="fsPlExIcs" style="width:100%;text-align:left;margin-bottom:8px;padding:11px" title="Opens in Apple / Google / Samsung Calendar">&#128242; Add to phone calendar</button>' +
     fsIcsHint() +   /* PASS 25 item 13 — Apple only; empty string everywhere else */
+    '<button class="fsbtn" id="fsPlExFile" style="width:100%;text-align:left;margin-bottom:8px;padding:11px" title="A file you can AirDrop or email to another device and import there \u2014 carries every stop, ad-hoc job and locked day in this month">&#128190; Plan file &mdash; move to another device</button>' +
+    '<button class="fsbtn" id="fsPlImFile" style="width:100%;text-align:left;margin-bottom:8px;padding:11px">&#128194; Import a plan file&hellip;</button>' +
     '<button class="fsbtn" id="fsPlExX" style="width:100%;padding:10px">Cancel</button></div>';
   document.body.appendChild(d);
   const go = fn => () => { d.remove(); fn(); };
@@ -25986,6 +26125,8 @@ function fsPlExportMenu() {
   d.querySelector("#fsPlExGridW").onclick = go(fsPlGridDoc);
   d.querySelector("#fsPlExList").onclick = go(fsPlPdf);
   d.querySelector("#fsPlExIcs").onclick = go(() => fsPlIcs(Object.keys(fsPlMonthObj().days).sort(), "plan-" + fsPlMonth + ".ics"));
+  d.querySelector("#fsPlExFile").onclick = go(fsPlFileExport);
+  d.querySelector("#fsPlImFile").onclick = go(fsPlFileImportPick);
   d.querySelector("#fsPlExX").onclick = () => d.remove();
 }
 function fsPlGridWeeks() {   // Sunday-first week rows incl. grey spill days either side (matches Reece's Word layout)
