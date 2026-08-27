@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.100 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.102 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.100 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.102 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -21924,14 +21924,12 @@ function fsRenderSite() {
   if (addr) html += '<div style="color:var(--fs-sub);font-size:15px">' + fsEsc(addr) + '</div>';
   html += '</div><div style="display:flex;gap:10px;align-items:center;padding-top:22px;flex-wrap:wrap">';
   if (s.mapUrl || (s.address || "").trim() || s.geo) html += '<button class="fsbtn fsbtnHero" id="fsMapBtn">Navigate</button>';
-  /* PASS 98 [W97-13] - the Test Complete button's new home. "A button can fit
-     without making another row": this row ALREADY EXISTS and already wraps,
-     so the button costs no height anywhere and the cycle strip goes back to
-     what it looked like before Pass 95. Gating is unchanged from [P-3] -
-     monthly cycle only, and only when that cycle is switched on for the
-     site - so a cycle that needs evidence still cannot be closed with a tap. */
-  if (typeof fsCycOn !== "function" || fsCycOn("lastMonthly"))
-    html += '<button class="fsbtn" id="fsTestedBtn" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session">&#10003; Test Complete</button>';
+  /* PASS 98 [W97-13] put the Test Complete button in this header row. PASS
+     101 [W100-1] moves it a THIRD time, on his annotated sketch, INTO the
+     Monthly cell as the compact "Tested \u2713" pill - see the strip below.
+     The chain, recorded not relitigated: P-5 (in-cell, above the bar) ->
+     W97-13 (header row) -> W100-1 (in-cell beside the date, smaller). One
+     door per action: nothing renders here any more. */
   /* PASS 50 [50-5] — F3. This REVERSES the Pass 45 [45-2] ruling above and
      it is recorded rather than done quietly. That ruling said "a primary CTA
      that dead-ends on most sites is worse than no CTA", and it was right —
@@ -21961,59 +21959,58 @@ function fsRenderSite() {
   if (fsCoordsParse(s)) html += '<button class="fsbtn" id="fsCoordBtn" title="Open maps at the exact saved coordinates \u2014 for remote sites where the address stops short of the entry point">&#128205; Coordinates</button>';
   html += '</div></div>';
 
-  /* PASS 45 [45-3] — Rulings 5+16+18: the strip is PROMOTED. It is the one
-     service-and-defects surface (the separate Site health / Service summary
-     cards were never built — this is them). Progress bars added; the
-     editable last-done dates STAY — they are the only way a cycle gets
-     updated today. Ruling 9: an OK cycle renders NEUTRAL, not green;
-     colour is scarce and reserved for due/overdue. Still fsCycles(): N
-     cells, never a hard-coded count (Brief 4's standing constraint). */
-  html += '<div class="fscard" id="fsHubStrip" style="display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:14px">';
-  fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]).forEach((c, i) => {
+  /* PASS 45 [45-3] - the strip is the ONE service-and-defects surface and
+     the editable last-done dates STAY (Rulings 5+16+18). Ruling 9: an OK
+     cycle renders NEUTRAL - colour is scarce, reserved for due/overdue.
+     Brief 4: fsCycles() N cells, never a hard-coded count.
+     PASS 101 FS_STRIP_V2 [W100-2, mock approved 27 Aug via Dispatch] - the
+     five surveyed phone faults, each with its fix in this template:
+       (a) uneven heights   -> every cell, DEFECTS included, is one 4-slot
+                               grid template: label / status / bar / date row;
+       (b) no rule between  -> nth-child(n+3) draws a border-top at phone
+           wrapped rows        width (two columns); verticals only at >=820;
+       (c) ghost date boxes -> "No record" hides its input behind "+ set
+                               date" (45-3 kept: the input is one tap away,
+                               its change wiring untouched);
+       (d) DEFECTS apart    -> same template, the count spans slots 2-4;
+       (e) density          -> date text 10 -> 11px, one 2px rhythm.
+     PASS 101 [W100-1, his sketch] - the "Tested \u2713" pill beside the
+     Monthly date, compact enough for the ~50px his own P-5 measurement left
+     free. GREEN while today's marked-tested record exists (state = record,
+     see fsCycTickOn); tap-while-green removes that tap. Gating unchanged:
+     the Monthly cell only renders when fsCycOn passes for it, so a cycle
+     that needs evidence still cannot be closed with a tap (P-3 stands). */
+  const cycs = fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]);
+  html += '<style>#fsHubStrip{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}' +
+    '#fsHubStrip>div{padding:8px 12px 9px;display:grid;grid-template-rows:15px 20px 12px 28px;row-gap:2px;align-content:start;min-width:0}' +
+    '#fsHubStrip>div:nth-child(even){border-left:1px solid var(--fs-border)}' +
+    '#fsHubStrip>div:nth-child(n+3){border-top:1px solid var(--fs-border)}' +
+    '@media(min-width:820px){#fsHubStrip{grid-template-columns:repeat(' + cycs.length + ',1fr) 96px}' +
+    '#fsHubStrip>div{border-top:none !important;border-left:none !important}' +
+    '#fsHubStrip>div:nth-child(n+2){border-left:1px solid var(--fs-border) !important}}</style>';
+  html += '<div class="fscard" id="fsHubStrip" style="margin-bottom:14px;overflow:hidden">';
+  cycs.forEach(c => {
     const st = fsCycleStatus(s, c);
     const exCol = st.overdue ? '#c62828' : (st.col === '#b58900' ? '#b58900' : null);
     const t = (s.testing || {})[c.key];
     let pct = 0;
     if (t && !isNaN(new Date(t))) pct = Math.max(0, Math.min(100, Math.round((Date.now() - new Date(t).getTime()) / (c.months * 2629800000) * 100)));
-    html += '<div class="fsCyc" style="flex:1;min-width:104px;padding:7px 12px;' + (i ? 'border-left:1px solid var(--fs-border)' : '') + '">' +
-      '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">' + c.label + '</div>' +
-      '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';margin:1px 0 2px;white-space:nowrap">' + st.txt + '</div>' +
-      /* PASS 95 [P-3] — Reece: "purely for the routine monthly testing". The
-         button exists on the Monthly cell and nowhere else, so a cycle that
-         needs evidence cannot be closed with a tap.
-
-         [P-5] PLACEMENT IS HIS, from the V0.95 renders: "locate it next to
-         the date, or above the progress line?" — ABOVE THE PROGRESS LINE, of
-         his two. Next to the date does not fit: at 430 the Monthly cell has
-         ~166px of usable width and the date input alone takes 110px, which
-         leaves ~50px for a two-word label. Measured, not guessed.
-
-         [P-5b/P-5c] The words are his. He asked for "Site Tested" and then,
-         one message later, "sorry, perhaps 'Test Complete' would be better."
-         The LATER one ships. Note the two say different things and both are
-         fine: the BUTTON is what the tech is claiming (I finished the monthly
-         test), the RECORD TAG is how it was captured (a tap, not a guided
-         session). Provenance stays with the record, where an auditor reads
-         it. */
-      /* PASS 98 [W97-13] - THE BUTTON IS GONE FROM HERE. Reece, on the
-         V0.97 walk: "the test button is way too big, it takes up a whole row
-         on that monthly test ... I want it to look exactly how it did before
-         and I told you to make the button smaller and I said put it up the
-         top or down the bottom so it doesn't make the row bigger."
-         MEASURED before it was moved: display:block;width:100% inside this
-         cell made the Monthly cell 109px against the third cell's 75px at
-         430, and it sat exactly where his eye expects the date and the
-         progress bar. His last-test dates were never lost - they were
-         underneath it. The cell is back to its pre-V0.95 markup; the button
-         now rides the header action row next to Navigate. */
-      '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;margin:3px 0 4px"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
-      '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc((s.testing || {})[c.key] || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:1px 2px;font-size:10px;color:var(--fs-sub2);background:transparent;max-width:110px">' +
-      '</div>';
+    const tick = c.key !== "lastMonthly" ? "" : (fsCycTickOn(s)
+      ? '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid #2e7d32;background:#2e7d32;color:#fff;cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Today\u2019s monthly test is recorded, tagged \u201c' + FS_TESTED_TAG + '\u201d. Tap again today to remove it \u2014 the accidental-tap undo.">Tested &#10003;</button>'
+      : '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid var(--fs-border);background:transparent;color:var(--fs-sub);cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session. It stays green for the rest of today; tapping it again while green removes it.">Tested &#10003;</button>');
+    html += '<div class="fsCyc">' +
+      '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;align-self:center;white-space:nowrap;overflow:hidden">' + c.label + '</div>' +
+      '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';white-space:nowrap;align-self:center">' + st.txt + '</div>' +
+      '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;align-self:center;margin:0"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
+      '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
+      '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc(t || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:2px 3px;font-size:11px;color:var(--fs-sub2);background:var(--fs-card);max-width:108px;min-width:0;' + (t ? '' : 'display:none') + '">' +
+      (t ? '' : '<span class="fsCycAdd" data-key="' + c.key + '" style="font-size:11px;color:var(--fs-faint);border:1px dashed var(--fs-border);border-radius:5px;padding:3px 8px;cursor:pointer;white-space:nowrap">&#65291; set date</span>') +
+      tick + '</div></div>';
   });
   const openDef = (s.defects || []).filter(d => !d.closed).length;
-  html += '<div style="flex:0 0 auto;min-width:84px;padding:7px 12px;border-left:1px solid var(--fs-border);display:flex;flex-direction:column;justify-content:center">' +
-    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase">Defects</div>' +
-    '<div id="fsHubDefN" style="font-size:17px;font-weight:800;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
+  html += '<div id="fsCycDefCell">' +
+    '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;align-self:center">Defects</div>' +
+    '<div id="fsHubDefN" style="font-size:17px;font-weight:800;grid-row:2 / span 3;align-self:center;color:' + (openDef ? '#c62828' : 'var(--fs-text)') + '">' + openDef + '</div></div>';
   html += '</div>';
   /* PASS 45 [45-4] — Ruling 6: an access EXCEPTION cannot be the fourth
      thing someone reads. Same warning treatment the test dialog uses. */
@@ -22067,8 +22064,22 @@ function fsRenderSite() {
   if (hubCoord) hubCoord.onclick = () => window.open(fsCoordsUrl(s), "_blank");
   /* PASS 95 [P-3] — wired beside the date input it sits under: same cell,
      same authority. Absent on every cycle but Monthly, hence the guard. */
-  const fsTb = document.getElementById("fsTestedBtn");
-  if (fsTb) fsTb.onclick = fsTestedTap;
+  /* PASS 101 [W100-1] - one control, two meanings: a not-green tap WRITES
+     (fsTestedTap - prompt-and-buildings behaviour unchanged); a green tap
+     REMOVES that tap (fsCycUntap) - the accidental-tap undo. */
+  const fsCt = document.getElementById("fsCycTick");
+  if (fsCt) fsCt.onclick = () => { if (fsCycTickOn(fsSite)) fsCycUntap(); else fsTestedTap(); };
+  /* PASS 101 [W100-2] - a "No record" cell hides its empty date box behind
+     the "+ set date" affordance; the editable date STAYS one tap away
+     (45-3), on the same .fsCycDate change wiring below. */
+  document.querySelectorAll(".fsCycAdd").forEach(el => {
+    el.onclick = () => {
+      const inp = el.parentElement.querySelector(".fsCycDate");
+      if (!inp) return;
+      el.style.display = "none"; inp.style.display = "";
+      if (inp.showPicker) { try { inp.showPicker(); } catch (e2) { inp.focus(); } } else inp.focus();
+    };
+  });
   document.querySelectorAll(".fsCycDate").forEach(inp => {
     inp.addEventListener("change", () => {
       s.testing = s.testing || {};
@@ -23590,6 +23601,47 @@ function fsTestedTap() {
     return;
   }
   fsTestedModal(s, blds, date, tech);
+}
+/* PASS 101 [W100-1] - the green state and its undo. The state IS THE RECORD:
+   the pill is green exactly while a quick, marked-tested record dated
+   TODAY (device-local - the 27 Aug standing ruling) by THIS tech exists on
+   the site, so it self-reverts at the day boundary, survives reload and
+   device switch, and needs no persisted timer state in the register file.
+   Reece's spec, 27 Aug via Dispatch: smaller "Tested \u2713" beside the
+   date; green after tapping, reverting after 24 hours; tapping again while
+   green removes that test. The day-boundary reading of "24 hours" was
+   flagged on the approved mock. */
+function fsCycTickRecs(node, date, tech) {
+  return ((node && node.history) || []).filter(r => r.quick && (r.finished || "").slice(0, 10) === date && (!tech || r.tech === tech));
+}
+function fsCycTickOn(s2) {
+  return !!s2 && fsCycTickRecs(s2, fsTodayLocal(), fsWho() || "").length > 0;
+}
+/* The un-tap reverses THE WHOLE TAP and nothing else: every quick record the
+   tap wrote (the site + the buildings its prompt ticked), matched on
+   the quick flag AND today's device-local date AND the same tech. Manual
+   records, engine sessions, and other days'/techs' quick records are
+   untouchable from here. Removal rolls the due date back through the SAME
+   was-the-setter guard + fsHistRecalc the history delete uses - never a
+   bespoke recalc. A tap that wrote MORE than one record confirms first:
+   an accidental-tap undo should not silently delete three records. */
+function fsCycUntap() {
+  const s2 = fsSite;
+  if (!s2) return;
+  const date = fsTodayLocal(), tech = fsWho() || "";
+  const nodes = [s2].concat(s2.buildings || []);
+  const hits = nodes.map(n2 => ({ n2: n2, recs: fsCycTickRecs(n2, date, tech) })).filter(h => h.recs.length);
+  const total = hits.reduce((a, h) => a + h.recs.length, 0);
+  if (!total) return;
+  const bN = hits.filter(h => h.n2 !== s2).length;
+  const what = bN ? "for the site and " + bN + " building" + (bN === 1 ? "" : "s") : "for this site";
+  if (total > 1 && !confirm("Remove today\u2019s \u201c" + FS_TESTED_TAG + "\u201d records " + what + "?\nThe monthly due dates move back.")) return;
+  hits.forEach(h => {
+    h.recs.forEach(r => { const i2 = h.n2.history.indexOf(r); if (i2 >= 0) h.n2.history.splice(i2, 1); });
+    if ((h.n2.testing || {}).lastMonthly === date) fsHistRecalc(h.n2, "monthly");
+  });
+  fsMarkDirty();
+  fsRenderSite();
 }
 function fsTestedModal(s, blds, date, tech) {
   const sel = { "-1": true };            /* -1 = the site itself */
@@ -25193,7 +25245,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v104";
+const FS_BUILD = "aa-v106";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
