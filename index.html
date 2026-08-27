@@ -342,7 +342,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.102 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.103 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -472,7 +472,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.102 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.103 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -4190,8 +4190,36 @@ function draw() {
         const s = S(pt);
         if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
       });
-      if (fsWsCrop.closed) ctx.closePath();
-      if (fsWsCrop.pts.length > 2) { ctx.save(); ctx.closePath(); ctx.fill("evenodd"); ctx.restore(); }
+      /* PASS 103 [W102-1] - Reece, 27 Aug: the outline "shouldnt automatically
+         join to the original dot/grab point ... right now it does it
+         automatically when you have 3". The CLOSE LOGIC was already right -
+         fsWsCropTap never closes and fsWsCropClose fires only on a tap of
+         knob 0. THE PREVIEW WAS LYING. Two traps, both here:
+           1. ctx.save()/restore() does NOT save the current PATH, so a
+              closePath() meant for the fill also closed the path the strokes
+              below draw;
+           2. fill() closes implicitly anyway, so that closePath() bought
+              nothing and cost the preview its honesty.
+         fsRegionPick has done this correctly since V0.25 (see its preview):
+         wash only when closed, and build the wash on its OWN path. Both
+         adopted rather than invented. */
+      if (fsWsCrop.closed) {
+        ctx.save();
+        ctx.beginPath();
+        fsWsCrop.pts.forEach((pt, i) => {
+          const s = S(pt);
+          if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+        });
+        ctx.closePath();
+        ctx.fill("evenodd");
+        ctx.restore();
+        ctx.beginPath();
+        fsWsCrop.pts.forEach((pt, i) => {
+          const s = S(pt);
+          if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+        });
+        ctx.closePath();
+      }
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.stroke();
       ctx.lineWidth = 2; ctx.strokeStyle = "#ffb300"; ctx.stroke();
       /* EVERY point is a knob, because every point is draggable - "multiple
@@ -4201,7 +4229,13 @@ function draw() {
         const s = S(pt);
         ctx.beginPath();
         ctx.arc(s.x, s.y, i === 0 ? 7 : 5.5, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? "#ffb300" : "#ffffff";
+        /* PASS 103 [W102-1] - the picker's signal, adopted: knob 0 is WHITE
+           while the loop is OPEN and orange once it is closed, so the dot
+           that finishes the outline looks different until it has been used.
+           Before this the first knob was orange always and nothing on screen
+           separated an open outline from a closed one. */
+        ctx.fillStyle = (i === 0 && !fsWsCrop.closed) ? "#ffffff"
+                      : (i === 0 ? "#ffb300" : "#ffffff");
         ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = "rgba(0,0,0,0.55)";
         ctx.stroke();
@@ -21982,12 +22016,47 @@ function fsRenderSite() {
      that needs evidence still cannot be closed with a tap (P-3 stands). */
   const cycs = fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]);
   html += '<style>#fsHubStrip{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}' +
+    '#fsCycTick{order:-1}' +
+    /* and the row itself right-aligns, at EVERY width. Without this the
+       order flip alone only fixed >=820, where the grid already pinned the
+       row right: at 430 the date sat 83px (6-monthly) and 114px (annual)
+       from the edge while Monthly sat at 13px, so the three cells still did
+       not agree. MEASURED, then fixed. He said ALWAYS. */
+    '#fsHubStrip>div>*:nth-child(4){justify-content:flex-end}' +
     '#fsHubStrip>div{padding:8px 12px 9px;display:grid;grid-template-rows:15px 20px 12px 28px;row-gap:2px;align-content:start;min-width:0}' +
     '#fsHubStrip>div:nth-child(even){border-left:1px solid var(--fs-border)}' +
     '#fsHubStrip>div:nth-child(n+3){border-top:1px solid var(--fs-border)}' +
     '@media(min-width:820px){#fsHubStrip{grid-template-columns:repeat(' + cycs.length + ',1fr) 96px}' +
     '#fsHubStrip>div{border-top:none !important;border-left:none !important}' +
-    '#fsHubStrip>div:nth-child(n+2){border-left:1px solid var(--fs-border) !important}}</style>';
+    '#fsHubStrip>div:nth-child(n+2){border-left:1px solid var(--fs-border) !important}' +
+    /* PASS 103 [W102-2] - Reece, 27 Aug, scribbling over the empty areas: 'why is
+       there so much wasted space in the test strip ... make it thinner'. MEASURED
+       at 1280 FIRST: 1024x100px, cells 309px, row template 15/20/12/28 IDENTICAL at
+       430, 820 and 1280. Pass 101 built that stack for the PHONE and this media
+       query only ever changed the column count and the borders, never the cell's own
+       interior - so the waste is a narrow-screen arrangement kept at triple the width.
+       WHY TWO ROWS AND NOT ONE, measured rather than guessed: everything on one line
+       needs 1017px and the strip has 1024px at 1280 - seven pixels of margin, which a
+       longer status string or a different font eats instantly - and at 820 it needs
+       981px against 784px, so it does not fit there at all. Two attempts at one line
+       clipped the status to 'Due S' / 'Overdue (Jul 1' because a date input plus the
+       pill is wider than the leftover track and justify-self:end overflows LEFT.
+       BOTH TIMES THE NUMERIC PROBE SAID CLEAN: scrollWidth>clientWidth only sees an
+       element cut by ITS OWN box, never one covered by a neighbour. What caught it
+       was rendering the strip and looking at it, and then an OVERLAP probe.
+       So: label and status share row 1, the controls get row 2 to themselves and
+       right-align, the bar underlines the cell. Nothing competes for width.
+       430 IS UNTOUCHED - the mock Reece approved, pinned by test_p101 C1/C1b/C2/C3/C4. */
+    '#fsHubStrip>div{grid-template-columns:auto 1fr;grid-template-rows:auto auto 5px;column-gap:10px;row-gap:4px;padding:8px 12px 9px;align-content:center}' +
+    '#fsHubStrip>div>*:nth-child(1){grid-column:1;grid-row:1;align-self:center}' +
+    '#fsHubStrip>div>*:nth-child(2){grid-column:2;grid-row:1;justify-self:start;align-self:center;overflow:visible}' +
+    '#fsHubStrip>div>*:nth-child(3){grid-column:1 / span 2;grid-row:3;align-self:center;width:100%}' +
+    '#fsHubStrip>div>*:nth-child(4){grid-column:1 / span 2;grid-row:2;justify-self:end}' +
+    /* the DEFECTS count carries an explicit grid-row:2/span 3 from Pass 101, which
+       is meaningless in a three-row template and renders as an empty cell if you only
+       look at the cycle cells. Re-placed, not left to chance. */
+    '#fsCycDefCell>*:nth-child(2){grid-column:2 !important;grid-row:1 !important;align-self:center !important;justify-self:end}' +
+    '}</style>';
   html += '<div class="fscard" id="fsHubStrip" style="margin-bottom:14px;overflow:hidden">';
   cycs.forEach(c => {
     const st = fsCycleStatus(s, c);
@@ -25245,7 +25314,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v106";
+const FS_BUILD = "aa-v107";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
