@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><!-- PASS 105 [P-11] — this app already shipped
+     apple-mobile-web-app-status-bar-style=black-translucent, which is INERT
+     without viewport-fit=cover. iOS therefore reserved the status-bar band
+     and painted it itself: Reece, 26 Aug, "Why on the arc adapt app is it
+     white up the top?". arc-command is the control - it has had the flag all
+     along and does not show the strip. THE FLAG ALONE IS NOT THE FIX: without
+     the top inset below, the header slides under the clock. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -62,7 +68,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
   #app { display:flex; flex-direction:column; height:100%; }
 
-  #topbar { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#23272d; border-bottom:1px solid #333; flex-wrap:wrap; }
+  #topbar { display:flex; align-items:center; gap:6px; padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px; background:#23272d; border-bottom:1px solid #333; flex-wrap:wrap; }
   #topbar .title { font-weight:700; font-size:13px; color:#ff5a3c; margin-right:4px; white-space:nowrap; }
   .btn { border:1px solid #444; background:#2e333a; color:#e8e8e8; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer; touch-action:manipulation; user-select:none; text-decoration:none; display:inline-block; }
   .btn:active { background:#3a414a; }
@@ -235,9 +241,28 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
 </head>
 <body>
 <style>
-  #fsReg { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#7c8a91; --fs-faint:#9fb0b7; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954;
-    position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text); z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  #fsReg.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; }
+  /* PASS 105 [R-32] — THE TOKENS WERE A SECRET KEPT BY #fsReg. Declared only
+     there, every node rendered OUTSIDE that container resolved var(--fs-*)
+     to nothing and fell back to whatever it inherited. AUDITED, not guessed:
+     six live nodes on the boot screen alone — four .fsDfCls chips and
+     #fsDfClsNote reading full-brightness where a muted label was meant, and
+     the colour-swatch button whose outline-style computed to `none`, which
+     is [85-4] caught in the act: that selection outline has never drawn, in
+     any build, with a correct inline string in every diff.
+     Declaring the same set on :root fixes the whole CLASS rather than the
+     six. #fsReg keeps its own copy and still wins inside it on specificity,
+     so nothing already correct can move. fsThemeSync mirrors .fsdark onto
+     the root element so the dark half follows too. */
+  :root { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#646f75; --fs-faint:#646e73; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954; --fs-field:#ffffff; --fs-fieldText:#17262e; --fs-tile:#e3e8ec; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff; color-scheme: light; }
+  :root.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; color-scheme: dark; }
+  #fsReg { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#646f75; --fs-faint:#646e73; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954; --fs-field:#ffffff; --fs-fieldText:#17262e; --fs-tile:#e3e8ec; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff;
+    position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text);
+    /* PASS 105 [P-11] — the other half of viewport-fit:cover. #fsReg is
+       inset:0 so it now covers the status-bar band as well, and its own
+       --fs-bg paints it in whichever theme is on. Padding, not margin:
+       the band must be PAINTED, not left as a gap. */
+    padding-top:env(safe-area-inset-top,0px); z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #fsReg.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; }
   #fsReg { color-scheme: light; }
   #fsReg.fsdark { color-scheme: dark; }
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
@@ -342,7 +367,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:#7c8a91">V0.104 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.105 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -380,7 +405,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
          then which file. The old toolbar pill is gone; it put the client's name
          in a row of buttons, which read as a control. -->
     <div id="fsClientBrand" style="display:none;align-items:center;gap:9px;margin:2px 0 6px"></div>
-    <div id="fsRegStamp" style="font-size:11.5px;color:#7c8a91;margin-bottom:16px"></div>
+    <div id="fsRegStamp" style="font-size:11.5px;color:var(--fs-sub2);margin-bottom:16px"></div>
     <!-- PASS 53 [53-2] — the off-device backup state. Always rendered,
          never blank while a register is open: "no backup yet" is the
          state that matters most and an empty line reads as fine. -->
@@ -472,7 +497,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.104 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.105 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -21463,7 +21488,7 @@ function fsTodayHtml(d) {
        too. have an option that opens a little calendar." A native date input
        IS the little calendar on iPad — iOS draws its own — so nothing is
        hand-rolled and nothing needs styling to look native. */
-    '<input type="date" id="fsTdPick" title="Jump to a date" value="' + fsEsc(tdk) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;padding:5px 7px;font-size:13px;min-width:34px">' +
+    '<input type="date" id="fsTdPick" title="Jump to a date" value="' + fsEsc(tdk) + '" style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:8px;color:var(--fs-fieldText);padding:5px 7px;font-size:13px;min-width:34px">' +
     (isToday ? '' : '<button class="fsbtnP" id="fsTdToday" title="Back to today">Today</button>') +
     '</div>' +
     '<div style="color:var(--fs-sub);font-size:13.5px">' +
@@ -21477,12 +21502,12 @@ function fsTodayHtml(d) {
   if (planOn && stops !== null) h += '<div class="fscard" id="fsTdTileVisits" style="padding:14px">' +
     '<div style="font-size:12px;color:var(--fs-sub);font-weight:600">Today&#39;s visits</div>' +
     '<div style="font-size:26px;font-weight:800">' + stops.length + '</div>' +
-    (visitsAtOd ? '<div style="font-size:12px;color:#e57373;font-weight:600">' + visitsAtOd + ' at site' + (visitsAtOd === 1 ? '' : 's') + ' with overdue work</div>' : '') +
+    (visitsAtOd ? '<div style="font-size:12px;color:var(--fs-danger);font-weight:600">' + visitsAtOd + ' at site' + (visitsAtOd === 1 ? '' : 's') + ' with overdue work</div>' : '') +
     '</div>';
   h += '<div class="fscard" id="fsTdTileOverdue" style="padding:14px">' +
     '<div style="font-size:12px;color:var(--fs-sub);font-weight:600">Overdue work</div>' +
-    '<div style="font-size:26px;font-weight:800' + (odTotal ? ';color:#e57373' : '') + '">' + odTotal + '</div>' +
-    (odTotal ? '<div style="font-size:12px;color:#e57373;font-weight:600">Across ' + odSites.length + ' site' + (odSites.length === 1 ? '' : 's') + '</div>' : '') +
+    '<div style="font-size:26px;font-weight:800' + (odTotal ? ';color:var(--fs-danger)' : '') + '">' + odTotal + '</div>' +
+    (odTotal ? '<div style="font-size:12px;color:var(--fs-danger);font-weight:600">Across ' + odSites.length + ' site' + (odSites.length === 1 ? '' : 's') + '</div>' : '') +
     '</div>';
   h += '</div>';
   /* the schedule — absent until the plan file has actually loaded (no
@@ -21528,12 +21553,12 @@ function fsTodayHtml(d) {
       h += '<div class="fsTdPriCard" data-i="' + i + '" style="flex:0 0 150px;border:1px solid var(--fs-border);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--fs-bg)">' +
         ((r.e.s.displayPhoto || r.e.s.photo)
           ? '<img src="' + (r.e.s.displayPhoto || r.e.s.photo) + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
-          : '<div style="width:100%;height:74px;display:flex;align-items:center;justify-content:center;background:#22262b;color:var(--fs-sub2);font-size:22px;font-weight:800">' + fsEsc((r.e.s.name || "?").slice(0, 1)) + '</div>') +
+          : '<div style="width:100%;height:74px;display:flex;align-items:center;justify-content:center;background:var(--fs-tile);color:var(--fs-sub2);font-size:22px;font-weight:800">' + fsEsc((r.e.s.name || "?").slice(0, 1)) + '</div>') +
         '<div style="padding:8px 9px">' +
         '<div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.name) + '</div>' +
         ((r.e.s.address || "") ? '<div style="font-size:11px;color:var(--fs-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.address) + '</div>' : '') +
         '<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">' +
-        (r.n ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:rgba(198,40,40,.15);color:#e57373;font-weight:700">' + r.n + ' overdue</span>' : '') +
+        (r.n ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:var(--fs-dangerBg);color:var(--fs-danger);font-weight:700">' + r.n + ' overdue</span>' : '') +
         (r.b ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:#22262b;color:var(--fs-sub)">Booked today</span>' : '') +
         '</div></div></div>';
     });
@@ -21762,7 +21787,7 @@ function fsHubHtml(s) {
     open.forEach(d => {
       const dc = fsDefCls(d.cls);
       mh += '<div class="fsHubDefRow" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--fs-border);cursor:pointer">' +
-        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e57373">' + fsEsc(d.desc) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--fs-danger)">' + fsEsc(d.desc) + '</div>' +
         '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + '</div></div>' +
         (dc ? '<span style="font-size:11px;font-weight:800;color:#fff;background:' + dc.col + ';border-radius:11px;padding:1px 9px;flex:0 0 auto">' + fsEsc(dc.short) + '</span>' : '') +
         '</div>';
@@ -24108,15 +24133,34 @@ document.getElementById("fsShareGo").onclick = async () => {
       + (kept.length ? ", " + kept.join(", ") : "")
       + ".\n\nYour own working copy is untouched.");
 };
+/* PASS 105 [P-11][R-32] — one place that makes the rest of the document agree
+   with #fsReg about which theme is on. Two jobs, both of which used to be
+   nobody's: mirror .fsdark onto the ROOT element so the :root token block
+   above resolves for every node outside #fsReg, and move theme-color off its
+   hardcoded dark hex so the iOS status band follows the active theme. The
+   band is CORRECT on the light colourway and wrong on the dark one, so it
+   can never be one global value. */
+function fsThemeSync() {
+  const reg = document.getElementById("fsReg");
+  if (!reg) return;
+  document.documentElement.classList.toggle("fsdark", reg.classList.contains("fsdark"));
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) {
+    const bg = getComputedStyle(reg).getPropertyValue("--fs-bg").trim();
+    if (bg) m.setAttribute("content", bg);
+  }
+}
 document.getElementById("fsThemeBtn").onclick = () => {
   const reg = document.getElementById("fsReg");
   reg.classList.toggle("fsdark");
+  fsThemeSync();   /* PASS 105 */
   try { localStorage.setItem("fs-theme", reg.classList.contains("fsdark") ? "dark" : "light"); } catch (e) {}
 };
 try {
   /* V0.09: dark is the default. A device that has never touched the toggle has
      no key at all, so anything other than an explicit "light" means dark. */
   if (localStorage.getItem("fs-theme") !== "light") document.getElementById("fsReg").classList.add("fsdark");
+  fsThemeSync();   /* PASS 105 — boot has to agree too, not just the toggle */
 } catch (e) {}
 
 document.getElementById("fsSearch").addEventListener("input", fsRenderClients);
@@ -25370,7 +25414,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v108";
+const FS_BUILD = "aa-v109";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -25387,6 +25431,10 @@ function fsCwApply() {
   const dark = reg.classList.contains("fsdark");
   reg.style.setProperty("--fs-accent", dark ? cw[4] : cw[2]);
   reg.style.setProperty("--fs-accentD", dark ? cw[5] : cw[3]);
+  /* PASS 105 [R-32] — mirror onto the root so a node outside #fsReg gets his
+     CHOSEN colourway, not the stylesheet default. */
+  document.documentElement.style.setProperty("--fs-accent", dark ? cw[4] : cw[2]);
+  document.documentElement.style.setProperty("--fs-accentD", dark ? cw[5] : cw[3]);
   const row = document.getElementById("fsCwRow");
   if (row) Array.prototype.forEach.call(row.children, b => { b.style.outline = b.dataset.cw === cw[0] ? "2px solid var(--fs-text)" : "none"; b.style.outlineOffset = "2px"; });
 }
@@ -27506,7 +27554,7 @@ function fsPlRender() {
     [["day", "Day"], ["week", "Week"], ["month", "Month"], ["custom", "Custom"]].map(function (p) {
       const on = fsPlScope.mode === p[0];
       return '<button class="fsbtn fsPlScopeBtn" data-scope="' + p[0] + '" style="padding:5px 11px;font-size:12px;'
-        + (on ? 'background:var(--fs-accent);border-color:var(--fs-accent);color:#08191d;font-weight:700' : '') + '">' + p[1] + '</button>';
+        + (on ? 'background:var(--fs-accent);border-color:var(--fs-accent);color:var(--fs-onAccent);font-weight:700' : '') + '">' + p[1] + '</button>';
     }).join("") +
     '<span style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(scopeR.from.slice(8)) + "\u2013" + fsEsc(scopeR.to.slice(8)) + '</span>';
   if (fsPlScope.mode === "custom") {
