@@ -65,7 +65,29 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
    reason the identical gesture has felt clean on a swatch and cheap here. */
 .pal *, .tab * { touch-action: none; }
 
-  html, body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:#1a1d21; color:#e8e8e8; }
+  html, /* PASS 108 [W107-1] - THE CANVAS BACKGROUND, WHICH IS WHAT iOS PAINTS THE
+   HOME-INDICATOR STRIP WITH IN A HOME-SCREEN WEB APP. Reece runs both apps
+   from the home screen. #fsReg is position:fixed;inset:0 so it covers the
+   whole viewport, and #fsNavBar is never hidden - so that strip, outside the
+   viewport, is the ONLY place this colour is ever seen. Making it the nav
+   bar's own colour continues the bar to the glass instead of leaving 48px of
+   page background below it (measured off his 28 Aug screenshot: bar 63.8px,
+   then 47.9px of #1a1d21). It was a hardcoded near-black, so it also stayed
+   near-black under the LIGHT theme - unreported, and fixed here too. */
+body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--fs-card); color:#e8e8e8; }
+/* PASS 108 [W107-1] - the inset probe fsScreenReadout() measures. Its padding
+   is declared HERE, in the stylesheet, and not inline, for a reason a mutation
+   run had to teach: env() resolves to 0 in every desktop browser, so reading
+   p.style instead of getComputedStyle(p) gives the SAME zeros in a container
+   AND SILENTLY GIVES ZEROS ON HIS PHONE TOO - the one line that matters,
+   confidently wrong, with no headless test able to tell the difference.
+   letter-spacing is the control: set in CSS, it reads back only through
+   computed style, so the readout can prove it is reading resolved values and
+   say "unreadable" instead of inventing a zero. */
+#fsInsetProbe { position:fixed; left:-9999px; top:0; width:0; height:0;
+  visibility:hidden; letter-spacing:3px;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px)
+          env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); }
   #app { display:flex; flex-direction:column; height:100%; }
 
   #topbar { display:flex; align-items:center; gap:6px; padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px; background:#23272d; border-bottom:1px solid #333; flex-wrap:wrap; }
@@ -374,7 +396,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.107 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.109 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -504,7 +526,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.107 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.109 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1377,6 +1399,16 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="fsSetVer"></b></span>
       <button class="btn" id="fsSetUpd">&#8635; Check for updates</button>
     </div>
+    <!-- PASS 108 [W107-1] - env(safe-area-inset-*) is ALWAYS 0 in a desktop
+         browser, which is how a bottom-bar regression got through five gates,
+         11,639 checks and three deterministic rebuilds in Pass 105. This is the
+         only way to read what his phone actually does. Deliberately plain text:
+         he can photograph it. -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:13.5px;margin-bottom:4px">This screen</div>
+      <div id="fsSetScreen" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.65;color:var(--fs-sub2);background:var(--fs-tile);border:1px solid var(--fs-border);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word">&mdash;</div>
+      <div style="font-size:11.5px;color:var(--fs-faint);margin-top:5px">If the app ever looks wrong at the top or bottom of your screen, send me a photo of this.</div>
+    </div>
     <div style="border-top:1px solid #3a4047;padding-top:12px">
       <button class="btn" id="fsSetWipe" style="color:#ff6b5e">&#128465; Clear this device's cached data</button>
       <div style="font-size:11.5px;color:#888;margin-top:5px">Removes the cached register, backups, saved plans, planner data, PA recordings, library files and preferences from THIS device only. Register and plan files saved on disk / OneDrive are untouched &mdash; reload your register file afterwards.</div>
@@ -1697,6 +1729,15 @@ const TYPES = [
      .jpg — the bell symbol itself is not copied. */
   { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
   { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
+  /* PASS 108 [W107-4] - Reece sent a red FIRE BLANKET sign
+     (refs/pass108-ref-fire-blanket-sign.png) and said "just take away the white
+     on the outside of the picture". The MEANING is taken from it; the geometry is
+     ours - exactly the treatment the VAD above got from its bell reference, and
+     for a reason that is not stylistic: the sign is TEXT, and text is unreadable
+     at 26px on a plan. Drawn as a blanket over a rail on a red ground, rendered
+     beside the extinguisher and hose reel at plan size, at 26px on white paper
+     and as the palette button, and PUT TO HIM BEFORE IT SHIPPED. */
+  { id:"blanket",  tab:"fire", label:"Fire Blanket", glyph:"blanket",  text:"",      color:"#c40000", full:"Fire Blanket \u2014 smothers a small fire, usually a cooking fire, by cutting off its air" },
   { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f" },
   { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f" },
   { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f" },
@@ -2073,6 +2114,7 @@ function symDims(o) {   // image-space width/height (before rotation)
   else if (t.glyph === "hreel") { w = s * 1.35; h = s * 1.2; }
   else if (t.glyph === "vad") { w = s * 1.9; h = s; }
   else if (t.glyph === "exting") { w = s * 0.98; h = s * 1.25; }
+  else if (t.glyph === "blanket") { w = s * 0.95; h = s * 0.95; }   /* PASS 108 [W107-4] */
   const rr = ((o.rot || 0) % 360) * Math.PI / 180;
   if (rr) {
     const ca = Math.abs(Math.cos(rr)), sa = Math.abs(Math.sin(rr));
@@ -2546,6 +2588,26 @@ function drawSym(c, o, scale) {
       c.fillRect(-bw / 2, s * 0.04, bw, s * 0.15);
       if (band === "#ffffff") { c.strokeStyle = "#b9b9b9"; c.lineWidth = Math.max(0.7, s * 0.02); c.strokeRect(-bw / 2, s * 0.04, bw, s * 0.15); }
     }
+  } else if (t.glyph === "blanket") {
+    /* PASS 108 [W107-4] - fire blanket. The white is ENCLOSED by the red ground
+       on purpose: a white shape hanging outside it disappears on white paper,
+       which is what the two rejected drafts did at 26px. */
+    const bw = s * 0.92, bh = s * 0.92;
+    const outl = Math.max(0.8, s * 0.035);
+    c.fillStyle = col; c.strokeStyle = "#ffffff"; c.lineWidth = outl; c.lineJoin = "round";
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-bw / 2, -bh / 2, bw, bh, s * 0.10);
+    else c.rect(-bw / 2, -bh / 2, bw, bh);
+    c.fill(); c.stroke();
+    c.fillStyle = "#ffffff";
+    c.fillRect(-s * 0.36, -s * 0.30, s * 0.72, s * 0.11);          /* the rail */
+    c.beginPath();                                                  /* the blanket over it */
+    c.moveTo(-s * 0.31, -s * 0.19);
+    c.lineTo( s * 0.31, -s * 0.19);
+    c.lineTo( s * 0.25,  s * 0.30);
+    c.quadraticCurveTo(s * 0.13, s * 0.22, 0, s * 0.30);
+    c.quadraticCurveTo(-s * 0.13, s * 0.22, -s * 0.25, s * 0.30);
+    c.closePath(); c.fill();
   } else if (t.glyph === "batten") {
     const w = s * 2.2, cap = s * 0.5;
     c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.09); c.lineCap = "round";
@@ -3365,7 +3427,17 @@ function fsWsSnap(ip, anchor, skipO) {
    it agrees on two crossing lines and disagrees on two gapped ones tapped near
    their far ends. That is M6. */
 function fsWsTrimCorner(a, ta, b, tb) {
-  const ix = fsWsSegIntersect(a, b);
+  /* PASS 109 [W107-2] - REECE, 28 Aug walk, box 9: "they extended until they
+     touched.... I feel as though it shouldnt have done anything... its only for
+     lines that intersect isnt it?", then "Refuse" when asked directly.
+     fsWsSegIntersect is the INFINITE-line version and its own comment says so;
+     fsWsSegXSeg is segment-to-segment and ITS comment already described this
+     item before the item existed - "the crossing is off the end of a line and is
+     not a corner anybody can see". Trim was simply calling the wrong one.
+     [0,1] IS INCLUSIVE, so two lines meeting exactly at an endpoint still trim.
+     I HAD REASONED THE OPPOSITE (extending to meet is what a zero-radius fillet
+     does) AND ASKED HIM INSTEAD OF ACTING ON IT. He is holding the plan. */
+  const ix = fsWsSegXSeg(a, b);
   if (!ix) return null;
   const pairs = [[a, ta], [b, tb]];
   for (let i = 0; i < pairs.length; i++) {
@@ -3856,12 +3928,19 @@ function fsWsTrimTap(o, ip) {
   /* ONE undo state for the whole corner. Two would leave a half-trimmed plan
      reachable by a single Undo press, which is worse than no undo at all. */
   pushUndo();
+  const trimA = fsWsTrimA.o;   /* PASS 109 [W107-2] - captured BEFORE the null below */
   const ix = fsWsTrimCorner(fsWsTrimA.o, fsWsTrimA.t, o, { x:ip.x, y:ip.y });
   fsWsTrimA = null;
   clearSelection();
   if (!ix) {
     if (undoStack.length) undoStack.pop();
-    say("Those lines are parallel \u2014 there is no corner to make");
+    /* PASS 109 [W107-2] - TWO refusals, because they need two different answers
+       from him. Parallel lines can never make a corner. Lines that simply do not
+       reach each other can, once he extends one - and telling him "parallel" for
+       both would be this project's silent-failure bug wearing a message. */
+    say(fsWsSegIntersect(trimA, o)
+        ? "Those lines do not cross \u2014 trim joins lines that already meet"
+        : "Those lines are parallel \u2014 there is no corner to make");
     return;
   }
   scheduleAutosave();
@@ -4960,7 +5039,8 @@ function drawPalIcon(canvasEl, typeId) {
   const t = TYPE_MAP[typeId];
   const iconColor = t.color === "#111111" ? "#d8d8d8" : undefined;
   const size = (t.glyph === "circle" || t.glyph === "sqtext" || t.glyph === "phone" ||
-                t.glyph === "hreel" || t.glyph === "exting") ? 26 : 15;
+                t.glyph === "hreel" || t.glyph === "exting" ||
+                t.glyph === "blanket") ? 26 : 15;   /* PASS 108 [W107-4] */
   const bigGlyphs = ["widetext", "exit", "db", "horn", "dbldoor", "sldoor", "rldoor", "window", "opening", "stair", "sndr"];
   drawSym(c, { kind:"sym", type:typeId, x:17, y:17, color:iconColor,
     size: bigGlyphs.includes(t.glyph) ? 14 : (t.glyph === "door" || t.glyph === "lstair" || t.glyph === "dba") ? 18 : t.glyph === "hreel" ? 24 : 26 }, 1);
@@ -8076,6 +8156,18 @@ function timerRender() {
     nm.style.cssText = "flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
     nm.textContent = "⏱ " + timerLabel(t);
     nm.title = timerLabel(t) + (t.endsAt ? " — countdown" : " — stopwatch");
+    /* PASS 108 [W107-3] - "records when you started the timer so you do not have
+       to work it out manually". Wall clock, not elapsed: this is the number that
+       goes on the paperwork. Timers already running when this shipped have no
+       startedAt, so they say nothing rather than guessing one. */
+    if (t.startedAt) {
+      const sub = document.createElement("div");
+      sub.className = "timerRowStart";
+      sub.style.cssText = "font-size:11px;font-weight:400;color:#8b979d;margin-top:2px";
+      sub.textContent = "started " + new Date(t.startedAt).toLocaleTimeString([],
+        { hour: "numeric", minute: "2-digit" });
+      nm.appendChild(sub);
+    }
     const tm = document.createElement("div");
     tm.className = "timerRowTime";
     tm.style.cssText = "font-variant-numeric:tabular-nums;font-weight:800;font-size:19px";
@@ -8180,7 +8272,12 @@ function timerBegin(down, minutes) {
   const nmEl = document.getElementById("timerName");
   const t = { id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
               name: nmEl ? nmEl.value.trim() : "",
-              endsAt: null, startedAt: null, warnAt: null, warned: false };
+              /* PASS 108 [W107-3] - startedAt is now set for EVERY timer, not just
+                 the stopwatch. The 90-minute emergency light test is a COUNTDOWN, so
+                 the one case Reece actually runs was the one case that never recorded
+                 when he pressed go - and a countdown tells you what is LEFT, which is
+                 not what goes on the paperwork. */
+              endsAt: null, startedAt: Date.now(), warnAt: null, warned: false };
   if (down) {
     t.endsAt = Date.now() + minutes * 60000;
     const wmEl = document.getElementById("timerWarnMins");
@@ -8188,7 +8285,8 @@ function timerBegin(down, minutes) {
     if (wm > 0 && wm < minutes) t.warnAt = t.endsAt - wm * 60000;
     try { if (wm > 0) localStorage.setItem("bpm-timer-warnmins", String(wm)); else localStorage.removeItem("bpm-timer-warnmins"); } catch (e) {}
   } else {
-    t.startedAt = Date.now();
+    /* PASS 108 [W107-3] - startedAt is set on the object above now, for both
+       kinds. Setting it again here would only push it a few ms later. */
   }
   timers.push(t);
   timersSave();
@@ -22154,9 +22252,23 @@ function fsRenderSite() {
        430 IS UNTOUCHED - the mock Reece approved, pinned by test_p101 C1/C1b/C2/C3/C4. */
     '#fsHubStrip>div{grid-template-columns:auto 1fr;grid-template-rows:auto auto 5px;column-gap:10px;row-gap:4px;padding:8px 12px 9px;align-content:center}' +
     '#fsHubStrip>div>*:nth-child(1){grid-column:1;grid-row:1;align-self:center}' +
-    '#fsHubStrip>div>*:nth-child(2){grid-column:2;grid-row:1;justify-self:start;align-self:center;overflow:visible}' +
+    /* PASS 109 [W105-1 + W103-1] - HIS OPTION B, picked from two rendered
+   layouts after his sentence and his drawing disagreed about which date
+   goes on top. The DUE info moves to the right of row 1 so it sits above
+   the tested date, and column 2 is the right-hand column in every cell -
+   which is also W103-1's "the dates should always be bottom right". */
+    '#fsHubStrip>div>*:nth-child(2){grid-column:2;grid-row:1;justify-self:end;text-align:right;align-self:center;overflow:visible}' +
     '#fsHubStrip>div>*:nth-child(3){grid-column:1 / span 2;grid-row:3;align-self:center;width:100%}' +
-    '#fsHubStrip>div>*:nth-child(4){grid-column:1 / span 2;grid-row:2;justify-self:end}' +
+    /* PASS 109 [W105-1] - the controls row keeps hugging the right; the TICK gets
+   margin-right:auto, which pushes it to the left edge and leaves the tested
+   date on the right. #fsCycTick{order:-1} already puts it first in the row.
+   NOT justify-content:space-between: only MONTHLY has a tick, so in the
+   6-monthly and annual cells that row holds ONE item and space-between sends
+   it LEFT - the opposite of what W103-1 asks for. CAUGHT BY RENDERING THE
+   STRIP AND LOOKING AT IT; the first version of the test only measured the
+   FIRST cell, which is the one that has a tick, and passed. */
+    '#fsCycTick{margin-right:auto}' +
+    '#fsHubStrip>div>*:nth-child(4){grid-column:1 / span 2;grid-row:2;justify-self:stretch;justify-content:flex-end}' +
     /* the DEFECTS count carries an explicit grid-row:2/span 3 from Pass 101, which
        is meaningless in a three-row template and renders as an empty cell if you only
        look at the cycle cells. Re-placed, not left to chance. */
@@ -25259,6 +25371,70 @@ document.getElementById("fsExpClientBtn").onclick = () => {
   d.querySelector("#fsExpCX").onclick = () => d.remove();
 };
 document.getElementById("fsResAnnuals").onclick = () => { document.getElementById("fsResModal").classList.remove("show"); annOpen(); };
+/* PASS 108 [W107-1] - THE INSTRUMENT.
+
+   Pass 105 shipped a bottom-bar regression that five gates could not see,
+   because env(safe-area-inset-*) resolves to 0 in every desktop browser. Pass
+   107 fixed the bar to the pixel and Reece still had 48px of dead space, and
+   working out WHY took a screenshot, a row-scan and a colour match.
+
+   THIS ENDS THAT. It reads what the device actually reports - not what the CSS
+   says, not what a container renders. Plain monospace text so he can photograph
+   it and send it, which is the whole delivery mechanism.
+
+   EVERY VALUE IS READ, NOT COMPUTED. The insets come from a probe element whose
+   padding is set from env() and then measured, because there is no other way to
+   get at their resolved values from script. */
+function fsScreenReadout() {
+  const el = document.getElementById("fsSetScreen");
+  if (!el) return;
+  const L = [];
+  const n = v => (v == null ? "?" : Math.round(v));
+  try {
+    const p = document.createElement("div");
+    p.id = "fsInsetProbe";                 /* padding + control live in the stylesheet */
+    document.body.appendChild(p);
+    const cs = getComputedStyle(p);
+    /* THE SELF-CHECK. letter-spacing is set in CSS, so it reads back as 3px through
+       computed style and as "" through p.style. If it is not 3px we are not reading
+       resolved values, and reporting four zeros would be worse than saying so. */
+    const live = cs.letterSpacing === "3px";
+    const ins = [cs.paddingTop, cs.paddingBottom, cs.paddingLeft, cs.paddingRight]
+      .map(v => Math.round(parseFloat(v) || 0));
+    p.remove();
+    L.push(live
+      ? "safe area  top " + ins[0] + "  bottom " + ins[1] +
+        "  left " + ins[2] + "  right " + ins[3]
+      : "safe area  unreadable on this browser - ignore any zeros below");
+  } catch (e) { L.push("safe area  unreadable"); }
+  try {
+    L.push("window     " + n(window.innerWidth) + " x " + n(window.innerHeight));
+    const vv = window.visualViewport;
+    L.push("visual     " + (vv ? n(vv.width) + " x " + n(vv.height) : "not supported"));
+    L.push("screen     " + n(screen.width) + " x " + n(screen.height) +
+           "  dpr " + (window.devicePixelRatio || 1));
+  } catch (e) {}
+  try {
+    const bar = document.getElementById("fsNavBar");
+    if (bar) {
+      const r = bar.getBoundingClientRect();
+      L.push("nav bar    " + n(r.height) + " tall, bottom at " + n(r.bottom) +
+             " of " + n(window.innerHeight));
+      const lab = document.querySelector(".fsNavLab");
+      if (lab) L.push("labels     " + n(window.innerHeight - lab.getBoundingClientRect().bottom) +
+                      " above the bottom of the window");
+    }
+  } catch (e) {}
+  try {
+    const modes = ["standalone", "fullscreen", "minimal-ui", "browser"];
+    let m = "?";
+    modes.forEach(k => { if (window.matchMedia("(display-mode: " + k + ")").matches && m === "?") m = k; });
+    if (window.navigator.standalone === true && m === "?") m = "standalone";
+    L.push("opened as  " + m + "   build " + FS_BUILD);
+  } catch (e) {}
+  el.textContent = L.join("\n");
+}
+
 /* ---------- Settings (V1.1): theme, backups, colour-coding, name, updates, device wipe ---------- */
 document.getElementById("fsSettingsBtn").onclick = () => {
   document.getElementById("fsResFade").checked = fsFadeOn();
@@ -25270,6 +25446,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
      actually reached his device — the whole point of this pass. */
   document.getElementById("fsSetVer").textContent =
     (vb ? vb.textContent : "") + " \u00b7 build " + FS_BUILD;
+  try { fsScreenReadout(); } catch (e) {}   /* PASS 108 [W107-1] */
   document.getElementById("fsSettingsModal").classList.add("show");
 };
 document.getElementById("fsSetClose").onclick = () => document.getElementById("fsSettingsModal").classList.remove("show");
@@ -25440,7 +25617,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v111";
+const FS_BUILD = "aa-v113";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
