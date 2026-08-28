@@ -300,7 +300,8 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
      is where iOS Safari's own toolbar sits. The bar's clearance is already
      declared once, for #fsReg .wrap — use THAT, so the two can never drift
      apart the way a second hardcoded guess would. */
-  #fsRowEditDone { position:fixed; left:50%; bottom:calc(86px + env(safe-area-inset-bottom,0px));
+  /* PASS 107 [W105-4] */
+  #fsRowEditDone { position:fixed; left:50%; bottom:calc(86px + min(8px, env(safe-area-inset-bottom,0px)));
                    transform:translateX(-50%); z-index:9000;
                    padding:11px 30px; font-size:15px; font-weight:700; box-shadow:0 6px 22px rgba(0,0,0,.35); }
   /* An animation that cannot be turned off is an accessibility fault, and this
@@ -329,7 +330,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   #fsNavBar { position:fixed; left:0; right:0; bottom:0; z-index:80; display:flex;
     justify-content:space-around; align-items:stretch; gap:2px;
     background:var(--fs-card); border-top:1px solid var(--fs-border);
-    padding:5px 4px calc(5px + env(safe-area-inset-bottom,0px)); }
+    /* PASS 107 [W105-4] - HIS CHOICE (option C, shown three rendered options
+       with the measurements on them). The full inset put the buttons 43px above
+       the glass; this puts them at 17px, and min() gives a device with no home
+       indicator exactly the V0.104 geometry back. */
+    padding:5px 4px calc(5px + min(8px, env(safe-area-inset-bottom,0px))); }
   .fsNavItem { flex:1; max-width:132px; display:flex; flex-direction:column; align-items:center;
     gap:2px; background:none; border:none; color:var(--fs-sub); font-family:inherit;
     font-size:10.5px; font-weight:600; padding:4px 2px; cursor:pointer; border-radius:8px;
@@ -352,9 +357,11 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
   .fsBizIn { width:100%; box-sizing:border-box; padding:9px; border-radius:8px;
     border:1px solid #4a5057; background:#1a1d21; color:#eee; font-size:14px;
     margin-bottom:7px; }
-  #fsReg .wrap { padding-bottom:calc(86px + env(safe-area-inset-bottom,0px)); }
+  /* PASS 107 [W105-4] - the spacer exists to clear #fsNavBar, so it tracks the
+     bar. Left on the full inset it would just move the dead space into the scroll. */
+  #fsReg .wrap { padding-bottom:calc(86px + min(8px, env(safe-area-inset-bottom,0px))); }
   @media (max-width:720px) {
-    #fsReg .wrap { padding:12px 10px calc(86px + env(safe-area-inset-bottom,0px)); }
+    #fsReg .wrap { padding:12px 10px calc(86px + min(8px, env(safe-area-inset-bottom,0px))); }   /* PASS 107 [W105-4] */
     .fsCyc { flex:1 1 42% !important; min-width:0 !important; }
     .fsPlDay.fsPlDrop { outline:2px dashed var(--fs-accent); outline-offset:-2px; background:rgba(37,150,171,.20) !important; }
     #fsReg h1 { font-size:24px !important; }
@@ -367,7 +374,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.105 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.107 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -497,7 +504,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.105 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.107 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3603,7 +3610,11 @@ function fsWsCropUrlOk(u) {
   return typeof u === "string" && u.indexOf("data:image/") === 0 && u.length > 512;
 }
 
-/* PASS 104 [W104-1] - SAY IT AFTER THE REDRAW, NOT BEFORE IT. draw() ends by
+/* PASS 106 [W104-2] - RENAMED from fsWsCropSay. Pass 104 built this for the
+   crop tool and Pass 106 found the same defect in the trim tool, the flatten
+   hint, two refusals and one setTimeout hack that was a hand-rolled copy of
+   it. It is the app's transient-message helper now, not the crop tool's.
+   PASS 104 [W104-1] - SAY IT AFTER THE REDRAW, NOT BEFORE IT. draw() ends by
    calling updateStatus(), which rewrites statusEl unconditionally, so every
    message this tool has ever set was gone within one frame - measured on
    V0.103, including the two refusals that exist to stop him losing a plan.
@@ -3621,7 +3632,7 @@ function fsWsCropUrlOk(u) {
    than the last sentence, and the counts come straight back. */
 let fsWsSayUntil = 0;
 const FS_WS_SAY_MS = 5000;
-function fsWsCropSay(m) {
+function fsWsSay(m) {
   statusEl.textContent = m;
   fsWsSayUntil = Date.now() + FS_WS_SAY_MS;
   requestDraw();
@@ -3637,8 +3648,14 @@ function fsWsCropSay(m) {
 function fsWsCropNote(r, cc) {
   let s = "";
   if (r && r.clipped) s += " \u00b7 part of your pick was off the sheet";
-  if (r && cc && (cc.width < r.w - 1 || cc.height < r.h - 1))
-    s += " \u00b7 trimmed to the marked-up area, " + cc.width + " \u00d7 " + cc.height;
+  /* PASS 107 [W101-5] - REECE, 28 Aug walk, box 17: "too much, just write Copied
+     out of the plan - placed beside it, drag it where you want it". The trimmed-size
+     note is REMOVED. He read it on the device and did not want it, which beats the
+     reasoning that put it there in Pass 104.
+     CONSEQUENCE, RECORDED SO IT IS NOT REDISCOVERED AS NEW: "what you picked is not
+     what you get" is silent again - the exact thing W101-5 was raised about. The
+     CLIP note above stays; that is W101-4, and box 16 passed.
+     test_p104 C3/C4 now assert the ABSENCE, so the suite pins HIS decision. */
   return s;
 }
 
@@ -3723,13 +3740,13 @@ function fsWsCropRegion(geom, cut) {
   const rr = fsWsCropRect(geom);
   if (rr && rr.off) {
     fsWsCropReset();
-    fsWsCropSay("That pick was off the block plan - pick inside the sheet");
+    fsWsSay("That pick was off the block plan - pick inside the sheet");
     return;
   }
   const cc = fsWsCropExtract(geom);
   if (!cc || cc.width < 2 || cc.height < 2) {
     fsWsCropReset();
-    fsWsCropSay("That pick was too small to crop");
+    fsWsSay("That pick was too small to crop");
     return;
   }
   const dataUrl = fsEncodePlan(cc, 0.92);
@@ -3741,13 +3758,13 @@ function fsWsCropRegion(geom, cut) {
      commit moved inside the onload. */
   if (!fsWsCropUrlOk(dataUrl)) {
     fsWsCropReset();
-    fsWsCropSay("That crop was too big for this device to copy - try a smaller area");
+    fsWsSay("That crop was too big for this device to copy - try a smaller area");
     return;
   }
   const piece = new Image();
   piece.onerror = () => {
     fsWsCropReset();
-    fsWsCropSay("That crop could not be read back - nothing was changed");
+    fsWsSay("That crop could not be read back - nothing was changed");
   };
   piece.onload = () => {
     /* PASS 100 [W97-6] - the COPY lands BESIDE its source: dx = its own
@@ -3766,7 +3783,7 @@ function fsWsCropRegion(geom, cut) {
       setSelection([o]);
       fsWsCropReset();
       setTool("select");
-      fsWsCropSay("Copied out of the plan - placed beside it, drag it where you want it"
+      fsWsSay("Copied out of the plan - placed beside it, drag it where you want it"
                   + fsWsCropNote(rr, cc));   /* PASS 104 [W101-5] */
       return;
     }
@@ -3776,14 +3793,14 @@ function fsWsCropRegion(geom, cut) {
        costs him the plan. */
     if (img.naturalWidth * img.naturalHeight > FS_MAX_CANVAS_PX) {
       fsWsCropReset();
-      fsWsCropSay("This plan is too large for this device to cut - copy works, or cut it on a computer");
+      fsWsSay("This plan is too large for this device to cut - copy works, or cut it on a computer");
       return;
     }
     const holed = fsWsCropWhiteOut(fsWsCropPlanCanvas(), geom);
     const planUrl = fsReEncodePlan(holed, imgDataUrl, 0.92);
     if (!fsWsCropUrlOk(planUrl)) {
       fsWsCropReset();
-      fsWsCropSay("This plan is too large for this device to cut - copy works, or cut it on a computer");
+      fsWsSay("This plan is too large for this device to cut - copy works, or cut it on a computer");
       return;
     }
     const im2 = new Image();
@@ -3798,12 +3815,12 @@ function fsWsCropRegion(geom, cut) {
       setSelection([o]);
       fsWsCropReset();
       setTool("select");
-      fsWsCropSay("Cut out of the plan - drag it where you want it"
+      fsWsSay("Cut out of the plan - drag it where you want it"
                   + fsWsCropNote(rr, cc));   /* PASS 104 [W101-5] */
     };
     im2.onerror = () => {
       fsWsCropReset();
-      fsWsCropSay("That cut could not be displayed - nothing was changed");
+      fsWsSay("That cut could not be displayed - nothing was changed");
     };
     im2.src = planUrl;
   };
@@ -3818,7 +3835,10 @@ function fsWsCropRegion(geom, cut) {
    obvious way first and all three were silently swallowed, which is exactly the
    failure they exist to prevent. */
 function fsWsTrimTap(o, ip) {
-  const say = m => { draw(); statusEl.textContent = m; };
+  /* PASS 106 [W104-2] - draw() then the words beats the IMMEDIATE repaint and
+     loses to the next queued one. The local name stays so the body below is
+     untouched; only what `say` MEANS has changed. */
+  const say = m => fsWsSay(m);
   if (!fsWsSnapIsLine(o)) {
     say(o && o.kind === "shape" && o.cx != null
         ? "That line is curved \u2014 trim works on straight lines"
@@ -4570,10 +4590,10 @@ function fsUndoApply(s) {
        the user looking at a cropped plan that they just pressed undo on,
        with no idea the undo half-worked. */
     im.onerror = () => {
-      if (typeof statusEl !== "undefined" && statusEl) {
-        statusEl.textContent = "Undo could not restore the plan image";
-      }
-      draw();
+      /* PASS 106 [W104-2] - the words were set and then draw() wiped them, so a
+         refusal about a HALF-COMPLETED UNDO has never been readable. */
+      if (typeof fsWsSay === "function") fsWsSay("Undo could not restore the plan image");
+      else draw();
     };
     im.src = s.img;
   }
@@ -5935,7 +5955,9 @@ function setTool(id) {
   if (!viewMarkups && (id === "hatch" || MARKUP_TOOLS.some(m => m.id === id))) {
     viewMarkups = true; try { localStorage.setItem("bpm-viewmarkups", "1"); } catch (e) {}
     if (activeTab === "views") buildPalette();
-    setTimeout(() => { statusEl.textContent = "Markups shown again (Views tab) so you can draw"; }, 0);   // after setTool's own status update
+    /* PASS 106 [W104-2] - this setTimeout was a hand-rolled fsWsSay, and it only
+       survived setTool's own update, not the next frame. Use the real one. */
+    fsWsSay("Markups shown again (Views tab) so you can draw");
   }
   document.getElementById("styleWrap").style.display =
     ["line", "arrow", "rect", "ellipse"].includes(id) ? "flex" : "none";
@@ -7282,8 +7304,10 @@ function loadPdfFile(file, asObject) {
       if (asObject && img) {
         insertImageFromDataUrl(dataUrl, cc.width, cc.height, true);
         updateStatus();
-        /* AFTER updateStatus, which rewrites the status line */
-        statusEl.textContent = "Sheet placed at true size — drag/rotate it into place (the transparency slider helps line up an overlap), then Flatten to stitch it into the plan.";
+        /* PASS 106 [W104-2] - being AFTER updateStatus was never enough: the
+           insert queues its own frame, and test_p20 has read the repaint
+           instead of this sentence in every container run. */
+        fsWsSay("Sheet placed at true size — drag/rotate it into place (the transparency slider helps line up an overlap), then Flatten to stitch it into the plan.");
         return;
       }
       const im = new Image();
@@ -9656,7 +9680,7 @@ function endPointer(e) {
     if (!moved || !g || Math.abs(g.box.x2 - g.box.x1) * view.scale < 6
         || Math.abs(g.box.y2 - g.box.y1) * view.scale < 6) {
       fsWsCropReset();
-      fsWsCropSay("Drag a box around the part of the plan you want");
+      fsWsSay("Drag a box around the part of the plan you want");
       return;
     }
     fsWsCropRegion({ mode:"box", box:{ x1:g.box.x1, y1:g.box.y1, x2:g.box.x2, y2:g.box.y2 } },
@@ -9673,14 +9697,14 @@ function endPointer(e) {
       /* a knob TAP (not a drag) on the FIRST point closes the loop; a knob
          drag has already happened in pointermove and just ends here */
       if (!pr.moved && pr.knob === 0) fsWsCropClose();
-      fsWsCropSay((fsWsCrop && fsWsCrop.closed)
+      fsWsSay((fsWsCrop && fsWsCrop.closed)
         ? "Drag any dot to adjust it, then Crop it"
         : "Tap the first dot to close the loop");
       return;
     }
     if (pr.moved) { draw(); return; }     /* that was a pan, not a placement */
     fsWsCropTap(ip);
-    fsWsCropSay((fsWsCrop && fsWsCrop.pts.length > 2)
+    fsWsSay((fsWsCrop && fsWsCrop.pts.length > 2)
       ? "Tap the first dot to close the loop, or use Close & crop"
       : "Keep tapping the corners");
     return;
@@ -23415,7 +23439,9 @@ function fsQrGoTo(r) {
       return;
     }
     if (Date.now() - t0 < 9000) setTimeout(poll, 250);
-    else statusEl.textContent = "Couldn't find that device on the restored plan — open the right plan file and try the scan again.";
+    /* PASS 106 [W104-2] - a refusal at the end of a nine-second poll, wiped by
+       whatever redrew next. */
+    else fsWsSay("Couldn't find that device on the restored plan — open the right plan file and try the scan again.");
   })();
 }
 function fsQrLookStart() {
@@ -25414,7 +25440,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v109";
+const FS_BUILD = "aa-v111";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
