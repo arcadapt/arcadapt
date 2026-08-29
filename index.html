@@ -23,7 +23,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black"><!-- PASS 117
+<meta name="apple-mobile-web-app-status-bar-style" content="default"><!-- PASS 118
+     [P-11] - back to `default`. V0.117 set this to `black` on the theory that
+     iOS was falling back to default and painting the band white. THE #eef1f4
+     MEASUREMENT DISPROVES THAT: the band was showing our own LIGHT --fs-bg, so
+     theme-color is what drives it. `black` would paint it black in both themes
+     - wrong under the light colourway, and fighting the head script above.
+     One theory, one mechanism, no competing declarations. --><!-- PASS 117
      [P-11] - black-translucent is INERT without viewport-fit=cover, and Pass
      116 removed cover to get the 47px band off the bottom of his screen. iOS
      therefore fell back to `default`, which paints the status bar WHITE - the
@@ -36,7 +42,20 @@
 <meta name="apple-mobile-web-app-title" content="Arc Adapt">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<meta name="theme-color" content="#23272d">
+<meta name="theme-color" content="#15181c">
+<script>/* PASS 118 [P-11] - THE STATUS BAR COLOUR, SET BEFORE FIRST PAINT.
+   MEASURED, TWICE, FIVE WEEKS APART: iOS samples theme-color ONCE AT LAUNCH.
+   V0.109 - the band measured #23272d, the STATIC head value, i.e. the value
+            present before any script ran.
+   V0.117 - the band measured #eef1f4, the LIGHT --fs-bg, while the app was
+            DARK: sampled at a launch when he was in light mode, then held.
+   fsThemeSync runs after parse and has therefore NEVER been able to fix this,
+   which is why four passes of correcting it changed nothing on his phone.
+   The two literals are hardcoded because a head script cannot read a
+   stylesheet that has not parsed yet. patch-p118 GUARDS that they still match
+   --fs-bg, and test_p118 asserts it - if the tokens move and this does not,
+   the suite goes red instead of his phone going wrong. */
+try{var t=localStorage.getItem("fs-theme")==="light"?"#eef1f4":"#15181c";document.querySelector('meta[name="theme-color"]').setAttribute("content",t);}catch(e){}</script>
 <title>Arc Adapt</title>
 <script src="./qr.js" defer></script>
 <script src="./jsqr.js" defer></script>
@@ -436,7 +455,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.117 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.118 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -566,7 +585,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.117 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.118 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25772,7 +25791,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v121";
+const FS_BUILD = "aa-v122";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
