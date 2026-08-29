@@ -55,7 +55,7 @@
    stylesheet that has not parsed yet. patch-p118 GUARDS that they still match
    --fs-bg, and test_p118 asserts it - if the tokens move and this does not,
    the suite goes red instead of his phone going wrong. */
-try{var d=localStorage.getItem("fs-theme")!=="light";if(d)document.documentElement.classList.add("fsdark");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#15181c":"#eef1f4");}catch(e){}</script>
+try{var d=localStorage.getItem("fs-theme")!=="light";if(d)document.documentElement.classList.add("fsdark");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#15181c":"#e2e8ed");}catch(e){}</script>
 <title>Arc Adapt</title>
 <script src="./qr.js" defer></script>
 <script src="./jsqr.js" defer></script>
@@ -314,9 +314,17 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      six. #fsReg keeps its own copy and still wins inside it on specificity,
      so nothing already correct can move. fsThemeSync mirrors .fsdark onto
      the root element so the dark half follows too. */
-  :root { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#646f75; --fs-faint:#646e73; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954; --fs-field:#ffffff; --fs-fieldText:#17262e; --fs-tile:#e3e8ec; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff; color-scheme: light; }
+  /* PASS 120 [P-12 / L4] - FS_LIGHT_V2. Ground and buttons darker, as he
+     asked on the V0.105 walk. THE GROUND STOPS AT #e2e8ed AND THAT IS A
+     MEASUREMENT, NOT A PREFERENCE: #c62828 is body text, has 96 uses per
+     app and no token, and needs a ground of L >= 0.7904 to hold 4.5:1.
+     #e2e8ed is L=0.800. One notch deeper was rendered and scanned red in
+     both apps. Tokenising that red is L2's pass, not this one.
+     --fs-palette IS P-12's agreed probe marker, declared as real CSS so
+     it cannot be satisfied by a comment - the R-15 failure, twice paid. */
+  :root { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff; color-scheme: light; }
   :root.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; color-scheme: dark; }
-  #fsReg { --fs-bg:#eef1f4; --fs-card:#ffffff; --fs-text:#17262e; --fs-sub:#5b6b73; --fs-sub2:#646f75; --fs-faint:#646e73; --fs-border:#dfe5e9; --fs-accent:#0f5e6b; --fs-accentD:#0b4954; --fs-field:#ffffff; --fs-fieldText:#17262e; --fs-tile:#e3e8ec; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff;
+  #fsReg { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff;
     position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text);
     /* PASS 105 [P-11] — the other half of viewport-fit:cover. #fsReg is
        inset:0 so it now covers the status-bar band as well, and its own
@@ -335,7 +343,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   #fsReg.fsdark, html.fsdark #fsReg { color-scheme: dark; }
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
-  .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
+  /* PASS 120 [P-12 / L4] - the edge. Measured by _probe_l4_card.py rather
+     than assumed: the old border was a twelfth of a step from the ground
+     and the old shadow was a fifth of a shadow, which is the real reason
+     every card floated. A contact shadow plus a soft lift, so a card
+     reads as an object at arm's length in a switchboard room. */
+  .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 2px rgba(18,34,44,.07), 0 3px 10px -2px rgba(18,34,44,.06); }
   /* PASS 34 — Reece, on the device: the highlight on hold is off-putting. It
      is iOS text selection firing during the press.
 
@@ -462,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.119 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.120 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -592,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.119 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.120 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25798,7 +25811,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v123";
+const FS_BUILD = "aa-v124";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
