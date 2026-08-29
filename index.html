@@ -23,7 +23,16 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black"><!-- PASS 117
+     [P-11] - black-translucent is INERT without viewport-fit=cover, and Pass
+     116 removed cover to get the 47px band off the bottom of his screen. iOS
+     therefore fell back to `default`, which paints the status bar WHITE - the
+     slab he reported on 26 Aug and again tonight. His V0.116 readout is the
+     proof: safe area 0/0/0/0 and vh=svh=lvh=dvh=797 on an 844 screen, so the
+     top 47px is entirely iOS's to paint.
+     `black` is the one style that does not depend on cover. It reads as a
+     normal phone status bar in both themes; whether he prefers black behind
+     the LIGHT colourway is his call, not a thing to predict. -->
 <meta name="apple-mobile-web-app-title" content="Arc Adapt">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -376,7 +385,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
        and the icon to 20px takes it to 38. 44 is the floor for a touch control
        and he works switchboards in gloves - six pixels of screen is not worth
        six pixels of thumb. He was told, with the numbers. */
-    padding:2px 4px calc(2px + min(8px, env(safe-area-inset-bottom,0px))); }
+    /* PASS 117 [W109-1b] - "the bottom band is probably a tiny bit too small
+       now". It was: without cover the bottom inset reports 0 on every device, so
+       min(8px, env(...)) collapsed to 0 and Pass 113's 10px of padding became 2px.
+       The bar went 58 -> 50 and the labels ended up 6px off the glass. Nobody
+       asked for that - it fell out of Pass 116 as a side effect and he caught it.
+       A flat 12px. The env() term is DROPPED rather than left at zero: a term
+       that can only ever be 0 is a lie in the source. Tap target still 44px. */
+    padding:2px 4px 12px; }
   .fsNavItem { flex:1; max-width:132px; display:flex; flex-direction:column; align-items:center;
     gap:2px; background:none; border:none; color:var(--fs-sub); font-family:inherit;
     font-size:10.5px; font-weight:600; padding:4px 2px; cursor:pointer; border-radius:8px;
@@ -420,7 +436,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.116 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.117 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -550,7 +566,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.116 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.117 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25756,7 +25772,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v120";
+const FS_BUILD = "aa-v121";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
