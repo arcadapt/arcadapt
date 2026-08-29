@@ -55,7 +55,7 @@
    stylesheet that has not parsed yet. patch-p118 GUARDS that they still match
    --fs-bg, and test_p118 asserts it - if the tokens move and this does not,
    the suite goes red instead of his phone going wrong. */
-try{var t=localStorage.getItem("fs-theme")==="light"?"#eef1f4":"#15181c";document.querySelector('meta[name="theme-color"]').setAttribute("content",t);}catch(e){}</script>
+try{var d=localStorage.getItem("fs-theme")!=="light";if(d)document.documentElement.classList.add("fsdark");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#15181c":"#eef1f4");}catch(e){}</script>
 <title>Arc Adapt</title>
 <script src="./qr.js" defer></script>
 <script src="./jsqr.js" defer></script>
@@ -323,9 +323,16 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
        --fs-bg paints it in whichever theme is on. Padding, not margin:
        the band must be PAINTED, not left as a gap. */
     padding-top:env(safe-area-inset-top,0px); z-index:80; overflow-y:auto; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  #fsReg.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; }
+  /* PASS 119 [P-11] - `html.fsdark #fsReg` is the SECOND SELECTOR, not a
+     second copy of the palette. #fsReg carries the LIGHT tokens on itself,
+     so :root.fsdark cannot reach it and the first painted frame of every
+     launch was rgb(238,241,244) - measured, and exactly the colour of the
+     band in his V0.118 screenshot. The head script puts .fsdark on <html>
+     before any paint; this selector lets #fsReg follow it until its own
+     class arrives a moment later. A COPIED PALETTE WOULD DRIFT AT L4. */
+  #fsReg.fsdark, html.fsdark #fsReg { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; }
   #fsReg { color-scheme: light; }
-  #fsReg.fsdark { color-scheme: dark; }
+  #fsReg.fsdark, html.fsdark #fsReg { color-scheme: dark; }
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
   .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 3px rgba(20,40,50,.05); }
@@ -455,7 +462,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.118 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.119 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -585,7 +592,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.118 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.119 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25791,7 +25798,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v122";
+const FS_BUILD = "aa-v123";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
