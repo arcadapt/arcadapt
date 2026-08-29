@@ -323,7 +323,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      declared once, for #fsReg .wrap — use THAT, so the two can never drift
      apart the way a second hardcoded guess would. */
   /* PASS 107 [W105-4] */
-  #fsRowEditDone { position:fixed; left:50%; bottom:calc(86px + min(8px, env(safe-area-inset-bottom,0px)));
+  /* PASS 113 [W109-1b] - tracks the bar, same 6px. */
+  #fsRowEditDone { position:fixed; left:50%; bottom:calc(80px + min(8px, env(safe-area-inset-bottom,0px)));
                    transform:translateX(-50%); z-index:9000;
                    padding:11px 30px; font-size:15px; font-weight:700; box-shadow:0 6px 22px rgba(0,0,0,.35); }
   /* An animation that cannot be turned off is an accessibility fault, and this
@@ -356,7 +357,15 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
        with the measurements on them). The full inset put the buttons 43px above
        the glass; this puts them at 17px, and min() gives a device with no home
        indicator exactly the V0.104 geometry back. */
-    padding:5px 4px calc(5px + min(8px, env(safe-area-inset-bottom,0px))); }
+    /* PASS 113 [W109-1b] - HIS PICK, "B", off three rendered options. 5px -> 2px
+       of the BAR'S OWN padding and NOTHING ELSE: 6px of screen back with the tap
+       target untouched at 44px.
+       THE OPTION HE WAS SHOWN WENT FURTHER AND WOULD HAVE COST HIM THE TARGET.
+       Measured at 390pt: shrinking the label to 9.5px takes the target to 40,
+       and the icon to 20px takes it to 38. 44 is the floor for a touch control
+       and he works switchboards in gloves - six pixels of screen is not worth
+       six pixels of thumb. He was told, with the numbers. */
+    padding:2px 4px calc(2px + min(8px, env(safe-area-inset-bottom,0px))); }
   .fsNavItem { flex:1; max-width:132px; display:flex; flex-direction:column; align-items:center;
     gap:2px; background:none; border:none; color:var(--fs-sub); font-family:inherit;
     font-size:10.5px; font-weight:600; padding:4px 2px; cursor:pointer; border-radius:8px;
@@ -381,9 +390,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     margin-bottom:7px; }
   /* PASS 107 [W105-4] - the spacer exists to clear #fsNavBar, so it tracks the
      bar. Left on the full inset it would just move the dead space into the scroll. */
-  #fsReg .wrap { padding-bottom:calc(86px + min(8px, env(safe-area-inset-bottom,0px))); }
+  /* PASS 113 [W109-1b] - 86 -> 80, tracking the 6px the bar just gave up.
+     Leaving it at 86 would move the dead space into the scroll instead of
+     returning it, and the screen would look identical - which is the whole
+     point of the change. */
+  #fsReg .wrap { padding-bottom:calc(80px + min(8px, env(safe-area-inset-bottom,0px))); }
   @media (max-width:720px) {
-    #fsReg .wrap { padding:12px 10px calc(86px + min(8px, env(safe-area-inset-bottom,0px))); }   /* PASS 107 [W105-4] */
+    #fsReg .wrap { padding:12px 10px calc(80px + min(8px, env(safe-area-inset-bottom,0px))); }   /* PASS 113 [W109-1b] - tracks the bar */
     .fsCyc { flex:1 1 42% !important; min-width:0 !important; }
     .fsPlDay.fsPlDrop { outline:2px dashed var(--fs-accent); outline-offset:-2px; background:rgba(37,150,171,.20) !important; }
     #fsReg h1 { font-size:24px !important; }
@@ -396,7 +409,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.112 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.113 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -526,7 +539,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.112 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.113 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25732,7 +25745,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v116";
+const FS_BUILD = "aa-v117";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
