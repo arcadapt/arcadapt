@@ -403,13 +403,47 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     .fstab { margin-right:14px; font-size:13.5px; padding:12px 2px; }
     .fsbtnP, .fsbtn { padding:12px 14px; }
   }
+/* ===== PASS 114 [W109-1] - THE 47px, CLOSED. =================================
+   HIS READOUT, 29 Aug, V0.113:  units vh 844  svh 797  lvh 844  dvh 797
+                                 doc client 797   nav bar bottom at 797 of 797
+
+   100vh is ALREADY the whole 844px screen. The LAYOUT viewport - what
+   position:fixed resolves against - is 797. So bottom:0 parks the bar 47px
+   above the glass and the root background paints the rest. Five passes guessed
+   at this; four numbers on his screen ended it in one photo.
+
+   @supports IS NOT DECORATION. Without svh, calc(100vh - 100svh) is invalid at
+   computed-value time and `bottom` becomes auto - the bar leaves the bottom of
+   the screen entirely. An engine without svh keeps V0.113 exactly.
+
+   min(8px -> 24px): real clearance over the home indicator now that the bar
+   actually reaches the glass. A device with NO indicator is UNCHANGED, because
+   min(24px, 0px) is 0px just as min(8px, 0px) was - which is why test_p107 A4
+   stays green. Checked, not hoped for.
+
+   THE SPACER AND THE FLOATING DONE BUTTON SUBTRACT THE SAME GAP, or the bar
+   gives space back and the content never takes it - the Pass 113 lesson, where
+   leaving the spacer alone made the whole change invisible. ===================*/
+@supports (height: 100svh) {
+  :root { --fs-vgap: calc(100vh - 100svh); }
+  #fsNavBar { bottom: calc(-1 * var(--fs-vgap));
+              padding:2px 4px calc(2px + min(24px, env(safe-area-inset-bottom,0px))); }
+  #fsReg .wrap { padding-bottom:calc(80px + min(24px, env(safe-area-inset-bottom,0px))
+                                     - var(--fs-vgap)); }
+  #fsRowEditDone { bottom:calc(80px + min(24px, env(safe-area-inset-bottom,0px))
+                               - var(--fs-vgap)); }
+  @media (max-width:720px) {
+    #fsReg .wrap { padding-bottom:calc(80px + min(24px, env(safe-area-inset-bottom,0px))
+                                       - var(--fs-vgap)); }
+  }
+}
 </style>
 <div id="fsReg">
   <div class="wrap">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.113 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.114 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -539,7 +573,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.113 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.114 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25745,7 +25779,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v117";
+const FS_BUILD = "aa-v118";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
