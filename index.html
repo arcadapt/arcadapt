@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.122 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.123 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -605,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.122 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.123 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1100,7 +1100,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="fsAnnModal" style="z-index:124">
   <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
     <h3 style="margin-bottom:2px">Photo</h3>
-    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Zoom with the buttons or pinch. Press a tool to draw, press it again to stop. Marks are burnt in when you save.</div>
+    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Zoom with the buttons or pinch. Press a tool to draw, press it again to stop. <b>Marks stay editable</b> &mdash; the eraser lifts a whole mark, and you can rub them off or add more any time you open this photo.</div>
     <!-- PASS 85 [85-0] - R-13. Three fixed colours became the workspace's own
          swatch row, and pen / highlighter / eraser are iOS Markup's three. The
          rows wrap on a phone rather than scrolling sideways. -->
@@ -11095,7 +11095,7 @@ function openDetails() {
   });
   const ph = document.getElementById("dPhotoPreview");
   const photo = !multi && syms[0].photo;
-  ph.src = photo || "";
+  ph.src = fsPhotoSrc(photo);
   ph.style.display = photo ? "block" : "none";
   ph.style.cursor = "pointer";
   ph.title = "Tap to open full size";
@@ -12195,6 +12195,42 @@ function fsShow(view) {
   if (typeof fsNavSync === "function") fsNavSync(view);
 }
 function fsEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+/* ===== PASS 123 [W120-7] FS_PHOTO_MARKS_V1 ====================================
+   A photo is EITHER a plain string (legacy, and any photo nobody has drawn on)
+   OR { base, marks[], view }. base is the untouched original and is never
+   re-encoded; marks are the stroke objects the editor already built; view is
+   the two composited, because every render site below is a synchronous string
+   concatenation and one of them is a PDF that has no second frame in which to
+   catch up.
+
+   EVERY render goes through fsPhotoSrc(). A site that reads the raw field
+   instead ships an unmarked photo into a customer's document and nothing on
+   screen shows it - test_p123 F1 exists for exactly that. ================= */
+function fsPhotoIsObj(p) {
+  return !!p && typeof p === "object" && !Array.isArray(p) && typeof p.base === "string";
+}
+/* THE ONE FUNCTION EVERY <img> MUST GO THROUGH. */
+function fsPhotoSrc(p) {
+  if (fsPhotoIsObj(p)) return p.view || p.base || "";
+  return typeof p === "string" ? p : "";
+}
+/* What the EDITOR opens: the picture without the liftable marks on it. */
+function fsPhotoBase(p) {
+  if (fsPhotoIsObj(p)) return p.base || "";
+  return typeof p === "string" ? p : "";
+}
+function fsPhotoMarks(p) {
+  return (fsPhotoIsObj(p) && Array.isArray(p.marks)) ? p.marks : [];
+}
+/* No marks -> stay a plain string. A photo nobody draws on never becomes an
+   object, so no register grows for a feature it is not using. */
+function fsPhotoMake(base, marks, view) {
+  if (!base) return view || "";
+  if (!marks || !marks.length) return base;
+  return { base: base, marks: marks, view: view || base };
+}
+/* ===== end FS_PHOTO_MARKS_V1 ================================================ */
 
 /* ================= Register store - split persistence (Stage 1A) =================
    The register is HELD IN MEMORY exactly as before (fsRegister), so every read
@@ -16465,6 +16501,9 @@ function fsDefTypeLibLoad(key) {
    saving, and the original stays untouched until Save is pressed. */
 
 let fsAnnStrokes = [], fsAnnCol = "#ff2d2d", fsAnnImg = null, fsAnnDone = null, fsAnnDrawing = false;
+/* PASS 123 [W120-7] - the value the editor was opened ON, so Save can keep its
+   base rather than re-encoding whatever is on the canvas. */
+let fsAnnSrc = null;
 
 /* PASS 85 [85-1] - R-13. "similar to the workspace with a colour wheel with
    saved colours ... a rubber or highlighter ... changing the size or texture of
@@ -16687,7 +16726,14 @@ function fsAnnErase(p) {
 function fsAnnOpen(src, onSave) {
   /* PASS 85 [85-1] - the history belongs to THIS photo. Carrying it across
      would let Undo on one picture restore a mark drawn on another. */
-  fsAnnStrokes = []; fsAnnUndoS = []; fsAnnRedoS = []; fsAnnDone = onSave || null;
+  /* PASS 123 [W120-7] FS_PHOTO_MARKS_V1_OPEN - the marks come BACK. They are not
+     re-drawn from the pixels (they never were pixels); they are the same
+     objects this editor saved, so Undo, the eraser and a new stroke all work
+     on them exactly as they did in the session that made them. */
+  fsAnnStrokes = fsPhotoMarks(src).map(function (m) {
+    return { col: m.col, tool: m.tool, w: m.w, st: m.st, pts: (m.pts || []).slice() };
+  });
+  fsAnnUndoS = []; fsAnnRedoS = []; fsAnnDone = onSave || null;
   /* PASS 121 [W120-1] FS_PHOTO_VIEW_FIRST - EVERY open starts on "view".
      Reset here rather than at the call site, so no caller can forget. */
   fsAnnTool = "";
@@ -16704,7 +16750,10 @@ function fsAnnOpen(src, onSave) {
     fsAnnZFitNow();
   };
   im.onerror = () => alert("Couldn't open that photo.");
-  im.src = src;
+  /* the ORIGINAL, not the composite - painting the composite and then replaying
+     the strokes on top would double every mark. */
+  fsAnnSrc = src;
+  im.src = fsPhotoBase(src);
 }
 /* Line width scales with the picture so markup reads the same on a 4000px photo
    and an 800px one. PASS 85 [85-1] keeps that EXACTLY and makes it the base the
@@ -16823,7 +16872,7 @@ function openPhotoViewer(sym) {
   fsAnnOpen(sym.photo, function (out) {
     sym.photo = out;
     const ph = document.getElementById("dPhotoPreview");
-    if (ph) ph.src = out;
+    if (ph) ph.src = fsPhotoSrc(out);
     if (typeof scheduleAutosave === "function") scheduleAutosave();
   });
 }
@@ -17080,7 +17129,16 @@ function fsDefShowInWorkspace(d) {
     if (!fsAnnStrokes.length) {
       if (!confirm("Nothing drawn. Save it unchanged?")) return;
     }
-    const out = document.getElementById("fsAnnCanvas").toDataURL("image/jpeg", 0.85);
+    /* PASS 123 [W120-7] FS_PHOTO_MARKS_V1_SAVE - THE LINE THIS PASS EXISTS FOR.
+       It used to hand back the flat canvas and throw the strokes away, so the
+       marks could never be lifted again AND the photo re-encoded through JPEG
+       every single session. Now the base is carried through untouched and the
+       strokes travel with it; the composite is only what gets RENDERED. */
+    const base = fsPhotoBase(fsAnnSrc);
+    const view = fsAnnStrokes.length
+      ? document.getElementById("fsAnnCanvas").toDataURL("image/jpeg", 0.85)
+      : base;
+    const out = fsPhotoMake(base, fsAnnStrokes.slice(), view);
     document.getElementById("fsAnnModal").classList.remove("show");
     if (fsAnnDone) fsAnnDone(out);
   };
@@ -21936,7 +21994,7 @@ function fsTodayHtml(d) {
     d.pri.forEach((r, i) => {
       h += '<div class="fsTdPriCard" data-i="' + i + '" style="flex:0 0 150px;border:1px solid var(--fs-border);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--fs-bg)">' +
         ((r.e.s.displayPhoto || r.e.s.photo)
-          ? '<img src="' + (r.e.s.displayPhoto || r.e.s.photo) + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
+          ? '<img src="' + fsPhotoSrc(r.e.s.displayPhoto || r.e.s.photo) + '" style="width:100%;height:74px;object-fit:cover;display:block" alt="">'
           : '<div style="width:100%;height:74px;display:flex;align-items:center;justify-content:center;background:var(--fs-tile);color:var(--fs-sub2);font-size:22px;font-weight:800">' + fsEsc((r.e.s.name || "?").slice(0, 1)) + '</div>') +
         '<div style="padding:8px 9px">' +
         '<div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.name) + '</div>' +
@@ -22190,11 +22248,11 @@ function fsHubHtml(s) {
     h += '<div class="fscard" id="fsHubPhotoCard" style="flex:1;min-width:230px;padding:16px;display:flex;flex-direction:column;gap:8px">' +
       '<div style="margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Site photo</h3></div>';
     if (s.displayPhoto) h += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Display</div>' +
-      '<img id="fsHubDisplayPhoto" src="' + s.displayPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+      '<img id="fsHubDisplayPhoto" src="' + fsPhotoSrc(s.displayPhoto) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
     if (s.photo) h += (s.displayPhoto ? '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site</div>' : '') +
-      '<img id="fsHubPhoto" src="' + s.photo + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+      '<img id="fsHubPhoto" src="' + fsPhotoSrc(s.photo) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
     if (s.entryPhoto) h += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
-      '<img id="fsHubEntryPhoto" src="' + s.entryPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+      '<img id="fsHubEntryPhoto" src="' + fsPhotoSrc(s.entryPhoto) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
     h += '</div>';
   }
   return h + '</div>';
@@ -22386,18 +22444,18 @@ function fsInfoPhotoHtml() {
      pattern (Pass 45), which Reece named as the way all three should act. */
   if (s.displayPhoto) {
     html += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Display</div>' +
-      '<img id="fsDisplayTile" src="' + s.displayPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+      '<img id="fsDisplayTile" src="' + fsPhotoSrc(s.displayPhoto) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
   }
   if (!s.photo) {
     html += '<div id="fsSitePhotoAdd" style="width:100%;height:180px;border:2px dashed var(--fs-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:13px;cursor:pointer">Tap to add site photo</div>';
   } else {
     /* PASS 26 item 16 — no delete badge on the tiles; deleting happens in
        the viewer. */
-    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + s.photo + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size"></div>';
+    html += '<div style="position:relative"><img class="fsSpTile" data-i="0" src="' + fsPhotoSrc(s.photo) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size"></div>';
   }
   if (s.entryPhoto) {
     html += '<div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--fs-sub2)">Site entry</div>' +
-      '<img id="fsEntryTile" src="' + s.entryPhoto + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
+      '<img id="fsEntryTile" src="' + fsPhotoSrc(s.entryPhoto) + '" style="' + FS_PHOTO_FULL + '" title="Tap to view full size">';
   }
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
   if (s.photo) html += '<button class="fsbtn" id="fsSitePhotoAdd">&#65291; Add photo</button>';
@@ -22698,7 +22756,7 @@ function fsRenderTab() {
           (/batter/i.test(k) ? '<div style="display:flex;gap:8px;align-items:center;margin:2px 0 4px 28px;font-size:12.5px;color:var(--fs-sub2)">Last replaced <input type="date" class="fsEqBattD" data-key="' + fsEsc(k) + '" value="' + fsEsc(en.d || "") + '" style="border:1px solid var(--fs-border);border-radius:6px;padding:4px;background:var(--fs-card);color:var(--fs-text)"></div>' : '') +
           (fsEquipItemFields().includes(k) ? fsEqItemsEditHtml(k, en) : '') +
           '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
+          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
       } else if (en.on || en.v || en.photo || (en.items || []).length) {
         shown++;
         const its = (en.items || []).filter(x => x && (x.t || x.q));
@@ -22709,7 +22767,7 @@ function fsRenderTab() {
           '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + k + battChip + '</div>' +
           (its.length ? '<div style="font-size:13.5px;font-weight:600;margin-top:3px">' + its.map(x => fsEsc((x.q ? x.q + " \u00d7 " : "") + (x.t || ""))).join("<br>") + '</div>' : '') +
           (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
+          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
       }
     });
     // custom rows (Reece: own headings/items)
@@ -22722,13 +22780,13 @@ function fsRenderTab() {
           (en.photo ? '<button class="fsbtn fsEqCustPhotoDel" data-i="' + i + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
           '</div>' +
           '<textarea class="fsinput fsEqCustField" data-i="' + i + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
+          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
       } else if (en.on || en.v || en.photo) {
         shown++;
         html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
           '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + fsEsc(en.name) + '</div>' +
           (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
-          (en.photo ? '<img src="' + en.photo + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
+          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
       }
     });
     if (fsEquipEdit) html += '<div style="margin-top:12px"><button class="fsbtn" id="fsEqCustAdd">&#65291; Add your own item</button></div>';
@@ -22775,7 +22833,7 @@ function fsRenderTab() {
       const dys = fsDefDays(d), bk = fsDefBucket(dys), qs = fsQs(d);
       const dc = fsDefCls(d.cls), nl = fsDefNotifyLabel(d);
       html += '<div style="border-top:1px solid var(--fs-border);padding:10px 0;display:flex;gap:10px;align-items:flex-start">' +
-        (d.photos && d.photos.length ? '<div style="flex:none"><img class="fsDefPh" data-id="' + fsEsc(d.id) + '" src="' + d.photos[0] + '" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid var(--fs-border);cursor:pointer;display:block">' +
+        (d.photos && d.photos.length ? '<div style="flex:none"><img class="fsDefPh" data-id="' + fsEsc(d.id) + '" src="' + fsPhotoSrc(d.photos[0]) + '" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid var(--fs-border);cursor:pointer;display:block">' +
           (d.photos.length > 1 ? '<div style="font-size:10px;color:var(--fs-sub2);text-align:center;margin-top:2px">' + d.photos.length + ' photos</div>' : '') + '</div>' : '') +
         '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + fsEsc(d.desc) + '</div>' +
         '<div style="font-size:12px;color:var(--fs-sub2)">' + fsEsc((d.created || "").slice(0, 10)) + ' &middot; ' + fsEsc(d.source || "") + (d.raisedBy ? ' &middot; ' + fsEsc(d.raisedBy) : '') + (d.lastSeen ? ' &middot; <span style="color:#c62828">still failing ' + fsEsc(d.lastSeen) + '</span>' : '') + '</div>' +
@@ -22825,7 +22883,7 @@ function fsRenderTab() {
       if (it.dev) parts.push("D" + it.dev);
       html += '<div style="border-top:1px solid var(--fs-border);padding:10px 0;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">';
       html += it.photo
-        ? '<img src="' + it.photo + '" class="fsQrPh" data-i="' + i + '" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view">'
+        ? '<img src="' + fsPhotoSrc(it.photo) + '" class="fsQrPh" data-i="' + i + '" style="width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer" title="Tap to view">'
         : '<div style="width:64px;height:64px;border:1px dashed var(--fs-border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--fs-faint);font-size:11px">no photo</div>';
       html += '<div style="flex:1;min-width:170px">';
       html += '<div style="font-size:14px;font-weight:700">' + (parts.join(" &middot; ") || "&mdash;") + (it.info ? ' <span style="font-weight:400;color:var(--fs-sub)">' + fsEsc(it.info) + '</span>' : '') + '</div>';
@@ -22845,7 +22903,7 @@ function fsRenderTab() {
     else {
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
       ph.forEach((p, i) => {
-        html += '<div style="position:relative"><img src="' + (p.src || p) + '" class="fsPhotoView" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
+        html += '<div style="position:relative"><img src="' + fsPhotoSrc(p.src || p) + '" class="fsPhotoView" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
           '<button class="fsbtn fsFileDel" data-i="' + i + '" style="position:absolute;top:4px;right:4px;padding:2px 8px;color:#c62828">&#10005;</button></div>';
       });
       html += '</div>';
@@ -22856,7 +22914,7 @@ function fsRenderTab() {
     if (spx.length) {
       html += '<div style="margin-top:14px"><div style="font-size:13px;font-weight:700;color:var(--fs-sub);margin-bottom:6px">More site photos</div><div style="display:flex;gap:10px;flex-wrap:wrap">';
       spx.forEach((p, i) => {
-        html += '<img class="fsSpTile" data-i="' + (i + 1) + '" src="' + p + '" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
+        html += '<img class="fsSpTile" data-i="' + (i + 1) + '" src="' + fsPhotoSrc(p) + '" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">';
       });
       html += '</div></div>';
     }
@@ -23498,7 +23556,7 @@ function fsQrItemOpen(s, item) {
   document.getElementById("fsQiDev").value = item && item.dev || "";
   document.getElementById("fsQiInfo").value = item && item.info || "";
   const pv = document.getElementById("fsQiPhotoPrev");
-  pv.src = item && item.photo || "";
+  pv.src = fsPhotoSrc(item && item.photo);
   pv.style.display = item && item.photo ? "block" : "none";
   pv.style.cursor = "pointer";
   pv.onclick = () => { if (fsQiItem && fsQiItem.photo) fsViewPhoto(fsQiItem.photo); };
@@ -23782,7 +23840,7 @@ function fsLookShow(r) {
   h += '<div style="font-size:14px;font-weight:700;margin:2px 0">' + (parts.length ? fsEsc(parts.join(" · ")) : "—") + '</div>';
   if (g("info")) h += '<div style="font-size:13px;color:#c9d2d7;margin:2px 0">' + fsEsc(g("info")) + '</div>';
   if (it && it.barcode) h += '<div style="font-size:12.5px;color:#8fa2ab;margin:2px 0">Barcode ' + fsEsc(it.barcode) + '</div>';
-  if (it && it.photo) h += '<img id="fsLookPh" src="' + it.photo + '" style="max-width:130px;max-height:100px;border-radius:8px;border:1px solid #444;margin:6px 0;cursor:pointer" title="Tap to view">';
+  if (it && it.photo) h += '<img id="fsLookPh" src="' + fsPhotoSrc(it.photo) + '" style="max-width:130px;max-height:100px;border-radius:8px;border:1px solid #444;margin:6px 0;cursor:pointer" title="Tap to view">';
   if (r.lvl) {
     if (FS_WS_APP) h += '<div style="margin-top:8px"><button class="btn primary" id="fsLookGo" type="button">&#128205; Show me where it is</button></div>';
     else h += '<div style="font-size:13px;color:#f2c200;margin-top:8px">&#128205; Placed on the plan (' + fsEsc(r.lvl.name) + ') — open this site in the Arc Adapt app to see it highlighted.</div>';
@@ -23877,6 +23935,9 @@ document.getElementById("fsLookClose").onclick = fsQrLookStop;
 document.getElementById("fsResScan").onclick = () => { document.getElementById("fsResModal").classList.remove("show"); fsQrLookOpen(); };
 
 function fsViewPhoto(src, replaceTarget) {
+  /* PASS 123 [W120-7] - normalised HERE rather than at each call site, so a
+     future caller that passes a photo VALUE cannot open a blank lightbox. */
+  src = fsPhotoSrc(src) || src;
   fsLbTarget = replaceTarget || null;
   const lb = document.getElementById("fsLightbox");
   const im = document.getElementById("fsLbImg");
@@ -25915,7 +25976,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v126";
+const FS_BUILD = "aa-v127";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -30337,7 +30398,7 @@ function fsRenderJob() {
   if ((j.photos || []).length) {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">';
     j.photos.forEach((p, i) => {
-      html += '<div style="position:relative"><img data-jp="' + i + '" src="' + p.src + '" style="width:100%;height:96px;object-fit:cover;border-radius:8px;cursor:zoom-in">' +
+      html += '<div style="position:relative"><img data-jp="' + i + '" src="' + fsPhotoSrc(p.src) + '" style="width:100%;height:96px;object-fit:cover;border-radius:8px;cursor:zoom-in">' +
         '<button data-jpdel="' + i + '" style="position:absolute;top:4px;right:4px;border:none;background:rgba(0,0,0,.55);color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px">&#10005;</button></div>';
     });
     html += '</div>';
@@ -30390,7 +30451,7 @@ function fsRenderJob() {
       } catch (e) { alert("Couldn't open that attachment."); }
     } else {
       const lb = document.getElementById("fsLightbox"), im = document.getElementById("fsLbImg");
-      if (lb && im) { if (typeof fsLbTarget !== "undefined") fsLbTarget = null; const r = document.getElementById("fsLbReplace"); if (r) r.style.display = "none"; im.src = f.src; lb.style.display = "block"; }
+      if (lb && im) { if (typeof fsLbTarget !== "undefined") fsLbTarget = null; const r = document.getElementById("fsLbReplace"); if (r) r.style.display = "none"; im.src = fsPhotoSrc(f.src) || f.src; lb.style.display = "block"; }
     }
   };
   const invDel = document.getElementById("fsJobInvDel");
@@ -30398,7 +30459,7 @@ function fsRenderJob() {
   document.getElementById("fsJobPhotoAdd").onclick = () => document.getElementById("fsJobPhotoInput").click();
   wrap.querySelectorAll("[data-jp]").forEach(im => im.onclick = () => {
     const lb = document.getElementById("fsLightbox"), li = document.getElementById("fsLbImg");
-    if (lb && li) { if (typeof fsLbTarget !== "undefined") fsLbTarget = null; const r = document.getElementById("fsLbReplace"); if (r) r.style.display = "none"; li.src = j.photos[+im.dataset.jp].src; lb.style.display = "block"; }
+    if (lb && li) { if (typeof fsLbTarget !== "undefined") fsLbTarget = null; const r = document.getElementById("fsLbReplace"); if (r) r.style.display = "none"; li.src = fsPhotoSrc(j.photos[+im.dataset.jp].src) || j.photos[+im.dataset.jp].src; lb.style.display = "block"; }
   });
   wrap.querySelectorAll("[data-jpdel]").forEach(b => b.onclick = e => {
     e.stopPropagation();
