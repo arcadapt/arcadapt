@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.120 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.121 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -602,10 +602,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div id="app" style="display:none">
 
   <div id="topbar">
-    <button class="btn" id="fsBack" title="Back to site">&#9664; Site</button>
+    <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.120 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.121 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1099,13 +1099,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 </div>
 <div class="modal" id="fsAnnModal" style="z-index:124">
   <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
-    <h3 style="margin-bottom:2px">Mark up the photo</h3>
-    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Draw on it to point at the problem. Hold a colour for two seconds to remove it, or hold the wheel colour to pin it. The markup is burnt into the picture when you save, so it survives the quote PDF and the export.</div>
+    <h3 style="margin-bottom:2px">Photo</h3>
+    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Opens on <b>Look</b> &mdash; pinch to zoom, nothing draws. Press <b>Pen</b>, <b>Highlighter</b> or <b>Eraser</b> to mark it up. Hold a colour for two seconds to remove it, or hold the wheel colour to pin it. Marks are burnt into the picture when you save, so they survive the quote PDF and the export.</div>
     <!-- PASS 85 [85-0] - R-13. Three fixed colours became the workspace's own
          swatch row, and pen / highlighter / eraser are iOS Markup's three. The
          rows wrap on a phone rather than scrolling sideways. -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <button class="btn fsAnnTool" id="fsAnnPen" data-t="pen" type="button" title="Pen" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20.5l1-4L15.5 6a2.1 2.1 0 0 1 3 3L8 19.5Z"/><path d="M14 7.5l2.5 2.5"/></svg>Pen</button>
+      <button class="btn fsAnnTool" id="fsAnnView" data-t="view" type="button" title="Look — pinch to zoom, nothing draws" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1.6 12S5.5 5.5 12 5.5 22.4 12 22.4 12 18.5 18.5 12 18.5 1.6 12 1.6 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>Look</button><button class="btn fsAnnTool" id="fsAnnPen" data-t="pen" type="button" title="Pen" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20.5l1-4L15.5 6a2.1 2.1 0 0 1 3 3L8 19.5Z"/><path d="M14 7.5l2.5 2.5"/></svg>Pen</button>
       <button class="btn fsAnnTool" id="fsAnnHl" data-t="hl" type="button" title="Highlighter" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3.5l6.5 6.5-7.5 7H7.5L4 13.5Z"/><path d="M6 21h13" stroke-width="4"/></svg>Highlighter</button>
       <button class="btn fsAnnTool" id="fsAnnEr" data-t="er" type="button" title="Eraser &mdash; tap or drag over a mark to take the whole mark off" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.6" y="8.4" width="15.4" height="8.6" rx="1.6" transform="rotate(-38 10.3 12.7)"/><path d="M8.9 6.6 16.6 14.3"/><path d="M8.4 19.4H21"/></svg>Eraser</button>
     </div>
@@ -1129,7 +1129,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       </label>
     </div>
     <div style="background:#000;border-radius:8px;overflow:auto;max-height:62vh;text-align:center">
-      <canvas id="fsAnnCanvas" style="max-width:100%;touch-action:none;cursor:crosshair"></canvas>
+      <!-- PASS 121 [W120-1] - touch-action is SWITCHED BY THE TOOL, in
+           fsAnnToolSync(). On "view" it is pinch-zoom so the photo behaves like
+           a photo; on a drawing tool it is none, exactly as before. Leaving it
+           at none while disarming the pen would have shipped a picture that
+           neither draws nor zooms. -->
+      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:58vh;touch-action:pinch-zoom;cursor:zoom-in"></canvas>
     </div>
     <div class="row" style="margin-top:10px">
       <!-- PASS 85 - matched to the toolbar above them. F2 measured these at
@@ -16475,7 +16480,11 @@ function fsAnnSwSave() {
   try { localStorage.setItem("fs-ann-swatches", JSON.stringify(fsAnnSw)); } catch (e) {}
 }
 let fsAnnCustom = null;              /* last wheel colour not yet pinned */
-let fsAnnTool = "pen";               /* pen | hl | er */
+let fsAnnTool = "view";              /* view | pen | hl | er */
+/* PASS 121 [W120-1] - "view" is the tool the modal OPENS on, every time.
+   fsAnnTool used to default to "pen" AND was module-level, so it never reset
+   between photos: every open was armed, with whatever tool was last used.
+   That is the whole of "I open it to inspect and it starts drawing". */
 let fsAnnStyle = "solid";            /* solid | dash | dot - pen only */
 /* REMEMBERED PER TOOL, which is what iOS Markup does: a fat highlighter must
    not make the pen fat when you switch back. 3 is x1.00 - see fsAnnPaint. */
@@ -16613,6 +16622,11 @@ function fsAnnToolSync() {
     b.style.outlineOffset = on ? "1px" : "0";
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
+  const vw = fsAnnTool === "view";
+  /* PASS 121 [W120-1] - the canvas only refuses native gestures while a
+     drawing tool is armed. On "view" it pinch-zooms like any photo. */
+  const cvEl = document.getElementById("fsAnnCanvas");
+  if (cvEl) cvEl.style.touchAction = vw ? "pinch-zoom" : "none";
   const er = fsAnnTool === "er";
   const cw = document.getElementById("fsAnnColWrap");
   const sw = document.getElementById("fsAnnSizeWrap");
@@ -16663,6 +16677,9 @@ function fsAnnOpen(src, onSave) {
   /* PASS 85 [85-1] - the history belongs to THIS photo. Carrying it across
      would let Undo on one picture restore a mark drawn on another. */
   fsAnnStrokes = []; fsAnnUndoS = []; fsAnnRedoS = []; fsAnnDone = onSave || null;
+  /* PASS 121 [W120-1] FS_PHOTO_VIEW_FIRST - EVERY open starts on "view".
+     Reset here rather than at the call site, so no caller can forget. */
+  fsAnnTool = "view";
   const im = new Image();
   im.onload = () => {
     fsAnnImg = im;
@@ -16910,6 +16927,7 @@ function fsDefShowInWorkspace(d) {
      the next Undo press would appear to do nothing at all. */
   let erBefore = null, erHit = false;
   c.addEventListener("pointerdown", e => {
+    if (fsAnnTool === "view") return;   /* PASS 121 [W120-1] - look, do not draw */
     fsAnnDrawing = true;
     try { c.setPointerCapture(e.pointerId); } catch (x) {}
     if (fsAnnTool === "er") {
@@ -23005,7 +23023,11 @@ function fsRenderTab() {
         if (!hit) return;
         i = hit.k;
       }
-      if (!confirm("Mark up this photo?\n\nOK to draw on it, Cancel to just look at it.")) {
+      /* PASS 121 [W120-1] - the confirm is GONE. It asked a question he did not
+         want asked, and answering it wrong put him in a drawing tool where a
+         pinch became a stroke. The markup view now opens on the VIEW tool, so
+         looking is the default and drawing is a deliberate press. */
+      if (false) {
         fsViewPhoto(d.photos[i]);
         return;
       }
@@ -25811,7 +25833,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v124";
+const FS_BUILD = "aa-v125";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -27456,7 +27478,7 @@ function fsPlAddChooser(mode) {
     (mode === "client" ? "Add a client’s sites" : "Add sites") + '</h3>' +
     '<a id="fsPlChX2" title="Close" style="font-size:24px;line-height:1;cursor:pointer;color:var(--fs-sub2);padding:2px 8px">&#10005;</a></div>' +
     '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' +
-    (mode === "client" ? "Ticking a client adds every one of its sites to the list." : "Tick the sites to add. Anything already on the list is greyed out.") +
+    (mode === "client" ? "Ticking a client adds every one of its sites to the list." : "Tick the sites to add. Sites already on this month's list show a tick instead.") +
     ' Tap a star to keep a site on your ★ My clients list.</div>' +
     '<input class="fsinput" id="fsPlChSearch" placeholder="Search clients &amp; sites…" style="margin-bottom:8px;padding:9px">';
   cNames.forEach(cn => {
@@ -27473,12 +27495,19 @@ function fsPlAddChooser(mode) {
     if (mode !== "client") {
       sites.forEach(e => {
         const due = fsPlDueCycles(e.s, fsPlMonth);
-        html += '<label class="fsPlChRow" data-txt="' + fsEsc((e.s.name + " " + cn).toLowerCase()) + '" style="display:flex;gap:9px;align-items:center;padding:6px 0 6px 27px;cursor:pointer' + (have[e.s.id] ? ";opacity:.45" : "") + '">' +
-          '<input type="checkbox" class="fsPlChS" data-id="' + fsEsc(e.s.id) + '"' + (have[e.s.id] ? " disabled" : "") + ' style="width:17px;height:17px;accent-color:var(--fs-accent)">' +
-          '<a class="fsPlChStar" data-id="' + fsEsc(e.s.id) + '" title="My clients list" style="font-size:17px;line-height:1;cursor:pointer;color:' + (stars.indexOf(e.s.id) >= 0 ? '#e6a817' : 'var(--fs-faint)') + '">' + (stars.indexOf(e.s.id) >= 0 ? '&#9733;' : '&#9734;') + '</a>' +
+        html += '<label class="fsPlChRow" data-txt="' + fsEsc((e.s.name + " " + cn).toLowerCase()) + '" style="display:flex;gap:9px;align-items:center;min-height:44px;padding:6px 0 6px 27px;cursor:pointer' + (have[e.s.id] ? ";opacity:.6;cursor:default" : "") + '">' +
+          (have[e.s.id]
+            ? '<span class="fsPlChDone" title="Already on this month\'s list" style="width:22px;flex:none;text-align:center;font-size:17px;color:var(--fs-accent)">&#10003;</span>'
+            : '<input type="checkbox" class="fsPlChS" data-id="' + fsEsc(e.s.id) + '" style="width:22px;height:22px;flex:none;accent-color:var(--fs-accent)">') +
+          '<a class="fsPlChStar" data-id="' + fsEsc(e.s.id) + '" title="My clients list" style="font-size:19px;line-height:1;padding:6px;margin:-6px;cursor:pointer;color:' + (stars.indexOf(e.s.id) >= 0 ? '#e6a817' : 'var(--fs-faint)') + '">' + (stars.indexOf(e.s.id) >= 0 ? '&#9733;' : '&#9734;') + '</a>' +
           '<span style="flex:1;min-width:0"><span style="font-size:13.5px">' + fsEsc(e.s.name) + '</span>' +
           '<span style="font-size:11px;color:' + (due.length ? '#c62828' : 'var(--fs-faint)') + '"> · ' + (due.length ? 'due ' + fsEsc(due.map(x => x.label).join(", ")) : 'nothing due') + '</span>' +
-          (e.s.geo ? '' : '<span style="font-size:11px;color:#c62828"> · ⚠ not located</span>') + '</span></label>';
+          (e.s.geo ? '' : '<span style="font-size:11px;color:#c62828"> · ⚠ not located</span>') +
+          /* PASS 121 [W120-2] FS_PL_ROW_WHY - a disabled row now says WHY it is
+             disabled. He reported this as 'I can't hit the tick box'; it was
+             already in the month's plan, and the only clue was 45% opacity while
+             the star next to it kept working. He read the screen correctly. */
+          (have[e.s.id] ? '<span style="font-size:11px;color:var(--fs-accent);font-weight:600"> · already on the list</span>' : '') + '</span></label>';
       });
     }
     html += '</div>';
