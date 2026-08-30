@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.123 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.124 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -605,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.123 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.124 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -784,6 +784,18 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <div style="flex:1;min-width:0"><label>Loop</label><input type="text" id="dLoop" autocomplete="off" maxlength="5" style="width:100%"></div>
       <div style="flex:1;min-width:0"><label>Device number</label><input type="text" id="dDev" autocomplete="off" maxlength="5" style="width:100%"></div>
     </div>
+    <!-- PASS 124 [W120-4] FS_DET_CIRCUIT - layout B, chosen off a render on
+         30 Aug. The row above is deliberately untouched: option A needed the
+         boxes at 52 px and "Device number" shortened to "Dev" to fit the pair
+         beside them, he saw that cost and picked this. Loop and Device are NOT
+         greyed on Conventional - he was asked and said no. -->
+    <div id="circWrap" style="display:none">
+      <label>Circuit</label>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dCirc" id="dCircConv" value="conv" style="width:18px;height:18px">Conventional</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dCirc" id="dCircAddr" value="addr" style="width:18px;height:18px">Addressable</label>
+      </div>
+    </div>
     <!-- PASS 110 [W109-4] - "For the blanket it can just go under the Zone
          etc between that and further information". A blanket has no Type
          select to sit under, so it gets its own row here. NO SIZE BOX:
@@ -801,11 +813,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="thWrap" style="display:none">
       <label>Thermal type</label>
       <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8;margin-bottom:6px">
-        <label title="Trips on a fast rise in temperature rather than at an exact figure — most thermal detectors are this type" style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:17px;height:17px">Rate of rise</label>
+        <label title="Trips on a fast rise in temperature rather than at an exact figure — most thermal detectors are this type" class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:18px;height:18px">Rate of rise</label>
         <input type="text" id="dThRorV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
-        <label title="Trips once the temperature reaches the set figure, no matter how slowly it climbs" style="display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:17px;height:17px">Fixed</label>
+        <label title="Trips once the temperature reaches the set figure, no matter how slowly it climbs" class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:18px;height:18px">Fixed</label>
         <input type="text" id="dThFixV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
     </div>
@@ -819,10 +831,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="bgcWrap" style="display:none">
       <label>Colour</label>
       <div style="display:flex;gap:13px;font-size:14px;color:#e8e8e8;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dBgc" value="#d81e05" style="width:17px;height:17px">Red</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dBgc" value="#1b8a3f" style="width:17px;height:17px">Green</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dBgc" value="#ffffff" style="width:17px;height:17px">White</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dBgc" value="#111111" style="width:17px;height:17px">Black</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#d81e05" style="width:18px;height:18px">Red</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#1b8a3f" style="width:18px;height:18px">Green</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#ffffff" style="width:18px;height:18px">White</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#111111" style="width:18px;height:18px">Black</label>
       </div>
     </div>
     <div id="xtWrap" style="display:none">
@@ -899,10 +911,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       </label>
       <label>Year tested</label>
       <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:#e8e8e8">
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2026" style="width:17px;height:17px">2026</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2027" style="width:17px;height:17px">2027</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2028" style="width:17px;height:17px">2028</label>
-        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="dYear" value="2029" style="width:17px;height:17px">2029</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2026" style="width:18px;height:18px">2026</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2027" style="width:18px;height:18px">2027</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2028" style="width:18px;height:18px">2028</label>
+        <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2029" style="width:18px;height:18px">2029</label>
       </div>
       <!-- moved here from tab 2 by item 4. Wired in 27a where it already sat;
            this pass moves it and keeps it working. -->
@@ -1264,7 +1276,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   <div class="modalbox" style="max-width:380px;text-align:center">
     <h3>Timers</h3>
     <div id="timerList" style="margin:8px 0 2px;text-align:left"></div>
-    <label style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:#aaa;margin:2px 0 6px"><input type="checkbox" id="timerBadgeOn" checked style="width:17px;height:17px"> Show mini timer on screen</label>
+    <label class="fsTick" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:44px;font-size:13px;color:#aaa;margin:2px 0 6px"><input type="checkbox" id="timerBadgeOn" checked style="width:18px;height:18px"> Show mini timer on screen</label>
     <div id="timerIdle">
       <label style="text-align:left">Circuit / name (rides on the alert — blank = "Timer")</label>
       <input type="text" id="timerName" placeholder="e.g. L2 East" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
@@ -11041,6 +11053,36 @@ function openDetails() {
   document.getElementById("idWrap").style.display = syms.some(o => o.type !== "campin") ? "block" : "none";
   fsOcrSyncButton();
   /* PASS 24 item 6 */
+  /* PASS 124 [W120-4] FS_DET_CIRCUIT - the four types he named, no more.
+     BOTH BOXES CLEAR is what an unset detector must show, and `same` makes a
+     mixed multi-selection show clear too rather than picking the first one's
+     answer for all of them. */
+  const circTargets = syms.filter(o => fsIsCircDet(o.type));
+  document.getElementById("circWrap").style.display = circTargets.length ? "block" : "none";
+  fsCircTouched = false;
+  if (circTargets.length) {
+    const c0 = circTargets[0].circ || "";
+    const cSame = circTargets.every(o => (o.circ || "") === c0);
+    const cMulti = circTargets.length > 1;
+    document.querySelectorAll(".dCirc").forEach(cb => {
+      /* cb.value is "conv"/"addr", the stored values, so this is one line for
+         both boxes and cannot drift apart. A MIXED selection shows
+         indeterminate rather than clear - same as dFailed and .dYear - because
+         clear would read as "none of these have a circuit type", which is a
+         different and wrong statement. */
+      cb.checked = cSame && c0 === cb.value;
+      cb.indeterminate = cMulti && !cSame;
+      /* checkbox look, radio behaviour - the same trade Pass 24 made for
+         Thermal type. Unlike thermal, UNTICKING TO NOTHING IS ALLOWED, because
+         "no circuit type recorded" is a real answer and thousands of devices
+         give it. */
+      cb.onchange = () => {
+        fsCircTouched = true;
+        document.querySelectorAll(".dCirc").forEach(x => { x.indeterminate = false; });
+        if (cb.checked) document.querySelectorAll(".dCirc").forEach(x => { if (x !== cb) x.checked = false; });
+      };
+    });
+  }
   const thTargets = syms.filter(o => o.type === "thermal" || o.type === "cthermal");
   document.getElementById("thWrap").style.display = thTargets.length ? "block" : "none";
   if (thTargets.length) {
@@ -11301,6 +11343,21 @@ document.getElementById("detailsSave").onclick = () => {
          from a dialog this user never saw — and write them onto the new device.
          When the selector was not on screen the user expressed no preference,
          so the default set by the change-type block above stands. */
+      /* PASS 124 [W120-4] FS_DET_CIRCUIT. The visibility guard is the same one
+         test_p24 F18 earned: the boxes are only populated when a circuit device
+         is among the targets, so without it, changing a device's type would
+         write the last detector's answer onto a device this user never saw it
+         on. NEITHER TICKED DELETES THE KEY - it does not fall back to conv. And
+         on a MULTI-SELECT the boxes only speak if he touched them, exactly as
+         failedTouched and yearsTouched already do - otherwise selecting twenty
+         detectors to set a zone would strip the circuit type off all of them. */
+      if (fsIsCircDet(o.type)) {
+        if (document.getElementById("circWrap").style.display !== "none" && (!multi || fsCircTouched)) {
+          if (document.getElementById("dCircConv").checked) o.circ = "conv";
+          else if (document.getElementById("dCircAddr").checked) o.circ = "addr";
+          else delete o.circ;
+        }
+      }
       if (o.type === "thermal" || o.type === "cthermal") {
         if (document.getElementById("thWrap").style.display !== "none") {
           const fixed = document.getElementById("dThFix").checked;
@@ -11544,11 +11601,11 @@ document.getElementById("reportClose").onclick = () => document.getElementById("
 
 document.getElementById("reportCsv").onclick = () => {
   const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-  const rows = [["Level", "Type", "Zone", "Loop", "Device", "Other info", "Failed", "Years tested", "A (dBA)", "E (dBA)"]];
+  const rows = [["Level", "Type", "Zone", "Loop", "Device", "Circuit", "Other info", "Failed", "Years tested", "A (dBA)", "E (dBA)"]];
   allLevelObjects().forEach(({ o, level }) => {
     if (o.kind !== "sym") return;
     const t = TYPE_MAP[o.type];
-    rows.push([level, t ? t.label : o.type, o.zone || "", o.loop || "", o.dev || "", o.info || "",
+    rows.push([level, t ? t.label : o.type, o.zone || "", o.loop || "", o.dev || "", fsCircLabel(o), o.info || "",
                o.failed ? "YES" : "", (o.ty || []).join(" "), o.va || "", o.ve || ""]);
   });
   const csv = rows.map(r => r.map(esc).join(",")).join("\r\n");
@@ -12231,6 +12288,32 @@ function fsPhotoMake(base, marks, view) {
   return { base: base, marks: marks, view: view || base };
 }
 /* ===== end FS_PHOTO_MARKS_V1 ================================================ */
+
+/* ===== PASS 124 [W120-4] FS_DET_CIRCUIT =====================================
+   "only one can be ticked though, a detector can't be both" - and the state he
+   did NOT mention is the one that matters: a detector recorded before this pass
+   has NO circuit type, and must never silently become Conventional. Unset is a
+   real value, it is stored as the ABSENCE of o.circ, and it reports "" wherever
+   circ is read. Rendered to him and confirmed on 30 Aug: pair under Zone/Loop/
+   Device, no greying of Loop/Device, these four types only. ================ */
+const FS_DET_CIRCUIT = "v1";
+const FS_CIRC_TYPES = ["smoke", "csmoke", "thermal", "cthermal"];
+/* Multi-select: the same shape as failedTouched / yearsTouched. WITHOUT THIS,
+   selecting twenty detectors to set a zone and pressing Save would strip the
+   circuit type off every one of them that had it, because the boxes were
+   sitting unticked and untouched. That is the third-state bug wearing a
+   different hat - devices changing under him with nothing on screen to say so.
+   Found by mutate-p124 M14, which is that guard removed. */
+let fsCircTouched = false;
+function fsIsCircDet(t) { return FS_CIRC_TYPES.indexOf(t) >= 0; }
+/* "" for unset. Never a default, never "Conventional". */
+function fsCircLabel(o) {
+  if (!o) return "";
+  if (o.circ === "conv") return "Conventional";
+  if (o.circ === "addr") return "Addressable";
+  return "";
+}
+/* ===== end FS_DET_CIRCUIT ================================================== */
 
 /* ================= Register store - split persistence (Stage 1A) =================
    The register is HELD IN MEMORY exactly as before (fsRegister), so every read
@@ -25976,7 +26059,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v127";
+const FS_BUILD = "aa-v128";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -28581,7 +28664,9 @@ function fsPlDayHtml(dk) {
     const luNote = luSpan ? ' &middot; <span style="color:var(--fs-sub2)">&#129386; incl. ' + luD.mins + ' min lunch</span>' : '';
     html += '<div style="border:1px solid var(--fs-border);border-radius:10px;padding:9px 12px;margin:3px 0;' + (x.done ? 'opacity:.55' : '') + '">' +
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-      '<input type="checkbox" class="fsPlDone" data-i="' + i + '"' + (x.done ? ' checked' : '') + ' title="Done" style="width:17px;height:17px;accent-color:#1b8a3f">' +
+      '<label class="fsTick" title="Done" style="display:flex;align-items:center;gap:10px;min-height:44px;padding-right:6px">' +
+      '<input type="checkbox" class="fsPlDone" data-i="' + i + '"' + (x.done ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:#1b8a3f">' +
+      '</label>' +
       '<b class="' + (e ? 'fsPlSiteGo' : '') + '"' + (e ? ' data-i="' + i + '"' : '') + ' style="font-size:14.5px;flex:1;min-width:120px' + (e ? ';cursor:pointer' : '') + '">' + fsEsc(fsPlStopName(x, e)) + (e ? ' <span style="color:var(--fs-sub2);font-weight:400">&rsaquo;</span>' : '') + '</b>' +   /* [60-1] tappable when the stop HAS a site */
       (x.adhoc ? '' : '<button class="fsbtnP fsPlNavB" data-i="' + i + '" style="padding:6px 11px;font-size:12px">&#9654; Navigate</button>') + '</div>' +
       /* PASS 79 [79-1] — W-11. This was ONE 12px run carrying seven things,
