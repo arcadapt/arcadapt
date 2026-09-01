@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.124 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.125 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -605,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.124 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.125 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2160,6 +2160,59 @@ try { symSizes = JSON.parse(localStorage.getItem(SYMSIZE_KEY) || "{}") || {}; } 
 function symSizeFor(typeId) {
   const v = symSizes[typeId];
   return (typeof v === "number" && v >= 2 && v <= 400) ? v : sizeVal();
+}
+/* ================= PASS 125 [A-3] [A-5] [A-13] ======================
+   THE BUILDING TAB PLACES AT REAL SIZE.
+
+   Reece, V0.90 walk: "I tried to put a door and the door was tiny, so I was
+   doing it completely out of scale."
+
+   MEASURED, NOT ARGUED. The size slider defaults to 48, which sizeVal() turns
+   into s = 32 px. On a plan calibrated at 1 m = 20 px that leaf is 1.60 m. A
+   standard Australian leaf is 820 mm. It has been placing at roughly double,
+   because nothing ever connected the slider to the plan.
+
+   ONLY tab:"bldg". The other 42 symbols are point devices - a 100 mm detector
+   at 1 m = 20 px is 2 px, symSizeFor's own floor, invisible and untappable.
+   Drawings have never scaled devices; they are legible symbols with a real
+   POSITION. He saw both rendered against a real 6 m room first.
+
+   `mult` is each glyph's own width as a multiple of s, READ OFF drawSym's
+   geometry rather than guessed:
+       door     leaf dw = s                  -> 1.0
+       dbldoor  two leaves at 0.9s           -> 1.8
+       sldoor   strokeRect(-0.9s .. 0.9s)    -> 1.8
+       rldoor   strokeRect(-0.9s .. 0.9s)    -> 1.8
+       window   lines  -0.8s .. 0.8s         -> 1.6
+       opening  lines  -0.8s .. 0.8s         -> 1.6
+       stair    strokeRect(-0.9s .. 0.9s)    -> 1.8
+       lstair   strokeRect(-0.72s .. 0.72s)  -> 1.44
+   IF A GLYPH IS EVER REDRAWN, THIS TABLE MOVES WITH IT.
+
+   The millimetres are research, not a question for him (Rule #0e): larnec
+   .com.au for door leaves (820), doorsupply.com.au for roller doors (2400
+   single). STAIR WIDTH IS THE ONE NUMBER WITHOUT A CITATION - 1000 mm is the
+   common NCC minimum, and it is flagged in the receipt rather than dressed up.
+*/
+const FS_SYM_MM = {
+  door:    { mm: 820,  mult: 1.0  },
+  dbldoor: { mm: 1640, mult: 1.8  },
+  sldoor:  { mm: 1800, mult: 1.8  },
+  rldoor:  { mm: 2400, mult: 1.8  },
+  window:  { mm: 1200, mult: 1.6  },
+  opening: { mm: 900,  mult: 1.6  },
+  stair:   { mm: 1000, mult: 1.8  },
+  lstair:  { mm: 1000, mult: 1.44 }
+};
+/* Returns the size param that makes this symbol its real width on the CURRENT
+   level's scale, or null when there is no scale yet or the type is not a
+   building element - in which case the caller keeps the slider size. */
+function fsSymTrueSize(typeId) {
+  const b = FS_SYM_MM[typeId];
+  if (!b || !curScaleMpp) return null;
+  const s = (b.mm / 1000) / curScaleMpp / b.mult;
+  if (!isFinite(s) || s <= 0) return null;
+  return Math.max(2, Math.min(400, s));      // symSizeFor's own bounds
 }
 function symSizeRemember(typeId, px) {
   if (!TYPE_MAP[typeId] || !(px >= 2 && px <= 400)) return;
@@ -10009,9 +10062,15 @@ function endPointer(e) {
          PASS 24 item 6: a thermal is born Rate of rise at 60 degC, which is
          what Reece asked for and also what makes the selector's defaults true
          of every device rather than only of the ones he happens to open. */
-      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:symSizeFor(activeTool), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      /* PASS 125 [A-3]: a building element lands at its real size when the
+         level has a scale. Everything else is unchanged. */
+      const trueSz = fsSymTrueSize(activeTool);
+      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:(trueSz || symSizeFor(activeTool)), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
       if (activeTool === "thermal" || activeTool === "cthermal") { m.thm = "ror"; m.thv = "60"; }
-      symSizeRemember(activeTool, m.size);
+      /* PASS 125 [125-B]: NEVER remember a scale-derived size. symSizes is
+         per type and outlives the register, so remembering it would carry
+         this plan's scale onto the next plan at a different scale. */
+      if (!trueSz) symSizeRemember(activeTool, m.size);
       const az = zoneAt(ip.x, ip.y);
       if (az) m.zone = String(az.zn);
       objects.push(m);
@@ -26059,7 +26118,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v128";
+const FS_BUILD = "aa-v129";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
