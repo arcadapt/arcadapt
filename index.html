@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.126 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.127 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -605,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.126 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.127 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -764,6 +764,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="detailsModal">
   <div class="modalbox">
     <h3 id="detailsTitle">Device details</h3>
+    <!-- PASS 139 [139-G] - the number where it is useful. Reece: "from those
+         dimensions, thats how they we show default". NOT a tag on the plan:
+         [93-A9] records his ruling that "we don't want tags everywhere", and
+         this is a panel he deliberately opens. -->
+    <div id="detDim" style="font-size:12.5px;color:#8fa;margin:-8px 0 10px;display:none"></div>
     <!-- PASS 26 item 15. Reece: "it's got a bit much, there's a lot of things
          in there that makes that window become quite long." Everything that
          identifies the PHYSICAL DEVICE — the QR tag it carries and the
@@ -2222,25 +2227,151 @@ function symSizeFor(typeId) {
    single). STAIR WIDTH IS THE ONE NUMBER WITHOUT A CITATION - 1000 mm is the
    common NCC minimum, and it is flagged in the receipt rather than dressed up.
 */
+/* ================= PASS 139 [139-A] ================================
+   EVERY ITEM CARRIES A REAL DIMENSION. Reece: "giving all the items in arc
+   command a default size.... and from those dimensions, thats how they we
+   show default."
+
+   ONE TABLE, ABSORBED, NOT EXTENDED - his words. Pass 125's eight entries
+   keep their researched numbers and gain a `draw` mode; the other 43 types
+   join them. THE NAME IS THE LEDGER'S: A-5's probe is `contains FS_SYM_MM`
+   and A-3's is `contains fsSymTrueSize`, both LIVE, so renaming would make
+   two shipped items read REGRESSED. Rule #0c.
+
+   `draw` IS THE HALF THAT MAKES HIS ASK WORKABLE:
+     "real"    drawn at its true size on a scaled plan - things with real
+               extent on a plan
+     "symbol"  drawn as a legible symbol whatever the scale, the way every
+               drafting tool draws devices, so they match a legend. THE
+               MILLIMETRES ARE STILL REAL - they are data, not geometry.
+   Measured before this was written: a 100 mm detector on a plan at
+   1 m = 100 px is 10 px, and 6 px on screen at a working zoom. He saw that
+   render and confirmed.
+
+   `mult` is the glyph's own width as a multiple of the size param, read off
+   drawSym's geometry. If a glyph is redrawn, its mult moves with it.
+
+   mm: null IS DELIBERATE AND IT IS THE HONEST ANSWER for 37 of these. There
+   is no standard plate size to adopt - AS/NZS 3112 standardises the PINS, not
+   the faceplate, which is a manufacturer's choice. An invented number here is
+   the uncited stair width all over again. A blank he can fill beats a number
+   he has to catch. */
 const FS_SYM_MM = {
-  door:    { mm: 820,  mult: 1.0  },
-  dbldoor: { mm: 1640, mult: 1.8  },
-  sldoor:  { mm: 1800, mult: 1.8  },
-  rldoor:  { mm: 2400, mult: 1.8  },
-  window:  { mm: 1200, mult: 1.6  },
-  opening: { mm: 900,  mult: 1.6  },
-  stair:   { mm: 1000, mult: 1.8  },
-  lstair:  { mm: 1000, mult: 1.44 }
+  /* --- Building: real extent on a plan, so drawn at real size (Pass 125) -- */
+  door:    { mm: 820,  mult: 1.0,  draw: "real",   src: "leaf width" },
+  dbldoor: { mm: 1640, mult: 1.8,  draw: "real",   src: "two 820 leaves" },
+  sldoor:  { mm: 1800, mult: 1.8,  draw: "real",   src: "sliding door" },
+  rldoor:  { mm: 2400, mult: 1.8,  draw: "real",   src: "single roller" },
+  window:  { mm: 1200, mult: 1.6,  draw: "real",   src: "common window" },
+  opening: { mm: 900,  mult: 1.6,  draw: "real",   src: "common opening" },
+  stair:   { mm: 1000, mult: 1.8,  draw: "real",   src: "NCC minimum, UNCITED" },
+  lstair:  { mm: 1000, mult: 1.44, draw: "real",   src: "NCC minimum, UNCITED" },
+
+  /* --- Fire: legible symbols, with their real size recorded -------------- */
+  smoke:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, 1 Sep 2026" },
+  csmoke:  { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
+  thermal: { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
+  cthermal:{ mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
+  sm240:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
+  mcp:     { mm: 87,   mult: 1.0,  draw: "symbol", src: "EN 54-11, 87 x 87" },
+  exting:  { mm: 150,  mult: 0.98, draw: "symbol", src: "Reece, 150 w x 800 h", h: 800 },
+  fip:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  fdcie:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  wip:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  sounder: { mm: null, mult: 1.35, draw: "symbol", src: null },
+  horn:    { mm: null, mult: 1.7,  draw: "symbol", src: null },
+  dba:     { mm: null, mult: 1.4,  draw: "symbol", src: null },
+  ows:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  vesda:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  io:      { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  hreel:   { mm: null, mult: 1.35, draw: "symbol", src: null },
+  vad:     { mm: null, mult: 1.9,  draw: "symbol", src: null },
+  blanket: { mm: null, mult: 0.95, draw: "symbol", src: null },
+
+  /* --- Electrical: no standard plate size exists, so these stay blank ---- */
+  db:       { mm: null, mult: 1.9,  draw: "symbol", src: null },
+  batten:   { mm: null, mult: 2.2,  draw: "symbol", src: null },
+  embatten: { mm: null, mult: 2.2,  draw: "symbol", src: null },
+  downlt:   { mm: null, mult: 0.75, draw: "symbol", src: null },
+  sqlum:    { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  emsqlum:  { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  rectlum:  { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  emrectlum:{ mm: null, mult: 1.0,  draw: "symbol", src: null },
+  troffer:  { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  emtroffer:{ mm: null, mult: 1.0,  draw: "symbol", src: null },
+  exfan:    { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  ceilfan:  { mm: null, mult: 1.3,  draw: "symbol", src: null },
+  walllt:   { mm: null, mult: 1.5,  draw: "symbol", src: null },
+  gpo1:     { mm: null, mult: 0.95, draw: "symbol", src: null },
+  gpo2:     { mm: null, mult: 1.2,  draw: "symbol", src: null },
+  data1:    { mm: null, mult: 0.95, draw: "symbol", src: null },
+  data2:    { mm: null, mult: 1.25, draw: "symbol", src: null },
+  msensor:  { mm: null, mult: 1.5,  draw: "symbol", src: null },
+
+  /* --- Exit and tools ---------------------------------------------------- */
+  exitl:    { mm: null, mult: 2.4,  draw: "symbol", src: null },
+  exit:     { mm: null, mult: 2.4,  draw: "symbol", src: null },
+  exitr:    { mm: null, mult: 2.4,  draw: "symbol", src: null },
+  bglass:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  spitfire: { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  campin:   { mm: null, mult: 1.15, draw: "symbol", src: null }
 };
+/* The catalog dimension for a type, or null when nobody has given one yet. */
+function fsSymMm(typeId) {
+  const b = FS_SYM_MM[typeId];
+  return b && typeof b.mm === "number" && b.mm > 0 ? b.mm : null;
+}
+function fsSymDrawsReal(typeId) {
+  const b = FS_SYM_MM[typeId];
+  return !!(b && b.draw === "real");
+}
 /* Returns the size param that makes this symbol its real width on the CURRENT
    level's scale, or null when there is no scale yet or the type is not a
    building element - in which case the caller keeps the slider size. */
 function fsSymTrueSize(typeId) {
   const b = FS_SYM_MM[typeId];
-  if (!b || !curScaleMpp) return null;
+  /* PASS 139: only a "real" type is DRAWN at its dimension. A device has a
+     real dimension too - it is data, not geometry. */
+  if (!b || b.draw !== "real" || !fsSymMm(typeId) || !curScaleMpp) return null;
   const s = (b.mm / 1000) / curScaleMpp / b.mult;
   if (!isFinite(s) || s <= 0) return null;
   return Math.max(2, Math.min(400, s));      // symSizeFor's own bounds
+}
+/* ================= PASS 139 [139-A4] ===============================
+   THE PIXELS ARE DERIVED. THEY ARE NOT THE STORED THING.
+
+   Everything that draws or measures a symbol asks this instead of reading
+   o.size, so a scale set AFTER placing simply works: the door was always
+   820 mm and the plan has just learned what a pixel is worth.
+
+   THE FALLBACK IS THE WHOLE MIGRATION. Every symbol in every register he has
+   already saved has no `mm`, drops straight through, and keeps its stored
+   pixel size. Nothing already saved re-reads differently. */
+function symPx(o) {
+  if (!o) return 0;
+  const b = FS_SYM_MM[o.type];
+  if (b && b.draw === "real" && curScaleMpp && typeof o.mm === "number" && o.mm > 0) {
+    const s = (o.mm / 1000) / curScaleMpp / b.mult;
+    if (isFinite(s) && s > 0) return Math.max(2, Math.min(400, s));
+  }
+  return o.size;
+}
+/* [139-A2] A handle or a slider hands us PIXELS, which mean nothing once the
+   plan's scale changes. Write the REAL width back so the dimension is what
+   survives - the same reason a drag grip edits a parameter and not a scale
+   factor.
+
+   WITH NO SCALE SET the pixels are the only truth there is, so the catalog mm
+   is CLEARED rather than left to contradict what he just dragged. Without
+   that line, resizing a door on an unscaled plan and setting the scale later
+   would throw his size away and snap the door back to 820. */
+function symSyncMm(o) {
+  if (!o || o.kind !== "sym") return;
+  const b = FS_SYM_MM[o.type];
+  if (!b || b.draw !== "real") return;
+  if (!curScaleMpp) { o.mm = null; return; }
+  const mm = o.size * b.mult * curScaleMpp * 1000;
+  if (isFinite(mm) && mm > 0) o.mm = Math.round(mm);
 }
 function symSizeRemember(typeId, px) {
   if (!TYPE_MAP[typeId] || !(px >= 2 && px <= 400)) return;
@@ -2309,7 +2440,10 @@ function drawYearChip(c, x, y, br, txt, bg) {
 
 function symDims(o) {   // image-space width/height (before rotation)
   const t = TYPE_MAP[o.type] || {};
-  const s = o.size;
+  /* PASS 139: derived, not stored. objectBounds() is the only caller that
+     matters here, so selection, hit-testing and the bounding box all follow
+     the real dimension without a second code path. */
+  const s = symPx(o);
   let w = s, h = s;
   if (t.glyph === "widetext") { w = s * 2.3; h = s; }
   else if (t.glyph === "exit") { w = s * 2.4; h = s * 1.1; }
@@ -2357,7 +2491,10 @@ function drawSym(c, o, scale) {
   const t = TYPE_MAP[o.type];
   if (!t) return;
   const col = o.color || t.color;
-  const s = o.size * scale;
+  /* PASS 139 [139-A4]: derived from the real dimension when there is
+     one, and the stored pixels when there is not. */
+  const oPx = symPx(o);
+  const s = oPx * scale;
   const x = o.x * scale, y = o.y * scale;
   const sx = o.fx ? -1 : 1, sy = o.fy ? -1 : 1;
   c.save();
@@ -2932,12 +3069,12 @@ function drawSym(c, o, scale) {
     if (o.dev)  parts.push("D" + o.dev);
     const label = parts.join("·");
     const d = symDims(o);
-    const fs = Math.max(8 * scale, o.size * scale * 0.32);
+    const fs = Math.max(8 * scale, oPx * scale * 0.32);
     c.save();
     c.font = "bold " + fs + "px system-ui, sans-serif";
     c.textAlign = "center"; c.textBaseline = "top";
     let ly = y + (d.h / 2) * scale + 2 * scale;
-    if (t.glyph === "dba") ly = y + o.size * 1.5 * scale;
+    if (t.glyph === "dba") ly = y + oPx * 1.5 * scale;
     c.lineWidth = fs * 0.25; c.strokeStyle = "#ffffff";
     c.strokeText(label, x, ly);
     c.fillStyle = "#111111";
@@ -2949,7 +3086,7 @@ function drawSym(c, o, scale) {
   if (!exportPaint && (viewQrTag || viewPhotoDot) && t.glyph !== "campin") {
     const dv = symDims(o);
     if (viewQrTag && o.qid) {
-      const qfs = Math.max(8 * scale, o.size * scale * 0.3);
+      const qfs = Math.max(8 * scale, oPx * scale * 0.3);
       c.save();
       c.font = "bold " + qfs + "px system-ui, sans-serif";
       c.textAlign = "left"; c.textBaseline = "bottom";
@@ -2961,7 +3098,7 @@ function drawSym(c, o, scale) {
       c.restore();
     }
     if (viewPhotoDot && o.photo) {
-      const pr = Math.max(3 * scale, o.size * scale * 0.14);
+      const pr = Math.max(3 * scale, oPx * scale * 0.14);
       c.save();
       c.beginPath(); c.arc(x - (dv.w / 2) * scale, y - (dv.h / 2) * scale, pr, 0, Math.PI * 2);
       c.fillStyle = "#1b8a3f"; c.fill();
@@ -2972,11 +3109,11 @@ function drawSym(c, o, scale) {
 
   // dBA value lines (always shown)
   if (t.glyph === "dba") {
-    const fs = Math.max(8 * scale, o.size * scale * 0.34);
+    const fs = Math.max(8 * scale, oPx * scale * 0.34);
     c.save();
     c.font = "bold " + fs + "px system-ui, sans-serif";
     c.textAlign = "center"; c.textBaseline = "top";
-    let ly = y + (o.size * 0.55) * scale;
+    let ly = y + (oPx * 0.55) * scale;
     ["A=" + (o.va || ""), "E=" + (o.ve || "")].forEach(line => {
       c.lineWidth = fs * 0.25; c.strokeStyle = "#ffffff";
       c.strokeText(line, x, ly);
@@ -2991,7 +3128,7 @@ function drawSym(c, o, scale) {
   if (activeTool === "test" && t.glyph !== "campin") {
     const d2 = symDims(o);
     const bx2 = x - (d2.w / 2) * scale, by2 = y - (d2.h / 2) * scale;
-    const br2 = Math.max(6 * scale, o.size * scale * 0.22);
+    const br2 = Math.max(6 * scale, oPx * scale * 0.22);
     const done = (o.ty || []).includes(testYearSel);
     c.save();
     if (exportYearCfg) {
@@ -3030,7 +3167,7 @@ function drawSym(c, o, scale) {
   if (o.info) {
     const d3 = symDims(o);
     const bx3 = x + (d3.w / 2) * scale, by3 = y + (d3.h / 2) * scale;
-    const br3 = Math.max(5 * scale, o.size * scale * 0.19);
+    const br3 = Math.max(5 * scale, oPx * scale * 0.19);
     c.save();
     c.beginPath(); c.arc(bx3, by3, br3, 0, Math.PI * 2);
     c.fillStyle = "#f2c200"; c.fill();
@@ -3046,7 +3183,7 @@ function drawSym(c, o, scale) {
   if (o.failed) {
     const d = symDims(o);
     const bx = x + (d.w / 2) * scale, by = y - (d.h / 2) * scale;
-    const br = Math.max(5 * scale, o.size * scale * 0.2);
+    const br = Math.max(5 * scale, oPx * scale * 0.2);
     c.save();
     c.strokeStyle = "#ff1744"; c.lineWidth = br * 0.42; c.lineCap = "round";
     c.beginPath();
@@ -4289,6 +4426,7 @@ function getHandles(o) {
       const left = o.x - d.w / 2, top = o.y - d.h / 2;
       const k = den > 0 ? ((nx - left) * aw + (ny - top) * ah) / den : o.size;
       o.size = Math.max(12, Math.min(400, k));
+      symSyncMm(o);                      /* PASS 139 [139-A2]: the grip writes mm */
       /* Put the anchored corner back where it was. Self-consistent: left/top
          recompute to the same numbers on the next pointermove, so the anchor
          cannot creep across a drag. pushUndo() already fired at pointerdown,
@@ -5243,7 +5381,7 @@ sizeSlider.addEventListener("input", () => {
   selection.forEach(o => {
     if (o.kind === "ink" || o.kind === "shape") o.width = v / 8;
     else if (o.kind === "sym" || o.kind === "text" || o.kind === "callout") o.size = v;
-    if (o.kind === "sym") symSizeRemember(o.type, v);
+    if (o.kind === "sym") { symSizeRemember(o.type, v); symSyncMm(o); }
   });
   draw();
 });
@@ -10236,7 +10374,10 @@ function endPointer(e) {
       /* PASS 125 [A-3]: a building element lands at its real size when the
          level has a scale. Everything else is unchanged. */
       const trueSz = fsSymTrueSize(activeTool);
-      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:(trueSz || symSizeFor(activeTool)), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      /* PASS 139 [139-A1]: EVERY item is born carrying its real dimension,
+         whether or not it is drawn at it. mm may be null - 36 of the 51
+         types have no number yet, and a blank is the honest state. */
+      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:(trueSz || symSizeFor(activeTool)), mm:fsSymMm(activeTool), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
       if (activeTool === "thermal" || activeTool === "cthermal") { m.thm = "ror"; m.thv = "60"; }
       /* PASS 125 [125-B]: NEVER remember a scale-derived size. symSizes is
          per type and outlives the register, so remembering it would carry
@@ -11243,6 +11384,26 @@ function openDetails() {
     el.value = multi ? "" : (syms[0][{ dZone:"zone", dLoop:"loop", dDev:"dev", dInfo:"info", dVa:"va", dVe:"ve", dBrand:"brand", dModel:"model", dSerial:"serial" }[id]] || "");
     el.placeholder = multi ? "(leave blank to keep)" : "";
   });
+  /* PASS 139 [139-G] - a single item shows its real dimension. Blank types
+     say so rather than showing a made-up number. */
+  (function () {
+    const el = document.getElementById("detDim");
+    if (!el) return;
+    if (multi) { el.style.display = "none"; return; }
+    const b = FS_SYM_MM[syms[0].type];
+    if (!b) { el.style.display = "none"; return; }
+    const mm = (typeof syms[0].mm === "number" && syms[0].mm > 0) ? syms[0].mm : b.mm;
+    if (!mm) {
+      el.textContent = "Size: not set yet";
+      el.style.color = "#888";
+    } else {
+      el.textContent = "Size: " + fmtMetres(mm / 1000) +
+        (b.h ? " wide \u00d7 " + fmtMetres(b.h / 1000) + " high" : "") +
+        (b.draw === "real" ? " \u00b7 drawn to scale" : "");
+      el.style.color = "#7ddb8f";
+    }
+    el.style.display = "block";
+  })();
   document.getElementById("dbaFields").style.display = syms.some(o => o.type === "dba") ? "block" : "none";
   const bgTargets = syms.filter(o => o.type === "bglass");
   document.getElementById("bgcWrap").style.display = bgTargets.length ? "block" : "none";
@@ -26289,7 +26450,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v130";
+const FS_BUILD = "aa-v131";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
