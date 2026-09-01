@@ -1,16 +1,4 @@
 <!DOCTYPE html>
-<!--
-Arc Adapt
-Copyright (c) 2026 Reece Francis. All rights reserved.
-PROPRIETARY. NOT OPEN SOURCE. NO LICENCE IS GRANTED.
-This file is served so the application can run in your browser. That is the
-only permitted use. You may not copy, republish, modify, adapt, distribute,
-sell or reuse this file or any part of it, or incorporate it into any other
-product or service, and you may not remove or alter this notice.
-Third-party libraries loaded by this application remain the property of their
-respective owners and are used under their own licences.
-Full terms: see the LICENSE file in this repository.
--->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -487,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.125 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.126 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -617,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.125 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.126 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1445,6 +1433,27 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="flex:1"></span><button class="btn" id="fsMsClose">Close</button></div>
   </div>
 </div>
+<!-- PASS 138 [138-B2] - THE SCALE DIALOG THAT REPLACES window.prompt.
+     The value and its unit sit side by side, the way the reference tools do
+     it, so the unit is on screen at the moment of entry and cannot be
+     misremembered. The green line reads the answer back BEFORE he commits.
+     Same shape as the seventeen other modals in this file. -->
+<div class="modal" id="fsScaleModal" style="z-index:122">
+  <div class="modalbox" style="max-width:420px;width:94vw;text-align:left">
+    <h3 style="margin-bottom:4px">&#128207; Set the scale</h3>
+    <div style="font-size:12.5px;color:#999;margin-bottom:12px">How long is that line in real life?</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <input type="text" id="fsScaleVal" inputmode="decimal" autocomplete="off" placeholder="6000" style="flex:1;min-width:0;box-sizing:border-box;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:10px;font-size:17px">
+      <select id="fsScaleUnit" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:10px;font-size:15px">
+        <option value="mm">mm</option>
+        <option value="cm">cm</option>
+        <option value="m">m</option>
+      </select>
+    </div>
+    <div id="fsScaleEcho" style="font-size:12.5px;color:#888;margin-bottom:12px;min-height:17px">&nbsp;</div>
+    <div class="row" style="gap:8px"><button class="btn" id="fsScaleCancel">Cancel</button><button class="btn primary" id="fsScaleOk">Set scale</button></div>
+  </div>
+</div>
 <div class="modal" id="wsSetModal" style="z-index:121">
   <div class="modalbox" style="max-width:470px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
     <h3 style="margin-bottom:12px">&#9881; Workspace settings</h3>
@@ -1458,10 +1467,17 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:110px">Dimension units</span>
       <select id="wsSetUnits" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px;font-size:12.5px">
-        <option value="mm">Millimetres &mdash; 24000 mm</option>
-        <option value="mmm">mm under a metre, m above &mdash; 800 mm / 24.0 m</option>
-        <option value="cm">Centimetres and metres &mdash; 80 cm / 24.0 m</option>
+        <option value="mm">Millimetres (mm)</option>
+        <option value="cm">Centimetres (cm)</option>
+        <option value="m">Metres (m)</option>
       </select>
+    </div>
+    <!-- PASS 138 [138-B4] - precision is a SETTING, not a number chosen in
+         the code. The options follow the unit, so this list is built in JS
+         rather than written here. -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="flex:1;font-size:13.5px;min-width:110px">Rounding</span>
+      <select id="wsSetRound" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px;font-size:12.5px"></select>
     </div>
     <div style="font-size:11.5px;color:#888;margin-bottom:12px">Show / hide overlays (labels, zones, tags, markups) live in the &#128065; Views side tab.</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
@@ -6016,18 +6032,70 @@ function zoomFlashDevice(o) {
 
    No toLocaleString: "24,000 mm" is not how a drawing writes it, and a
    locale-dependent separator is not something a suite can assert on.        */
+/* ================= PASS 138 [138-B1] [138-B4] ======================
+   THREE PLAIN UNITS. Reece: "I don't get why the measurement setting can't
+   just be millimeters, centimeters, or meters."
+
+   The shipped dropdown had ONE unit in it. "mmm" and "cm" were BEHAVIOURS
+   that flipped to metres above 1 m - which is how "800 mm" became "24.0 m"
+   halfway up a wall. A stored "mmm" falls back to "mm" on load; nothing else
+   in localStorage is touched.
+
+   perMetre is the ONLY conversion in the file and it goes one way: a display
+   value is metres * perMetre, an entered value is value / perMetre. Rounding
+   is a SETTING (138-B4), not a number chosen here - the decimals default to
+   what he was shown before the patch, and the cog can change them.
+
+   fmtMetres STILL TAKES METRES in every mode, and curScaleMpp is still metres
+   per pixel. Units are entry and display only. Nothing stored moves. */
+const FS_UNITS = {
+  mm: { label: "mm", perMetre: 1000, word: "millimetres", eg: "6000 or 820", noteQty: 1000 },
+  cm: { label: "cm", perMetre: 100,  word: "centimetres", eg: "600 or 82",   noteQty: 100  },
+  m:  { label: "m",  perMetre: 1,    word: "metres",      eg: "6 or 3.6",    noteQty: 1    }
+};
+const FS_ROUND_OPTS = { mm: [1, 5, 10], cm: [0.1, 1], m: [0.001, 0.01, 0.1] };
+const FS_ROUND_DEF  = { mm: 1, cm: 0.1, m: 0.01 };
 let fsUnitMode = "mm";
 try { fsUnitMode = localStorage.getItem("bpm-units") || "mm"; } catch (e) {}
-if (fsUnitMode !== "mm" && fsUnitMode !== "mmm" && fsUnitMode !== "cm") fsUnitMode = "mm";
+if (fsUnitMode === "mmm") fsUnitMode = "mm";
+if (!FS_UNITS[fsUnitMode]) fsUnitMode = "mm";
+let fsRounds = { mm: FS_ROUND_DEF.mm, cm: FS_ROUND_DEF.cm, m: FS_ROUND_DEF.m };
+try {
+  const j = JSON.parse(localStorage.getItem("bpm-round") || "null");
+  if (j) for (const k in FS_ROUND_DEF) {
+    if (FS_ROUND_OPTS[k].indexOf(Number(j[k])) >= 0) fsRounds[k] = Number(j[k]);
+  }
+} catch (e) {}
+function fsUnit() { return FS_UNITS[fsUnitMode] || FS_UNITS.mm; }
+function fsRoundFor(u) { return fsRounds[u] || FS_ROUND_DEF[u] || 1; }
 function fmtMetres(m) {
   if (!isFinite(m)) return "?";
-  if (fsUnitMode === "mm") return String(Math.round(m * 1000)) + " mm";
-  if (fsUnitMode === "mmm") {
-    if (m < 1) return String(Math.round(m * 1000)) + " mm";
-    return (m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)) + " m";
-  }
-  if (m < 1) return (m * 100).toFixed(0) + " cm";
-  return (m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)) + " m";
+  const u = fsUnit(), r = fsRoundFor(fsUnitMode);
+  const snapped = Math.round((m * u.perMetre) / r) * r;
+  const dp = Math.max(0, -Math.floor(Math.log10(r) + 1e-9));
+  return snapped.toFixed(dp) + " " + u.label;
+}
+/* [138-B3] THE HALF THAT MAKES THE SETTING UNABLE TO MAKE HIM WRONG.
+   A bare number means defUnit; a suffix always wins. Returns METRES or null -
+   never a number the caller has to guess the units of. */
+function fsParseLength(txt, defUnit) {
+  if (txt == null) return null;
+  const t = String(txt).trim().toLowerCase().replace(/,/g, "");
+  const mo = t.match(/^([0-9]*\.?[0-9]+)\s*(mm|cm|m)?$/);
+  if (!mo) return null;
+  const v = parseFloat(mo[1]);
+  if (!isFinite(v) || v <= 0) return null;
+  const u = FS_UNITS[mo[2] || defUnit] || FS_UNITS.mm;
+  return v / u.perMetre;
+}
+/* The read-back in the dialog is deliberately in METRES whatever he picked:
+   a wall is 6 m in anyone's head, so "= 6000 m" is the sentence that stops
+   him. Trailing zeros trimmed so it reads like a number, not a field. */
+function fsMetresPlain(m) {
+  if (!isFinite(m)) return "?";
+  const s = m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(3);
+  return s.indexOf(".") < 0 ? s + " m"
+       : s.replace(/0+$/, "").replace(/\.$/, "") + " m";
 }
 /* ================= PASS 93 [93-A8] =================================
    THE SCALE DOOR, AND THE ONE FUNCTION THAT HIDES IT.
@@ -6150,7 +6218,10 @@ function refreshMeasureNote() {
   const clr = document.getElementById("measureClearScale");
   if (!note) return;
   if (curScaleMpp) {
-    note.textContent = "Scale set (1 m = " + Math.round(1 / curScaleMpp) + " px)" + (levels.length > 1 ? " on this level" : "") + " — drag to measure";
+    /* PASS 138 - the same statement, worded in the unit he picked. The
+       NUMBER is deliberately unchanged: it is the one he is asked to read
+       back when a scale looks wrong. */
+    note.textContent = "Scale set (" + fsUnit().noteQty + " " + fsUnit().label + " = " + Math.round(1 / curScaleMpp) + " px)" + (levels.length > 1 ? " on this level" : "") + " — drag to measure";
     clr.style.display = "inline-block";
   } else {
     note.textContent = "No scale — drag a line along a known distance to set it";
@@ -6398,11 +6469,104 @@ document.getElementById("wsAngleOn").onchange = ev => {
   u.value = fsUnitMode;
   u.onchange = ev => {
     const v = ev.target.value;
-    fsUnitMode = (v === "mm" || v === "mmm" || v === "cm") ? v : "mm";
+    fsUnitMode = FS_UNITS[v] ? v : "mm";
     try { localStorage.setItem("bpm-units", fsUnitMode); } catch (e2) {}
+    fsRoundRender();
     if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     if (typeof draw === "function") draw();
   };
+})();
+/* PASS 138 [138-B4] - the Rounding list follows the unit, so it is built
+   rather than written into the markup. */
+function fsRoundRender() {
+  const sel = document.getElementById("wsSetRound");
+  if (!sel) return;
+  const lbl = fsUnit().label;
+  sel.innerHTML = "";
+  (FS_ROUND_OPTS[fsUnitMode] || FS_ROUND_OPTS.mm).forEach(r => {
+    const o = document.createElement("option");
+    o.value = String(r);
+    o.textContent = "Nearest " + r + " " + lbl;
+    sel.appendChild(o);
+  });
+  sel.value = String(fsRoundFor(fsUnitMode));
+}
+(function () {
+  const s = document.getElementById("wsSetRound");
+  if (!s) return;
+  fsRoundRender();
+  s.onchange = ev => {
+    const r = Number(ev.target.value);
+    if ((FS_ROUND_OPTS[fsUnitMode] || []).indexOf(r) < 0) return;
+    fsRounds[fsUnitMode] = r;
+    try { localStorage.setItem("bpm-round", JSON.stringify(fsRounds)); } catch (e2) {}
+    if (typeof refreshMeasureNote === "function") refreshMeasureNote();
+    if (typeof draw === "function") draw();
+  };
+})();
+/* PASS 138 [138-B2] - THE SCALE DIALOG.
+
+   fsScalePendingDpx holds the pixel length of the line he just dragged, and
+   it is the ONLY state this adds. It is cleared on every exit path; a stale
+   dpx applied to a later drag is the obvious bug here and M6 is that clear
+   removed. */
+let fsScalePendingDpx = null;
+function fsScaleAsk(dpx) {
+  const box = document.getElementById("fsScaleModal");
+  const val = document.getElementById("fsScaleVal");
+  const uni = document.getElementById("fsScaleUnit");
+  if (!box || !val || !uni) return;
+  fsScalePendingDpx = dpx;
+  val.value = "";
+  uni.value = fsUnitMode;                 /* starts on what he picked ... */
+  fsScaleEcho();
+  box.classList.add("show");
+  setTimeout(() => { try { val.focus(); } catch (e) {} }, 60);
+}
+function fsScaleEcho() {
+  const el = document.getElementById("fsScaleEcho");
+  const val = document.getElementById("fsScaleVal");
+  const uni = document.getElementById("fsScaleUnit");
+  if (!el || !val || !uni) return;
+  const m = fsParseLength(val.value, uni.value);
+  if (!m || !fsScalePendingDpx) { el.textContent = "\u00a0"; el.style.color = "#888"; return; }
+  const mpp = m / fsScalePendingDpx;
+  el.style.color = "#7ddb8f";
+  el.textContent = "= " + fsMetresPlain(m) + "  \u00b7  " + fsUnit().noteQty + " " +
+                   fsUnit().label + " = " + Math.round(1 / mpp) + " px";
+}
+function fsScaleApply() {
+  const val = document.getElementById("fsScaleVal");
+  const uni = document.getElementById("fsScaleUnit");
+  if (!val || !uni) return;
+  const m = fsParseLength(val.value, uni.value);
+  if (!m || !fsScalePendingDpx) return;   /* nothing typed: the dialog stays */
+  curScaleMpp = m / fsScalePendingDpx;    /* METRES per pixel, as it always was */
+  fsScalePendingDpx = null;
+  document.getElementById("fsScaleModal").classList.remove("show");
+  syncLevel();
+  scheduleAutosave();
+  refreshMeasureNote();
+  if (typeof draw === "function") draw();
+}
+function fsScaleDismiss() {
+  fsScalePendingDpx = null;
+  const box = document.getElementById("fsScaleModal");
+  if (box) box.classList.remove("show");
+  measureLive = null;                     /* the prompt dropped the line too */
+  if (typeof draw === "function") draw();
+}
+(function () {
+  const val = document.getElementById("fsScaleVal");
+  const uni = document.getElementById("fsScaleUnit");
+  const ok = document.getElementById("fsScaleOk");
+  const no = document.getElementById("fsScaleCancel");
+  if (!val || !uni || !ok || !no) return;
+  val.oninput = fsScaleEcho;
+  uni.onchange = fsScaleEcho;
+  val.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); fsScaleApply(); } };
+  ok.onclick = fsScaleApply;
+  no.onclick = fsScaleDismiss;
 })();
 /* PASS 93 [93-A8] - the door's other half. It must ARM THE MEASURE TOOL and
    say what to do; the existing note already has the words ("No scale - drag a
@@ -9883,16 +10047,11 @@ function endPointer(e) {
     if (measureLive) {
       const dpx = Math.hypot(measureLive.x2 - measureLive.x1, measureLive.y2 - measureLive.y1);
       if (!moved || dpx * view.scale < 8) { measureLive = null; }
-      else if (!curScaleMpp) {
-        const ans = window.prompt("Set the scale — how long is this line in real life?\nEnter metres (e.g. 10 or 3.6):");
-        const m = parseFloat(ans);
-        if (ans != null && isFinite(m) && m > 0) {
-          curScaleMpp = m / dpx;
-          syncLevel();
-          scheduleAutosave();
-          refreshMeasureNote();
-        } else { measureLive = null; }
-      }
+      /* PASS 138 [138-B2] - the prompt is gone. The dialog is async, so the
+         drag ends here and the scale is applied by fsScaleApply. measureLive
+         is kept on screen meanwhile: he is looking at the line he is being
+         asked about. */
+      else if (!curScaleMpp) { fsScaleAsk(dpx); }
     }
     draw();
     return;
@@ -26130,7 +26289,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v129";
+const FS_BUILD = "aa-v130";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
