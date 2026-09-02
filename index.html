@@ -475,7 +475,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.127 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.128 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -605,7 +605,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.127 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.128 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1477,13 +1477,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
         <option value="m">Metres (m)</option>
       </select>
     </div>
-    <!-- PASS 138 [138-B4] - precision is a SETTING, not a number chosen in
-         the code. The options follow the unit, so this list is built in JS
-         rather than written here. -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <span style="flex:1;font-size:13.5px;min-width:110px">Rounding</span>
-      <select id="wsSetRound" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px;font-size:12.5px"></select>
-    </div>
+    <!-- PASS 140 [140-C] - W127-7. THE ROUNDING ROW IS GONE, and the
+         BEHAVIOUR IS NOT. Reece: "I am talking about in settings how it says
+         something about rounding etc." Pass 138 added this control and he does
+         not want it. Precision stays on the per-unit default FS_ROUND_DEF
+         already holds - 1 mm / 0.1 cm / 0.01 m - so nothing he measures reads
+         differently. Every drafting tool worth copying buries rounding once,
+         per unit, two menus deep and nowhere near the drawing.
+         THE OVERLAYS LINE BELOW WAS NOT WHAT HE MEANT AND IT STAYS. -->
     <div style="font-size:11.5px;color:#888;margin-bottom:12px">Show / hide overlays (labels, zones, tags, markups) live in the &#128065; Views side tab.</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Autosave: <b id="wsSetAutoT">&mdash;</b></span>
@@ -2316,20 +2317,123 @@ const FS_SYM_MM = {
   spitfire: { mm: null, mult: 1.0,  draw: "symbol", src: null },
   campin:   { mm: null, mult: 1.15, draw: "symbol", src: null }
 };
+/* ================= PASS 140 [140-A] ================================
+   THE CATALOGUE, AS EDITED.  W127-2 / W127-3 / W127-4.
+
+   Reece, 2 Sep 2026, asked twice: "can we not all have that in arc command
+   with all this data shown and can be edited from there?"
+
+   FS_SYM_MM above is the BUILT-IN DEFAULT and it never changes - A-5's probe
+   names it and A-3's names fsSymTrueSize, both LIVE, so both keep their names
+   and Rule #0c holds. FS_SYM_SPEC is the layer on top, and fsSymSpec() is the
+   ONLY thing the rest of the app is allowed to read.
+
+   WHERE AN OVERRIDE COMES FROM, in this order, last wins:
+     1  FS_SYM_MM                  the shipped default
+     2  fsProfile.symbols          the client profile file, authored in Arc
+                                   Command. THIS IS THE CHANNEL THAT REACHES A
+                                   CLIENT'S DEVICE, and it is the one the
+                                   equipment fields and checklists already
+                                   travel on.
+     3  localStorage FS_SYM_SPEC_KEY   the fast path, HIS device only. The
+                                   three apps share one origin - three repos
+                                   under arcadapt.github.io, no CNAME, see
+                                   R-42 - which is already load-bearing:
+                                   arcadapt and everdue share bpm-units,
+                                   bpm-round and aa-symsize TODAY.
+
+   THE FALLBACK IS THE MIGRATION, exactly as symPx's is. No profile, empty
+   storage, a type nobody has touched -> the built-in row, so the app draws
+   precisely what V0.127 drew. M1 is that fallback removed. */
+const FS_SYM_SPEC_KEY = "aa-symspec";
+let fsSymSpecOv = {};
+try {
+  const j = JSON.parse(localStorage.getItem(FS_SYM_SPEC_KEY) || "{}");
+  if (j && typeof j === "object") fsSymSpecOv = j;
+} catch (e) { fsSymSpecOv = {}; }
+/* A profile arrives asynchronously and can land AFTER this file has run, so
+   reading it is a call and never an initialiser. */
+function fsSymSpecProfile() {
+  /* `let fsProfile` is declared 10,000 lines below this one, so a plain
+     typeof would throw ReferenceError from the temporal dead zone if anything
+     ever asked before that line ran. try/catch removes the whole class. */
+  let p = null;
+  try { p = (fsProfile && fsProfile.symbols) || null; } catch (e) { p = null; }
+  return p && typeof p === "object" ? p : null;
+}
+/* One row, merged. `mm` is the only field an edit may move: mult and draw are
+   the GLYPH's own geometry, read off drawSym, and a number typed into a sheet
+   cannot change how a glyph is drawn. */
+function fsSymSpec(typeId) {
+  const base = FS_SYM_MM[typeId];
+  if (!base) return null;
+  const prof = fsSymSpecProfile();
+  const layers = [prof && prof[typeId], fsSymSpecOv[typeId]];
+  if (!layers[0] && !layers[1]) return base;
+  const out = { mm: base.mm, mult: base.mult, draw: base.draw, src: base.src, h: base.h };
+  layers.forEach(o => {
+    if (!o || typeof o !== "object") return;
+    if (o.mm === null) { out.mm = null; out.src = null; }
+    else if (typeof o.mm === "number" && o.mm > 0) { out.mm = o.mm; out.src = o.src || "set in Arc Command"; }
+  });
+  return out;
+}
+/* [140-A3] A profile may carry a DRAWN symbol size per type. It SEEDS this
+   device's own store and never overwrites it: a size he has dragged here is
+   his, and the catalogue is what a type starts at. */
+function fsSymSpecSeed() {
+  const p = fsSymSpecProfile();
+  if (!p || !symSizes || typeof symSizes !== "object") return;
+  let moved = false;
+  for (const k in p) {
+    const px = p[k] && p[k].px;
+    if (typeof px === "number" && px >= 2 && px <= 400 &&
+        typeof symSizes[k] !== "number") { symSizes[k] = px; moved = true; }
+  }
+  if (moved) { try { localStorage.setItem(SYMSIZE_KEY, JSON.stringify(symSizes)); } catch (e) {} }
+}
+/* [140-A2] A-13. THE REAL SIZE OF ONE PLACED ITEM.
+   Reece: "a third tab on some items when selecting that had dimensions so
+   they automatically scale to that dimension" - a place to SET it, not only
+   read it. The placement's own millimetres win; otherwise the catalogue's.
+   THE REAL SIZE AND THE DRAWN SIZE ARE DIFFERENT PROPERTIES and nothing here
+   derives one from the other - that split is W127-2 and it is the whole
+   reason the sheet exists. */
+function fsSymRealSize(o) {
+  if (!o) return null;
+  if (typeof o.mm === "number" && o.mm > 0) return o.mm;
+  return fsSymMm(o.type);
+}
+/* Blank clears back to the catalogue rather than storing a zero. */
+function fsSymSetRealSize(o, txt) {
+  if (!o) return false;
+  const t = String(txt == null ? "" : txt).trim().replace(/,/g, "");
+  if (!t) { o.mm = null; }
+  else {
+    const v = parseFloat(t);
+    if (!isFinite(v) || v <= 0) return false;
+    o.mm = v;
+  }
+  if (typeof scheduleAutosave === "function") scheduleAutosave();
+  if (typeof draw === "function") draw();
+  return true;
+}
 /* The catalog dimension for a type, or null when nobody has given one yet. */
 function fsSymMm(typeId) {
-  const b = FS_SYM_MM[typeId];
+  const b = fsSymSpec(typeId);
   return b && typeof b.mm === "number" && b.mm > 0 ? b.mm : null;
 }
 function fsSymDrawsReal(typeId) {
-  const b = FS_SYM_MM[typeId];
+  const b = fsSymSpec(typeId);
   return !!(b && b.draw === "real");
 }
 /* Returns the size param that makes this symbol its real width on the CURRENT
    level's scale, or null when there is no scale yet or the type is not a
    building element - in which case the caller keeps the slider size. */
 function fsSymTrueSize(typeId) {
-  const b = FS_SYM_MM[typeId];
+  /* PASS 140 [140-A]: through the override layer, so a dimension he sets in
+     Arc Command sizes the next thing he places. */
+  const b = fsSymSpec(typeId);
   /* PASS 139: only a "real" type is DRAWN at its dimension. A device has a
      real dimension too - it is data, not geometry. */
   if (!b || b.draw !== "real" || !fsSymMm(typeId) || !curScaleMpp) return null;
@@ -2349,7 +2453,9 @@ function fsSymTrueSize(typeId) {
    pixel size. Nothing already saved re-reads differently. */
 function symPx(o) {
   if (!o) return 0;
-  const b = FS_SYM_MM[o.type];
+  /* PASS 140 [140-A]: through the override layer. The fallback below is
+     still the migration and it has not moved. */
+  const b = fsSymSpec(o.type);
   if (b && b.draw === "real" && curScaleMpp && typeof o.mm === "number" && o.mm > 0) {
     const s = (o.mm / 1000) / curScaleMpp / b.mult;
     if (isFinite(s) && s > 0) return Math.max(2, Math.min(400, s));
@@ -2367,7 +2473,11 @@ function symPx(o) {
    would throw his size away and snap the door back to 820. */
 function symSyncMm(o) {
   if (!o || o.kind !== "sym") return;
-  const b = FS_SYM_MM[o.type];
+  /* PASS 140 [140-A]: through the override layer like every other reader.
+     Nothing an edit can move is used here today - draw and mult are the
+     glyph's own geometry - and that is exactly why it must not be the one
+     line left reading the defaults directly. */
+  const b = fsSymSpec(o.type);
   if (!b || b.draw !== "real") return;
   if (!curScaleMpp) { o.mm = null; return; }
   const mm = o.size * b.mult * curScaleMpp * 1000;
@@ -6197,13 +6307,11 @@ let fsUnitMode = "mm";
 try { fsUnitMode = localStorage.getItem("bpm-units") || "mm"; } catch (e) {}
 if (fsUnitMode === "mmm") fsUnitMode = "mm";
 if (!FS_UNITS[fsUnitMode]) fsUnitMode = "mm";
+/* PASS 140 [140-C] - W127-7. The stored override is read no more, because
+   the control that wrote it is gone: honouring an invisible setting on one
+   device is worse than not having it. FS_ROUND_DEF is the behaviour and this
+   table is what fsRoundFor and fmtMetres have always read. */
 let fsRounds = { mm: FS_ROUND_DEF.mm, cm: FS_ROUND_DEF.cm, m: FS_ROUND_DEF.m };
-try {
-  const j = JSON.parse(localStorage.getItem("bpm-round") || "null");
-  if (j) for (const k in FS_ROUND_DEF) {
-    if (FS_ROUND_OPTS[k].indexOf(Number(j[k])) >= 0) fsRounds[k] = Number(j[k]);
-  }
-} catch (e) {}
 function fsUnit() { return FS_UNITS[fsUnitMode] || FS_UNITS.mm; }
 function fsRoundFor(u) { return fsRounds[u] || FS_ROUND_DEF[u] || 1; }
 function fmtMetres(m) {
@@ -6609,35 +6717,6 @@ document.getElementById("wsAngleOn").onchange = ev => {
     const v = ev.target.value;
     fsUnitMode = FS_UNITS[v] ? v : "mm";
     try { localStorage.setItem("bpm-units", fsUnitMode); } catch (e2) {}
-    fsRoundRender();
-    if (typeof refreshMeasureNote === "function") refreshMeasureNote();
-    if (typeof draw === "function") draw();
-  };
-})();
-/* PASS 138 [138-B4] - the Rounding list follows the unit, so it is built
-   rather than written into the markup. */
-function fsRoundRender() {
-  const sel = document.getElementById("wsSetRound");
-  if (!sel) return;
-  const lbl = fsUnit().label;
-  sel.innerHTML = "";
-  (FS_ROUND_OPTS[fsUnitMode] || FS_ROUND_OPTS.mm).forEach(r => {
-    const o = document.createElement("option");
-    o.value = String(r);
-    o.textContent = "Nearest " + r + " " + lbl;
-    sel.appendChild(o);
-  });
-  sel.value = String(fsRoundFor(fsUnitMode));
-}
-(function () {
-  const s = document.getElementById("wsSetRound");
-  if (!s) return;
-  fsRoundRender();
-  s.onchange = ev => {
-    const r = Number(ev.target.value);
-    if ((FS_ROUND_OPTS[fsUnitMode] || []).indexOf(r) < 0) return;
-    fsRounds[fsUnitMode] = r;
-    try { localStorage.setItem("bpm-round", JSON.stringify(fsRounds)); } catch (e2) {}
     if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     if (typeof draw === "function") draw();
   };
@@ -6670,8 +6749,30 @@ function fsScaleEcho() {
   if (!m || !fsScalePendingDpx) { el.textContent = "\u00a0"; el.style.color = "#888"; return; }
   const mpp = m / fsScalePendingDpx;
   el.style.color = "#7ddb8f";
-  el.textContent = "= " + fsMetresPlain(m) + "  \u00b7  " + fsUnit().noteQty + " " +
-                   fsUnit().label + " = " + Math.round(1 / mpp) + " px";
+  /* PASS 140 [140-B] - W127-1. "why does this always say 1000 no matter what
+     i put in though? whats the green actually saying here? is it required?????"
+
+     Because the middle term was never his number. It was the plan's SCALE
+     worded in his unit - one metre, in mm, is always 1000 - sitting exactly
+     where an echo of what he typed belongs, in a line whose only job is to
+     stop a 1000x error. MY DESIGN, MY FAULT.
+
+     It now reads: HIS number in HIS unit, the same length in metres so a
+     1000x slip is obvious on sight, and the pixel length of the line he just
+     dragged - muted, and last, because it is the check and not the answer.
+     In metres mode the second term would repeat the first, so it is dropped.
+     NOTHING ELSE IN THIS DIALOG MOVES. */
+  const un = FS_UNITS[uni.value] || fsUnit();
+  const typed = String(Math.round(m * un.perMetre * 1000) / 1000) + " " + un.label;
+  while (el.firstChild) el.removeChild(el.firstChild);
+  const said = document.createElement("span");
+  said.textContent = typed + " across" +
+                     (un.perMetre === 1 ? "" : "  =  " + fsMetresPlain(m));
+  const chk = document.createElement("span");
+  /* MUTED AND SECOND, on purpose: it is the check and not the answer. */
+  chk.style.color = "#8f979e";
+  chk.textContent = "  \u00b7  " + Math.round(fsScalePendingDpx) + " px on screen";
+  el.appendChild(said); el.appendChild(chk);
 }
 function fsScaleApply() {
   const val = document.getElementById("fsScaleVal");
@@ -11384,25 +11485,71 @@ function openDetails() {
     el.value = multi ? "" : (syms[0][{ dZone:"zone", dLoop:"loop", dDev:"dev", dInfo:"info", dVa:"va", dVe:"ve", dBrand:"brand", dModel:"model", dSerial:"serial" }[id]] || "");
     el.placeholder = multi ? "(leave blank to keep)" : "";
   });
-  /* PASS 139 [139-G] - a single item shows its real dimension. Blank types
-     say so rather than showing a made-up number. */
+  /* ================= PASS 140 [140-D] =============================
+     A-13. THE DIMENSION BECAME A FIELD.
+
+     Reece, on the V0.92 walk: "Should we adopt something like a third tab on
+     some items when selecting that had dimensions so they automatically scale
+     to that dimension??" Pass 139 delivered everything but the SETTING of it
+     and deliberately did not take A-13's name. This is the missing half, so
+     the name is taken here and A-13 closes on its ORIGINAL probe.
+
+     ONE LINE CARRIES THE WHOLE TYPE-VERSUS-PLACEMENT DISTINCTION, in words he
+     would use on site: editing here moves THIS symbol; the catalogue in Arc
+     Command moves every one of them. Every drafting tool worth copying warns
+     about that, and this is the warning without the modal.
+
+     Built in the DOM rather than innerHTML: the note carries no user text
+     today, and a string template here is how a caption becomes an injection
+     the next time someone adds a name to it. */
   (function () {
     const el = document.getElementById("detDim");
     if (!el) return;
     if (multi) { el.style.display = "none"; return; }
-    const b = FS_SYM_MM[syms[0].type];
+    const o = syms[0];
+    const b = fsSymSpec(o.type);
     if (!b) { el.style.display = "none"; return; }
-    const mm = (typeof syms[0].mm === "number" && syms[0].mm > 0) ? syms[0].mm : b.mm;
-    if (!mm) {
-      el.textContent = "Size: not set yet";
-      el.style.color = "#888";
-    } else {
-      el.textContent = "Size: " + fmtMetres(mm / 1000) +
-        (b.h ? " wide \u00d7 " + fmtMetres(b.h / 1000) + " high" : "") +
-        (b.draw === "real" ? " \u00b7 drawn to scale" : "");
-      el.style.color = "#7ddb8f";
-    }
+    while (el.firstChild) el.removeChild(el.firstChild);
     el.style.display = "block";
+    el.style.color = "#8fa";
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:7px;flex-wrap:wrap";
+    const lab = document.createElement("span");
+    lab.textContent = "Size";
+    lab.style.cssText = "color:#8f979e";
+    const inp = document.createElement("input");
+    inp.id = "detDimVal";
+    inp.type = "text";
+    inp.inputMode = "decimal";
+    inp.placeholder = "not set";
+    inp.style.cssText = "width:80px;padding:5px 7px;border-radius:6px;border:1px solid #444;" +
+                        "background:#2e333a;color:#e8e8e8;font-size:12.5px;text-align:right";
+    const cur = fsSymRealSize(o);
+    inp.value = cur ? String(Math.round(cur * 1000) / 1000) : "";
+    /* THE UNIT SITS BESIDE THE FIELD, ALWAYS. A number with nothing next to it
+       is the V0.125 1000x failure waiting to happen again, and this field is
+       in millimetres whatever the workspace unit is - because the catalogue
+       is, and the two must never disagree. */
+    const unit = document.createElement("span");
+    unit.textContent = "mm";
+    unit.style.cssText = "color:#8f979e";
+    const mode = document.createElement("span");
+    mode.textContent = b.draw === "real"
+      ? "\u00b7 drawn to scale"
+      : "\u00b7 drawn as a symbol" + (b.h ? ", " + b.h + " mm high" : "");
+    mode.style.cssText = "color:#8f979e";
+    row.appendChild(lab); row.appendChild(inp); row.appendChild(unit); row.appendChild(mode);
+    el.appendChild(row);
+    const note = document.createElement("div");
+    note.textContent = "This one only \u2014 the catalogue is edited in Arc Command.";
+    note.style.cssText = "color:#888;font-size:11px;margin-top:4px";
+    el.appendChild(note);
+    inp.onchange = () => {
+      if (!fsSymSetRealSize(o, inp.value)) {
+        const back = fsSymRealSize(o);
+        inp.value = back ? String(Math.round(back * 1000) / 1000) : "";
+      }
+    };
   })();
   document.getElementById("dbaFields").style.display = syms.some(o => o.type === "dba") ? "block" : "none";
   const bgTargets = syms.filter(o => o.type === "bglass");
@@ -12576,6 +12723,10 @@ function fsBrandName() {
   return String(c.brandName || c.name || "").trim();
 }
 function fsApplyProfile() {
+  /* PASS 140 [140-A3]: a profile can carry the catalogue, so applying one has
+     to seed the symbol sizes BEFORE the early return below - which fires
+     whenever the brand strip is not on this screen. */
+  fsSymSpecSeed();
   const el = document.getElementById("fsClientBrand");
   if (!el) return;
   const n = fsBrandName(), lg = fsBrandLogo();
@@ -26450,7 +26601,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v131";
+const FS_BUILD = "aa-v132";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
