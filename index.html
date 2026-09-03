@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.135 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.136 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.135 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.136 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -860,7 +860,18 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          a manufacture date reads one field for both. -->
     <div id="blkWrap" style="display:none;margin-top:8px">
       <label>Manufacture date</label>
-      <input type="month" id="dBmfd" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px">
+      <!-- PASS 148 [148-E] - W135-3 "its just way too wide". Was width:100%,
+           a full-row box holding "06/2019". The inline style is gone with it:
+           it was a hand-copied duplicate of the .modalbox control rule that
+           Pass 146 [146-A] added precisely to stop these drifting apart.
+           140px: "06/2019" at 14px is ~55px, the calendar glyph ~22px,
+           padding 18 and border 2 - about 97px of content, so 140 has room
+           for a longer locale format and is still nearer the 89px Size box
+           beside it than the 382px row. NOT chosen by a clipping check: a
+           native month input reports scrollWidth == clientWidth at every
+           width, so that check CANNOT FAIL and would have told us nothing
+           (the test_p142 R23 trap). It was measured and then looked at. -->
+      <input type="month" id="dBmfd" style="width:auto;max-width:140px">
     </div>
     <!-- PASS 26 item 15: idWrap moved to the second pane, below. -->
     <!-- PASS 24 item 6. Checkbox look, radio behaviour, one value box each,
@@ -926,9 +937,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
             <span id="dXunit" style="font-size:13px;color:#aaa;flex:0 0 auto">kg</span>
           </div>
         </div>
-        <div style="flex:0 1 215px;min-width:150px">
+        <!-- PASS 148 [148-E] - W135-3. Pass 146 brought this down from the
+             full row to 215px and he still called it too wide: 215 of a
+             ~380px row, next to an 89px Size box, and `flex:0 1 215px` never
+             shrank below its basis on the phone either. Sized to what a
+             month field holds now. Inline style dropped - see 148-E above. -->
+        <div style="flex:0 0 auto">
           <label>Manufacture date</label>
-          <input type="month" id="dXmfd" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px">
+          <input type="month" id="dXmfd" style="width:auto;max-width:140px">
         </div>
       </div>
     </div>
@@ -10754,10 +10770,21 @@ function endPointer(e) {
       const hit = hitObject(p.x, p.y);
       if (hit && hit.kind === "sym" && hit.type !== "campin") {
         pushUndo();
-        /* PASS 147 [147-A] - was push/splice on o.ty alone. fsTyTick keeps
-           o.ty exactly as it was and maintains o.td beside it, so an untick
-           removes the date with the year. */
-        fsTyTick(hit, +testYearSel, null);
+        /* PASS 148 [148-A] - HIS CALL: the plan RECORDS tests, the Details
+           sheet EDITS the record. This used to toggle, so tapping a device
+           that was already ticked UNTICKED it - and a re-test therefore
+           never recorded a date. It never unticks now: an already-ticked
+           device is re-stamped with today and pulsed so he can see it
+           landed. Unticking moved to the year checkboxes in the sheet,
+           which are still a true toggle. */
+        const yrSel = +testYearSel;
+        if ((hit.ty || []).includes(yrSel)) {
+          fsTyStamp(hit, yrSel);
+          fsFlashOnly(hit);
+        } else {
+          fsTyTick(hit, yrSel, true);
+        }
+        scheduleAutosave();
         draw();
       }
     }
@@ -27349,7 +27376,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v139";
+const FS_BUILD = "aa-v140";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31241,6 +31268,35 @@ function fsAssetMatchDef(d, o, level) {
 
    `on` is true to tick, false to untick, null to toggle. Returns whether
    anything changed. */
+/* PASS 148 [148-A] - W135-2/W135-5. fsTyTick only ever wrote a date on the
+   TRANSITION into ticked, and his register has no transitions left in it:
+   all 282 devices were already ticked for 2026 before V0.135 shipped. This
+   records that he tested it AGAIN today, without touching o.ty.
+
+   It is deliberately separate from fsTyTick rather than a third mode on it:
+   one function changes what the register says, the other says when it was
+   last checked, and a caller should have to pick. */
+function fsTyStamp(o, yr) {
+  if (!o) return false;
+  yr = +yr;
+  if (!(o.ty || []).includes(yr)) return false;   /* only stamps what is ticked */
+  o.td = o.td || {};
+  o.td[String(yr)] = fsLocalIso(new Date());
+  return true;
+}
+/* A TAP THAT CHANGES NOTHING VISIBLE HAS TO SAY SOMETHING. Re-stamping an
+   already-ticked device leaves the tick badge exactly as it was, so without
+   this the tap reads as "nothing happened" - which is how he would conclude
+   the feature is still broken. zoomFlashDevice is the wrong tool: it moves
+   the view, and he is standing in front of the device he just tapped. */
+function fsFlashOnly(o) {
+  if (!o) return;
+  flashSym = { o: o, until: Date.now() + 900 };
+  (function pulse() {
+    if (flashSym && Date.now() < flashSym.until) { requestDraw(); requestAnimationFrame(pulse); }
+    else { flashSym = null; requestDraw(); }
+  })();
+}
 function fsTyTick(o, yr, on) {
   if (!o) return false;
   yr = +yr;
@@ -31342,11 +31398,16 @@ function fsAssetHistory(o, level, site) {
   (o.ty || []).slice().sort().forEach(function (y) {
     const stamp = (o.td || {})[String(y)];
     if (stamp) {
+      /* PASS 148 [148-C] - `tick: true` marks the events that came out of
+         o.ty / o.td, so 148-D can take the time off THOSE and leave a real
+         recorded moment alone. Deriving it from the kind instead stripped the
+         time off "Failed at the Monthly test", which is a test session and not
+         a tick - test_p145 R16 is the check that said so. */
       ev.push({ at: stamp, kind: "tested", who: "", src: "recorded",
-                text: "Tested" });
+                tick: true, text: "Tested" });
     } else {
       ev.push({ at: String(y) + "-12-31T23:59:59", year: String(y), coarse: true,
-                kind: "tested", who: "", src: "derived",
+                kind: "tested", who: "", src: "derived", tick: true,
                 text: "Recorded as tested in " + y });
     }
   });
@@ -31359,6 +31420,31 @@ function fsAssetHistory(o, level, site) {
               dayOnly: true, evId: e.id,
               text: fsEvKindLabel(e.kind) + (e.text ? " \u2014 " + e.text : "") });
   });
+  /* PASS 148 [148-B] - W135-1. "I picked one that failed and thats what it
+     showed": his Details tab had `Failed` ticked and his History tab showed a
+     GREEN tick, "Recorded as tested in 2026" and a green `Tested` pill. The
+     timeline was contradicting the panel directly above it.
+
+     o.failed is a CURRENT flag on the device - it says how the device stands
+     now, not how it stood in 2023 - so it is applied to the MOST RECENT year
+     only. Older years keep what the register actually recorded, because
+     nothing here knows whether they passed. A device with o.failed and no
+     year tick at all is deliberately left alone: annotating a tick that
+     exists is honest, inventing an event for a tick that never happened is
+     the invented-date mistake wearing different clothes. */
+  if (o.failed) {
+    let newest = null;
+    ev.forEach(function (e) {
+      if (e.kind !== "tested" || !e.tick) return;
+      if (!newest || String(e.at) > String(newest.at)) newest = e;
+    });
+    if (newest) {
+      newest.kind = "failed";
+      newest.text = newest.coarse
+        ? "Recorded as failed in " + newest.year
+        : "Failed";
+    }
+  }
   /* Anything that reached here without a source came off the register itself. */
   ev.forEach(function (e) { if (!e.src) e.src = "derived"; });
   ev.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
@@ -31418,6 +31504,18 @@ function fsHistWhen(e) {
   const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const nice = (parts.length === 3)
     ? (+parts[2]) + " " + (MON[(+parts[1]) - 1] || "") + " " + parts[0] : d;
+  /* PASS 148 [148-D] - W135-4, his words: "one thing though, it doesnt need
+     the time." A tick records WHEN he tested it and the day is the answer;
+     the hour is noise on a line he reads a hundred times a shift. The full
+     local stamp is still STORED in o.td - this is a display decision and
+     throwing the moment away would be irreversible.
+     KEYED ON e.tick, NOT ON THE KIND, and the first version got that wrong.
+     Keying it on kind "tested"/"failed" also stripped the time off "Failed at
+     the Monthly test" - which is not a tick at all, it is a real recorded test
+     session with a real timestamp, and test_p145 R16 caught it. He asked for
+     the time off THE TICK. Anything carrying a genuine recorded moment - a
+     defect raised, a defect rectified, a failure at a session - keeps it. */
+  if (e.tick) return { d: nice, t: "" };
   if (e.dayOnly || s.length <= 10) return { d: nice, t: "" };
   let hh = +s.slice(11, 13), mm = s.slice(14, 16);
   const ap = hh >= 12 ? "pm" : "am";
@@ -31455,9 +31553,13 @@ function fsAssetHistoryHtml(o) {
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:13px;color:#e8e8e8;word-break:break-word">' +
             fsEsc(e.text) +
-            (pill ? ' <span style="display:inline-block;font-size:10.5px;padding:1px 7px;' +
-                    'border-radius:9px;color:#fff;background:' + pill[1] + '">' +
-                    fsEsc(pill[0]) + '</span>' : '') +
+            /* PASS 148 [148-F] - the pill said the same word as the line
+               beside it once 148-B gave a dated tick the text "Tested".
+               A label that repeats its own subject is noise. */
+            (pill && pill[0] !== e.text
+              ? ' <span style="display:inline-block;font-size:10.5px;padding:1px 7px;' +
+                'border-radius:9px;color:#fff;background:' + pill[1] + '">' +
+                fsEsc(pill[0]) + '</span>' : '') +
           '</div>' +
           (e.sub ? '<div style="font-size:12px;color:#a9b2b8;word-break:break-word;margin-top:2px">' +
                    fsEsc(e.sub) + '</div>' : '') +
