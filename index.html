@@ -482,7 +482,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.129 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.130 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -612,7 +612,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.129 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.130 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1139,7 +1139,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="fsAnnModal" style="z-index:124">
   <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
     <h3 style="margin-bottom:2px">Photo</h3>
-    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Zoom with the buttons or pinch. Press a tool to draw, press it again to stop. <b>Marks stay editable</b> &mdash; the eraser lifts a whole mark, and you can rub them off or add more any time you open this photo.</div>
+    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Drag to move the photo, pinch or double-tap to zoom &mdash; or use the buttons. Press a tool to draw, press it again to stop. <b>Marks stay editable</b> &mdash; the eraser lifts a whole mark, and you can rub them off or add more any time you open this photo.</div>
     <!-- PASS 85 [85-0] - R-13. Three fixed colours became the workspace's own
          swatch row, and pen / highlighter / eraser are iOS Markup's three. The
          rows wrap on a phone rather than scrolling sideways. -->
@@ -1174,12 +1174,17 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      needs no change at all to the stroke maths. -->
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><button class="btn" id="fsAnnZOut" type="button" title="Zoom out" style="min-height:40px">&#8722;</button><button class="btn" id="fsAnnZIn" type="button" title="Zoom in" style="min-height:40px">&#43;</button><button class="btn" id="fsAnnZFit" type="button" title="Fit the whole photo on screen" style="min-height:40px">Fit</button><span id="fsAnnZLbl" style="font-size:12px;color:#8fa2ab"></span></div>
     <div id="fsAnnScroll" style="background:#000;border-radius:8px;overflow:auto;max-height:62vh;text-align:center">
-      <!-- PASS 121 [W120-1] - touch-action is SWITCHED BY THE TOOL, in
-           fsAnnToolSync(). On "view" it is pinch-zoom so the photo behaves like
-           a photo; on a drawing tool it is none, exactly as before. Leaving it
-           at none while disarming the pen would have shipped a picture that
-           neither draws nor zooms. -->
-      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:58vh;touch-action:pinch-zoom;cursor:zoom-in"></canvas>
+      <!-- PASS 142 [142-A] W127-12 - touch-action is `none` AT ALL TIMES and
+           the app owns pan, pinch and double-tap. Pass 121 put `pinch-zoom`
+           here so the photo would "behave like a photo"; MDN is explicit that
+           a bare pinch-zoom, with no pan-x and no pan-y, means HANDLE THE
+           PINCH AND DO NOT PAN - so every one-finger drag was swallowed while
+           #fsAnnScroll sat underneath with real overflow to scroll. That is
+           Reece's sentence word for word.
+           NOT `manipulation`: it is defined as disabling double-tap to zoom,
+           which is the gesture he ruled on, and iOS Safari's support has
+           historically been auto/manipulation only. See wireAnnGest(). -->
+      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:58vh;touch-action:none;cursor:grab"></canvas>
     </div>
     <div class="row" style="margin-top:10px">
       <!-- PASS 85 - matched to the toolbar above them. F2 measured these at
@@ -11822,7 +11827,9 @@ function openDetails() {
   ph.style.display = photo ? "block" : "none";
   ph.style.cursor = "pointer";
   ph.title = "Tap to open full size";
-  ph.onclick = () => { if (syms[0].photo) openPhotoViewer(syms[0]); };
+  /* PASS 142 [142-C] W127-14 - through fsDetPhotoTap, so a photo taken in
+     this session opens the same editor as one already on the symbol. */
+  ph.onclick = () => fsDetPhotoTap(syms[0]);
   document.getElementById("dPhotoRemove").style.display = photo ? "inline-block" : "none";
   /* PASS 141 [141-A]: "flex", not "block". #photoWrap is two columns now and
      this line runs on every open, so a "block" here silently stacks them. */
@@ -17443,10 +17450,13 @@ function fsAnnToolSync() {
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
   const vw = !fsAnnTool;   /* PASS 122 - nothing armed */
-  /* PASS 121 [W120-1] - the canvas only refuses native gestures while a
-     drawing tool is armed. On "view" it pinch-zooms like any photo. */
+  /* PASS 142 [142-A] W127-12 - `none` on BOTH sides now. Pass 121 handed the
+     view gesture back to the browser as `pinch-zoom`, which is the one value
+     that pinches and refuses to pan. The app owns all three gestures in
+     wireAnnGest() below, so there is nothing left for the browser to do and
+     nothing left for it to swallow. */
   const cvEl = document.getElementById("fsAnnCanvas");
-  if (cvEl) cvEl.style.touchAction = vw ? "pinch-zoom" : "none";
+  if (cvEl) cvEl.style.touchAction = "none";
   const er = fsAnnTool === "er";
   const cw = document.getElementById("fsAnnColWrap");
   const sw = document.getElementById("fsAnnSizeWrap");
@@ -17460,7 +17470,10 @@ function fsAnnToolSync() {
   const sl = document.getElementById("fsAnnSize");
   if (sl && !er) sl.value = String(fsAnnW[fsAnnTool] || 3);
   const cv = document.getElementById("fsAnnCanvas");
-  if (cv) cv.style.cursor = er ? "cell" : "crosshair";
+  /* PASS 142 [142-A]: "grab" while nothing is armed, because dragging now
+     moves the picture. A crosshair on a photo you cannot draw on was telling
+     the truth about the old behaviour and would be a lie about this one. */
+  if (cv) cv.style.cursor = fsAnnTool ? (er ? "cell" : "crosshair") : "grab";
 }
 /* THE ERASER IS AN OBJECT ERASER, and not only because iOS Markup's is. A
    stroke here is an object right up until Save flattens it, so a pixel eraser
@@ -17602,17 +17615,27 @@ function fsAnnZApply() {
   c.style.width = Math.round(c.width * fsAnnZoom) + "px";
   if (l) l.textContent = Math.round(fsAnnZoom * 100) + "%";
 }
-function fsAnnZFitNow() {
+/* PASS 142 [142-A] - the fit VALUE, lifted out of fsAnnZFitNow unchanged.
+   The double-tap has to ask "is the picture at fit?" and it must ask with the
+   same arithmetic that put it there; two copies of this sum drifting apart is
+   a gesture that toggles the wrong way on one photo in ten. */
+function fsAnnZFitVal() {
   const c = document.getElementById("fsAnnCanvas");
   const box = document.getElementById("fsAnnScroll");
-  if (!c || !box || !c.width) return;
+  if (!c || !box || !c.width) return 1;
   /* Fit BOTH ways. The old item-details viewer fitted to width and left a tall
      photo running off the bottom, which is half of "it's not automatically
      full zoomed out". */
   const availW = box.clientWidth - 8;
   const availH = Math.max(120, Math.round(window.innerHeight * 0.62) - 8);
-  fsAnnZoom = Math.min(availW / c.width, availH / c.height, 1);
-  if (!isFinite(fsAnnZoom) || fsAnnZoom <= 0) fsAnnZoom = 1;
+  const z = Math.min(availW / c.width, availH / c.height, 1);
+  return (isFinite(z) && z > 0) ? z : 1;
+}
+function fsAnnZFitNow() {
+  const c = document.getElementById("fsAnnCanvas");
+  const box = document.getElementById("fsAnnScroll");
+  if (!c || !box || !c.width) return;
+  fsAnnZoom = fsAnnZFitVal();
   fsAnnZFitted = true;
   fsAnnZApply();
 }
@@ -17632,11 +17655,172 @@ function fsAnnZFitNow() {
   });
 })();
 
+/* ================= PASS 142 [142-A] ==================================
+   W127-12 / W127-13.  THE PHOTO PANS, PINCHES AND DOUBLE-TAPS.
+
+   Reece: "the zoom just zooms in on one particular angle or area and I
+   cannot pan around, why can't it zoom like just a normal photo like what
+   would happen in IOS etc?"
+
+   It could not pan because the canvas asked the browser for `pinch-zoom`
+   and nothing else, which is the one value that means pinch but do not pan.
+   The app owns all three gestures now. Three rules, all from Apple's Scroll
+   View Programming Guide rather than folklore:
+
+     1  PINCH zooms about the MIDPOINT OF THE TWO FINGERS. About the centre
+        of the picture is exactly "one particular angle or area".
+     2  ONE FINGER PANS whenever the picture overflows its box. Pan is the
+        scroll offset of #fsAnnScroll - the zoom already grows the canvas
+        inside it, so there is nothing else to move.
+     3  DOUBLE-TAP toggles, centred on the tap. A second touch cancels a
+        pending tap, and a touch that becomes a drag is a pan, never a tap.
+
+   WHERE DOUBLE-TAP GOES IS REECE'S RULING, 3 Sep 2026: fit <-> 100%, not
+   Photos' fixed zoom level. He double-taps a panel label or a serial plate
+   to READ it, and 100% is the only level that guarantees one image pixel
+   per screen pixel. A photo smaller than its box already fits AT 100%, so
+   there is no 100% to travel to and that one goes to 2x rather than
+   becoming a dead gesture. */
+const FS_ANN_GEST = "142-A";
+/* Zoom to `z` and keep the point under (clientX, clientY) where it is.
+   Measured as a FRACTION OF THE PICTURE by rect, before and after, rather
+   than as scroll arithmetic: #fsAnnScroll centres the canvas while it is
+   smaller than the box, so content coordinates are not a linear function of
+   the zoom and the obvious sum is wrong on exactly the photos he is most
+   likely to open. */
+function fsAnnZAt(z, clientX, clientY) {
+  const c = document.getElementById("fsAnnCanvas");
+  const box = document.getElementById("fsAnnScroll");
+  if (!c || !box || !c.width) return;
+  const r0 = c.getBoundingClientRect();
+  const fx = r0.width ? (clientX - r0.left) / r0.width : 0.5;
+  const fy = r0.height ? (clientY - r0.top) / r0.height : 0.5;
+  fsAnnZoom = Math.max(0.05, Math.min(8, z));
+  fsAnnZFitted = false;
+  fsAnnZApply();
+  const r1 = c.getBoundingClientRect();
+  box.scrollLeft += (r1.left + fx * r1.width) - clientX;
+  box.scrollTop += (r1.top + fy * r1.height) - clientY;
+}
+/* A NAMED TOP-LEVEL FUNCTION, not two lines inside the listener, for one
+   reason that has bitten this repo before: a probe and a suite can both take
+   hold of it. `wireAnnGest` is an IIFE and ledger.py's fn_body() walks to the
+   next brace in column 0, so a pan buried inside it could only ever be probed
+   as "the string is somewhere in 26,000 lines" - which CLAUDE.md names as the
+   kind of claim that is true by accident. */
+function fsAnnPanBy(dx, dy) {
+  const box = document.getElementById("fsAnnScroll");
+  if (!box) return false;
+  const sl = box.scrollLeft, st = box.scrollTop;
+  box.scrollLeft -= dx;
+  box.scrollTop -= dy;
+  return box.scrollLeft !== sl || box.scrollTop !== st;
+}
+/* Returns "fit" or "in" so a suite can assert WHICH WAY it went rather than
+   inferring it from a number that could be right by accident. */
+function fsAnnZDoubleTap(clientX, clientY) {
+  const fit = fsAnnZFitVal();
+  if (fsAnnZoom > fit * 1.02) { fsAnnZFitNow(); return "fit"; }
+  fsAnnZAt(fit >= 0.99 ? 2 : 1, clientX, clientY);
+  return "in";
+}
+(function wireAnnGest() {
+  const c = document.getElementById("fsAnnCanvas");
+  const box = document.getElementById("fsAnnScroll");
+  if (!c || !box) return;
+  const pts = new Map();
+  let panning = false, moved = false, pinched = false, last = null, pinch = null;
+  let tapAt = 0, tapX = 0, tapY = 0;
+  const TAP_MS = 320, TAP_PX = 24, MOVE_PX = 4;
+  c.addEventListener("pointerdown", e => {
+    /* A TOOL ARMED IS THE OTHER HALF OF THIS CANVAS. The drawing handler
+       above returns when nothing is armed; this one returns when something
+       is. Between them the canvas has exactly one behaviour at a time. */
+    if (fsAnnTool) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { c.setPointerCapture(e.pointerId); } catch (x) {}
+    if (pts.size === 2) {
+      /* Apple: a second touch CANCELS a pending single tap. */
+      tapAt = 0; panning = false; pinched = true;
+      const a = Array.from(pts.values());
+      pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, z: fsAnnZoom };
+    } else if (pts.size === 1) {
+      panning = true; moved = false;
+      last = { x: e.clientX, y: e.clientY };
+    }
+    e.preventDefault();
+  });
+  c.addEventListener("pointermove", e => {
+    if (fsAnnTool || !pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size >= 2 && pinch) {
+      const a = Array.from(pts.values());
+      const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1;
+      fsAnnZAt(pinch.z * (d / pinch.d),
+               (a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2);
+      moved = true;
+      e.preventDefault();
+      return;
+    }
+    if (!panning || !last) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y;
+    if (!moved && Math.hypot(dx, dy) < MOVE_PX) return;
+    moved = true;
+    last = { x: e.clientX, y: e.clientY };
+    /* THE PAN. Nothing here is a transform: the zoom grows the canvas inside
+       a scrolling box, so moving the picture is moving that box. A suite can
+       read the result - scrollLeft either changed or it did not. */
+    fsAnnPanBy(dx, dy);
+    e.preventDefault();
+  });
+  const end = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size) return;
+    const wasMoved = moved, wasPinched = pinched;
+    panning = false; moved = false; pinched = false; last = null;
+    if (fsAnnTool || wasMoved || wasPinched) { tapAt = 0; return; }
+    const now = Date.now();
+    if (now - tapAt < TAP_MS &&
+        Math.hypot(e.clientX - tapX, e.clientY - tapY) < TAP_PX) {
+      tapAt = 0;
+      fsAnnZDoubleTap(e.clientX, e.clientY);
+    } else { tapAt = now; tapX = e.clientX; tapY = e.clientY; }
+  };
+  c.addEventListener("pointerup", end);
+  c.addEventListener("pointercancel", e => {
+    pts.delete(e.pointerId);
+    pinch = null; panning = false; moved = false; pinched = false;
+    last = null; tapAt = 0;
+  });
+})();
+
 /* PASS 122 [W120-1] FS_ONE_PHOTO_EDITOR - item details now opens THIS editor.
    openPhotoViewer used to drive #photoViewModal, a second editor that drew
    straight onto the canvas in the plan's penColor with no tools, no undo and no
    eraser. Two editors is why the same complaint was answered three times about
    the wrong screen. There is one now. */
+/* PASS 142 [142-C] W127-14 - the tap on the Details preview. A photo added
+   in THIS session lives in `detailsPhoto` and is not on the symbol yet, so
+   the old handler - which tested syms[0].photo - was dead for exactly the
+   photo he had just taken. That is the whole of "this camera view should be
+   the same as defect photo view".
+   IT CALLS fsAnnOpen. W101-2 is the precedent: V0.98 ported behaviour out of
+   fsRegionPick rather than reusing it and he had to ask twice. */
+function fsDetPhotoTap(sym) {
+  /* detailsPhoto: undefined = unchanged, null = removed, string = new. */
+  if (typeof detailsPhoto === "string" && detailsPhoto) {
+    fsAnnOpen(detailsPhoto, function (out) {
+      detailsPhoto = out;
+      const ph = document.getElementById("dPhotoPreview");
+      if (ph) ph.src = fsPhotoSrc(out);
+    });
+    return;
+  }
+  if (detailsPhoto === null) return;
+  if (sym && sym.photo) openPhotoViewer(sym);
+}
 function openPhotoViewer(sym) {
   if (!sym || !sym.photo) return;
   fsAnnOpen(sym.photo, function (out) {
@@ -17804,6 +17988,21 @@ function fsDefShowInWorkspace(d) {
     };
     rd.readAsDataURL(f);
   };
+  /* PASS 142 [142-C] W127-14 - the raise-defect preview had no tap handler
+     at all, so a photo of the defect he had just photographed could not be
+     marked up until after it was saved. Same editor, called not ported. */
+  const dfPv = document.getElementById("fsDfPhotoPrev");
+  if (dfPv) {
+    dfPv.style.cursor = "pointer";
+    dfPv.title = "Tap to open, mark up or zoom";
+    dfPv.onclick = () => {
+      if (!fsDfPhoto) return;
+      fsAnnOpen(fsDfPhoto, function (out) {
+        fsDfPhoto = out;
+        dfPv.src = fsPhotoSrc(out);
+      });
+    };
+  }
   document.getElementById("fsDfPhotoRemove").onclick = () => {
     fsDfPhoto = null;
     document.getElementById("fsDfPhotoPrev").style.display = "none";
@@ -24362,6 +24561,24 @@ function fsQiRollback() {
 }
 document.getElementById("fsQiCancel").onclick = () => { fsQiRollback(); document.getElementById("fsQrItemModal").classList.remove("show"); fsQiSite = null; fsQiItem = null; };
 document.getElementById("fsQiPhotoAdd").onclick = () => document.getElementById("fsQiPhotoInput").click();
+/* PASS 142 [142-C] W127-14 - the quick-item preview, the third capture path
+   with no way into the editor. Same three lines, same call. */
+(function () {
+  const qiPv = document.getElementById("fsQiPhotoPrev");
+  if (!qiPv) return;
+  qiPv.style.cursor = "pointer";
+  qiPv.title = "Tap to open, mark up or zoom";
+  qiPv.onclick = () => {
+    const cur = (typeof fsQiPhoto === "string" && fsQiPhoto) ? fsQiPhoto
+              : (fsQiItem && fsQiItem.photo) ? fsQiItem.photo : null;
+    if (!cur) return;
+    fsAnnOpen(cur, function (out) {
+      fsQiPhoto = out;
+      qiPv.src = fsPhotoSrc(out);
+      qiPv.style.display = "block";
+    });
+  };
+})();
 document.getElementById("fsQiPhotoInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -26746,7 +26963,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v133";
+const FS_BUILD = "aa-v134";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
