@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.137 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.138 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.137 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.138 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -15220,14 +15220,142 @@ function fsCycApplies(s, cyc) {
 /* Site edit's Test periods block. One row builder, used by the initial render
    AND by the Add button, so a row added mid-edit cannot look different from
    the ones beside it. */
+/* PASS 150 [150-C] - W131-5. "Make it so you cannot delete Weekly,
+   Fortnightly, Monthly, 6 Monthly or Annual / Any others can be deleted."
+
+   HIS FIVE ARE NOT THE APP'S FIVE. FS_CYCLES ships Monthly, 6 monthly, Annual,
+   5 yearly and Full Function; he named Weekly and Fortnightly, which are not
+   built-ins at all - they are periods he would have added himself once V0.131
+   gave him days and weeks. So the name list is his, and it is checked first. */
+const FS_CYC_KEEP = ["weekly", "fortnightly", "monthly", "6 monthly", "annual"];
+function fsCycNorm(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+/* Returns "" when it can be deleted, or the reason it cannot. The reason is
+   shown to him rather than the button silently vanishing - a control that is
+   simply absent reads as a missing feature. */
+function fsCycProtected(cy) {
+  if (!cy) return "unknown period";
+  if (FS_CYC_KEEP.indexOf(fsCycNorm(cy.label)) >= 0)
+    return "one of the standard periods";
+  if (typeof FS_CYC_MOD !== "undefined" && FS_CYC_MOD[cy.key])
+    return "built into the app";
+  /* THE ONE THAT IS NOT HIS WORDS AND IS THE REASON DELETE WAS NEVER BUILT.
+     fsCycEditRead has said so since Pass 143: a routine "carries a last-done
+     date on every site that has ever been tested on it". Deleting it leaves
+     those dates in the file with nothing to render them - a test history that
+     is gone from the screen and still on the disk. */
+  try {
+    const cls = (fsRegister && fsRegister.clients) || [];
+    for (let i = 0; i < cls.length; i++) {
+      const ss = (cls[i] && cls[i].sites) || [];
+      for (let j = 0; j < ss.length; j++) {
+        if (((ss[j] || {}).testing || {})[cy.key]) return "a site has a test recorded against it";
+      }
+    }
+  } catch (e) {}
+  return "";
+}
 function fsCycRowHtml(cy, on) {
-  return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+  const why = fsCycProtected(cy);
+  return '<div class="fsCycRow" data-key="' + fsEsc(cy.key) + '" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
     '<input type="checkbox" class="fsCycOnBox" data-key="' + fsEsc(cy.key) + '"' +
     (on ? " checked" : "") + ' style="width:22px;height:22px;flex:0 0 auto">' +
     '<input class="fsinput fsCycLbl" data-key="' + fsEsc(cy.key) + '" value="' +
     fsEsc(cy.label || "") + '" style="flex:1 1 90px;min-width:0">' +
     '<span style="font-size:11.5px;color:var(--fs-sub2);white-space:nowrap">' +
-    fsEsc(fsCycEvery(cy)) + '</span></label>';
+    fsEsc(fsCycEvery(cy)) + '</span>' +
+    /* PASS 150 [150-B] - W131-6, "you should be able to organise what order
+       the tests show in on the strip". fsCycles() IS the order: the strip, the
+       site card, the planner and the export all iterate the array. */
+    '<button type="button" class="fsbtn fsCycUp" data-key="' + fsEsc(cy.key) + '" title="Move up" style="padding:2px 8px;flex:0 0 auto">&#9650;</button>' +
+    '<button type="button" class="fsbtn fsCycDn" data-key="' + fsEsc(cy.key) + '" title="Move down" style="padding:2px 8px;flex:0 0 auto">&#9660;</button>' +
+    (why
+      /* NOT AN EMOJI PADLOCK. The first build used one and it rendered as an
+         empty box in this app's font - the same failure as Pass 149's "?"
+         badge, and again only rendering the page showed it. A word needs no
+         font support and says what it means without a tooltip. */
+      ? '<span class="fsCycLock" data-key="' + fsEsc(cy.key) + '" title="Cannot be deleted - ' + fsEsc(why) + '" style="flex:0 0 auto;font-size:11px;color:var(--fs-sub2);padding:2px 6px;white-space:nowrap">kept</span>'
+      : '<button type="button" class="fsbtn fsCycDel" data-key="' + fsEsc(cy.key) + '" title="Delete this period" style="padding:2px 8px;flex:0 0 auto;color:#c62828">&times;</button>') +
+    '</div>';
+}
+/* REDRAW ONLY THE ROWS, AND CARRY THE IN-FLIGHT EDITS ACROSS.
+   fsCycAddNew appends for a documented reason: "A re-render here would throw
+   away every other field he has typed in the open site form." Reorder and
+   delete cannot append - they have to redraw - so they redraw #fsCycEdRows and
+   nothing else, and they take the ticks and the typed labels with them.
+   Losing a tick because he pressed an arrow is that same bug. */
+function fsCycRowsRedraw(s) {
+  const rows = document.getElementById("fsCycEdRows");
+  if (!rows) return false;
+  const ticks = {}, labels = {};
+  document.querySelectorAll(".fsCycOnBox").forEach(function (b) { ticks[b.dataset.key] = b.checked; });
+  document.querySelectorAll(".fsCycLbl").forEach(function (f) { labels[f.dataset.key] = f.value; });
+  const site = s || (typeof fsSite !== "undefined" ? fsSite : null);
+  rows.innerHTML = fsCycles().map(function (cy) {
+    const on = (cy.key in ticks) ? ticks[cy.key] : fsCycApplies(site, cy);
+    return fsCycRowHtml(cy, on);
+  }).join("");
+  document.querySelectorAll(".fsCycLbl").forEach(function (f) {
+    if (f.dataset.key in labels) f.value = labels[f.dataset.key];
+  });
+  fsCycEdWire(site);
+  return true;
+}
+function fsCycMove(key, dir) {
+  const rt = fsCycEnsureRoutines();
+  if (!rt) return false;
+  const i = rt.findIndex(function (x) { return x.key === key; });
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= rt.length) return false;
+  const t = rt[i]; rt[i] = rt[j]; rt[j] = t;
+  fsMarkDirty();
+  return true;
+}
+function fsCycDelete(key) {
+  const rt = fsCycEnsureRoutines();
+  if (!rt) return false;
+  const cy = rt.filter(function (x) { return x.key === key; })[0];
+  if (!cy) return false;
+  /* ENFORCED HERE AS WELL AS IN THE MARKUP. The button is only drawn for a
+     deletable period, but a guard that exists only in the view is a guard that
+     the next caller does not have. */
+  const why = fsCycProtected(cy);
+  if (why) { alert("“" + (cy.label || key) + "” cannot be deleted — " + why + "."); return false; }
+  rt.splice(rt.indexOf(cy), 1);
+  /* The tick is per site and it goes with the period. The last-done DATE is
+     not touched, because a period holding one is not deletable in the first
+     place - so there is nothing here to orphan. */
+  try {
+    ((fsRegister && fsRegister.clients) || []).forEach(function (c) {
+      ((c && c.sites) || []).forEach(function (s2) {
+        if (s2 && s2.cycles && (key in s2.cycles)) delete s2.cycles[key];
+      });
+    });
+  } catch (e) {}
+  fsMarkDirty();
+  return true;
+}
+function fsCycEdWire(s) {
+  document.querySelectorAll(".fsCycUp").forEach(function (b) {
+    b.onclick = function () { if (fsCycMove(b.dataset.key, -1)) fsCycRowsRedraw(s); };
+  });
+  document.querySelectorAll(".fsCycDn").forEach(function (b) {
+    b.onclick = function () { if (fsCycMove(b.dataset.key, 1)) fsCycRowsRedraw(s); };
+  });
+  document.querySelectorAll(".fsCycDel").forEach(function (b) {
+    b.onclick = function () {
+      const rt = fsCycles();
+      const cy = rt.filter(function (x) { return x.key === b.dataset.key; })[0];
+      if (!cy) return;
+      if (!confirm("Delete the “" + (cy.label || "") + "” test period?\n\n" +
+                   "It is removed from every site in this register. Nothing that has " +
+                   "already been tested on it is affected — a period with a test " +
+                   "recorded against it cannot be deleted at all.")) return;
+      if (fsCycDelete(b.dataset.key)) fsCycRowsRedraw(s);
+    };
+  });
+  return true;
 }
 function fsCycEditHtml(s) {
   let h = '<div class="fslabel">Test periods &mdash; which ones this site is on</div>';
@@ -15238,8 +15366,14 @@ function fsCycEditHtml(s) {
   h += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">' +
     '<input class="fsinput" id="fsCycNewLbl" autocomplete="off" placeholder="New period name" style="flex:1 1 120px;min-width:0">' +
     '<input class="fsinput" id="fsCycNewN" type="number" min="1" step="1" value="1" style="width:64px">' +
+    /* PASS 150 [150-A] - W131-4, "should have probably put years too".
+       A year is stored as 12 MONTHS, not a new field: fsCycEvery already
+       prints "every 5 years" off the month count, and fsCycDue, fsCycMs
+       and fsCycWarnDays all already handle months. A `years` field would
+       mean editing every one of them for no visible difference. */
     '<select class="fsinput" id="fsCycNewU" style="width:106px"><option value="d">days</option>' +
-    '<option value="w">weeks</option><option value="m" selected>months</option></select>' +
+    '<option value="w">weeks</option><option value="m" selected>months</option>' +
+    '<option value="y">years</option></select>' +
     '<button class="fsbtn" id="fsCycNewAdd" type="button" style="padding:6px 12px">Add</button></div>';
   /* SAID ON THE SCREEN, because it is not guessable from it: the routines are
      register-level and the tick is not. Renaming one here renames it on every
@@ -15294,7 +15428,12 @@ function fsCycAddNew(s) {
   const u = uu.value;
   const cy = { key: "r" + Date.now().toString(36) + Math.random().toString(16).slice(2, 5),
                label: label };
-  if (u === "m") cy.months = n; else cy.days = (u === "w" ? n * 7 : n);
+  /* PASS 150 [150-A] - years fold into months for the same reason weeks
+     fold into days: one stored form per scale, and every reader already
+     understands it. */
+  if (u === "y") cy.months = n * 12;
+  else if (u === "m") cy.months = n;
+  else cy.days = (u === "w" ? n * 7 : n);
   if (!fsCycEnsureRoutines()) return null;
   fsRegister.routines.push(cy);
   s.cycles = s.cycles || {};
@@ -24344,7 +24483,12 @@ function fsRenderTab() {
     /* PASS 143 [143-B] - Add appends a row rather than re-rendering; see
        fsCycAddNew for why that matters to a half-typed site form. */
     const cycAdd = document.getElementById("fsCycNewAdd");
-    if (cycAdd) cycAdd.onclick = () => { fsCycAddNew(s); };
+    /* PASS 150 [150-B/C] - the Add button re-renders nothing, so a row it
+       appends arrives unwired. Re-wiring after every add is what keeps the
+       arrows and the delete working on a period he just created. */
+    if (cycAdd) cycAdd.onclick = () => { if (fsCycAddNew(s)) fsCycEdWire(s); };
+    /* Wired on first render too, not only after a redraw. */
+    fsCycEdWire(s);
     const geoBtn = document.getElementById("fsSiteGeoBtn");
     if (geoBtn) geoBtn.onclick = () => {
       const cur = s.geo ? (s.geo.lat + ", " + s.geo.lng) : "";
@@ -27412,7 +27556,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v141";
+const FS_BUILD = "aa-v142";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
