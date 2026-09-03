@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.136 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.137 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.136 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.137 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -23997,7 +23997,11 @@ function fsRenderSite() {
      this is the only place that needs to know. The COUNT is inside the guard
      deliberately: "QR tags (7)" on a gated feature announces seven things the
      user cannot reach, which is worse than not mentioning QR at all. */
-  if (fsTabAllowed("equip")) tabs.push(["equip", "Site Equipment"]);
+  /* PASS 149 [149-A] - W134-1. "it is replacing site equipment". The slot is
+     the same one, in the same place in the strip, exactly as he drew it. The
+     survey that used to live behind this tab now renders on Overview - see
+     149-B; the data is untouched and nothing about it is deleted. */
+  if (fsTabAllowed("equip")) tabs.push(["assets", "Asset register"]);
   if (fsTabAllowed("history")) tabs.push(["history", "Test history"]);
   if (fsTabAllowed("defects")) tabs.push(["defects", "Defects"]);
   if (fsTabAllowed("qr")) tabs.push(["qr", "QR tags" + ((s.qrItems || []).length ? " (" + s.qrItems.length + ")" : "")]);
@@ -24099,8 +24103,13 @@ function fsRenderTab() {
     html += '</div>';
   }
 
-  if (fsTab === "equip") {
-    html += '<div class="fscard" style="padding:20px">';
+  /* PASS 149 [149-B] - this block is UNCHANGED except for its guard. It used
+     to be the Site Equipment tab; that tab is now the asset register, so the
+     survey renders on Overview instead - under the hub, whose Important
+     information card already reads the same s.equipment for the panel details
+     and the battery chip. Moved, not rewritten, and not deleted. */
+  if (fsTab === "overview" && fsTabAllowed("equip")) {
+    html += '<div class="fscard" style="padding:20px;margin-top:14px">';
     html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
     /* Access difficulty lives HERE, on the place, not on the defect - that
        detector above the stairwell is awkward every single time. */
@@ -24110,7 +24119,7 @@ function fsRenderTab() {
     let shown = 0;
     if (fsEquipEdit) html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:6px">Tick what the site has — ticked items show on the Overview. Details and photos are optional.</div>';
     fsEquipFields().forEach(k => {
-      const en = s.equipment[k] || {};
+      const en = (s.equipment || {})[k] || {};   /* PASS 149 [149-H] - fsRenderTab does not ensure it; Overview renders for every site */
       if (fsEquipEdit) {
         html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
           '<input type="checkbox" class="fsEquipOn" data-key="' + fsEsc(k) + '"' + (en.on ? ' checked' : '') + ' style="width:19px;height:19px;accent-color:var(--fs-accent);flex:0 0 auto">' +
@@ -24157,6 +24166,10 @@ function fsRenderTab() {
     if (fsEquipEdit) html += '<div style="margin-top:12px"><button class="fsbtn" id="fsEqCustAdd">&#65291; Add your own item</button></div>';
     if (!fsEquipEdit && !shown) html += '<div style="color:var(--fs-faint);font-size:13.5px">No equipment recorded — tap Edit to add panel, extinguisher, battery details and photos. Empty fields stay hidden.</div>';
     html += '</div>';
+  }
+
+  if (fsTab === "assets") {
+    html += fsAssetRegisterHtml(s);   /* PASS 149 [149-C] */
   }
 
   if (fsTab === "history") {
@@ -24300,6 +24313,29 @@ function fsRenderTab() {
 
   body.innerHTML = html;
 
+  if (fsTab === "assets") {
+    /* PASS 149 [149-C] - re-rendered through fsRenderTab on every change, so
+       the table, the count and the panel can never drift apart. */
+    const q = document.getElementById("fsArQ");
+    if (q) q.oninput = () => { fsArQ = q.value; fsArPage = 1; fsRenderTab(); };
+    const ty = document.getElementById("fsArType");
+    if (ty) ty.onchange = () => { fsArType = ty.value; fsArPage = 1; fsRenderTab(); };
+    const st = document.getElementById("fsArStatus");
+    if (st) st.onchange = () => { fsArStatus = st.value; fsArPage = 1; fsRenderTab(); };
+    document.querySelectorAll(".fsArRow").forEach(tr => {
+      tr.onclick = () => { fsArSel = (fsArSel === tr.dataset.k) ? "" : tr.dataset.k; fsRenderTab(); };
+    });
+    document.querySelectorAll(".fsArPrev").forEach(b => b.onclick = () => { if (fsArPage > 1) { fsArPage--; fsRenderTab(); } });
+    document.querySelectorAll(".fsArNext").forEach(b => b.onclick = () => { fsArPage++; fsRenderTab(); });
+    const cl = document.getElementById("fsArClose");
+    if (cl) cl.onclick = () => { fsArSel = ""; fsRenderTab(); };
+    const ws = document.getElementById("fsArShowWs");
+    if (ws) ws.onclick = () => {
+      const r = fsArFilter(fsArRows(s)).filter(x => x.key === fsArSel)[0];
+      if (r && r.o.qid && typeof fsDefShowInWorkspace === "function")
+        fsDefShowInWorkspace({ qid: r.o.qid, siteId: s.id });
+    };
+  }
   if (fsTab === "qr") fsQrTabWire(s);
 
   if (fsTab === "overview" && !fsInfoEdit) fsHubWire(s);
@@ -24593,7 +24629,7 @@ function fsRenderTab() {
     });
   }
 
-  if (fsTab === "equip") {
+  if (fsTab === "overview" && fsTabAllowed("equip")) {   /* PASS 149 [149-B] - the survey moved to Overview; its wiring follows it */
     const acc = document.getElementById("fsSiteAccess");
     if (acc) acc.onchange = () => {
       s.accessDefault = acc.value === "normal" ? "" : acc.value;
@@ -27376,7 +27412,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v140";
+const FS_BUILD = "aa-v141";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -27684,7 +27720,7 @@ document.getElementById("fsProfUnload").onclick = () => {
   if (fsRegister && fsRegister.profile) { delete fsRegister.profile; fsMarkDirty(); }
   fsApplyProfile();
   document.getElementById("fsProfModal").classList.remove("show");
-  if (fsSite && fsTab === "equip") fsRenderTab();
+  if (fsSite && fsTab === "overview") fsRenderTab();   /* PASS 149 [149-B] */
 };
 document.getElementById("fsProfileInput").addEventListener("change", e => {
   const file = e.target.files[0];
@@ -27702,7 +27738,7 @@ document.getElementById("fsProfileInput").addEventListener("change", e => {
           /* aa-v10: mirror fsLoadRegister + the profile-unload handler so the visible view refreshes */
           fsStamp();
           fsRenderClients();
-          if (fsSite && fsTab === "equip") fsRenderTab();
+          if (fsSite && fsTab === "overview") fsRenderTab();   /* PASS 149 [149-B] */
         }
       }
     }
@@ -31250,6 +31286,268 @@ function fsAssetMatchDef(d, o, level) {
   if (!d || !o) return false;
   if (o.qid && d.qid && d.qid === o.qid) return true;
   return !!d.key && d.key === fsAssetKey(o, level);
+}
+/* ===== PASS 149 [149-C] - THE SITE ASSET REGISTER ==========================
+   W134-1 / W134-2, built to mockups/2026-09-03-asset-register/ - his own
+   drawings. Base is 04; the photo at the END of the row is the one thing
+   taken from 05.
+
+   EVERY DEVICE ON THE PLAN, not annDevicesFromPlan()'s "registered only"
+   subset. His mockup says 282 assets and his workspace footer says 282
+   devices; those agreeing is the evidence. A device with no zone yet is
+   exactly the one he wants to find.
+   ========================================================================= */
+let fsArPage = 1, fsArQ = "", fsArType = "", fsArStatus = "", fsArSel = "", fsArPer = 25;
+
+/* ONE FORMULA, ONE PLACE (Pass 143). The last time THIS device was tested,
+   as a real day - which only exists because of V0.135's o.td and V0.136
+   making it appear on a register that was already ticked. A coarse year
+   returns null: a bare year cannot produce a day, and inventing one is the
+   thing he was promised would never happen. */
+function fsArLastTested(o) {
+  const td = o && o.td;
+  if (!td) return null;
+  let best = null;
+  Object.keys(td).forEach(function (y) {
+    const v = td[y];
+    if (v && (!best || String(v) > String(best))) best = v;
+  });
+  return best;
+}
+/* The site's shortest ACTIVE cycle is what a device is next due under. Asking
+   fsCycles() rather than FS_CYCLES means a period he named himself in V0.131
+   counts, and fsCycDue is the only thing that turns a date into a due date. */
+function fsArCycle() {
+  const cy = (typeof fsCycles === "function" ? fsCycles() : FS_CYCLES) || [];
+  let best = null;
+  cy.forEach(function (c) {
+    if (typeof fsCycOn === "function" && !fsCycOn(c.key)) return;
+    const ms = (typeof fsCycMs === "function") ? fsCycMs(c) : 0;
+    if (!best || ms < best.ms) best = { c: c, ms: ms };
+  });
+  return best ? best.c : (cy[0] || null);
+}
+function fsArNextDue(o) {
+  const last = fsArLastTested(o);
+  const cyc = fsArCycle();
+  if (!last || !cyc || typeof fsCycDue !== "function") return null;
+  try { return fsCycDue(new Date(last), cyc); } catch (e) { return null; }
+}
+/* STATUS, DERIVED AND NEVER INVENTED. First match wins, and every branch
+   reads something already stored. */
+function fsArStatusOf(o, level, site) {
+  const s = site || (typeof fsSite !== "undefined" ? fsSite : null);
+  const open = (s && s.defects || []).some(function (d) {
+    return d && !d.closed && typeof fsAssetMatchDef === "function" && fsAssetMatchDef(d, o, level);
+  });
+  if (open) return { k: "defect", label: "Defect", col: "#c62828" };
+  if (o.failed) return { k: "failed", label: "Failed", col: "#c62828" };
+  const due = fsArNextDue(o);
+  if (due) {
+    const now = Date.now(), warn = (typeof fsCycWarnDays === "function" ? fsCycWarnDays(fsArCycle()) : 30) * 86400000;
+    if (due.getTime() < now) return { k: "overdue", label: "Overdue", col: "#c62828" };
+    if (due.getTime() - now <= warn) return { k: "soon", label: "Due soon", col: "#c9761f" };
+  }
+  const yr = (new Date()).getFullYear();
+  if ((o.ty || []).indexOf(yr) >= 0) return { k: "tested", label: "Tested", col: "#1b8a3f" };
+  return { k: "none", label: "", col: "" };
+}
+/* PASS 149 [149-F] - one source for the badge. TYPE_MAP.text and .color are
+   what draw() uses on the plan. */
+function fsArIcon(o) {
+  const t = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
+  const col = (t && t.color) || "#6b7580";
+  /* NOT EVERY TYPE HAS A LETTER. Smoke and Thermal carry .text ("S", "T");
+     an extinguisher and a hose reel are drawn as SHAPES on the plan and have
+     none, so the first build put a "?" on every one of them - which reads as
+     a broken row rather than a hose reel. Found by rendering it and looking.
+     The label's initial is the honest fallback, and it is what his mockup
+     shows on those rows. */
+  const lb = (t && t.label) || o.type || "";
+  const tx = (t && t.text) || (lb ? lb.trim().charAt(0).toUpperCase() : "\u00b7");
+  return '<span style="flex:0 0 22px;width:22px;height:22px;border-radius:50%;display:inline-flex;' +
+    'align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff;' +
+    'background:' + col + '">' + fsEsc(tx) + '</span>';
+}
+function fsArLabel(o) {
+  const t = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
+  return t ? (t.label || o.type) : (o.type || "Device");
+}
+/* THE ASSET NAME. His mockup shows "SD-004-024" - a QR tag where there is
+   one, and otherwise the zone/loop/device reference the app already builds.
+   Nothing is generated: a device with none of those says so rather than
+   being given an invented id. */
+function fsArName(o) {
+  if (o.qid) return String(o.qid);
+  const bits = [];
+  if (o.zone) bits.push("Z" + o.zone);
+  if (o.loop) bits.push("L" + o.loop);
+  if (o.dev) bits.push("D" + o.dev);
+  return bits.length ? bits.join("-") : "(not registered)";
+}
+function fsArRows(s) {
+  const objs = (typeof annPlanObjects === "function") ? annPlanObjects() : [];
+  const out = [];
+  objs.forEach(function (e) {
+    const o = e && e.o;
+    if (!o || o.kind !== "sym" || o.type === "campin") return;
+    out.push({ o: o, level: e.level || "",
+               name: fsArName(o), type: fsArLabel(o),
+               st: fsArStatusOf(o, e.level, s),
+               due: fsArNextDue(o), key: fsAssetKey(o, e.level) });
+  });
+  return out;
+}
+function fsArFilter(rows) {
+  const q = (fsArQ || "").trim().toLowerCase();
+  return rows.filter(function (r) {
+    if (fsArType && r.type !== fsArType) return false;
+    if (fsArStatus && r.st.k !== fsArStatus) return false;
+    if (!q) return true;
+    return (r.name + " " + r.type + " " + (r.level || "") + " " +
+            (r.o.zone || "") + " " + (r.o.loop || "") + " " + (r.o.dev || "") + " " +
+            (r.o.info || "")).toLowerCase().indexOf(q) >= 0;
+  });
+}
+function fsArDate(d) {
+  if (!d) return "–";
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear();
+}
+function fsArPill(st) {
+  if (!st || !st.label) return '<span style="color:var(--fs-faint)">–</span>';
+  return '<span style="display:inline-block;font-size:11px;padding:2px 9px;border-radius:10px;' +
+         'color:#fff;background:' + st.col + '">' + fsEsc(st.label) + '</span>';
+}
+function fsAssetRegisterHtml(s) {
+  const all = fsArRows(s);
+  const rows = fsArFilter(all);
+  const types = []; all.forEach(function (r) { if (types.indexOf(r.type) < 0) types.push(r.type); });
+  types.sort();
+  const pages = Math.max(1, Math.ceil(rows.length / fsArPer));
+  if (fsArPage > pages) fsArPage = pages;
+  const from = (fsArPage - 1) * fsArPer, page = rows.slice(from, from + fsArPer);
+
+  /* PASS 149 [149-G] - his mockup has the detail panel BESIDE the table, not
+     under it. flex-wrap does the whole job: side by side where there is room
+     for both, stacked on a phone, and no media query to keep in step with the
+     rest of the app. */
+  let h = '<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">';
+  h += '<div class="fscard" style="padding:16px 18px;flex:1 1 520px;min-width:0">';
+  h += '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">' +
+    '<input id="fsArQ" class="fsinput" placeholder="Search assets" value="' + fsEsc(fsArQ) + '" style="flex:1 1 190px;min-width:0">' +
+    '<select id="fsArType" class="fsinput" style="flex:0 1 160px"><option value="">Asset type</option>' +
+    types.map(function (t) { return '<option value="' + fsEsc(t) + '"' + (fsArType === t ? ' selected' : '') + '>' + fsEsc(t) + '</option>'; }).join("") +
+    '</select>' +
+    '<select id="fsArStatus" class="fsinput" style="flex:0 1 150px"><option value="">Status</option>' +
+    [["tested","Tested"],["soon","Due soon"],["overdue","Overdue"],["defect","Defect"],["failed","Failed"]]
+      .map(function (x) { return '<option value="' + x[0] + '"' + (fsArStatus === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join("") +
+    '</select></div>';
+  h += '<div style="font-size:12.5px;color:var(--fs-sub);margin:10px 0 4px">' +
+       rows.length + (rows.length === 1 ? ' asset' : ' assets') +
+       (rows.length !== all.length ? ' of ' + all.length : '') + '</div>';
+
+  if (!all.length) {
+    /* AN EMPTY REGISTER SAYS WHY. There is no plan, or no devices on it -
+       and neither is a bug. A placeholder row would be an invented asset. */
+    h += '<div style="color:var(--fs-faint);font-size:13.5px;padding:10px 0">' +
+      'No devices on this site\'s plan yet. The register is built from the plan, ' +
+      'so anything you place in the workspace appears here.</div></div></div>';
+    return h;
+  }
+
+  h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr style="text-align:left;color:var(--fs-sub);font-size:11.5px">' +
+    '<th style="padding:7px 8px;font-weight:600">Asset</th>' +
+    '<th style="padding:7px 8px;font-weight:600">Type</th>' +
+    '<th style="padding:7px 8px;font-weight:600">Location</th>' +
+    '<th style="padding:7px 8px;font-weight:600">Zone / Loop</th>' +
+    '<th style="padding:7px 8px;font-weight:600">Status</th>' +
+    '<th style="padding:7px 8px;font-weight:600">Next service</th>' +
+    /* PASS 149 [149-D] - W134-2, and it is the ONLY thing taken from mockup
+       05: the photo comes out of the Asset column and sits at the END. */
+    '<th style="padding:7px 8px;font-weight:600;text-align:right">Photo</th>' +
+    '</tr></thead><tbody>';
+  page.forEach(function (r) {
+    const on = fsArSel === r.key;
+    h += '<tr class="fsArRow" data-k="' + fsEsc(r.key) + '" style="cursor:pointer;border-top:1px solid var(--fs-border);' +
+      (on ? 'background:rgba(244,98,58,.10)' : '') + '">' +
+      /* PASS 149 [149-F] - the coloured letter from his mockup. It is not a
+         new design: TYPE_MAP already carries the .text and .color the plan
+         draws each symbol with, so the register and the plan cannot disagree
+         about what a smoke detector looks like. */
+      '<td style="padding:9px 8px"><div style="display:flex;align-items:center;gap:8px">' +
+        fsArIcon(r.o) +
+        '<div><div style="font-weight:700">' + fsEsc(r.name) + '</div>' +
+        (r.o.info ? '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(r.o.info) + '</div>' : '') +
+        '</div></div></td>' +
+      '<td style="padding:9px 8px">' + fsEsc(r.type) + '</td>' +
+      '<td style="padding:9px 8px">' + fsEsc(r.level || "–") + '</td>' +
+      '<td style="padding:9px 8px">' + (r.o.zone ? "Zone " + fsEsc(r.o.zone) : "–") +
+        (r.o.loop ? '<div style="font-size:11.5px;color:var(--fs-sub2)">Loop ' + fsEsc(r.o.loop) + '</div>' : '') + '</td>' +
+      '<td style="padding:9px 8px">' + fsArPill(r.st) + '</td>' +
+      '<td style="padding:9px 8px;white-space:nowrap">' + fsEsc(fsArDate(r.due)) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right">' +
+        (r.o.photo ? '<img src="' + fsPhotoSrc(r.o.photo) + '" style="width:44px;height:32px;object-fit:cover;border-radius:5px;vertical-align:middle">'
+                   : '<span style="color:var(--fs-faint)">–</span>') + '</td>' +
+      '</tr>';
+  });
+  h += '</tbody></table></div>';
+  if (pages > 1) {
+    h += '<div style="display:flex;gap:8px;align-items:center;margin-top:11px;font-size:12.5px;color:var(--fs-sub)">' +
+      '<button class="fsbtn fsArPrev"' + (fsArPage <= 1 ? ' disabled' : '') + ' style="padding:4px 11px">&#8249;</button>' +
+      '<span>' + (from + 1) + '–' + Math.min(from + fsArPer, rows.length) + ' of ' + rows.length + '</span>' +
+      '<button class="fsbtn fsArNext"' + (fsArPage >= pages ? ' disabled' : '') + ' style="padding:4px 11px">&#8250;</button>' +
+      '</div>';
+  }
+  h += '</div>';
+  h += fsArPanelHtml(rows, s);
+  h += '</div>';
+  return h;
+}
+/* THE RIGHT-HAND PANEL from his mockup. It reuses fsAssetHistory for Latest
+   history, so the register and the device sheet can never disagree about
+   what happened to a device. */
+function fsArPanelHtml(rows, s) {
+  if (!fsArSel) return "";
+  const r = rows.filter(function (x) { return x.key === fsArSel; })[0];
+  if (!r) return "";
+  const ev = (typeof fsAssetHistory === "function") ? fsAssetHistory(r.o, r.level, s).slice(0, 3) : [];
+  const openDef = (s && s.defects || []).filter(function (d) {
+    return d && !d.closed && typeof fsAssetMatchDef === "function" && fsAssetMatchDef(d, r.o, r.level); }).length;
+  const row = function (k, v) {
+    return '<div style="display:flex;gap:11px;padding:6px 0;border-top:1px solid var(--fs-border)">' +
+      '<div style="width:44%;color:var(--fs-sub);font-size:12.5px">' + k + '</div>' +
+      '<div style="flex:1;font-size:13px">' + v + '</div></div>'; };
+  let h = '<div class="fscard" id="fsArPanel" style="padding:16px 18px;flex:0 1 330px;min-width:280px">';
+  h += '<div style="display:flex;align-items:flex-start;gap:10px">' +
+    '<div style="flex:1"><div style="font-size:15.5px;font-weight:700">' + fsEsc(r.type) + '</div>' +
+    '<div style="font-size:12.5px;color:var(--fs-sub)">' + fsEsc(r.name) + '</div></div>' +
+    fsArPill(r.st) +
+    '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:18px;line-height:1">&times;</a></div>';
+  if (r.o.photo) h += '<img src="' + fsPhotoSrc(r.o.photo) + '" class="fsPhotoView" style="width:100%;max-height:190px;object-fit:cover;border-radius:9px;margin-top:11px;cursor:pointer">';
+  h += '<div style="margin-top:11px">';
+  h += row("Type", fsEsc(r.type));
+  h += row("Status", fsArPill(r.st));
+  h += row("Next service", fsEsc(fsArDate(r.due)) +
+    (r.due ? "" : ' <span style="font-size:11.5px;color:var(--fs-sub2)">&mdash; no test date stored yet</span>'));
+  h += row("Open defects", String(openDef));
+  h += row("Location", fsEsc(r.level || "–"));
+  h += row("Zone", fsEsc(r.o.zone || "–"));
+  h += row("Loop", fsEsc(r.o.loop || "–"));
+  h += row("Device number", fsEsc(r.o.dev || "–"));
+  h += '</div>';
+  h += '<div style="margin-top:13px;font-size:13px;font-weight:700">Latest history</div>';
+  if (!ev.length) h += '<div style="font-size:12.5px;color:var(--fs-faint);padding:6px 0">Nothing recorded against this device yet.</div>';
+  ev.forEach(function (e) {
+    const w = (typeof fsHistWhen === "function") ? fsHistWhen(e) : { d: String(e.at || "").slice(0, 10), t: "" };
+    h += '<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--fs-border)">' +
+      '<span style="flex:0 0 78px;font-size:11.5px;color:var(--fs-sub)">' + fsEsc(w.d) + '</span>' +
+      '<span style="flex:1;font-size:12.5px">' + fsEsc(e.text) + '</span></div>';
+  });
+  if (r.o.qid) h += '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:13px">Show in workspace</button>';
+  h += '</div>';
+  return h;
 }
 /* PASS 147 [147-A] - W133-5. "why cant we just have it record the date it was
    tested? not just the year"
