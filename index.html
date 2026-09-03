@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.134 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.135 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.134 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.135 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -9256,7 +9256,7 @@ function fsQrHandle(data) {
     hit.o.ty = hit.o.ty || [];
     let msg;
     if (hit.o.ty.includes(yr)) msg = "Already ticked for " + yr;
-    else { pushUndo(); hit.o.ty.push(yr); scheduleAutosave(); msg = "\u2713 Tested " + yr; }
+    else { pushUndo(); fsTyTick(hit.o, yr, true); scheduleAutosave(); msg = "\u2713 Tested " + yr; }   /* PASS 147 [147-A] - the tick now carries its date */
     jump();
     updateTestCounter();
     return { ok: true, msg: msg };
@@ -10754,9 +10754,10 @@ function endPointer(e) {
       const hit = hitObject(p.x, p.y);
       if (hit && hit.kind === "sym" && hit.type !== "campin") {
         pushUndo();
-        hit.ty = hit.ty || [];
-        const i = hit.ty.indexOf(testYearSel);
-        if (i >= 0) hit.ty.splice(i, 1); else hit.ty.push(testYearSel);
+        /* PASS 147 [147-A] - was push/splice on o.ty alone. fsTyTick keeps
+           o.ty exactly as it was and maintains o.td beside it, so an untick
+           removes the date with the year. */
+        fsTyTick(hit, +testYearSel, null);
         draw();
       }
     }
@@ -12218,10 +12219,10 @@ document.getElementById("detailsSave").onclick = () => {
       document.querySelectorAll(".dYear").forEach(cb => {
         const y = +cb.value;
         if (multi && !yearsTouched[y]) return;
-        o.ty = o.ty || [];
-        const idx = o.ty.indexOf(y);
-        if (cb.checked && idx < 0) o.ty.push(y);
-        if (!cb.checked && idx >= 0) o.ty.splice(idx, 1);
+        /* PASS 147 [147-A] - the Year tested checkboxes in the details sheet.
+           Ticking one here records the day exactly as ticking it on the plan
+           does; unticking removes it. */
+        fsTyTick(o, y, cb.checked);
       });
       if (!multi && detailsPhoto !== undefined) {
         if (detailsPhoto === null) delete o.photo; else o.photo = detailsPhoto;
@@ -24537,12 +24538,20 @@ function fsRenderTab() {
     document.querySelectorAll(".fsDefFix").forEach(b => b.onclick = () => {
       const d = (s.defects || []).find(x => x.id === b.dataset.id);
       if (!d) return;
-      if (!confirm("Mark as rectified?\n\n" + d.desc)) return;
-      d.closed = new Date().toISOString();
-      d.closedBy = fsWho() || "";
-      fsActLog("Defect rectified", d.desc);
-      fsMarkDirty();
-      fsRenderSite();
+      /* PASS 147 [147-D] - W133-6, ticked GOOD unprompted on the walk:
+         "When I mark a defect rectified, I'd like to type what was actually
+         done." A confirm() cannot take text, so rectify gets a real box.
+         The text is OPTIONAL - a rectification that he does not describe is
+         still a rectification, and forcing a sentence out of him at the end
+         of a job is how a field gets filled with a full stop. */
+      fsDefFixAsk(d, function (resolution) {
+        d.closed = new Date().toISOString();
+        d.closedBy = fsWho() || "";
+        if (resolution) d.resolution = resolution;
+        fsActLog("Defect rectified", resolution || d.desc);
+        fsMarkDirty();
+        fsRenderSite();
+      });
     });
     document.querySelectorAll(".fsDefReopen").forEach(b => b.onclick = () => {
       const d = (s.defects || []).find(x => x.id === b.dataset.id);
@@ -27340,7 +27349,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v138";
+const FS_BUILD = "aa-v139";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -27768,7 +27777,10 @@ function fsAssetDialog(locked) {
     const reps = locked.map(o => {
       fsArchiveAsset(o, "replaced");
       const c = JSON.parse(JSON.stringify(o));
-      c.ty = []; c.failed = false; c.info = "";
+      /* PASS 147 [147-A] - a replacement asset starts with no history at all,
+         so the dates go with the years. Leaving o.td behind would give a
+         brand new device a test date it never had. o.ev goes too. */
+      c.ty = []; c.failed = false; c.info = ""; delete c.td; delete c.ev;
       return c;
     });
     objects = objects.filter(o => !selection.includes(o));
@@ -31212,6 +31224,80 @@ function fsAssetMatchDef(d, o, level) {
   if (o.qid && d.qid && d.qid === o.qid) return true;
   return !!d.key && d.key === fsAssetKey(o, level);
 }
+/* PASS 147 [147-A] - W133-5. "why cant we just have it record the date it was
+   tested? not just the year"
+
+   o.ty[] IS NOT MIGRATED - see the file header for why, it is the decision of
+   this pass. The year stays; o.td carries the day beside it:
+
+       o.td = { "2026": "2026-09-03T18:40:12+10:00" }
+
+   A year with NO entry in o.td was ticked before this version and stays
+   COARSE for ever. Nothing here back-fills one, and fsAssetHistory below
+   keeps marking those events coarse so no renderer can print an invented day.
+
+   fsLocalIso, not toISOString: a 7am tick in Newcastle must not record
+   yesterday. Same reasoning as PASS 100 [P100-N1] on the manual test record.
+
+   `on` is true to tick, false to untick, null to toggle. Returns whether
+   anything changed. */
+function fsTyTick(o, yr, on) {
+  if (!o) return false;
+  yr = +yr;
+  o.ty = o.ty || [];
+  const i = o.ty.indexOf(yr);
+  const want = (on == null) ? (i < 0) : !!on;
+  if (want === (i >= 0)) return false;
+  if (want) {
+    o.ty.push(yr);
+    o.td = o.td || {};
+    o.td[String(yr)] = fsLocalIso(new Date());
+  } else {
+    o.ty.splice(i, 1);
+    /* An untick takes its date with it. A date left behind on an unticked
+       year is a record of a test that the register says did not happen. */
+    if (o.td) delete o.td[String(yr)];
+  }
+  return true;
+}
+/* PASS 147 [147-B] - W133-4, the second half. "we can look into creating an
+   option to insert history. Would require a date and what kind of event it
+   was". Hand-entered events live in their own array so they can never be
+   confused with what the register actually recorded, and every one of them is
+   labelled as hand-entered on the timeline. */
+const FS_EV_KINDS = [
+  ["tested",       "Tested"],
+  ["serviced",     "Serviced"],
+  ["installed",    "Installed"],
+  ["commissioned", "Commissioned"],
+  ["replaced",     "Replaced"],
+  ["repaired",     "Repaired"],
+  ["defect",       "Defect"],
+  ["other",        "Other"]
+];
+function fsEvKindLabel(k) {
+  const r = FS_EV_KINDS.filter(function (x) { return x[0] === k; })[0];
+  return r ? r[1] : "Other";
+}
+function fsEvAdd(o, kind, date, text) {
+  if (!o || !date) return null;
+  o.ev = o.ev || [];
+  const rec = { id: "e" + Date.now() + Math.random().toString(16).slice(2, 6),
+                at: String(date).slice(0, 10) + "T12:00:00",
+                day: String(date).slice(0, 10),
+                kind: kind || "other",
+                text: String(text || "").slice(0, 300),
+                who: fsWho() || "",
+                added: fsLocalIso(new Date()) };
+  o.ev.push(rec);
+  return rec;
+}
+function fsEvRemove(o, id) {
+  if (!o || !o.ev) return false;
+  const n = o.ev.length;
+  o.ev = o.ev.filter(function (e) { return e && e.id !== id; });
+  return o.ev.length !== n;
+}
 function fsAssetHistory(o, level, site) {
   const ev = [];
   const s = site || (typeof fsSite !== "undefined" ? fsSite : null);
@@ -31223,8 +31309,16 @@ function fsAssetHistory(o, level, site) {
                              text: "Defect raised — " + (d.desc || "") });
     if (d.reopened) ev.push({ at: d.reopened, kind: "reopened", who: d.reopenedBy || "",
                               text: "Defect reopened — " + (d.desc || "") });
+    /* PASS 147 [147-D] - W133-6. This line used to print the ORIGINAL fault
+       back at him: "Defect rectified - device intermittently faulting". What
+       he wants to read here is what was actually done about it, which is what
+       d.resolution now holds. The fault stays underneath it, because a
+       rectification with no fault beside it is half a record. */
     if (d.closed) ev.push({ at: d.closed, kind: "fixed", who: d.closedBy || "",
-                            text: "Defect rectified — " + (d.desc || "") });
+                            sub: d.resolution ? (d.desc || "") : "",
+                            text: "Defect rectified" +
+                                  (d.resolution ? " — " + d.resolution
+                                                : (d.desc ? " — " + d.desc : "")) });
   });
   const label = (TYPE_MAP[o.type] || {}).label || o.type;
   (s.history || []).forEach(function (r) {
@@ -31236,61 +31330,268 @@ function fsAssetHistory(o, level, site) {
     if (hit) ev.push({ at: r.finished || "", kind: "failed", who: r.tech || "",
                        text: "Failed at the " + (r.label || r.mode || "") + " test" });
   });
-  /* o.ty HOLDS YEARS AND NOTHING ELSE, so this line says a year and carries
-     no day. An invented date beside a technician's name is how a record stops
-     being evidence. It sorts to the end of its own year and is marked coarse
-     so the renderer cannot print a date for it by accident. */
+  /* PASS 147 [147-C] - a year tick is now one of TWO things and the
+     difference is the whole point of W133-5.
+
+     A year with a stamp in o.td was ticked on this version or later: it has a
+     real day and a real time and it is NOT coarse. A year without one was
+     ticked before o.td existed, and it stays exactly as Pass 145 left it -
+     coarse, sorted to the end of its own year, and un-printable as a date.
+     NOTHING HERE BACK-FILLS A DAY. He was promised that and test_p147 R4
+     re-asserts it. */
   (o.ty || []).slice().sort().forEach(function (y) {
-    ev.push({ at: String(y) + "-12-31T23:59:59", year: String(y), coarse: true,
-              kind: "tested", who: "", text: "Recorded as tested in " + y });
+    const stamp = (o.td || {})[String(y)];
+    if (stamp) {
+      ev.push({ at: stamp, kind: "tested", who: "", src: "recorded",
+                text: "Tested" });
+    } else {
+      ev.push({ at: String(y) + "-12-31T23:59:59", year: String(y), coarse: true,
+                kind: "tested", who: "", src: "derived",
+                text: "Recorded as tested in " + y });
+    }
   });
+  /* Hand-entered events, W133-4's second half. They carry a day and no time,
+     because he is typing in something that happened years ago and a time
+     would be invented - the same rule as the coarse years, one level finer. */
+  (o.ev || []).forEach(function (e) {
+    if (!e || !e.at) return;
+    ev.push({ at: e.at, kind: e.kind || "other", who: e.who || "", src: "manual",
+              dayOnly: true, evId: e.id,
+              text: fsEvKindLabel(e.kind) + (e.text ? " \u2014 " + e.text : "") });
+  });
+  /* Anything that reached here without a source came off the register itself. */
+  ev.forEach(function (e) { if (!e.src) e.src = "derived"; });
   ev.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
   return ev;
 }
+/* PASS 147 [147-E] - the History tab, rebuilt to his own mockup
+   (mockups/2026-09-03-asset-register/01-details-history-tab.png).
+
+   MEASURED BEFORE THIS CHANGED, on shipped V0.134 at 1194x834: the modal is
+   700px, the scrolling pane 535px, and the History content was 289px - 246px
+   of dead grey under it, nearly half the pane. That empty space is the price
+   V0.134 paid for "just have it one size", and it is what this pass spends.
+
+   fsHistObj is how the inline handlers below reach the device: the pane is
+   written with innerHTML by fsDetTab, so there is nothing to bind to until
+   after it exists, and the alternative - re-querying the selection inside
+   every handler - is how a form ends up writing to the wrong device. */
+let fsHistObj = null;
+const FS_EV_ICON = {
+  tested:   ["✓", "#1b8a3f"],
+  fixed:    ["✓", "#1b8a3f"],
+  raised:   ["!",      "#c9761f"],
+  reopened: ["!",      "#c9761f"],
+  failed:   ["✕", "#c62828"],
+  serviced: ["✓", "#1b8a3f"],
+  installed:["+",      "#2b6cb0"],
+  commissioned:["+",   "#2b6cb0"],
+  replaced: ["+",      "#2b6cb0"],
+  repaired: ["✓", "#1b8a3f"],
+  defect:   ["!",      "#c9761f"],
+  other:    ["•", "#6b7580"]
+};
+const FS_EV_PILL = {
+  tested:   ["Tested",   "#1b8a3f"],
+  fixed:    ["Resolved", "#1b8a3f"],
+  raised:   ["Open",     "#c9761f"],
+  reopened: ["Reopened", "#c9761f"],
+  failed:   ["Failed",   "#c62828"]
+};
+/* THE LINE SAYS WHERE IT CAME FROM. His instruction, and the reason the
+   derived view is not thrown away: three sources on one timeline and each
+   line says which it is. */
+const FS_EV_SRC = {
+  derived:  "from your register",
+  recorded: "recorded when it happened",
+  manual:   "added by hand"
+};
+function fsHistWhen(e) {
+  /* Three shapes, and the difference between them is the whole of W133-5.
+     coarse  -> a year and nothing else, ticked before this version existed
+     dayOnly -> a hand-entered day, no time, because he is typing in the past
+     else    -> a real stamp, date and time */
+  if (e.coarse) return { d: String(e.year || ""), t: "" };
+  const s = String(e.at || "");
+  const d = s.slice(0, 10);
+  const parts = d.split("-");
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const nice = (parts.length === 3)
+    ? (+parts[2]) + " " + (MON[(+parts[1]) - 1] || "") + " " + parts[0] : d;
+  if (e.dayOnly || s.length <= 10) return { d: nice, t: "" };
+  let hh = +s.slice(11, 13), mm = s.slice(14, 16);
+  const ap = hh >= 12 ? "pm" : "am";
+  hh = hh % 12; if (hh === 0) hh = 12;
+  return { d: nice, t: hh + ":" + mm + " " + ap };
+}
 function fsAssetHistoryHtml(o) {
-  const col = { raised: "#c62828", reopened: "#c62828", fixed: "#1b8a3f",
-                failed: "#c62828", tested: "#1b8a3f" };
+  fsHistObj = o || null;
   if (!o) return '<div style="color:#8fa2ab;font-size:13px;padding:6px 0">' +
     'Select one item to see its history.</div>';
   const ev = fsAssetHistory(o, null, null);
-  let h = "";
+  let h = '<div style="font-size:15px;color:#e8e8e8;font-weight:600">Activity history</div>' +
+    '<div style="font-size:12px;color:#8f979e;margin:2px 0 10px">' +
+    (ev.length ? 'Most recent events for this device, newest first.'
+               : 'Nothing recorded against this item yet.') + '</div>';
   if (!ev.length) {
     /* AN EMPTY TAB HAS TO SAY WHY IT IS EMPTY. A blank pane reads as a
-       loading failure - the same reasoning as detPane2Empty. */
-    h += '<div style="color:#8fa2ab;font-size:13px;padding:6px 0">' +
-      'Nothing recorded against this item yet. Tests, failures and defects ' +
-      'appear here as they happen — there is nothing to fill in.</div>';
+       loading failure - the same reasoning as detPane2Empty. Kept from
+       Pass 145 because it was right; only the wording moved. */
+    h += '<div style="color:#8fa2ab;font-size:13px;padding:6px 0 2px">' +
+      'Tests, failures and defects appear here as they happen — there is ' +
+      'nothing to fill in. If something happened before you started using the ' +
+      'app, you can add it below.</div>';
   } else {
-    h += '<div style="font-size:12px;color:#8f979e;margin-bottom:8px">' +
-      ev.length + (ev.length === 1 ? " event" : " events") + ", newest first</div>";
     ev.forEach(function (e) {
-      /* A YEAR TICK ALREADY SAYS ITS YEAR IN THE LINE ABOVE. Printing it
-         again underneath - which the first build did - reads as a date that
-         got cut off. Found by rendering the tab and looking at it (#0d-3). */
-      const when = e.coarse ? ""
-        : String(e.at || "").slice(0, 10) + (String(e.at || "").length > 10
-            ? " " + String(e.at).slice(11, 16) : "");
-      h += '<div style="display:flex;gap:9px;padding:8px 0;border-top:1px solid #3a4048">' +
-        '<span style="flex:0 0 6px;height:6px;border-radius:50%;margin-top:6px;background:' +
-        (col[e.kind] || "#6b7580") + '"></span>' +
+      const ic = FS_EV_ICON[e.kind] || FS_EV_ICON.other;
+      const pill = FS_EV_PILL[e.kind];
+      const w = fsHistWhen(e);
+      h += '<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid #3a4048;align-items:flex-start">' +
+        '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:flex;' +
+          'align-items:center;justify-content:center;font-size:12px;line-height:1;' +
+          'color:#fff;background:' + ic[1] + '">' + ic[0] + '</span>' +
+        '<span style="flex:0 0 74px;font-size:11.5px;color:#8f979e;line-height:1.35">' +
+          fsEsc(w.d) + (w.t ? '<br>' + fsEsc(w.t) : '') + '</span>' +
         '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:13px;color:#e8e8e8;word-break:break-word">' + fsEsc(e.text) + '</div>' +
-        ((when || e.who)
-          ? '<div style="font-size:11.5px;color:#8f979e">' + fsEsc(when) +
-            (e.who ? (when ? " · " : "") + fsEsc(e.who) : "") + '</div>'
-          : "") + '</div></div>';
+          '<div style="font-size:13px;color:#e8e8e8;word-break:break-word">' +
+            fsEsc(e.text) +
+            (pill ? ' <span style="display:inline-block;font-size:10.5px;padding:1px 7px;' +
+                    'border-radius:9px;color:#fff;background:' + pill[1] + '">' +
+                    fsEsc(pill[0]) + '</span>' : '') +
+          '</div>' +
+          (e.sub ? '<div style="font-size:12px;color:#a9b2b8;word-break:break-word;margin-top:2px">' +
+                   fsEsc(e.sub) + '</div>' : '') +
+          '<div style="font-size:11px;color:#7d868d;margin-top:2px">' +
+            (e.who ? fsEsc(e.who) + ' · ' : '') +
+            fsEsc(FS_EV_SRC[e.src] || FS_EV_SRC.derived) +
+            (e.src === "manual" && e.evId
+              ? ' · <a href="#" onclick="return fsEvDeleteClick(event,\'' + fsEsc(e.evId) + '\')" ' +
+                'style="color:#c9761f;text-decoration:none">remove</a>' : '') +
+          '</div>' +
+        '</div></div>';
     });
+    h += '<div style="font-size:11.5px;color:#8f979e;margin-top:10px">Showing ' +
+      ev.length + ' of ' + ev.length + (ev.length === 1 ? ' event' : ' events') + '</div>';
   }
-  /* SAY WHAT IT CANNOT SHOW. A timeline with a silent gap in it is worse than
-     one that names the gap, and these two are exactly the questions on the
-     V0.133 walk sheet. */
+  /* W133-4, second half: "we can look into creating an option to insert
+     history. Would require a date and what kind of event it was". Folded
+     shut, because ninety-nine opens out of a hundred are to READ. */
+  h += '<div style="border-top:1px solid #3a4048;margin-top:12px;padding-top:12px">' +
+    '<button type="button" class="btn" id="fsEvAddBtn" onclick="fsEvFormToggle()" ' +
+      'style="width:100%">+ Add something that happened earlier</button>' +
+    '<div id="fsEvForm" style="display:none;margin-top:10px">' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        '<div style="flex:1 1 150px;min-width:0">' +
+          '<label style="display:block;font-size:11.5px;color:#8f979e;margin:0 0 3px">Date</label>' +
+          '<input type="date" id="fsEvDate">' +
+        '</div>' +
+        '<div style="flex:1 1 150px;min-width:0">' +
+          '<label style="display:block;font-size:11.5px;color:#8f979e;margin:0 0 3px">What happened</label>' +
+          '<select id="fsEvKind">' +
+            FS_EV_KINDS.map(function (k) {
+              return '<option value="' + fsEsc(k[0]) + '">' + fsEsc(k[1]) + '</option>';
+            }).join('') +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<label style="display:block;font-size:11.5px;color:#8f979e;margin:10px 0 3px">Notes (optional)</label>' +
+      '<textarea id="fsEvText" placeholder="Anything worth knowing about it"></textarea>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
+        '<button type="button" class="btn" onclick="fsEvFormToggle()">Cancel</button>' +
+        '<button type="button" class="btn primary" onclick="fsEvFormSave()">Add to history</button>' +
+      '</div>' +
+      '<div id="fsEvErr" style="display:none;font-size:12px;color:#c9761f;margin-top:8px"></div>' +
+    '</div></div>';
+  /* SAY WHAT IT STILL CANNOT SHOW - shorter than it was, because two of the
+     three things the V0.133 note apologised for are what this pass fixed. */
   h += '<div style="font-size:11.5px;color:#8f979e;margin-top:12px;line-height:1.5">' +
-    'Built from what is already recorded against this site, so it goes back as ' +
-    'far as your register does. <b>Photos are not on it</b> — nothing in the ' +
-    'app records when one was taken. A year with no day is a year tick, which ' +
-    'is all that was stored.</div>';
+    'Built from what is recorded against this site, so it goes back as far as ' +
+    'your register does. <b>A year with no day</b> is a tick from before the ' +
+    'app recorded dates — the year is all that was stored, and nothing ' +
+    'invents a day for it.</div>';
   return h;
 }
+function fsEvFormToggle() {
+  const f = document.getElementById("fsEvForm");
+  const b = document.getElementById("fsEvAddBtn");
+  if (!f) return;
+  const open = f.style.display === "none";
+  f.style.display = open ? "" : "none";
+  if (b) b.style.display = open ? "none" : "";
+  if (open) {
+    const d = document.getElementById("fsEvDate");
+    /* Blank, not today. This form exists for things that happened years ago
+       and a pre-filled today is the wrong answer nine times out of ten. */
+    if (d) { d.value = ""; d.focus(); }
+  }
+}
+function fsEvFormSave() {
+  const err = document.getElementById("fsEvErr");
+  const show = function (m) { if (err) { err.textContent = m; err.style.display = ""; } };
+  if (!fsHistObj) { show("Lost track of which device this is — close the sheet and reopen it."); return; }
+  const d = (document.getElementById("fsEvDate") || {}).value || "";
+  if (!d) { show("Pick the date it happened."); return; }
+  /* A date in the future is not history. Caught here rather than accepted and
+     rendered above today's tests, where it would look like a bug in the sort. */
+  if (d > fsLocalIso(new Date()).slice(0, 10)) { show("That date is in the future."); return; }
+  if (typeof pushUndo === "function") pushUndo();
+  fsEvAdd(fsHistObj,
+          (document.getElementById("fsEvKind") || {}).value || "other",
+          d,
+          (document.getElementById("fsEvText") || {}).value || "");
+  if (typeof scheduleAutosave === "function") scheduleAutosave();
+  if (typeof fsMarkDirty === "function") fsMarkDirty();
+  fsDetTab(3);
+}
+function fsEvDeleteClick(e, id) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (!fsHistObj) return false;
+  if (!confirm("Remove this hand-entered event?\n\nIt only removes what was typed in. Nothing recorded by the app is touched.")) return false;
+  if (typeof pushUndo === "function") pushUndo();
+  fsEvRemove(fsHistObj, id);
+  if (typeof scheduleAutosave === "function") scheduleAutosave();
+  if (typeof fsMarkDirty === "function") fsMarkDirty();
+  fsDetTab(3);
+  return false;
+}
+/* PASS 147 [147-D] - W133-6, the box itself.
+   Built in JS rather than added to the page markup because it is needed in
+   both apps at a point where their site-register markup already differs, and
+   because it is the same overlay shape the app already uses in five places
+   (z-index 400, a centred card, Esc and backdrop both cancel). */
+function fsDefFixAsk(d, done) {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
+  wrap.innerHTML =
+    '<div class="modalbox" style="max-width:460px;width:100%">' +
+      '<div style="font-size:16px;font-weight:600;color:#e8e8e8;margin-bottom:4px">Mark as rectified</div>' +
+      '<div style="font-size:12.5px;color:#8f979e;margin-bottom:12px;word-break:break-word">' + fsEsc(d.desc || "") + '</div>' +
+      '<label style="display:block;font-size:11.5px;color:#8f979e;margin:0 0 3px">What was done</label>' +
+      '<textarea id="fsFixText" placeholder="e.g. Cleaned chamber and replaced base. Fault cleared."></textarea>' +
+      '<div style="font-size:11.5px;color:#7d868d;margin-top:6px">Optional. It goes on the item\'s history beside the fault.</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+        '<button type="button" class="btn" id="fsFixCancel">Cancel</button>' +
+        '<button type="button" class="btn primary" id="fsFixOk">Mark as rectified</button>' +
+      '</div>' +
+    '</div>';
+  const close = function () {
+    document.removeEventListener("keydown", onKey);
+    if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+  };
+  const onKey = function (e) { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", onKey);
+  wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+  document.body.appendChild(wrap);
+  wrap.querySelector("#fsFixCancel").onclick = close;
+  wrap.querySelector("#fsFixOk").onclick = function () {
+    const t = (wrap.querySelector("#fsFixText").value || "").trim().slice(0, 300);
+    close();
+    if (typeof done === "function") done(t);
+  };
+  const ta = wrap.querySelector("#fsFixText");
+  if (ta) ta.focus();
+}
+
 function fsActLog(act, what) {
   try {
     if (!fsRegister) return;
