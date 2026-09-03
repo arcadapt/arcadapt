@@ -482,7 +482,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.130 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.131 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -612,7 +612,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.130 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.131 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -14816,6 +14816,24 @@ function fsStep0Sweep() {
     fsRegister.routines = FS_CYCLES.map(c => ({ key: c.key, label: c.label, months: c.months }));
     ch = true;
   }
+  /* PASS 143 [143-C] - THE MIGRATION, AND IT IS THE RISKY PART OF THIS PASS.
+     s.cycles is the tick that says which periods a site is on. Every existing
+     site is seeded with EXACTLY WHAT ITS STRIP SHOWS TODAY, so nothing moves
+     until he unticks something deliberately. Getting this wrong hides a cycle
+     from a real client's register, and nobody would find it until a test was
+     missed. Buildings are sites too and roll up into the dot, so they are
+     walked with the same rule. */
+  {
+    const seedSite = s2 => {
+      if (s2.cycles && typeof s2.cycles === "object") return;
+      const c2 = {};
+      fsCycles().forEach(cy => { c2[cy.key] = fsCycSeedOne(cy, s2); });
+      s2.cycles = c2;
+      ch = true;
+      (s2.buildings || []).forEach(seedSite);
+    };
+    (fsRegister.clients || []).forEach(cl => (cl.sites || []).forEach(seedSite));
+  }
   /* PASS 51 [51-1] — the schema 3 migration, and it runs BEFORE the walk so the
      new arrays are stamped on the same pass they are created. Defaulting them
      lazily in fsInvoices() alone would leave a register whose FILE has no
@@ -14928,6 +14946,182 @@ function fsLinkSweep() {
 function fsCycles() {
   const r = fsRegister && fsRegister.routines;
   return (r && r.length) ? r : FS_CYCLES;
+}
+/* ================= PASS 143 [143-A] ==================================
+   W127-10.  A TEST PERIOD HE CAN NAME AND TIME HIMSELF.
+
+   Reece: "it could show weekly, fortnightly, monthly etc or a custom time
+   period of testing. Depending on what is populated/ticked, however we set
+   it up, thats what it would show on that testing strip."
+
+   `months` is what every routine that exists today carries and it stays the
+   stored form - nothing about an existing register changes. `days` is the
+   addition, because WEEKLY AND FORTNIGHTLY ARE NOT A NUMBER OF MONTHS and
+   they are the two examples he gave.
+
+   ONE FORMULA, ONE PLACE. fsCycDue is the only thing that knows how an
+   interval turns into a date; the status, the progress bar and the editor's
+   own "every N weeks" line all ask it or its siblings, so a read-out and a
+   due date cannot drift apart. */
+const FS_TEST_PERIODS = "143-A";
+function fsCycDays(cyc) {
+  const d = cyc && +cyc.days;
+  return (d > 0 && isFinite(d)) ? Math.round(d) : 0;
+}
+function fsCycMonths(cyc) {
+  const m = cyc && +cyc.months;
+  return (m > 0 && isFinite(m)) ? m : 0;
+}
+function fsCycDue(last, cyc) {
+  const due = new Date(last);
+  const d = fsCycDays(cyc);
+  if (d) due.setDate(due.getDate() + d);
+  else due.setMonth(due.getMonth() + (fsCycMonths(cyc) || 12));
+  return due;
+}
+/* The length of one cycle in milliseconds - the progress bar's denominator.
+   2629800000 is the average month this app has always used; keeping it means
+   an existing bar fills at exactly the rate it did yesterday. */
+function fsCycMs(cyc) {
+  const d = fsCycDays(cyc);
+  return d ? d * 86400000 : (fsCycMonths(cyc) || 12) * 2629800000;
+}
+/* THE AMBER WINDOW HAS TO SCALE, and it must not move for anything that
+   ships today. Seven days' warning on a seven-day cycle is the whole cycle,
+   so a weekly routine would be permanently amber. Day-based routines get a
+   quarter of their interval; anything measured in months keeps the exact
+   rule it has had since the strip was built. */
+function fsCycWarnDays(cyc) {
+  const d = fsCycDays(cyc);
+  if (d) return Math.max(1, Math.min(30, Math.round(d / 4)));
+  return fsCycMonths(cyc) === 1 ? 7 : 30;
+}
+/* "every 60 months" is not a thing anybody says, and neither is "every 12
+   months". FOUND BY RENDERING THE BLOCK AND READING IT (Rule #0d-3): the first
+   version printed exactly those two beside 5 yearly and Annual. Years where
+   they divide, and no "1" in front of a singular. */
+function fsCycEvery(cyc) {
+  const one = (n, unit) => "every " + (n === 1 ? unit : n + " " + unit + "s");
+  const d = fsCycDays(cyc);
+  if (d) return (d % 7 === 0) ? one(d / 7, "week") : one(d, "day");
+  const m = fsCycMonths(cyc) || 12;
+  return (m % 12 === 0) ? one(m / 12, "year") : one(m, "month");
+}
+/* THE TICK IS NOT THE DATE, and that distinction is the whole of 143-B.
+   s.testing[key] holds a LAST-DONE DATE. Gating the strip on it would drop a
+   site that is tested monthly and has no record yet - the site that most
+   needs to be on the strip. s.cycles is the tick, and it is seeded in the
+   Step 0 sweep from what the strip shows today so nothing moves.
+   The fallback below is that same seeding rule, for a site the sweep has not
+   reached; a routine added AFTER a site was seeded is off there until he
+   ticks it, which is his "depending on what is ticked". */
+function fsCycSeedOne(cyc, s) {
+  const dated = !!((s && s.testing) || {})[cyc.key];
+  if (cyc.key === "last5y" || cyc.key === "lastFF") return dated;
+  /* FS_CYC_MOD holds exactly the five that have always existed. Anything else
+     is a period somebody ADDED, and it is off at a site nobody has ticked it
+     for - which is his "depending on what is ticked". Without this line a new
+     period appears on every site in the register the moment it is created,
+     which is the bug the hardcoded key test had. */
+  if (FS_CYC_MOD[cyc.key]) return true;
+  return dated;
+}
+function fsCycApplies(s, cyc) {
+  if (!s || !cyc) return true;
+  const c = s.cycles;
+  if (!c || typeof c !== "object") return fsCycSeedOne(cyc, s);
+  if (!(cyc.key in c)) return !!(s.testing || {})[cyc.key];
+  return c[cyc.key] !== false;
+}
+/* Site edit's Test periods block. One row builder, used by the initial render
+   AND by the Add button, so a row added mid-edit cannot look different from
+   the ones beside it. */
+function fsCycRowHtml(cy, on) {
+  return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+    '<input type="checkbox" class="fsCycOnBox" data-key="' + fsEsc(cy.key) + '"' +
+    (on ? " checked" : "") + ' style="width:22px;height:22px;flex:0 0 auto">' +
+    '<input class="fsinput fsCycLbl" data-key="' + fsEsc(cy.key) + '" value="' +
+    fsEsc(cy.label || "") + '" style="flex:1 1 90px;min-width:0">' +
+    '<span style="font-size:11.5px;color:var(--fs-sub2);white-space:nowrap">' +
+    fsEsc(fsCycEvery(cy)) + '</span></label>';
+}
+function fsCycEditHtml(s) {
+  let h = '<div class="fslabel">Test periods &mdash; which ones this site is on</div>';
+  h += '<div id="fsCycEd" style="border:1px solid var(--fs-border);border-radius:10px;padding:10px;margin-bottom:6px">';
+  h += '<div id="fsCycEdRows">';
+  fsCycles().forEach(function (cy) { h += fsCycRowHtml(cy, fsCycApplies(s, cy)); });
+  h += '</div>';
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">' +
+    '<input class="fsinput" id="fsCycNewLbl" autocomplete="off" placeholder="New period name" style="flex:1 1 120px;min-width:0">' +
+    '<input class="fsinput" id="fsCycNewN" type="number" min="1" step="1" value="1" style="width:64px">' +
+    '<select class="fsinput" id="fsCycNewU" style="width:106px"><option value="d">days</option>' +
+    '<option value="w">weeks</option><option value="m" selected>months</option></select>' +
+    '<button class="fsbtn" id="fsCycNewAdd" type="button" style="padding:6px 12px">Add</button></div>';
+  /* SAID ON THE SCREEN, because it is not guessable from it: the routines are
+     register-level and the tick is not. Renaming one here renames it on every
+     site in the register. */
+  h += '<div style="font-size:11.5px;color:var(--fs-sub2);margin-top:6px">' +
+    'The periods and their names are shared by every site. The tick is what ' +
+    'decides which ones show on THIS site’s test strip.</div>';
+  return h + '</div>';
+}
+/* THE LIST HAS TO EXIST BEFORE IT CAN BE EDITED, and this is not a nicety.
+   fsCycles() falls back to the FS_CYCLES CONSTANT when a register has no
+   routines array of its own - so renaming a period at that moment renames it
+   on the constant, which is shared by every register opened afterwards in the
+   same session. test_p143 R15 went red on the first build and it was the
+   product, not the test. */
+function fsCycEnsureRoutines() {
+  if (!fsRegister) return null;
+  if (!Array.isArray(fsRegister.routines) || !fsRegister.routines.length) {
+    fsRegister.routines = FS_CYCLES.map(function (c) {
+      return { key: c.key, label: c.label, months: c.months }; });
+  }
+  return fsRegister.routines;
+}
+/* Read on Save, with the rest of the site form. A routine is never deleted
+   here: it carries a last-done date on every site that has ever been tested
+   on it, and untick is the reversible version of the same intent. */
+function fsCycEditRead(s) {
+  if (!document.getElementById("fsCycEd")) return false;
+  const rt = fsCycEnsureRoutines() || fsCycles();
+  let ch = false;
+  document.querySelectorAll(".fsCycLbl").forEach(function (f) {
+    const cy = rt.filter(function (x) { return x.key === f.dataset.key; })[0];
+    const v = (f.value || "").trim();
+    if (cy && v && v !== cy.label) { cy.label = v; ch = true; }
+  });
+  s.cycles = s.cycles || {};
+  document.querySelectorAll(".fsCycOnBox").forEach(function (b) {
+    if (s.cycles[b.dataset.key] !== b.checked) { s.cycles[b.dataset.key] = b.checked; ch = true; }
+  });
+  return ch;
+}
+function fsCycAddNew(s) {
+  const lb = document.getElementById("fsCycNewLbl");
+  const nn = document.getElementById("fsCycNewN");
+  const uu = document.getElementById("fsCycNewU");
+  const rows = document.getElementById("fsCycEdRows");
+  if (!lb || !nn || !uu || !rows) return null;
+  const label = (lb.value || "").trim();
+  const n = Math.round(+nn.value || 0);
+  if (!label) { alert("Give the period a name first — what you would call it on the strip."); return null; }
+  if (!(n > 0)) { alert("How often? Enter a number of days, weeks or months."); return null; }
+  const u = uu.value;
+  const cy = { key: "r" + Date.now().toString(36) + Math.random().toString(16).slice(2, 5),
+               label: label };
+  if (u === "m") cy.months = n; else cy.days = (u === "w" ? n * 7 : n);
+  if (!fsCycEnsureRoutines()) return null;
+  fsRegister.routines.push(cy);
+  s.cycles = s.cycles || {};
+  s.cycles[cy.key] = true;
+  /* APPENDED, NOT RE-RENDERED. A re-render here would throw away every other
+     field he has typed in the open site form - the name, the address, the
+     access notes - because none of them are saved until Save. */
+  rows.insertAdjacentHTML("beforeend", fsCycRowHtml(cy, true));
+  lb.value = ""; nn.value = "1";
+  fsMarkDirty();
+  return cy;
 }
 /* PASS 43 [43-3] — the rev bump happens where bytes LEAVE the device. The
    register file is the thing two devices exchange, so per-record revs move
@@ -22231,6 +22425,7 @@ function fsDashRows() {
     let worstDays = null, openDef = 0, lastTest = "";
     const walk = s2 => {
       fsCycles().forEach(cy => {
+        if (!fsCycApplies(s2, cy)) return;   /* PASS 143 [143-B] */
         const t = (s2.testing || {})[cy.key];
         if (!t) return;
         const last = new Date(t);
@@ -22388,11 +22583,14 @@ function fsCycleStatus(site, cyc) {
   if (!t) return { col:"var(--fs-sub2)", txt:"No record", overdue:false };
   const last = new Date(t);
   if (isNaN(last)) return { col:"var(--fs-sub2)", txt:"No record", overdue:false };
-  const due = new Date(last); due.setMonth(due.getMonth() + cyc.months);
+  /* PASS 143 [143-A] - through fsCycDue and fsCycWarnDays, so a routine timed
+     in days behaves like one timed in months and neither has its own copy of
+     the arithmetic. Anything measured in MONTHS is unchanged to the day. */
+  const due = fsCycDue(last, cyc);
   const days = Math.floor((due - Date.now()) / 86400000);
   const nice = due.toLocaleDateString(undefined, { day:"numeric", month:"short" });
   if (days < 0) return { col:"#c62828", txt:"Overdue (" + nice + ")", overdue:true };
-  if (days <= (cyc.months === 1 ? 7 : 30)) return { col:"#b58900", txt:"Due " + nice, overdue:false };
+  if (days <= fsCycWarnDays(cyc)) return { col:"#b58900", txt:"Due " + nice, overdue:false };
   return { col:"#1b8a3f", txt:"Due " + nice, overdue:false };
 }
 function fsSiteWorstDot(site) {
@@ -22402,7 +22600,11 @@ function fsSiteWorstDot(site) {
     else if (col === "#b58900" && worst !== "#c62828") worst = "#b58900";
     else if (col === "var(--fs-sub2)" && worst === "#1b8a3f") worst = "var(--fs-sub2)";
   };
-  fsCycles().forEach(c => fold(fsCycleStatus(site, c).col));
+  /* PASS 143 [143-B] - a period this site is not on cannot colour its dot.
+     Before this a site with every cycle in date still read grey because it
+     had no 5-yearly record, which is the same conflation of "does not apply"
+     with "not done" that the strip had. */
+  fsCycles().filter(c => fsCycApplies(site, c)).forEach(c => fold(fsCycleStatus(site, c).col));
   (site.buildings || []).forEach(b => fold(fsSiteWorstDot(b)));   // buildings roll up into the site dot
   return worst;
 }
@@ -22412,6 +22614,7 @@ function fsClientDueDays(c) {
   let min = null;
   const walk = s2 => {
     fsCycles().forEach(cy => {
+      if (!fsCycApplies(s2, cy)) return;   /* PASS 143 [143-B] */
       const t = (s2.testing || {})[cy.key];
       if (!t) return;
       const last = new Date(t);
@@ -22843,7 +23046,8 @@ function fsTodayStops() {
 function fsSiteOverdueN(s) {
   /* the SAME fsCycleStatus the strip renders from — one arithmetic, two
      surfaces. Buildings roll up exactly as fsSiteWorstDot rolls them. */
-  let n = fsCycles().filter(c => fsCycleStatus(s, c).overdue).length;
+  /* PASS 143 [143-B] - and it cannot be overdue here either. */
+  let n = fsCycles().filter(c => fsCycApplies(s, c)).filter(c => fsCycleStatus(s, c).overdue).length;
   (s.buildings || []).forEach(b => { n += fsSiteOverdueN(b); });
   return n;
 }
@@ -23343,6 +23547,10 @@ function fsInfoPhotoHtml() {
      list of {pos, name, num} with its own editor — and the generic save at the
      bottom of the Edit handler does `s[f.dataset.key] = f.value.trim()` for
      every .fsInfoField, which would write a STRING straight over the array. */
+  /* PASS 143 [143-B] W127-10 - "I think when we are in site edit, you should
+     be able to edit the test strip". Here, in the site form, and only while
+     it is open for editing. */
+  if (fsInfoEdit) html += fsCycEditHtml(s);
   const infoRows = [["Access requirements", "access"], ["Further information", "furtherInfo"]];   // isolation points row hidden 23 Jul pass (unused; data kept in s.isolations)
   infoRows.forEach(([label, key]) => {
     if (fsInfoEdit) {
@@ -23506,7 +23714,11 @@ function fsRenderSite() {
      see fsCycTickOn); tap-while-green removes that tap. Gating unchanged:
      the Monthly cell only renders when fsCycOn passes for it, so a cycle
      that needs evidence still cannot be closed with a tap (P-3 stands). */
-  const cycs = fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => (c.key !== "last5y" && c.key !== "lastFF") || (s.testing || {})[c.key]);
+  /* PASS 143 [143-B] W127-10 - "depending on what is populated/ticked, thats
+     what it would show on that testing strip." The hardcoded key test that
+     used to stand here always showed Monthly, 6 monthly and Annual and would
+     have shown a NEW routine on every site in the register. */
+  const cycs = fsCycles().filter(c => typeof fsCycOn !== "function" || fsCycOn(c.key)).filter(c => fsCycApplies(s, c));
   html += '<style>#fsHubStrip{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}' +
     '#fsCycTick{order:-1}' +
     /* and the row itself right-aligns, at EVERY width. Without this the
@@ -23569,7 +23781,7 @@ function fsRenderSite() {
     const exCol = st.overdue ? '#c62828' : (st.col === '#b58900' ? '#b58900' : null);
     const t = (s.testing || {})[c.key];
     let pct = 0;
-    if (t && !isNaN(new Date(t))) pct = Math.max(0, Math.min(100, Math.round((Date.now() - new Date(t).getTime()) / (c.months * 2629800000) * 100)));
+    if (t && !isNaN(new Date(t))) pct = Math.max(0, Math.min(100, Math.round((Date.now() - new Date(t).getTime()) / fsCycMs(c) * 100)));
     const tick = c.key !== "lastMonthly" ? "" : (fsCycTickOn(s)
       ? '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid #2e7d32;background:#2e7d32;color:#fff;cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Today\u2019s monthly test is recorded, tagged \u201c' + FS_TESTED_TAG + '\u201d. Tap again today to remove it \u2014 the accidental-tap undo.">Tested &#10003;</button>'
       : '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid var(--fs-border);background:transparent;color:var(--fs-sub);cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session. It stays green for the rest of today; tapping it again while green removes it.">Tested &#10003;</button>');
@@ -23909,6 +24121,10 @@ function fsRenderTab() {
   if (fsTab === "overview" && !fsInfoEdit) fsHubWire(s);
   if (fsTab === "overview" && fsInfoEdit) {
     fsCtWire(s);
+    /* PASS 143 [143-B] - Add appends a row rather than re-rendering; see
+       fsCycAddNew for why that matters to a half-typed site form. */
+    const cycAdd = document.getElementById("fsCycNewAdd");
+    if (cycAdd) cycAdd.onclick = () => { fsCycAddNew(s); };
     const geoBtn = document.getElementById("fsSiteGeoBtn");
     if (geoBtn) geoBtn.onclick = () => {
       const cur = s.geo ? (s.geo.lat + ", " + s.geo.lng) : "";
@@ -23963,6 +24179,11 @@ function fsRenderTab() {
         const pf = document.getElementById("fsVisPref");
         const tot = k => (vd[k] || 0) * 1440 + (vh[k] || 0) * 60 + (vm2[k] || 0);
         if (pf) s.visit = { mins: tot("mins"), mins6: tot("mins6"), minsA: tot("minsA"), pref: pf.value || "" };
+        /* PASS 143 [143-B] - the ticks and any renamed period, read with the
+           rest of the form. Its own reader because a routine label lives on
+           the REGISTER and the tick lives on the SITE, which the generic
+           .fsInfoField sweep above cannot express. */
+        fsCycEditRead(s);
         fsMarkDirty();
         fsInfoEdit = false;
         fsRenderSite();   // full re-render so the header "Open in maps" button appears/disappears
@@ -26963,7 +27184,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v134";
+const FS_BUILD = "aa-v135";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
