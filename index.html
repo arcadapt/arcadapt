@@ -482,7 +482,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.131 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.132 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -612,7 +612,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.131 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.132 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1504,6 +1504,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
         <option value="m">Metres (m)</option>
       </select>
     </div>
+    <!-- PASS 144 [144-B] W127-6 - "I don't know how to clear the scale? but it
+         should be a button in settings." It is here now. The button beside the
+         measure note STAYS and both call fsClearScale(); one behaviour, two
+         doors. -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="flex:1;font-size:13.5px;min-width:120px">Scale: <b id="wsSetScaleTxt">&mdash;</b></span>
+      <button class="btn" id="wsSetClearScale" title="Clear the scale for this level - the next measured line will ask for a known distance again">Clear scale</button>
+    </div>
     <!-- PASS 140 [140-C] - W127-7. THE ROUNDING ROW IS GONE, and the
          BEHAVIOUR IS NOT. Reece: "I am talking about in settings how it says
          something about rounding etc." Pass 138 added this control and he does
@@ -2296,11 +2304,20 @@ const FS_SYM_MM = {
   lstair:  { mm: 1000, mult: 1.44, draw: "real",   src: "NCC minimum, UNCITED" },
 
   /* --- Fire: legible symbols, with their real size recorded -------------- */
-  smoke:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, 1 Sep 2026" },
-  csmoke:  { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
-  thermal: { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
-  cthermal:{ mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
-  sm240:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base" },
+  /* PASS 144 [144-A] W127-5 - "a smoke detector should have a little diameter
+     symbol". A detector base is a CIRCLE, so its 100 mm is a DIAMETER and not
+     a width, and a bare number says the wrong thing about a round object to
+     anybody who reads drawings. There was no shape information anywhere in
+     this table, so it becomes data here and every surface that prints a real
+     size asks for the mark rather than deciding for itself.
+     The extinguisher is arguably round too and is deliberately NOT flagged:
+     its source reads "150 w x 800 h", which is an elevation, and whether its
+     plan footprint is a diameter is his call about his own catalogue. */
+  smoke:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, 1 Sep 2026", dia: true },
+  csmoke:  { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base", dia: true },
+  thermal: { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base", dia: true },
+  cthermal:{ mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base", dia: true },
+  sm240:   { mm: 100,  mult: 1.0,  draw: "symbol", src: "Reece, detector base", dia: true },
   mcp:     { mm: 87,   mult: 1.0,  draw: "symbol", src: "EN 54-11, 87 x 87" },
   exting:  { mm: 150,  mult: 0.98, draw: "symbol", src: "Reece, 150 w x 800 h", h: 800 },
   fip:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
@@ -2397,7 +2414,11 @@ function fsSymSpec(typeId) {
   const prof = fsSymSpecProfile();
   const layers = [prof && prof[typeId], fsSymSpecOv[typeId]];
   if (!layers[0] && !layers[1]) return base;
-  const out = { mm: base.mm, mult: base.mult, draw: base.draw, src: base.src, h: base.h };
+  /* PASS 144 [144-A]: `dia` rides through the profile/override merge with
+     everything else. A shape does not change because a client profile set a
+     different millimetre figure, and leaving it out of this object is how the
+     mark would vanish for exactly the sites that have a profile. */
+  const out = { mm: base.mm, mult: base.mult, draw: base.draw, src: base.src, h: base.h, dia: base.dia };
   layers.forEach(o => {
     if (!o || typeof o !== "object") return;
     if (o.mm === null) { out.mm = null; out.src = null; }
@@ -2426,6 +2447,14 @@ function fsSymSpecSeed() {
    THE REAL SIZE AND THE DRAWN SIZE ARE DIFFERENT PROPERTIES and nothing here
    derives one from the other - that split is W127-2 and it is the whole
    reason the sheet exists. */
+/* PASS 144 [144-A] W127-5. ONE QUESTION, ONE ANSWER, ASKED BY EVERY SURFACE
+   THAT PRINTS A REAL SIZE. Capital O-with-stroke rather than the lowercase
+   Danish letter or U+2300: it is what Australian drawings use and it is in
+   every font this app can land in. Checked by rendering it and looking. */
+const FS_SYM_DIA = "144-A";
+function fsSymDiaMark(spec) {
+  return (spec && spec.dia) ? "\u00d8" : "";
+}
 function fsSymRealSize(o) {
   if (!o) return null;
   if (typeof o.mm === "number" && o.mm > 0) return o.mm;
@@ -6606,15 +6635,23 @@ function refreshMeasureNote() {
      which already calls this. One seam, one hook. */
   if (typeof fsSizeMmSync === "function") fsSizeMmSync();
 }
-document.getElementById("measureClearScale").onclick = () => {
-  if (!window.confirm("Clear the scale for this level? The next measured line will ask for a known distance again.")) return;
+/* PASS 144 [144-B] W127-6 - "I don't know how to clear the scale? but it
+   should be a button in settings". THE BUTTON ALREADY EXISTED and has since
+   Pass 93; it lives beside the measure note, which is on the Measure tool,
+   which is not where he went looking. So this is a SECOND DOOR, not a second
+   implementation: the body is lifted out once and both buttons call it.
+   W101-2 is the precedent that cost a pass for doing the other thing. */
+function fsClearScale() {
+  if (!window.confirm("Clear the scale for this level? The next measured line will ask for a known distance again.")) return false;
   curScaleMpp = null;
   measureLive = null;
   if (img) syncLevel();
   scheduleAutosave();
   refreshMeasureNote();
   draw();
-};
+  return true;
+}
+document.getElementById("measureClearScale").onclick = () => { fsClearScale(); };
 
 function updateTestCounter() {
   const el = document.getElementById("testCounter");
@@ -6765,15 +6802,34 @@ document.getElementById("selAfterOn").checked = selAfterDraw;
 document.getElementById("selAfterOn").onchange = ev => { selAfterDraw = ev.target.checked; localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0"); const wsc = document.getElementById("wsSetSelAfter"); if (wsc) wsc.checked = selAfterDraw; };
 /* C17-beta: workspace settings cog */
 let wsLastAutoT = null;
-document.getElementById("btnWsSet").onclick = () => {
+/* PASS 144 [144-B] - A NAMED FUNCTION, because W127-6's probe names one and
+   there was not one: the cog's handler was an anonymous arrow, so there was no
+   seam to fill the scale row in and nothing for a probe to anchor on. The
+   handler is unchanged; it has a name and a caller now. */
+function wsSetOpen() {
   document.getElementById("wsSetSelAfter").checked = selAfterDraw;
   document.getElementById("wsSetSnapOn").checked = fsWsSnapOn;
   const vb = document.getElementById("fsVerBadge");
   document.getElementById("wsSetVer").textContent = vb ? vb.textContent : "";
   document.getElementById("wsSetAutoT").textContent = wsLastAutoT ? "last ran " + new Date(wsLastAutoT).toLocaleTimeString() : "runs every 30 s while you work";
   wsSetTabsRender();
+  /* PASS 144 [144-B] - the scale row, filled on every open. It says what the
+     scale IS as well as offering to clear it: "Clear scale" on its own, on a
+     level that has no scale, is a button that does nothing and explains
+     nothing. Disabled and saying so is the honest empty state, and it is
+     written HERE rather than only in the markup so it cannot go stale. */
+  {
+    const t = document.getElementById("wsSetScaleTxt");
+    const b = document.getElementById("wsSetClearScale");
+    if (t) t.textContent = curScaleMpp
+      ? (fsUnit().noteQty + " " + fsUnit().label + " = " + Math.round(1 / curScaleMpp) + " px"
+         + (levels.length > 1 ? " on this level" : ""))
+      : "not set on this level";
+    if (b) b.disabled = !curScaleMpp;
+  }
   document.getElementById("wsSetModal").classList.add("show");
-};
+}
+document.getElementById("btnWsSet").onclick = wsSetOpen;
 
 /* PASS 38 — the checkboxes. Rebuilt on every open so a tab reorder done since
    the last open is reflected in the order they appear here: two lists of the
@@ -6818,6 +6874,12 @@ document.getElementById("wsSetPlans").onclick = () => fsWsCogFire("btnPlans");
 document.getElementById("wsSetNew").onclick = () => fsWsCogFire("btnNew");
 document.getElementById("wsSetSaveAs").onclick = () => fsWsCogFire("btnSaveAs");
 document.getElementById("wsSetBin").onclick = () => fsWsCogFire("fsBinBtn");
+/* PASS 144 [144-B] - the second door, wired to the SAME function. It closes
+   the settings sheet on success, because leaving a panel open over a plan he
+   has just changed is how he loses track of what happened. */
+document.getElementById("wsSetClearScale").onclick = () => {
+  if (fsClearScale()) document.getElementById("wsSetModal").classList.remove("show");
+};
 document.getElementById("wsSetClose").onclick = () => document.getElementById("wsSetModal").classList.remove("show");
 /* PASS 86 [86-6] - Revit's SO. A thing you set once, so it lives here and not
    in a toolbar that is already four rows on a phone. */
@@ -11668,10 +11730,18 @@ function openDetails() {
        is the V0.125 1000x failure waiting to happen again, and this field is
        in millimetres whatever the workspace unit is - because the catalogue
        is, and the two must never disagree. */
+    /* PASS 144 [144-A] W127-5 - the diameter mark, BEFORE the number, which is
+       where every drawing puts it. One place asks fsSymDiaMark; the Arc
+       Command sheet asks the same question of the same flag. */
+    const dia = document.createElement("span");
+    dia.id = "detDimDia";
+    dia.textContent = fsSymDiaMark(b);
+    dia.style.cssText = "color:#8f979e;font-size:13px";
+    dia.style.display = dia.textContent ? "inline" : "none";
     const unit = document.createElement("span");
     unit.textContent = "mm";
     unit.style.cssText = "color:#8f979e";
-    row.appendChild(inp); row.appendChild(unit);
+    row.appendChild(dia); row.appendChild(inp); row.appendChild(unit);
     el.appendChild(row);
     /* PASS 141 [141-A]: on its own line under the field. The column is about
        150px wide at 430px and the draw-mode text will not share a row with a
@@ -27184,7 +27254,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v135";
+const FS_BUILD = "aa-v136";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
