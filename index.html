@@ -482,7 +482,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.132 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.133 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -612,7 +612,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.132 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.133 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -779,9 +779,15 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          identifies the PHYSICAL DEVICE — the QR tag it carries and the
          brand/model/serial off its label — moves to a second tab. What is left
          on the first is what a technician fills in while standing at it. -->
-    <div id="detTabs" style="display:flex;gap:6px;margin:-2px 0 12px">
-      <button class="btn" id="detTab1" type="button" style="flex:1">Details</button>
-      <button class="btn" id="detTab2" type="button" style="flex:1">QR tag &amp; Specs</button>
+    <!-- PASS 145 [145-A] W125-1 - the third tab, agreed 31 Aug: Details |
+         QR tag & Specs | History. The tab strip wraps rather than shrinking
+         the labels: three buttons at flex:1 on a 430px screen would cut
+         "QR tag & Specs" in half, and a tab you cannot read is worse than a
+         tab on a second row. -->
+    <div id="detTabs" style="display:flex;gap:6px;margin:-2px 0 12px;flex-wrap:wrap">
+      <button class="btn" id="detTab1" type="button" style="flex:1 1 90px">Details</button>
+      <button class="btn" id="detTab2" type="button" style="flex:1 1 120px">QR tag &amp; Specs</button>
+      <button class="btn" id="detTab3" type="button" style="flex:1 1 90px">History</button>
     </div>
     <div id="detPane1">
     <!-- PASS 27b item 4 — Zone, Loop and Device number on ONE row. Confirmed
@@ -971,6 +977,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
         Nothing to identify on this item type &mdash; no label fields and no QR tag.
       </div>
     </div>
+    <!-- PASS 145 [145-A] W125-1 - the History pane. Built from JS on every
+         open because it is a VIEW over the register, not a form: there is
+         nothing here to remember between opens and nothing to save. -->
+    <div id="detPane3" style="display:none"></div>
     <!-- PASS 27b item 4 — [Change item type] bottom-LEFT, level with Cancel and
          Save, same shape as Save, OUTLINED red on transparent.
 
@@ -11604,11 +11614,22 @@ function fsOcrRun(file, capture) {
 function fsDetTab(n) {
   const p1 = document.getElementById("detPane1"), p2 = document.getElementById("detPane2");
   const b1 = document.getElementById("detTab1"), b2 = document.getElementById("detTab2");
+  /* PASS 145 [145-A] - the third pane. Everything below keeps the shape it
+     had: pane 1 is still "not 2", now also "not 3". */
+  const p3 = document.getElementById("detPane3"), b3 = document.getElementById("detTab3");
   if (!p1 || !p2) return;
-  p1.style.display = n === 2 ? "none" : "";
+  p1.style.display = (n === 2 || n === 3) ? "none" : "";
   p2.style.display = n === 2 ? "" : "none";
-  if (b1) b1.classList.toggle("primary", n !== 2);
+  if (p3) p3.style.display = n === 3 ? "" : "none";
+  if (b1) b1.classList.toggle("primary", n !== 2 && n !== 3);
   if (b2) b2.classList.toggle("primary", n === 2);
+  if (b3) b3.classList.toggle("primary", n === 3);
+  if (n === 3 && p3) {
+    /* RENDERED ON OPEN, never cached. A defect rectified while this sheet is
+       open must not leave a stale line behind it. */
+    const o3 = (detailsTargets || []).filter(function (x) { return x && x.kind === "sym"; })[0];
+    p3.innerHTML = fsAssetHistoryHtml(o3 || null);
+  }
   if (n === 2) {
     /* An empty tab is worse than no tab — say why it is empty rather than
        showing a blank pane and letting it read as a loading failure. */
@@ -11621,7 +11642,7 @@ function fsDetTab(n) {
      item type button appears under QR tag & Specs, where it reads oddly. It is
      a tab-1 control; it belongs to what tab 1 is showing. */
   const ctb = document.getElementById("dChangeTypeBtn");
-  if (ctb) ctb.style.display = (n !== 2 && fsDetCtOk) ? "" : "none";
+  if (ctb) ctb.style.display = (n !== 2 && n !== 3 && fsDetCtOk) ? "" : "none";
 }
 /* Whether THIS sheet may change type at all — single non-photo-pin device.
    Held on the side because both fsDetTab and openDetails need the answer and
@@ -11917,6 +11938,7 @@ document.getElementById("dScanBtn").onclick = fsOcrOpen;
 /* PASS 26 item 15 */
 document.getElementById("detTab1").onclick = () => fsDetTab(1);
 document.getElementById("detTab2").onclick = () => fsDetTab(2);
+document.getElementById("detTab3").onclick = () => fsDetTab(3);
 /* PASS 27b item 4 — the confirm names what is CLEARED and what is KEPT, built
    from the type actually being left rather than a generic warning. A generic
    "are you sure?" teaches people to tap through it; naming the four settings
@@ -27254,7 +27276,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v136";
+const FS_BUILD = "aa-v137";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31078,6 +31100,123 @@ function fsWhoSet(name, stay) {
   try { const n = document.getElementById("fsSetName"); if (n) n.value = name; } catch (e) {}
   fsRoleRefresh();
   try { fsSetSignedRefresh(); } catch (e) {}
+}
+/* ================= PASS 145 [145-A] ==================================
+   W125-1.  THE HISTORY OF ONE ASSET, DERIVED FROM WHAT IS ALREADY RECORDED.
+
+   A technician told Reece that scanning an asset and seeing its history is
+   what he likes about Uptick. The workflow for that already exists here -
+   scan, identify, plan location, details, photos, defects, test. What was
+   missing is the timeline, and three of its four events are already written
+   down with dates and names on them.
+
+   SO IT IS DERIVED, NOT DUPLICATED, and the docstring on patch-p145 carries
+   the full argument. The short version: a stored-only log opens EMPTY on
+   every device he already owns, and a written "rectified" event becomes a
+   permanent lie the first time somebody taps Reopen - which `d.reopened`
+   says already happens.
+
+   NOT fsRegister.activity. That log exists, it is register-wide, it carries
+   no asset id and it is CAPPED AT 300 ENTRIES, so it truncates. It is a feed,
+   not a record. */
+const FS_ASSET_HISTORY = "145-A";
+/* The identity a defect already carries. THE QR TAG WINS: a tag is the
+   physical device, and zone/loop/device numbers get re-used when a board is
+   re-numbered. The key is built in exactly the shape the defect pipeline
+   writes it - this is not a second convention. */
+function fsAssetKey(o, level) {
+  const t = (TYPE_MAP[o.type] || {}).label || o.type;
+  return "dev:" + (level || "") + ":" + t + ":" + (o.zone || "") + ":" +
+         (o.loop || "") + ":" + (o.dev || "");
+}
+function fsAssetLevelName() {
+  try {
+    return (levels[curLevel] && levels[curLevel].name) || ("Level " + (curLevel + 1));
+  } catch (e) { return ""; }
+}
+function fsAssetMatchDef(d, o, level) {
+  if (!d || !o) return false;
+  if (o.qid && d.qid && d.qid === o.qid) return true;
+  return !!d.key && d.key === fsAssetKey(o, level);
+}
+function fsAssetHistory(o, level, site) {
+  const ev = [];
+  const s = site || (typeof fsSite !== "undefined" ? fsSite : null);
+  if (!o || !s) return ev;
+  const lv = level == null ? fsAssetLevelName() : level;
+  (s.defects || []).forEach(function (d) {
+    if (!fsAssetMatchDef(d, o, lv)) return;
+    if (d.created) ev.push({ at: d.created, kind: "raised", who: d.raisedBy || "",
+                             text: "Defect raised — " + (d.desc || "") });
+    if (d.reopened) ev.push({ at: d.reopened, kind: "reopened", who: d.reopenedBy || "",
+                              text: "Defect reopened — " + (d.desc || "") });
+    if (d.closed) ev.push({ at: d.closed, kind: "fixed", who: d.closedBy || "",
+                            text: "Defect rectified — " + (d.desc || "") });
+  });
+  const label = (TYPE_MAP[o.type] || {}).label || o.type;
+  (s.history || []).forEach(function (r) {
+    const hit = (r.failedDevices || []).some(function (f) {
+      return f && f.type === label && (f.zone || "") === (o.zone || "") &&
+             (f.loop || "") === (o.loop || "") && (f.dev || "") === (o.dev || "") &&
+             (!lv || !f.level || f.level === lv);
+    });
+    if (hit) ev.push({ at: r.finished || "", kind: "failed", who: r.tech || "",
+                       text: "Failed at the " + (r.label || r.mode || "") + " test" });
+  });
+  /* o.ty HOLDS YEARS AND NOTHING ELSE, so this line says a year and carries
+     no day. An invented date beside a technician's name is how a record stops
+     being evidence. It sorts to the end of its own year and is marked coarse
+     so the renderer cannot print a date for it by accident. */
+  (o.ty || []).slice().sort().forEach(function (y) {
+    ev.push({ at: String(y) + "-12-31T23:59:59", year: String(y), coarse: true,
+              kind: "tested", who: "", text: "Recorded as tested in " + y });
+  });
+  ev.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+  return ev;
+}
+function fsAssetHistoryHtml(o) {
+  const col = { raised: "#c62828", reopened: "#c62828", fixed: "#1b8a3f",
+                failed: "#c62828", tested: "#1b8a3f" };
+  if (!o) return '<div style="color:#8fa2ab;font-size:13px;padding:6px 0">' +
+    'Select one item to see its history.</div>';
+  const ev = fsAssetHistory(o, null, null);
+  let h = "";
+  if (!ev.length) {
+    /* AN EMPTY TAB HAS TO SAY WHY IT IS EMPTY. A blank pane reads as a
+       loading failure - the same reasoning as detPane2Empty. */
+    h += '<div style="color:#8fa2ab;font-size:13px;padding:6px 0">' +
+      'Nothing recorded against this item yet. Tests, failures and defects ' +
+      'appear here as they happen — there is nothing to fill in.</div>';
+  } else {
+    h += '<div style="font-size:12px;color:#8f979e;margin-bottom:8px">' +
+      ev.length + (ev.length === 1 ? " event" : " events") + ", newest first</div>";
+    ev.forEach(function (e) {
+      /* A YEAR TICK ALREADY SAYS ITS YEAR IN THE LINE ABOVE. Printing it
+         again underneath - which the first build did - reads as a date that
+         got cut off. Found by rendering the tab and looking at it (#0d-3). */
+      const when = e.coarse ? ""
+        : String(e.at || "").slice(0, 10) + (String(e.at || "").length > 10
+            ? " " + String(e.at).slice(11, 16) : "");
+      h += '<div style="display:flex;gap:9px;padding:8px 0;border-top:1px solid #3a4048">' +
+        '<span style="flex:0 0 6px;height:6px;border-radius:50%;margin-top:6px;background:' +
+        (col[e.kind] || "#6b7580") + '"></span>' +
+        '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;color:#e8e8e8;word-break:break-word">' + fsEsc(e.text) + '</div>' +
+        ((when || e.who)
+          ? '<div style="font-size:11.5px;color:#8f979e">' + fsEsc(when) +
+            (e.who ? (when ? " · " : "") + fsEsc(e.who) : "") + '</div>'
+          : "") + '</div></div>';
+    });
+  }
+  /* SAY WHAT IT CANNOT SHOW. A timeline with a silent gap in it is worse than
+     one that names the gap, and these two are exactly the questions on the
+     V0.133 walk sheet. */
+  h += '<div style="font-size:11.5px;color:#8f979e;margin-top:12px;line-height:1.5">' +
+    'Built from what is already recorded against this site, so it goes back as ' +
+    'far as your register does. <b>Photos are not on it</b> — nothing in the ' +
+    'app records when one was taken. A year with no day is a year tick, which ' +
+    'is all that was stored.</div>';
+  return h;
 }
 function fsActLog(act, what) {
   try {
