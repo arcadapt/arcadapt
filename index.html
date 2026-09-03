@@ -232,8 +232,43 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .modalbox { background:#262a30; border:1px solid #444; border-radius:12px; padding:18px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto; }
   .modalbox h3 { font-size:15px; margin-bottom:12px; color:#ff8a70; }
   .modalbox label { display:block; font-size:12px; color:#aaa; margin:8px 0 3px; }
-  .modalbox input[type=text] { width:100%; background:#1a1d21; border:1px solid #444; border-radius:6px; color:#e8e8e8; padding:8px; font-size:14px; }
+  /* PASS 146 [146-A] - "things do not line up, boxes are way too large".
+     Before this rule the ONLY styled control in a modal was input[type=text];
+     a select was 36px beside a 34px text box and every date field carried a
+     hand-copied inline style. One rule, one explicit height, border-box. */
+  .modalbox input[type=text], .modalbox input[type=month], .modalbox input[type=date],
+  .modalbox input[type=number], .modalbox input[type=tel], .modalbox input[type=email],
+  .modalbox select, .modalbox textarea {
+    width:100%; box-sizing:border-box; height:38px; background:#1a1d21;
+    border:1px solid #444; border-radius:6px; color:#e8e8e8;
+    padding:0 9px; font-size:14px; font-family:inherit; line-height:normal;
+  }
+  .modalbox textarea { height:auto; min-height:72px; padding:8px 9px; line-height:1.45; resize:vertical; }
+  .modalbox select, .modalbox input[type=month], .modalbox input[type=date] { -webkit-appearance:none; appearance:none; }
+  .modalbox select {
+    padding-right:30px;
+    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23aaa' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; background-size:11px 8px;
+  }
+  .modalbox input:focus, .modalbox select:focus, .modalbox textarea:focus { outline:none; border-color:#f4623a; }
   .modalbox .row { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+  /* PASS 146 [146-B] - "just have it one size and when you go to the next tab
+     it is still the same size". Measured on V0.133: the box was 620px on
+     Details, 323px on QR tag & Specs and 292px on History. It is now one
+     height, and the footer is OUTSIDE the scrolling area - so Save, Cancel
+     and Change item type cannot go under the fold on a renderer whose native
+     controls are taller than this one's. SCOPED to the details modal: a
+     fixed height on every .modalbox would stretch a confirm dialog. */
+  #detailsModal .modalbox { position:relative; display:flex; flex-direction:column; height:min(700px, 86vh); max-height:86vh; overflow:hidden; }
+  /* `overflow-y:auto` is what holds this up: it makes the pane a scroll
+     container, and a flex item that is a scroll container may shrink
+     below its content. `min-height:0` is redundant beside it and stays
+     only because it says the intent out loud - mutant M11 proves which
+     of the two is load-bearing. */
+  #detPanes { flex:1 1 auto; overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
+  #detailsModal #detFooter { flex:0 0 auto; margin-top:12px; border-top:1px solid #333; padding-top:12px; }
+  /* The close X reserves its corner - see 146-H for why it moves. */
+  #detailsModal #detailsTitle { padding-right:42px; }
   .modalbox table { width:100%; border-collapse:collapse; font-size:12px; }
   .modalbox th, .modalbox td { border:1px solid #444; padding:5px 8px; text-align:left; }
   .modalbox th { color:#ff8a70; }
@@ -482,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.133 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.134 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -612,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.133 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.134 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -789,6 +824,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <button class="btn" id="detTab2" type="button" style="flex:1 1 120px">QR tag &amp; Specs</button>
       <button class="btn" id="detTab3" type="button" style="flex:1 1 90px">History</button>
     </div>
+    <!-- PASS 146 [146-C] - the three panes share one scrolling parent so the
+         footer below can sit outside it. Nothing about the panes themselves
+         changes; this is a wrapper, not a re-layout. -->
+    <div id="detPanes">
     <div id="detPane1">
     <!-- PASS 27b item 4 — Zone, Loop and Device number on ONE row. Confirmed
          off the rendered mockup: one row, not two. Narrow boxes, 5 digits max.
@@ -874,15 +913,20 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
            picker would make him invent a digit that is not on the bottle.
            The value is YYYY-MM, which sorts and compares, so it can drive a
            condemn date later - which is the whole point of storing it. -->
-      <div id="xtSpecRow" style="display:flex;gap:8px;align-items:flex-end;margin-top:8px">
-        <div style="flex:0 0 96px">
+      <!-- PASS 146 [146-G] - the date box was flex:1, so on a 420px modal it
+           ate ~290px to hold "2019-06". Sized to a date instead. flex-end
+           became flex-start: with 146-A every control is the same height,
+           so tops and bottoms both line up and bottom-anchoring is no
+           longer doing any work. -->
+      <div id="xtSpecRow" style="display:flex;gap:10px;align-items:flex-start;margin-top:8px">
+        <div style="flex:0 0 110px">
           <label>Size</label>
           <div style="display:flex;align-items:center;gap:5px">
             <input type="text" id="dXsize" autocomplete="off" inputmode="decimal" maxlength="5" style="width:100%;min-width:0">
             <span id="dXunit" style="font-size:13px;color:#aaa;flex:0 0 auto">kg</span>
           </div>
         </div>
-        <div style="flex:1;min-width:0">
+        <div style="flex:0 1 215px;min-width:150px">
           <label>Manufacture date</label>
           <input type="month" id="dXmfd" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px">
         </div>
@@ -981,6 +1025,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          open because it is a VIEW over the register, not a form: there is
          nothing here to remember between opens and nothing to save. -->
     <div id="detPane3" style="display:none"></div>
+    </div><!-- /detPanes -->
     <!-- PASS 27b item 4 — [Change item type] bottom-LEFT, level with Cancel and
          Save, same shape as Save, OUTLINED red on transparent.
 
@@ -11734,7 +11779,11 @@ function openDetails() {
        modalbox gives every other label. */
     const lab = document.createElement("div");
     lab.textContent = "Size";
-    lab.style.cssText = "font-size:12px;color:#aaa;margin:0 0 3px";
+    /* PASS 146 [146-D] - was margin:0. #photoCol's label takes margin:8px
+       from `.modalbox label`, and these two columns sit in the same flex row,
+       so the Size caption stood 8px above the Photo caption on every open.
+       The same three numbers as the stylesheet, deliberately. */
+    lab.style.cssText = "font-size:12px;color:#aaa;margin:8px 0 3px";
     el.appendChild(lab);
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:7px;flex-wrap:wrap";
@@ -11743,8 +11792,14 @@ function openDetails() {
     inp.type = "text";
     inp.inputMode = "decimal";
     inp.placeholder = "not set";
-    inp.style.cssText = "width:80px;padding:5px 7px;border-radius:6px;border:1px solid #444;" +
-                        "background:#2e333a;color:#e8e8e8;font-size:12.5px;text-align:right";
+    /* PASS 146 [146-E] - was 26px tall, 12.5px, right-aligned, on #2e333a:
+       the only control in the modal that did not look like the others.
+       Same height, same background and same font as 146-A gives every
+       other box. It keeps its own width because it holds a 3-5 digit
+       number, not a sentence. */
+    inp.style.cssText = "width:92px;height:38px;box-sizing:border-box;padding:0 9px;" +
+                        "border-radius:6px;border:1px solid #444;background:#1a1d21;" +
+                        "color:#e8e8e8;font-size:14px";
     const cur = fsSymRealSize(o);
     inp.value = cur ? String(Math.round(cur * 1000) / 1000) : "";
     /* THE UNIT SITS BESIDE THE FIELD, ALWAYS. A number with nothing next to it
@@ -11769,9 +11824,18 @@ function openDetails() {
        number and a unit at that width - it wrapped mid-phrase in the render.
        The leading middot goes with the row it used to sit on. */
     const mode = document.createElement("div");
+    /* PASS 146 [146-F] - he asked for the draw-mode wording to go: "do we
+       need that there? It is probably unrequired". W133-3 probes for the
+       ABSENCE of that phrase and an absent probe reads the whole file,
+       COMMENTS INCLUDED - so this comment must not quote it back. Same
+       trap W128-2 names from the other side. The height is the half
+       of the line that tells him something he cannot see, so it stays and
+       stands alone. With neither half there is nothing to say and the
+       element is hidden rather than left as an empty grey line. */
     mode.textContent = b.draw === "real"
       ? "drawn to scale"
-      : "drawn as a symbol" + (b.h ? ", " + b.h + " mm high" : "");
+      : (b.h ? b.h + " mm high" : "");
+    mode.style.display = mode.textContent ? "block" : "none";
     mode.style.cssText = "color:#8f979e;margin-top:3px";
     el.appendChild(mode);
     /* PASS 141 [141-B] W128-2. A one-line note stood here saying that an edit
@@ -27276,7 +27340,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v137";
+const FS_BUILD = "aa-v138";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -30116,7 +30180,16 @@ function fsModalXInstall() {
     btn.setAttribute("aria-label", "Close");
     btn.title = "Close";
     btn.innerHTML = "&#10005;";
-    btn.style.cssText = "position:sticky;top:-6px;float:right;margin:-8px -6px 0 10px;" +
+    /* PASS 146 [146-H] - sticky+float is right for a box that scrolls as
+       one piece, and WRONG for a flex column whose middle child scrolls:
+       a flex parent ignores the float, so the X took its own row at the
+       left, above the title. Ask the box which it is rather than assuming
+       - this is measured at install time and holds for any modal that
+       becomes a flex column later. */
+    const fsXFlex = getComputedStyle(box).display === "flex";
+    btn.style.cssText = (fsXFlex
+        ? "position:absolute;top:12px;right:12px;margin:0;"
+        : "position:sticky;top:-6px;float:right;margin:-8px -6px 0 10px;") +
       "z-index:9;width:32px;height:32px;line-height:1;border-radius:8px;border:1px solid #4a5057;" +
       "background:#2c3138;color:#cfd8dc;font-size:15px;cursor:pointer;flex:none";
     btn.onclick = function (e) {
