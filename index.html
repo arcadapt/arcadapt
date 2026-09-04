@@ -214,6 +214,19 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     border:1px solid #444; border-radius:5px; color:#e8e8e8;
     padding:3px 6px; font-size:12px; font-variant-numeric:tabular-nums; }
   #sizeWrap #sizeMm:disabled { color:#7d868c; text-align:center; }
+  /* PASS 158 [158-F] - "the actual handle that moves back and forward could
+     probably be a little taller and thinner. only marginally though." Both
+     engines, because a rule written for one of them is a rule that works on
+     the machine it was tested on and nowhere else. The TRACK is untouched, so
+     the row's height does not move. */
+  #sizeSlider { -webkit-appearance:none; appearance:none; background:transparent; }
+  #sizeSlider::-webkit-slider-runnable-track { height:4px; border-radius:3px; background:#4a525b; }
+  #sizeSlider::-moz-range-track { height:4px; border-radius:3px; background:#4a525b; }
+  #sizeSlider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+    width:11px; height:22px; border-radius:4px; background:#d8dee4;
+    border:1px solid #6b737c; margin-top:-9px; }
+  #sizeSlider::-moz-range-thumb { width:11px; height:22px; border-radius:4px;
+    background:#d8dee4; border:1px solid #6b737c; }
   #swatches { display:flex; align-items:center; gap:5px; }
   .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .swatch.active { border-color:#fff; box-shadow:0 0 0 2px #ff5a3c; }
@@ -538,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.143 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.144 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -668,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.143 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.144 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2697,6 +2710,16 @@ function fsSizeType() {
   if (!selection.length && TYPE_MAP[activeTool]) return activeTool;
   return null;
 }
+/* PASS 158 [158-E] FS_MM_SHOW_TYPED - W129-4. He typed 700 and the box came
+   back 698, and he ruled against rebuilding the quantisation that causes it:
+   "probably not....if its that much of an issue".
+
+   So the GEOMETRY is untouched - the size is still what the slider can
+   express - and the BOX remembers his number. fsMmTyped holds the value he
+   typed, the px it produced and the type it was for; the moment any of those
+   stops matching, it is dropped. A box still reading 700 after he selects a
+   different symbol would be a worse lie than 698. */
+let fsMmTyped = null;
 function fsSizeMmSync() {
   const pxEl = document.getElementById("sizePx");
   const mmEl = document.getElementById("sizeMm");
@@ -2706,20 +2729,30 @@ function fsSizeMmSync() {
   /* NEVER FIGHT HIS TYPING. Rewriting the box under the caret is how a
      two-way field becomes unusable; the px read-out above still moves. */
   if (document.activeElement === mmEl) return;
-  const t = fsSymPxToMm(v, fsSizeType());
+  const ty = fsSizeType();
+  const t = fsSymPxToMm(v, ty);
   if (t === null) {
+    fsMmTyped = null;
     mmEl.value = "";
     mmEl.disabled = true;
     mmEl.placeholder = "no scale";
   } else {
     mmEl.disabled = false;
     mmEl.placeholder = "";
-    mmEl.value = String(Math.round(t));
+    if (fsMmTyped && fsMmTyped.px === v && fsMmTyped.type === ty) mmEl.value = fsMmTyped.mm;
+    else { fsMmTyped = null; mmEl.value = String(Math.round(t)); }
   }
 }
 function fsSizeMmApply() {
   const mmEl = document.getElementById("sizeMm");
   if (!mmEl || mmEl.disabled) return;
+  /* PASS 158 [158-E] - HIS NUMBER IS TAKEN FIRST, BEFORE ANYTHING CAN REWRITE
+     THE BOX. The slider's own input handler runs fsSizeMmSync, so reading the
+     field after the dispatch below hands back the recomputed value - which is
+     the 698 this item is about. Caught by test_p158 R5 on EverDue, where the
+     slider happens to land on a different pixel than it does in Arc Adapt and
+     the two numbers stopped coinciding. */
+  const fsMmRaw = String(mmEl.value).replace(/,/g, "").trim();
   const px = fsSymMmToPx(parseFloat(String(mmEl.value).replace(/,/g, "")),
                          fsSizeType());
   if (px === null) { fsSizeMmSync(); return; }
@@ -2729,6 +2762,9 @@ function fsSizeMmApply() {
      sets a size - dragging it is quantised too. */
   sizeSlider.value = sliderFromSize(px);
   sizeSlider.dispatchEvent(new Event("input"));
+  /* Recorded against the px the slider ACTUALLY landed on, so the remembered
+     number describes this size and no other. */
+  fsMmTyped = fsMmRaw ? { mm: fsMmRaw, px: sizeVal(), type: fsSizeType() } : null;
   fsSizeMmSync();
 }
 function symSyncMm(o) {
@@ -13066,11 +13102,38 @@ let fsPhotoTarget = null;   // {kind:"site"|"equip"|"files", key?}
 
 const FS_CYCLES = [
   { key:"lastMonthly", label:"Monthly",   months:1 },
-  { key:"last6m",      label:"6 monthly", months:6 },
+  { key:"last6m",      label:"6 Monthly", months:6 },
   { key:"lastAnnual",  label:"Annual",    months:12 },
-  { key:"last5y",      label:"5 yearly",  months:60 },
+  { key:"last5y",      label:"5 Yearly",  months:60 },
   { key:"lastFF",      label:"Full Function", months:12 }
 ];
+/* PASS 158 [158-A] - W136 walk: "they should all start with a capital letter.
+   more professional."
+
+   THE CONSTANT ABOVE IS ONLY A SEED. The moment a register exists it carries
+   its own `routines` array, and his already holds "6 monthly" and "5 yearly"
+   as stored strings - so capitalising the seed fixes a NEW register and leaves
+   his exactly as it was.
+
+   The rename is therefore a migration, and it is deliberately narrow: by KEY,
+   and only when the stored label is still EXACTLY what this app shipped. A
+   period he renamed, or one he created himself, is his - a
+   capitalise-the-first-letter sweep would rewrite his own typing, which is the
+   opposite of what he asked for. */
+const FS_CYC_OLD_LABELS = { last6m: "6 monthly", last5y: "5 yearly" };
+const FS_CYC_NEW_LABELS = { last6m: "6 Monthly", last5y: "5 Yearly" };
+function fsCycCapMigrate() {
+  const r = fsRegister;
+  if (!r || !Array.isArray(r.routines)) return false;
+  let changed = false;
+  r.routines.forEach(function (c) {
+    if (!c || !(c.key in FS_CYC_OLD_LABELS)) return;
+    if (c.label !== FS_CYC_OLD_LABELS[c.key]) return;   /* his wording, not mine */
+    c.label = FS_CYC_NEW_LABELS[c.key];
+    changed = true;
+  });
+  return changed;
+}
 const FS_EQUIP_FIELDS = [
   "Panel location", "Panel type", "Panel instructions", "Panel battery type / size", "Panel battery installed", "Detectors", "EWIS location", "EWIS type",
   "OWS / speaker notes", "Fire extinguisher locations", "Fire extinguisher", "Fire doors", "Hose reel locations",
@@ -15253,7 +15316,11 @@ function fsLinkSweep() {
 /* Routines ARE the cycle engine now. The legacy five-entry const survives
    only as the seed and the no-register fallback. Every read site goes
    through here. */
+/* PASS 158 [158-A] - run from the one place every reader passes through, so a
+   register loaded from a file, from IndexedDB or from a fresh seed all get the
+   same labels without three call sites to keep in step. */
 function fsCycles() {
+  fsCycCapMigrate();
   const r = fsRegister && fsRegister.routines;
   return (r && r.length) ? r : FS_CYCLES;
 }
@@ -15392,13 +15459,19 @@ function fsCycRowHtml(cy, on) {
     (on ? " checked" : "") + ' style="width:22px;height:22px;flex:0 0 auto">' +
     '<input class="fsinput fsCycLbl" data-key="' + fsEsc(cy.key) + '" value="' +
     fsEsc(cy.label || "") + '" style="flex:1 1 90px;min-width:0">' +
-    '<span style="font-size:11.5px;color:var(--fs-sub2);white-space:nowrap">' +
-    fsEsc(fsCycEvery(cy)) + '</span>' +
-    /* PASS 150 [150-B] - W131-6, "you should be able to organise what order
-       the tests show in on the strip". fsCycles() IS the order: the strip, the
-       site card, the planner and the export all iterate the array. */
-    '<button type="button" class="fsbtn fsCycUp" data-key="' + fsEsc(cy.key) + '" title="Move up" style="padding:2px 8px;flex:0 0 auto">&#9650;</button>' +
-    '<button type="button" class="fsbtn fsCycDn" data-key="' + fsEsc(cy.key) + '" title="Move down" style="padding:2px 8px;flex:0 0 auto">&#9660;</button>' +
+    /* PASS 158 [158-B] - "we don't need any of those descriptions". The
+       "every 6 months" read-out is gone from the row; fsCycEvery still exists
+       and is still the one place that turns a month count into words, which is
+       what the add-form's own note refers to. */
+    /* PASS 158 [158-C] - "Dragging them would be better, I don't like the up
+       down". The arrows are REMOVED, not kept beside it: leaving both would be
+       answering half of what he asked. touch-action:none so the gesture
+       belongs to this handle and not to the page scroll - the same reasoning
+       as 142-A on the photo canvas. */
+    '<span class="fsCycGrip" data-key="' + fsEsc(cy.key) + '" title="Drag to reorder" ' +
+    'style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;' +
+    'width:32px;height:32px;cursor:grab;touch-action:none;color:var(--fs-sub2);' +
+    'font-size:15px;line-height:1;user-select:none">&#8942;&#8942;</span>' +
     (why
       /* NOT AN EMOJI PADLOCK. The first build used one and it rendered as an
          empty box in this app's font - the same failure as Pass 149's "?"
@@ -15414,6 +15487,10 @@ function fsCycRowHtml(cy, on) {
    delete cannot append - they have to redraw - so they redraw #fsCycEdRows and
    nothing else, and they take the ticks and the typed labels with them.
    Losing a tick because he pressed an arrow is that same bug. */
+/* PASS 158 [158-C] - the site the open editor belongs to. The drop is handled
+   on `document`, which is wired once and therefore cannot close over the `s`
+   of whichever render happened to install it. */
+let fsCycEdSite = null;
 function fsCycRowsRedraw(s) {
   const rows = document.getElementById("fsCycEdRows");
   if (!rows) return false;
@@ -15429,6 +15506,19 @@ function fsCycRowsRedraw(s) {
     if (f.dataset.key in labels) f.value = labels[f.dataset.key];
   });
   fsCycEdWire(site);
+  return true;
+}
+/* PASS 158 [158-C] - ONE MOVE FUNCTION, so the drag and anything that comes
+   after it cannot disagree about what a reorder means. */
+function fsCycOrderTo(key, targetKey) {
+  const rt = fsCycEnsureRoutines();
+  if (!rt || key === targetKey) return false;
+  const i = rt.findIndex(function (x) { return x.key === key; });
+  const j = rt.findIndex(function (x) { return x.key === targetKey; });
+  if (i < 0 || j < 0) return false;
+  const moved = rt.splice(i, 1)[0];
+  rt.splice(j, 0, moved);
+  fsMarkDirty();
   return true;
 }
 function fsCycMove(key, dir) {
@@ -15465,13 +15555,78 @@ function fsCycDelete(key) {
   fsMarkDirty();
   return true;
 }
+const FS_CYC_DRAG = "158-C";
+let fsCycDragKey = null;
 function fsCycEdWire(s) {
-  document.querySelectorAll(".fsCycUp").forEach(function (b) {
-    b.onclick = function () { if (fsCycMove(b.dataset.key, -1)) fsCycRowsRedraw(s); };
+  /* PASS 158 [158-C] - the drag. The drop goes through fsCycRowsRedraw
+     BECAUSE THAT IS THE FUNCTION THAT CARRIES HIS TICKS AND HIS HALF-TYPED
+     LABELS ACROSS - Pass 150 wrote down that losing a tick to a reorder "is
+     that same bug", and a drag has a bigger window to do it in than an arrow
+     press ever had. test_p158 R3d drives this with a name typed and a box
+     changed and asserts both survive. */
+  document.querySelectorAll(".fsCycGrip").forEach(function (g) {
+    g.onpointerdown = function (ev) {
+      fsCycDragKey = g.dataset.key;
+      g.style.cursor = "grabbing";
+      try { g.setPointerCapture(ev.pointerId); } catch (e) {}
+      ev.preventDefault();
+    };
   });
-  document.querySelectorAll(".fsCycDn").forEach(function (b) {
-    b.onclick = function () { if (fsCycMove(b.dataset.key, 1)) fsCycRowsRedraw(s); };
-  });
+  if (!window.__fsCycDragDoc) {
+    window.__fsCycDragDoc = true;
+    /* ONCE, not per render: fsCycRowsRedraw runs on every drop and on every
+       delete, and addEventListener here would stack a listener per reorder. */
+    document.addEventListener("pointermove", function (ev) {
+      if (!fsCycDragKey) return;
+      /* elementFromPoint FIRST, because over a row it is exact. But it returns
+         whatever is topmost - a gap between rows, a scroll container, or an
+         overlay - so the fallback is the row whose box the pointer's Y is in,
+         or the nearest one when he has dragged past the ends. Without it a
+         drag that strays a few pixels sideways silently does nothing. */
+      let row = null;
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (el && el.closest) row = el.closest(".fsCycRow");
+      if (!row) {
+        const rows = [].slice.call(document.querySelectorAll(".fsCycRow"));
+        let best = null, bestD = Infinity;
+        rows.forEach(function (r) {
+          const b = r.getBoundingClientRect();
+          const d = ev.clientY < b.top ? b.top - ev.clientY
+                  : ev.clientY > b.bottom ? ev.clientY - b.bottom : 0;
+          if (d < bestD) { bestD = d; best = r; }
+        });
+        row = best;
+      }
+      if (!row || row.dataset.key === fsCycDragKey) return;
+      const me = document.querySelector('.fsCycRow[data-key="' + fsCycDragKey + '"]');
+      if (!me || !row.parentElement) return;
+      const rows = [].slice.call(row.parentElement.children);
+      if (rows.indexOf(me) < rows.indexOf(row)) row.parentElement.insertBefore(me, row.nextSibling);
+      else row.parentElement.insertBefore(me, row);
+    });
+    document.addEventListener("pointerup", function () {
+      if (!fsCycDragKey) return;
+      const key = fsCycDragKey;
+      fsCycDragKey = null;
+      /* The DOM is already in the order his finger left it; the register is
+         told to match, one move at a time through the one move function. */
+      const order = [].slice.call(document.querySelectorAll(".fsCycRow"))
+                      .map(function (r) { return r.dataset.key; });
+      const rt = fsCycEnsureRoutines() || [];
+      let moved = false;
+      order.forEach(function (k, i) {
+        const cur = rt.map(function (x) { return x.key; });
+        if (cur[i] === k) return;
+        const at = cur[i];
+        if (at && fsCycOrderTo(k, at)) moved = true;
+      });
+      if (moved && typeof fsCycRowsRedraw === "function") fsCycRowsRedraw(fsCycEdSite);
+      document.querySelectorAll(".fsCycGrip").forEach(function (g) { g.style.cursor = "grab"; });
+      if (!moved) return;
+      void key;
+    });
+  }
+  fsCycEdSite = s || (typeof fsSite !== "undefined" ? fsSite : null);
   document.querySelectorAll(".fsCycDel").forEach(function (b) {
     b.onclick = function () {
       const rt = fsCycles();
@@ -23658,7 +23813,8 @@ function fsTodayData() {
       if (pa !== undefined || pb !== undefined) return pa !== undefined ? -1 : 1;
       return b.n - a.n;
     })
-    .slice(0, 6);
+    /* PASS 158 [158-D] - P-14, "I think 3 or 4 sites would be max". Four. */
+    .slice(0, 4);
   return { stops: stops, pri: pri };
 }
 function fsTodayOpenSite(e) {
@@ -27914,7 +28070,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v147";
+const FS_BUILD = "aa-v148";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
