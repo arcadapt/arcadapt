@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.139 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.140 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.139 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.140 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -871,7 +871,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
            native month input reports scrollWidth == clientWidth at every
            width, so that check CANNOT FAIL and would have told us nothing
            (the test_p142 R23 trap). It was measured and then looked at. -->
-      <input type="month" id="dBmfd" style="width:auto;max-width:140px">
+      <!-- PASS 153 [153-B] - same collapse, same fix. Nothing sits beside
+           this one, so it takes the same 110px rather than a row it does
+           not need. -->
+      <input type="month" id="dBmfd" style="width:110px;min-width:0">
     </div>
     <!-- PASS 26 item 15: idWrap moved to the second pane, below. -->
     <!-- PASS 24 item 6. Checkbox look, radio behaviour, one value box each,
@@ -942,9 +945,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
              ~380px row, next to an 89px Size box, and `flex:0 1 215px` never
              shrank below its basis on the phone either. Sized to what a
              month field holds now. Inline style dropped - see 148-E above. -->
-        <div style="flex:0 0 auto">
+        <!-- PASS 153 [153-B] - W136: "you could just make it the same width
+             as size next to it". It was flex:0 0 auto with width:auto, so
+             the 140px cap never bound and an empty month input collapsed to
+             a sliver. Matched to the Size cell above, which is 110px. -->
+        <div style="flex:0 0 110px;min-width:0">
           <label>Manufacture date</label>
-          <input type="month" id="dXmfd" style="width:auto;max-width:140px">
+          <input type="month" id="dXmfd" style="width:100%;min-width:0">
         </div>
       </div>
     </div>
@@ -10100,6 +10107,12 @@ cv.addEventListener("pointerdown", e => {
   if (activeTool === "test") {
     dragMode = "testTapOrPan";
     panStart = { x:p.x, y:p.y, viewX:view.x, viewY:view.y };
+    /* PASS 153 [153-A] - W136-0. HOLD TO UNTICK.
+       A tap RECORDS a re-test - his ruling in Pass 148 and it stands. But that
+       left the Details sheet as the only way to untick, and he tests hundreds
+       of devices a shift: "no way, can't do that its a major time waster for
+       what I do". So the hold does the other half, in place, on the plan. */
+    fsTestHoldArm(p);
     return;
   }
 
@@ -10528,6 +10541,10 @@ cv.addEventListener("pointermove", e => {
      drag inside the Trim tool does nothing at all, and a tool you cannot
      pan out of is a tool you have to leave to use the plan. */
   if ((dragMode === "placeOrPan" || dragMode === "textTap" || dragMode === "testTapOrPan" || dragMode === "trimTap") && moved) dragMode = "pan";
+  /* PASS 153 [153-A] - a hold that turns into a pan is a pan. Cancelled on
+     the same `moved` the line above uses, so there is ONE definition of
+     "the finger went somewhere" and the two cannot disagree. */
+  if (moved) fsTestHoldCancel();
 
   if (dragMode === "pan" && panStart) {
     view.x = panStart.viewX + (p.x - panStart.x);
@@ -10788,7 +10805,12 @@ function endPointer(e) {
   }
 
   if (dragMode === "testTapOrPan") {
-    if (!moved) {
+    /* PASS 153 [153-A] - if the hold already fired, the release is not a tap.
+       Without this an untick is immediately followed by a re-tick and the
+       gesture appears to do nothing at all. */
+    const heldFired = fsTestHoldFired;
+    fsTestHoldCancel();
+    if (!moved && !heldFired) {
       const hit = hitObject(p.x, p.y);
       if (hit && hit.kind === "sym" && hit.type !== "campin") {
         pushUndo();
@@ -10815,6 +10837,61 @@ function endPointer(e) {
   }
   dragMode = null; panStart = null;
 }
+/* ================= PASS 153 [153-A] ==================================
+   W136-0.  PRESS AND HOLD A TICKED DEVICE TO UNTICK IT.
+
+   Reece, 4 Sep 2026: "if I go into test mode now and try to click something
+   that was ticked it doesnt untick" - and, on being offered the Details sheet
+   as the way to do it, "no way, can't do that its a major time waster for
+   what I do".
+
+   Pass 148 [148-A] is NOT being reversed. He chose that a tap records a
+   re-test and he was right; a re-test is a real event and it needs a date.
+   The mistake was leaving him no way to correct a mistake without opening a
+   modal. This adds the second half of the gesture and takes nothing away.
+
+   450 ms AND NOT THE PLANNER'S 200. That hold begins a DRAG - the finger is
+   already moving and a false start costs nothing. This one performs a
+   DESTRUCTIVE edit under a stationary finger, and 200 ms is well inside an
+   ordinary slow tap on a tablet held in one hand on a ladder.
+
+   IT ONLY UNTICKS, NEVER TICKS. Holding an unticked device does nothing. A
+   gesture that ticks in one state and unticks in another is one he cannot
+   trust, and on this screen the wrong answer is a test record that never
+   happened. */
+const FS_TEST_HOLD_UNTICK = "153-A";
+const FS_TEST_HOLD_MS = 450;
+let fsTestHoldTimer = null;
+let fsTestHoldFired = false;
+
+function fsTestHoldCancel() {
+  if (fsTestHoldTimer) { clearTimeout(fsTestHoldTimer); fsTestHoldTimer = null; }
+  fsTestHoldFired = false;
+}
+/* Named and top-level so a suite can drive the untick itself rather than
+   simulating 450 ms of a stationary finger. */
+function fsTestHoldUntick(hit) {
+  const yr = +testYearSel;
+  if (!hit || hit.kind !== "sym" || hit.type === "campin") return false;
+  if (!(hit.ty || []).includes(yr)) return false;   /* only ever unticks */
+  pushUndo();
+  fsTyTick(hit, yr, false);
+  if (typeof fsFlashOnly === "function") fsFlashOnly(hit);
+  scheduleAutosave();
+  draw();
+  return true;
+}
+function fsTestHoldArm(p) {
+  fsTestHoldCancel();
+  fsTestHoldTimer = setTimeout(function () {
+    fsTestHoldTimer = null;
+    const hit = hitObject(p.x, p.y);
+    /* fsTestHoldFired is set only when something actually changed, so a hold
+       over blank plan still lets the release behave as an ordinary tap. */
+    fsTestHoldFired = fsTestHoldUntick(hit);
+  }, FS_TEST_HOLD_MS);
+}
+cv.addEventListener("pointercancel", fsTestHoldCancel);
 cv.addEventListener("pointerup", endPointer);
 cv.addEventListener("pointercancel", endPointer);
 /* PASS 22 item 4 — the gesture wedge. ONE entry left behind in `pointers`
@@ -15249,7 +15326,10 @@ function fsCycApplies(s, cyc) {
    5 yearly and Full Function; he named Weekly and Fortnightly, which are not
    built-ins at all - they are periods he would have added himself once V0.131
    gave him days and weeks. So the name list is his, and it is checked first. */
-const FS_CYC_KEEP = ["weekly", "fortnightly", "monthly", "6 monthly", "annual"];
+/* PASS 153 [153-C] - W136-0 walk: "delete full function please, keep 5
+   yearly". 5 yearly joins HIS five by name; Full Function stops being
+   protected at all. It is his list plus one he approved, not the app's. */
+const FS_CYC_KEEP = ["weekly", "fortnightly", "monthly", "6 monthly", "annual", "5 yearly"];
 function fsCycNorm(s) {
   return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -17155,7 +17235,12 @@ function fsChargeListRender() {
         (unpriced ? '—' : fsEsc(FSMoney.fmt(cents))) + '</span>' +
       '<span style="font-size:11px;font-weight:800;color:#fff;background:' + fsChargePillCol(c) +
         ';border-radius:11px;padding:2px 9px;flex:none">' + fsChargePill(c) + '</span>' +
-      '<a class="fsScDel" data-id="' + fsEsc(c.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
+      /* PASS 152 [R-15] - was .fsScDel, which fsScratchRender owns and uses for a
+   SCRATCH QUOTE LINE delete. Two delete controls sharing one class is an
+   invariant held up by the current layout and by nothing else; if the two
+   ever render inside one another a click here runs the other handler and
+   splices a different list. Renamed to match fsCharges / fsChargePill. */
+      '<a class="fsChDel" data-id="' + fsEsc(c.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
   });
   html += '</div>';
 
@@ -17225,7 +17310,9 @@ function fsChargeListRender() {
     fsScWorkId = w.id;
     fsMarkDirty(); fsChargeListRender();
   };
-  wrap.querySelectorAll(".fsScDel").forEach(a => a.onclick = () => {
+  /* PASS 152 [R-15] - .fsChDel. Anchored on fsCharges() below, because the
+     querySelectorAll line is byte-identical in fsScratchRender. */
+  wrap.querySelectorAll(".fsChDel").forEach(a => a.onclick = () => {
     const list = fsCharges();
     const c = list.filter(x => x.id === a.dataset.id)[0];
     if (!c) return;
@@ -27740,7 +27827,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v143";
+const FS_BUILD = "aa-v144";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
