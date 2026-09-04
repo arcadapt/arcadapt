@@ -528,7 +528,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.141 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.142 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -658,7 +658,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.141 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.142 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -670,12 +670,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="btnPageSpace" style="display:none" title="Add white space below the plan">Page +</button><!-- PASS 50 [50-2]: Hatch covers this; id+handler kept so it is reversible -->
     <button class="btn" id="btnPageMinus" style="display:none" title="Remove added white space">Page &minus;</button><!-- PASS 50 [50-2]: Hatch covers this; id+handler kept so it is reversible -->
     <button class="btn" id="btnLabels" style="display:none" title="Show or hide symbol labels">&#127991; Labels</button>
-    <button class="btn" id="btnWsSet" title="Workspace settings">&#9881;</button>
     <button class="btn" id="btnZones" style="display:none" title="Zone counts (moved to the Tools tab)">Zones</button><!-- migrated to Tools tab "Zone counts" tile, 23 Jul pass; id+handler kept -->
     <button class="btn" id="btnNotes" style="display:none" title="Site notes">&#128221; Notes</button><!-- PASS 50 [50-3]: moved to the Tools tab "Site notes" tile; id+handler kept -->
     <select id="levelSel" style="display:none;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px"></select>
     <button class="btn levels" id="btnLevels" title="Building levels — add or switch floors">&#127970; Levels</button>
     <span class="spacer"></span>
+    <!-- PASS 156 [156-B] - W132-2, "just make it slightly larger and put it next to export/report". The spacer already split this row into plan tools and "do something with this plan"; the cog was the only bare glyph, stranded in the first group while behaving like the second. Glyph, not a word: he said "just". -->
+    <button class="btn" id="btnWsSet" title="Workspace settings" style="font-size:19px;line-height:1;padding-left:15px;padding-right:15px">&#9881;</button>
     <button class="btn report" id="btnReport" title="Test report">&#128203; Report</button>
     <button class="btn primary" id="btnExport" title="Export PDF / image">&#11015; Export</button>
     <input type="file" id="fileInput" accept="image/*">
@@ -24704,10 +24705,52 @@ function fsRenderTab() {
        the table, the count and the panel can never drift apart. */
     const q = document.getElementById("fsArQ");
     if (q) q.oninput = () => { fsArQ = q.value; fsArPage = 1; fsRenderTab(); };
-    const ty = document.getElementById("fsArType");
-    if (ty) ty.onchange = () => { fsArType = ty.value; fsArPage = 1; fsRenderTab(); };
-    const st = document.getElementById("fsArStatus");
-    if (st) st.onchange = () => { fsArStatus = st.value; fsArPage = 1; fsRenderTab(); };
+    /* PASS 156 [156-C] - open, tick, close-to-apply. */
+    document.querySelectorAll(".fsArFacetBtn").forEach(b => {
+      b.onclick = () => {
+        const m = document.getElementById(b.dataset.facet + "Menu");
+        if (!m) return;
+        if (m.hidden) {
+          document.querySelectorAll(".fsArFacetMenu").forEach(o => { o.hidden = true; });
+          document.querySelectorAll(".fsArFacetBtn").forEach(o => o.setAttribute("aria-expanded", "false"));
+          m.hidden = false; b.setAttribute("aria-expanded", "true");
+          fsArPlaceMenu(m);
+        } else {
+          fsArApplyFacets();
+        }
+      };
+    });
+    document.querySelectorAll(".fsArFacetBox").forEach(cb => {
+      cb.onchange = () => {
+        const arr = cb.dataset.facet === "fsArType" ? fsArType : fsArStatus;
+        const i = arr.indexOf(cb.value);
+        if (cb.checked) { if (i < 0) arr.push(cb.value); }
+        else if (i >= 0) arr.splice(i, 1);
+        fsArFacetCount(cb.dataset.facet);
+      };
+    });
+    document.querySelectorAll(".fsArChipX").forEach(x => {
+      x.onclick = () => {
+        const arr = x.dataset.facet === "fsArType" ? fsArType : fsArStatus;
+        const i = arr.indexOf(x.dataset.v);
+        if (i >= 0) arr.splice(i, 1);
+        fsArPage = 1; fsRenderTab();
+      };
+    });
+    document.querySelectorAll(".fsArClearAll").forEach(b => {
+      b.onclick = () => { fsArType.length = 0; fsArStatus.length = 0; fsArPage = 1; fsRenderTab(); };
+    });
+    /* ONCE, NOT PER RENDER. fsRenderTab runs on every keystroke in the search
+       box; addEventListener here would stack a listener per letter typed. */
+    if (!window.__fsArFacetDoc) {
+      window.__fsArFacetDoc = true;
+      document.addEventListener("click", ev => {
+        const t = ev.target;
+        if (t && t.closest && t.closest(".fsArFacet")) return;
+        fsArApplyFacets();
+      });
+      document.addEventListener("keydown", ev => { if (ev.key === "Escape") fsArApplyFacets(); });
+    }
     document.querySelectorAll(".fsArRow").forEach(tr => {
       /* PASS 155 [155-D] - the panel is ABOVE the table now, so opening one
          pushes the table down under his finger. A selection that was JUST
@@ -27855,7 +27898,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v145";
+const FS_BUILD = "aa-v146";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31740,7 +31783,19 @@ function fsAssetMatchDef(d, o, level) {
    devices; those agreeing is the evidence. A device with no zone yet is
    exactly the one he wants to find.
    ========================================================================= */
-let fsArPage = 1, fsArQ = "", fsArType = "", fsArStatus = "", fsArSel = "", fsArPer = 25;
+/* PASS 156 [156-C] - "" BECAME [], AND THAT IS THE DANGEROUS PART. [] is
+   TRUTHY, so every bare truthiness guard on these two had to become a
+   .length guard. Miss one and a register opened cold filters against an
+   empty list and shows NOTHING. */
+let fsArPage = 1, fsArQ = "", fsArType = [], fsArStatus = [], fsArSel = "", fsArPer = 25;
+const FS_AR_FACETS = "156-C";
+/* THE NAME W132-2's PROBE ALREADY ASKS FOR, written when he raised it.
+   The item is the acceptance test; the constant is named to satisfy it
+   rather than the probe being edited to match whatever got built. */
+const FS_COG_MOVE = "156-B";
+/* PASS 156 [156-D] - one constant, because the size came off a render at 430
+   and 820 and will move again the next time he looks at it. */
+const FS_AR_THUMB = { w: 68, h: 50 };
 /* PASS 155 [155-D] - set by a row tap, cleared by the next render. */
 let fsArJump = false;
 const FS_AR_PANEL_TOP = "155-A";
@@ -31847,8 +31902,9 @@ function fsArRows(s) {
 function fsArFilter(rows) {
   const q = (fsArQ || "").trim().toLowerCase();
   return rows.filter(function (r) {
-    if (fsArType && r.type !== fsArType) return false;
-    if (fsArStatus && r.st.k !== fsArStatus) return false;
+    /* PASS 156 [156-C] - EMPTY MEANS EVERYTHING, exactly as "" did. */
+    if (fsArType.length && fsArType.indexOf(r.type) < 0) return false;
+    if (fsArStatus.length && fsArStatus.indexOf(r.st.k) < 0) return false;
     if (!q) return true;
     return (r.name + " " + r.type + " " + (r.level || "") + " " +
             (r.o.zone || "") + " " + (r.o.loop || "") + " " + (r.o.dev || "") + " " +
@@ -31859,6 +31915,93 @@ function fsArDate(d) {
   if (!d) return "–";
   const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear();
+}
+/* PASS 156 [156-C] - THE FILTER HE ASKED FOR, AND THE RESEARCH HE ASKED FOR.
+   "Needs a better filter. So I can pick multiple types. Use check boxes or
+   something. research good filters and adopt."
+
+   Adopted, from the faceted-filter pattern: a checkbox per value on a >=40px
+   row; the COUNT beside each one, so a tick says what it will do BEFORE it
+   does it; and - the one that matters on a tablet - ticking does not apply.
+   He ticks what he wants and the table is rebuilt when the list closes,
+   instead of reflowing under his finger on every tick. */
+function fsArFacetHtml(id, label, opts, sel) {
+  const n = sel.length;
+  let h = '<div class="fsArFacet" style="position:relative;flex:0 1 auto">';
+  h += '<button type="button" class="fsbtn fsArFacetBtn" id="' + id + 'Btn" data-facet="' + id + '"' +
+       ' data-label="' + fsEsc(label) + '" aria-expanded="false"' +
+       ' style="min-height:40px;padding:9px 13px;font-size:13.5px">' +
+       fsEsc(label) + (n ? ' &middot; ' + n : '') + ' &#9662;</button>';
+  h += '<div class="fsArFacetMenu" id="' + id + 'Menu" data-facet="' + id + '" hidden' +
+       ' style="position:absolute;z-index:40;top:calc(100% + 5px);left:0;min-width:200px;' +
+       'max-width:min(280px,86vw);max-height:264px;overflow:auto;background:var(--fs-card);' +
+       'border:1px solid var(--fs-border);border-radius:11px;padding:6px;' +
+       'box-shadow:0 10px 26px rgba(0,0,0,.28)">';
+  opts.forEach(function (o) {
+    h += '<label class="fsArFacetOpt" style="display:flex;align-items:center;gap:10px;' +
+         'padding:9px 8px;min-height:40px;cursor:pointer;border-radius:8px">' +
+         '<input type="checkbox" class="fsArFacetBox" data-facet="' + id + '" value="' + fsEsc(o[0]) + '"' +
+         (sel.indexOf(o[0]) >= 0 ? ' checked' : '') +
+         ' style="width:20px;height:20px;flex:0 0 auto;accent-color:var(--fs-accent)">' +
+         '<span style="flex:1;min-width:0;font-size:13.5px">' + fsEsc(o[1]) + '</span>' +
+         '<span style="font-size:11.5px;color:var(--fs-sub2)">' + o[2] + '</span></label>';
+  });
+  h += '</div></div>';
+  return h;
+}
+/* WHAT IS ON, WHERE HE CAN SEE IT. A filter set two screens ago is otherwise
+   the silent explanation for an empty table. */
+function fsArChipsHtml(stats) {
+  const chip = function (facet, v, txt) {
+    return '<span class="fsArChip" style="display:inline-flex;align-items:center;gap:6px;' +
+      'font-size:12.5px;padding:5px 7px 5px 11px;border-radius:14px;background:var(--fs-tile);' +
+      'border:1px solid var(--fs-border)">' + fsEsc(txt) +
+      '<a class="fsArChipX" data-facet="' + facet + '" data-v="' + fsEsc(v) + '"' +
+      ' title="Remove this filter" style="cursor:pointer;color:var(--fs-sub);font-size:16px;' +
+      'line-height:1;padding:0 4px">&times;</a></span>';
+  };
+  const bits = [];
+  fsArType.forEach(function (v) { bits.push(chip("fsArType", v, v)); });
+  fsArStatus.forEach(function (v) {
+    const f = stats.filter(function (x) { return x[0] === v; })[0];
+    bits.push(chip("fsArStatus", v, f ? f[1] : v));
+  });
+  if (!bits.length) return "";
+  return '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:9px">' +
+    bits.join("") +
+    '<button type="button" class="fsbtn fsArClearAll" style="padding:5px 11px;font-size:12px">Clear all</button></div>';
+}
+/* PASS 156 [156-C] - FOUND BY RENDERING IT AT 430 AND LOOKING AT IT, and by
+   nothing else. The Asset type button sits at the RIGHT of the filter row on
+   a phone, so a menu anchored at left:0 ran off the side of the screen with
+   its counts cut clean off. The page did not scroll sideways - the card
+   clipped it - so every automated overflow check in the suite was green while
+   the list was unusable. It is nudged back by exactly what hangs over, and
+   never by more than the room there is on its left. */
+function fsArPlaceMenu(m) {
+  if (!m) return;
+  m.style.left = "0px"; m.style.right = "auto";
+  const vw = document.documentElement.clientWidth || window.innerWidth || 0;
+  const r = m.getBoundingClientRect();
+  const over = Math.ceil(r.right - (vw - 8));
+  if (over > 0) m.style.left = (-Math.min(over, Math.max(0, Math.floor(r.left - 8)))) + "px";
+}
+/* CLOSING IS APPLYING - and it is a no-op when nothing is open, which is what
+   lets one document-level listener serve the outside tap AND Escape without
+   fighting anything else on the page. */
+function fsArApplyFacets() {
+  if (!document.querySelector(".fsArFacetMenu:not([hidden])")) return false;
+  fsArPage = 1;
+  if (typeof fsRenderTab === "function") fsRenderTab();
+  return true;
+}
+/* The button's own count, updated in place, because a tick must NOT rebuild
+   the table underneath the list he is still reading. */
+function fsArFacetCount(id) {
+  const b = document.getElementById(id + "Btn");
+  if (!b) return;
+  const n = (id === "fsArType" ? fsArType : fsArStatus).length;
+  b.innerHTML = fsEsc(b.dataset.label || "") + (n ? ' &middot; ' + n : '') + ' &#9662;';
 }
 function fsArPill(st) {
   if (!st || !st.label) return '<span style="color:var(--fs-faint)">–</span>';
@@ -31886,15 +32029,24 @@ function fsAssetRegisterHtml(s) {
      is byte-for-byte the layout it was. */
   h += fsArPanelHtml(rows, s);
   h += '<div class="fscard" style="padding:16px 18px;flex:1 1 520px;min-width:0">';
+  /* PASS 156 [156-C] - the counts are taken off the UNFILTERED rows, so
+     "Extinguisher 41" means what is on the site, not what survives whatever
+     is already ticked. */
+  const FS_AR_STATS = [["tested","Tested"],["soon","Due soon"],["overdue","Overdue"],
+                       ["defect","Defect"],["failed","Failed"]];
+  const tCount = {}, sCount = {};
+  all.forEach(function (r) {
+    tCount[r.type] = (tCount[r.type] || 0) + 1;
+    sCount[r.st.k] = (sCount[r.st.k] || 0) + 1;
+  });
   h += '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">' +
     '<input id="fsArQ" class="fsinput" placeholder="Search assets" value="' + fsEsc(fsArQ) + '" style="flex:1 1 190px;min-width:0">' +
-    '<select id="fsArType" class="fsinput" style="flex:0 1 160px"><option value="">Asset type</option>' +
-    types.map(function (t) { return '<option value="' + fsEsc(t) + '"' + (fsArType === t ? ' selected' : '') + '>' + fsEsc(t) + '</option>'; }).join("") +
-    '</select>' +
-    '<select id="fsArStatus" class="fsinput" style="flex:0 1 150px"><option value="">Status</option>' +
-    [["tested","Tested"],["soon","Due soon"],["overdue","Overdue"],["defect","Defect"],["failed","Failed"]]
-      .map(function (x) { return '<option value="' + x[0] + '"' + (fsArStatus === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join("") +
-    '</select></div>';
+    fsArFacetHtml("fsArType", "Asset type",
+      types.map(function (t) { return [t, t, tCount[t] || 0]; }), fsArType) +
+    fsArFacetHtml("fsArStatus", "Status",
+      FS_AR_STATS.map(function (x) { return [x[0], x[1], sCount[x[0]] || 0]; }), fsArStatus) +
+    '</div>';
+  h += fsArChipsHtml(FS_AR_STATS);
   h += '<div style="font-size:12.5px;color:var(--fs-sub);margin:10px 0 4px">' +
        rows.length + (rows.length === 1 ? ' asset' : ' assets') +
        (rows.length !== all.length ? ' of ' + all.length : '') + '</div>';
@@ -31910,15 +32062,15 @@ function fsAssetRegisterHtml(s) {
 
   h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<thead><tr style="text-align:left;color:var(--fs-sub);font-size:11.5px">' +
-    '<th style="padding:7px 8px;font-weight:600">Asset</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Type</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Location</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Zone / Loop</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Status</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Next service</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Asset</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Type</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Location</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Zone / Loop</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Status</th>' +
+    '<th style="padding:7px 6px;font-weight:600">Next service</th>' +
     /* PASS 149 [149-D] - W134-2, and it is the ONLY thing taken from mockup
        05: the photo comes out of the Asset column and sits at the END. */
-    '<th style="padding:7px 8px;font-weight:600;text-align:right">Photo</th>' +
+    '<th style="padding:7px 6px;font-weight:600;text-align:right">Photo</th>' +
     '</tr></thead><tbody>';
   page.forEach(function (r) {
     const on = fsArSel === r.key;
@@ -31928,19 +32080,23 @@ function fsAssetRegisterHtml(s) {
          new design: TYPE_MAP already carries the .text and .color the plan
          draws each symbol with, so the register and the plan cannot disagree
          about what a smoke detector looks like. */
-      '<td style="padding:9px 8px"><div style="display:flex;align-items:center;gap:8px">' +
+      '<td style="padding:7px 6px"><div style="display:flex;align-items:center;gap:8px">' +
         fsArIcon(r.o) +
         '<div><div style="font-weight:700">' + fsEsc(r.name) + '</div>' +
         (r.o.info ? '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(r.o.info) + '</div>' : '') +
         '</div></div></td>' +
-      '<td style="padding:9px 8px">' + fsEsc(r.type) + '</td>' +
-      '<td style="padding:9px 8px">' + fsEsc(r.level || "–") + '</td>' +
-      '<td style="padding:9px 8px">' + (r.o.zone ? "Zone " + fsEsc(r.o.zone) : "–") +
+      /* PASS 156 [156-D] - "the coloumns could probably squeeze a bit more to
+         allow more space for the photo at the end". Type and Location TRUNCATE
+         rather than forcing the table wider - a squeeze that buys photo room
+         by pushing the table off the screen is not a squeeze. */
+      '<td style="padding:7px 6px;max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(r.type) + '</td>' +
+      '<td style="padding:7px 6px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(r.level || "–") + '</td>' +
+      '<td style="padding:7px 6px">' + (r.o.zone ? "Zone " + fsEsc(r.o.zone) : "–") +
         (r.o.loop ? '<div style="font-size:11.5px;color:var(--fs-sub2)">Loop ' + fsEsc(r.o.loop) + '</div>' : '') + '</td>' +
-      '<td style="padding:9px 8px">' + fsArPill(r.st) + '</td>' +
-      '<td style="padding:9px 8px;white-space:nowrap">' + fsEsc(fsArDate(r.due)) + '</td>' +
-      '<td style="padding:6px 8px;text-align:right">' +
-        (r.o.photo ? '<img src="' + fsPhotoSrc(r.o.photo) + '" style="width:44px;height:32px;object-fit:cover;border-radius:5px;vertical-align:middle">'
+      '<td style="padding:7px 6px">' + fsArPill(r.st) + '</td>' +
+      '<td style="padding:7px 6px;white-space:nowrap">' + fsEsc(fsArDate(r.due)) + '</td>' +
+      '<td style="padding:5px 6px;text-align:right">' +
+        (r.o.photo ? '<img src="' + fsPhotoSrc(r.o.photo) + '" style="width:' + FS_AR_THUMB.w + 'px;height:' + FS_AR_THUMB.h + 'px;object-fit:cover;border-radius:6px;vertical-align:middle">'
                    : '<span style="color:var(--fs-faint)">–</span>') + '</td>' +
       '</tr>';
   });
@@ -32261,9 +32417,40 @@ const FS_EV_PILL = {
    line says which it is. */
 const FS_EV_SRC = {
   derived:  "from your register",
-  recorded: "recorded when it happened",
+  /* PASS 156 [156-A] - W136-5, his screenshot of the History tab: "why not
+     just put the date?" The date is already the line above this one, so on a
+     RECORDED tick this said nothing. It is blank, not deleted: the map is
+     still the list of sources the app knows about, and fsEvSrcLabel below is
+     what tells a deliberately blank label apart from an unknown source. */
+  recorded: "",
   manual:   "added by hand"
 };
+/* THE || WAS THE WHOLE BUG WAITING TO HAPPEN. The call site looked the label
+   up and then fell back to the derived one with an or-operator, so a blank
+   "recorded" label would fall straight through and print "from your register"
+   on every tick - a lie about where the record came from, wearing the fix's
+   clothes. */
+function fsEvSrcLabel(src) {
+  return Object.prototype.hasOwnProperty.call(FS_EV_SRC, src)
+    ? FS_EV_SRC[src] : FS_EV_SRC.derived;
+}
+/* AND THE HALF THAT WOULD HAVE SHIPPED AS "DONE". The meta line is
+   `who · source · remove`. On a tick `who` is "", so with the source gone the
+   div renders empty and still carries its 2px margin - a gap where the noise
+   was. Built from the parts that exist, and nothing at all when there are
+   none. */
+function fsEvMetaHtml(e) {
+  const bits = [];
+  if (e.who) bits.push(fsEsc(e.who));
+  const src = fsEvSrcLabel(e.src);
+  if (src) bits.push(fsEsc(src));
+  if (e.src === "manual" && e.evId)
+    bits.push('<a href="#" onclick="return fsEvDeleteClick(event,\'' + fsEsc(e.evId) + '\')" ' +
+              'style="color:#c9761f;text-decoration:none">remove</a>');
+  if (!bits.length) return "";
+  return '<div style="font-size:11px;color:#7d868d;margin-top:2px">' +
+         bits.join(' \u00b7 ') + '</div>';
+}
 function fsHistWhen(e) {
   /* Three shapes, and the difference between them is the whole of W133-5.
      coarse  -> a year and nothing else, ticked before this version existed
@@ -32335,13 +32522,7 @@ function fsAssetHistoryHtml(o) {
           '</div>' +
           (e.sub ? '<div style="font-size:12px;color:#a9b2b8;word-break:break-word;margin-top:2px">' +
                    fsEsc(e.sub) + '</div>' : '') +
-          '<div style="font-size:11px;color:#7d868d;margin-top:2px">' +
-            (e.who ? fsEsc(e.who) + ' · ' : '') +
-            fsEsc(FS_EV_SRC[e.src] || FS_EV_SRC.derived) +
-            (e.src === "manual" && e.evId
-              ? ' · <a href="#" onclick="return fsEvDeleteClick(event,\'' + fsEsc(e.evId) + '\')" ' +
-                'style="color:#c9761f;text-decoration:none">remove</a>' : '') +
-          '</div>' +
+          fsEvMetaHtml(e) +
         '</div></div>';
     });
     h += '<div style="font-size:11.5px;color:#8f979e;margin-top:10px">Showing ' +
