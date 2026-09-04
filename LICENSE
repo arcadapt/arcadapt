@@ -1,0 +1,19 @@
+Copyright (c) 2026 Reece Francis. All rights reserved.
+
+Arc Adapt, EverDue and Arc Command, and the source in this repository, are the
+property of Reece Francis.
+
+This repository is public so that the application can be served as a static
+site. Publication here is NOT a grant of any licence.
+
+No permission is given to any person to copy, modify, merge, publish,
+distribute, sublicense, sell, or create derivative works from any part of this
+software, in whole or in part, by any means.
+
+No warranty of any kind is given. The software is provided as is.
+
+Third-party libraries included in this repository (including pdf.js, zxing,
+jsQR and tesseract) remain the property of their respective owners and are
+governed by their own licences. Nothing above modifies those licences.
+
+For permission to use any part of this software, contact the copyright holder.
