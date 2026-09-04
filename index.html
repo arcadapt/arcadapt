@@ -517,7 +517,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.138 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.139 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -647,7 +647,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.138 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.139 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1210,16 +1210,30 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="fsAnnModal" style="z-index:124">
   <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
     <h3 style="margin-bottom:2px">Photo</h3>
-    <div style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Drag to move the photo, pinch or double-tap to zoom &mdash; or use the buttons. Press a tool to draw, press it again to stop. <b>Marks stay editable</b> &mdash; the eraser lifts a whole mark, and you can rub them off or add more any time you open this photo.</div>
+    <!-- PASS 151 [151-B] - the hint has to match the screen. In view-only
+         there are no tools to press. -->
+    <div id="fsAnnHintView" style="font-size:12px;color:#8fa2ab;margin-bottom:8px;display:none">Drag to move the photo, pinch or double-tap to zoom &mdash; or use the buttons.</div>
+    <div id="fsAnnHintEdit" style="font-size:12px;color:#8fa2ab;margin-bottom:8px">Drag to move the photo, pinch or double-tap to zoom &mdash; or use the buttons. Press a tool to draw, press it again to stop. <b>Marks stay editable</b> &mdash; the eraser lifts a whole mark, and you can rub them off or add more any time you open this photo.</div>
     <!-- PASS 85 [85-0] - R-13. Three fixed colours became the workspace's own
          swatch row, and pen / highlighter / eraser are iOS Markup's three. The
          rows wrap on a phone rather than scrolling sideways. -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <!-- PASS 151 [151-A/B] - W130-4 / W130-5. Two things share this row set.
+         VIEW-ONLY (no onSave): it is not rendered at all. fsViewPhoto's 13
+         callers mostly hold a photo VALUE with nowhere to save markup back
+         to, and a Save button that goes nowhere is worse than the plain
+         lightbox this replaced.
+         EDITABLE: folded until he presses Markup. Pass 121
+         FS_PHOTO_VIEW_FIRST already made every open a view; this is that
+         decision in the layout, and it is where W130-5 gets its room. -->
+    <div id="fsAnnMarkupBtnRow" style="display:none;gap:6px;align-items:center;margin-bottom:8px">
+      <button class="btn" id="fsAnnMarkupOpen" type="button" style="min-height:40px">&#9998; Markup</button>
+    </div>
+    <div id="fsAnnToolRow" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <button class="btn fsAnnTool" id="fsAnnPen" data-t="pen" type="button" title="Pen" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20.5l1-4L15.5 6a2.1 2.1 0 0 1 3 3L8 19.5Z"/><path d="M14 7.5l2.5 2.5"/></svg>Pen</button>
       <button class="btn fsAnnTool" id="fsAnnHl" data-t="hl" type="button" title="Highlighter" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3.5l6.5 6.5-7.5 7H7.5L4 13.5Z"/><path d="M6 21h13" stroke-width="4"/></svg>Highlighter</button>
       <button class="btn fsAnnTool" id="fsAnnEr" data-t="er" type="button" title="Eraser &mdash; tap or drag over a mark to take the whole mark off" style="min-height:40px"><svg class="fsAnnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.6" y="8.4" width="15.4" height="8.6" rx="1.6" transform="rotate(-38 10.3 12.7)"/><path d="M8.9 6.6 16.6 14.3"/><path d="M8.4 19.4H21"/></svg>Eraser</button>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <div id="fsAnnUndoRow" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <button class="btn" id="fsAnnUndo" type="button" title="Undo" style="min-height:40px">&#8617; Undo</button>
       <button class="btn" id="fsAnnRedo" type="button" title="Redo" style="min-height:40px">&#8618; Redo</button>
       <button class="btn" id="fsAnnClear" type="button" style="min-height:40px">Clear</button>
@@ -1244,7 +1258,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      liked. fsAnnPt() maps through getBoundingClientRect, so a CSS-scaled canvas
      needs no change at all to the stroke maths. -->
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><button class="btn" id="fsAnnZOut" type="button" title="Zoom out" style="min-height:40px">&#8722;</button><button class="btn" id="fsAnnZIn" type="button" title="Zoom in" style="min-height:40px">&#43;</button><button class="btn" id="fsAnnZFit" type="button" title="Fit the whole photo on screen" style="min-height:40px">Fit</button><span id="fsAnnZLbl" style="font-size:12px;color:#8fa2ab"></span></div>
-    <div id="fsAnnScroll" style="background:#000;border-radius:8px;overflow:auto;max-height:62vh;text-align:center">
+    <div id="fsAnnScroll" style="background:#000;border-radius:8px;overflow:auto;max-height:78vh;text-align:center">
       <!-- PASS 142 [142-A] W127-12 - touch-action is `none` AT ALL TIMES and
            the app owns pan, pinch and double-tap. Pass 121 put `pinch-zoom`
            here so the photo would "behave like a photo"; MDN is explicit that
@@ -1255,12 +1269,20 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
            NOT `manipulation`: it is defined as disabling double-tap to zoom,
            which is the gesture he ruled on, and iOS Safari's support has
            historically been auto/manipulation only. See wireAnnGest(). -->
-      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:58vh;touch-action:none;cursor:grab"></canvas>
+      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:74vh;touch-action:none;cursor:grab"></canvas>
     </div>
     <div class="row" style="margin-top:10px">
       <!-- PASS 85 - matched to the toolbar above them. F2 measured these at
            31px on a 430px screen: the two buttons that decide whether the
            markup is kept were the smallest targets in the modal. -->
+      <!-- PASS 151 [151-D] - Replace and Delete came from #fsLightbox with
+           fsViewPhoto. Delete is offered for a SITE photo and nothing else:
+           that is Pass 26 item 16's guard, carried across condition for
+           condition, because "offering a button here that silently did
+           nothing, or worse deleted the wrong record, is the failure this
+           guard exists for." Moving a button must not quietly widen it. -->
+      <button class="btn" id="fsAnnReplace" type="button" style="display:none;min-height:40px">&#8635; Replace photo</button>
+      <button class="btn" id="fsAnnDelete" type="button" style="display:none;min-height:40px;background:#c62828;border-color:#c62828;color:#fff">&#128465; Delete photo</button>
       <button class="btn" id="fsAnnCancel" type="button" style="min-height:40px">Cancel</button>
       <button class="btn primary" id="fsAnnSave" type="button" style="min-height:40px">Save markup</button>
     </div>
@@ -17795,6 +17817,91 @@ function fsDefTypeLibLoad(key) {
    saving, and the original stays untouched until Save is pressed. */
 
 let fsAnnStrokes = [], fsAnnCol = "#ff2d2d", fsAnnImg = null, fsAnnDone = null, fsAnnDrawing = false;
+/* PASS 151 [151-A/B/D] - W130-4 and W130-5.
+
+   THE ONE PHOTO VIEWER. fsViewPhoto used to open #fsLightbox, which had no
+   gestures at all - a click that toggled maxWidth, and the browser's own
+   scrollbars. "adopt this for photos in all areas of the app. defects etc."
+   is answered by making that function open THIS modal, because porting Pass
+   142's rig would give the app two good viewers and 18316 records what that
+   costs: "Two editors is why the same complaint was answered three times
+   about the wrong screen."
+
+   VIEW-ONLY IS A REAL MODE. Most of the 13 callers hold a photo VALUE, not a
+   reference, so there is nowhere to save markup back to. Without this, routing
+   them here would offer a Save button that silently does nothing - worse than
+   the lightbox it replaced.
+
+   AND FOLDING THE TOOLS IS W130-5. Four rows above the picture take more of a
+   landscape phone than the photo does. Pass 121 FS_PHOTO_VIEW_FIRST already
+   ruled that every open is a view; this is that ruling in the layout, and the
+   room it frees is the "little larger" he asked for twice on one sheet. */
+const FS_ONE_PHOTO_VIEWER = "151-A";
+let fsAnnMarkupOn = false;
+let fsAnnLbTarget = null;
+/* Every piece of chrome in one place, so a caller cannot half-configure the
+   modal. Read: editable = there is somewhere to save to. */
+function fsAnnChrome() {
+  const editable = !!fsAnnDone;
+  const show = (id, on) => { const e = document.getElementById(id);
+                             if (e) e.style.display = on ? "flex" : "none"; };
+  const showI = (id, on) => { const e = document.getElementById(id);
+                              if (e) e.style.display = on ? "inline-block" : "none"; };
+  /* The four drawing rows: absent in view-only, folded until asked otherwise. */
+  const drawing = editable && fsAnnMarkupOn;
+  show("fsAnnToolRow", drawing);
+  show("fsAnnUndoRow", drawing);
+  show("fsAnnMarkupBtnRow", editable && !fsAnnMarkupOn);
+  showI("fsAnnSave", editable);
+  const hv = document.getElementById("fsAnnHintView");
+  const he = document.getElementById("fsAnnHintEdit");
+  if (hv) hv.style.display = drawing ? "none" : "block";
+  if (he) he.style.display = drawing ? "block" : "none";
+  /* THE COLOUR AND SIZE ROWS ARE NOT SET HERE, AND THAT IS DELIBERATE.
+     fsAnnToolSync has owned them since Pass 122 - it hides both for the
+     eraser, "showing controls that do nothing is how a toolbar starts
+     lying" - and it runs on every tool press and inside fsAnnOpen's onload.
+     Setting them here as well gave this modal two writers for one element
+     and the later one won: the suite caught the tools still on screen in
+     view-only (R6b). fsAnnToolSync now folds them too, and is called from
+     here, so there is exactly ONE writer again. */
+  fsAnnToolSync();
+  const cx = document.getElementById("fsAnnCancel");
+  if (cx) cx.textContent = editable ? "Cancel" : "Close";
+  /* PASS 151 [151-D] - Pass 26 item 16's guard, moved and NOT CHANGED.
+     Delete is a SITE photo's own; every other caller passes no target or
+     another kind, and each of those has its delete elsewhere.
+
+     COPIED CONDITION FOR CONDITION FROM #fsLbDelete, INCLUDING THE ASYMMETRY.
+     The fsSitePhotoDelete test belongs to siteIdx ALONE - that branch calls it
+     and the other two do not, so requiring it of all three takes the button
+     away from the entry and display photos in every state where that hook is
+     not currently set. A first draft of this line did exactly that and R9e /
+     R9f caught it. A guard that moves rooms must arrive the same size it
+     left: narrower is a feature silently lost, wider is the wrong record
+     deleted. */
+  const t = fsAnnLbTarget;
+  showI("fsAnnReplace", !!t);
+  showI("fsAnnDelete", !!((t && t.kind === "siteIdx"
+                             && typeof fsSitePhotoDelete === "function")
+                          || (t && t.kind === "siteEntry")
+                          || (t && t.kind === "siteDisplay")));
+  /* W130-5: the picture takes the room the folded rows gave back, and gives
+     it up again the moment he draws - tools and photo have to be on screen
+     together to mark anything up. */
+  const sc = document.getElementById("fsAnnScroll");
+  const cv = document.getElementById("fsAnnCanvas");
+  if (sc) sc.style.maxHeight = drawing ? "62vh" : "78vh";
+  if (cv) cv.style.maxHeight = drawing ? "58vh" : "74vh";
+}
+/* Named and top-level so a suite can drive it. Opening the tools re-fits only
+   if he has not zoomed by hand - the same rule the resize listener uses. */
+function fsAnnMarkupShow() {
+  fsAnnMarkupOn = true;
+  fsAnnChrome();
+  if (fsAnnZFitted) fsAnnZFitNow();
+  return true;
+}
 /* PASS 123 [W120-7] - the value the editor was opened ON, so Save can keep its
    base rather than re-encoding whatever is on the canvas. */
 let fsAnnSrc = null;
@@ -17980,8 +18087,15 @@ function fsAnnToolSync() {
   const st = document.getElementById("fsAnnStyleWrap");
   /* The eraser has no colour and no width - it takes whole marks. Showing
      controls that do nothing is how a toolbar starts lying. */
-  if (cw) cw.style.display = er ? "none" : "flex";
-  if (sw) sw.style.display = er ? "none" : "flex";
+  /* PASS 151 [151-G] - and neither does a photo he opened to LOOK at.
+     `folded` is view-only, or editable with the markup rows still shut.
+     It lives here rather than in fsAnnChrome because this function has
+     owned these two elements since Pass 122 and runs after it; two
+     writers for one element is how the tools came back on screen in
+     view-only, which is exactly what test_p151 R6b caught. */
+  const folded = !fsAnnDone || !fsAnnMarkupOn;
+  if (cw) cw.style.display = (er || folded) ? "none" : "flex";
+  if (sw) sw.style.display = (er || folded) ? "none" : "flex";
   /* A dashed highlighter is not a thing in any editor worth copying. */
   if (st) st.style.display = fsAnnTool === "pen" ? "flex" : "none";
   const sl = document.getElementById("fsAnnSize");
@@ -18034,6 +18148,10 @@ function fsAnnOpen(src, onSave) {
     return { col: m.col, tool: m.tool, w: m.w, st: m.st, pts: (m.pts || []).slice() };
   });
   fsAnnUndoS = []; fsAnnRedoS = []; fsAnnDone = onSave || null;
+  /* PASS 151 [151-A] - W130-4. Chrome is decided HERE, from the arguments,
+     for the same reason fsAnnTool is reset here: no caller can forget. */
+  fsAnnMarkupOn = false;
+  fsAnnChrome();
   /* PASS 121 [W120-1] FS_PHOTO_VIEW_FIRST - EVERY open starts on "view".
      Reset here rather than at the call site, so no caller can forget. */
   fsAnnTool = "";
@@ -18144,7 +18262,20 @@ function fsAnnZFitVal() {
      photo running off the bottom, which is half of "it's not automatically
      full zoomed out". */
   const availW = box.clientWidth - 8;
-  const availH = Math.max(120, Math.round(window.innerHeight * 0.62) - 8);
+  /* PASS 151 [151-H] - W130-5. This used to be a second, hardcoded copy
+     of the 62vh that sits on #fsAnnScroll in the markup, so the picture
+     was fitted to a number that no longer had anything to do with the
+     box it was being fitted into. Folding the drawing rows gave the
+     scroller more room and the photo did not grow by one pixel.
+     READ THE BOX. Its computed max-height, not clientHeight: when the
+     content is smaller than the cap, clientHeight IS the content, and
+     fitting to that shrinks the picture, then the box, then the picture
+     again. The old constant stays as the fallback for the one case that
+     has no computed value yet. */
+  let capH = 0;
+  try { capH = parseFloat(window.getComputedStyle(box).maxHeight) || 0; } catch (e) {}
+  if (!capH) capH = Math.round(window.innerHeight * 0.62);
+  const availH = Math.max(120, capH - 8);
   const z = Math.min(availW / c.width, availH / c.height, 1);
   return (isFinite(z) && z > 0) ? z : 1;
 }
@@ -18611,6 +18742,24 @@ function fsDefShowInWorkspace(d) {
     fsAnnPaint(); fsAnnHistSync();
   };
   document.getElementById("fsAnnCancel").onclick = () => document.getElementById("fsAnnModal").classList.remove("show");
+  /* PASS 151 [151-F] - W130-4. These three came across with fsViewPhoto.
+     Replace and Delete DELEGATE to #fsLbReplace and #fsLbDelete rather
+     than repeating them: those handlers already know the three site-photo
+     kinds, their confirms, fsSitePhotoDelete and fsPhotoTarget, and a
+     second copy of a DELETE branch is how the wrong record gets removed
+     six months from now. fsLbTarget is still what fsViewPhoto sets. */
+  const annMk = document.getElementById("fsAnnMarkupOpen");
+  if (annMk) annMk.onclick = () => { fsAnnMarkupShow(); };
+  const annRp = document.getElementById("fsAnnReplace");
+  if (annRp) annRp.onclick = () => {
+    document.getElementById("fsAnnModal").classList.remove("show");
+    document.getElementById("fsLbReplace").click();
+  };
+  const annDl = document.getElementById("fsAnnDelete");
+  if (annDl) annDl.onclick = () => {
+    document.getElementById("fsAnnModal").classList.remove("show");
+    document.getElementById("fsLbDelete").click();
+  };
   document.getElementById("fsAnnSave").onclick = () => {
     if (!fsAnnStrokes.length) {
       if (!confirm("Nothing drawn. Save it unchanged?")) return;
@@ -25515,8 +25664,43 @@ document.getElementById("fsLookClose").onclick = fsQrLookStop;
 document.getElementById("fsResScan").onclick = () => { document.getElementById("fsResModal").classList.remove("show"); fsQrLookOpen(); };
 
 function fsViewPhoto(src, replaceTarget) {
+  /* PASS 151 [151-C] - the caller's value, kept before it is flattened. */
+  const raw = src;
   /* PASS 123 [W120-7] - normalised HERE rather than at each call site, so a
      future caller that passes a photo VALUE cannot open a blank lightbox. */
+  src = fsPhotoSrc(src) || src;
+  fsLbTarget = replaceTarget || null;
+  /* PASS 151 [151-C] - W130-4. "adopt this for photos in all areas of the
+     app. defects etc."
+
+     THIS ONE LINE IS THE WHOLE OF IT. Every photo outside the markup editor
+     opens through here - site, entry and display photos, the photo tiles,
+     register attachments, QR tag photos, quick-item photos, and d.photos[i],
+     WHICH IS THE DEFECT PHOTOS HE NAMED. Thirteen call sites, one function,
+     and they all get pan, pinch and double-tap by opening the viewer that
+     already has them rather than growing a second copy (18316).
+
+     No onSave: there is nothing to save markup back to from most of these,
+     and 151-A makes that a proper view-only mode rather than a dead button.
+     Replace and Delete travel on fsAnnLbTarget with their guard intact.
+
+     AND THE ORIGINAL VALUE GOES ACROSS, NOT THE NORMALISED ONE. The line
+     above turns a Pass 123 photo OBJECT into its flattened composite string,
+     which is exactly right for an <img> and exactly wrong here: fsAnnOpen
+     does its own fsPhotoMarks() and fsPhotoBase(), and handed a bare string
+     it finds no marks, so his markup arrives BAKED IN and the eraser and
+     Undo can no longer lift it. That is the whole of Pass 123 undone by a
+     type coercion. test_p123 R12 caught it; test_p151 R13 keeps it caught. */
+  fsAnnLbTarget = fsLbTarget;
+  fsAnnOpen((raw && typeof raw === "object") ? raw : src);
+  return;
+}
+/* The old lightbox path, kept whole and no longer reached by fsViewPhoto.
+   NOT deleted: #fsLightbox markup and its Replace / Delete handlers are still
+   wired below, and ripping live markup out on the same pass that reroutes its
+   only caller is two changes wearing one coat. It goes when the walk says the
+   new path is right. */
+function fsViewPhotoLb(src, replaceTarget) {
   src = fsPhotoSrc(src) || src;
   fsLbTarget = replaceTarget || null;
   const lb = document.getElementById("fsLightbox");
@@ -27556,7 +27740,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v142";
+const FS_BUILD = "aa-v143";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
