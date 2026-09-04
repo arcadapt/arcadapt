@@ -528,7 +528,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.140 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.141 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -658,7 +658,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.140 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.141 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -24709,7 +24709,16 @@ function fsRenderTab() {
     const st = document.getElementById("fsArStatus");
     if (st) st.onchange = () => { fsArStatus = st.value; fsArPage = 1; fsRenderTab(); };
     document.querySelectorAll(".fsArRow").forEach(tr => {
-      tr.onclick = () => { fsArSel = (fsArSel === tr.dataset.k) ? "" : tr.dataset.k; fsRenderTab(); };
+      /* PASS 155 [155-D] - the panel is ABOVE the table now, so opening one
+         pushes the table down under his finger. A selection that was JUST
+         MADE scrolls its panel into view; fsRenderTab runs on every keystroke
+         in the search box, so the flag is what gates it, not fsArSel. */
+      tr.onclick = () => {
+        const same = fsArSel === tr.dataset.k;
+        fsArSel = same ? "" : tr.dataset.k;
+        fsArJump = !same;
+        fsRenderTab();
+      };
     });
     document.querySelectorAll(".fsArPrev").forEach(b => b.onclick = () => { if (fsArPage > 1) { fsArPage--; fsRenderTab(); } });
     document.querySelectorAll(".fsArNext").forEach(b => b.onclick = () => { fsArPage++; fsRenderTab(); });
@@ -24721,6 +24730,14 @@ function fsRenderTab() {
       if (r && r.o.qid && typeof fsDefShowInWorkspace === "function")
         fsDefShowInWorkspace({ qid: r.o.qid, siteId: s.id });
     };
+    /* PASS 155 [155-D] - cleared unconditionally, so a stale flag can never
+       hijack a later render. */
+    if (fsArJump) {
+      fsArJump = false;
+      const pn = document.getElementById("fsArPanel");
+      if (pn && typeof pn.scrollIntoView === "function")
+        pn.scrollIntoView({ block: "nearest" });
+    }
   }
   if (fsTab === "qr") fsQrTabWire(s);
 
@@ -27838,7 +27855,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v144";
+const FS_BUILD = "aa-v145";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31724,6 +31741,9 @@ function fsAssetMatchDef(d, o, level) {
    exactly the one he wants to find.
    ========================================================================= */
 let fsArPage = 1, fsArQ = "", fsArType = "", fsArStatus = "", fsArSel = "", fsArPer = 25;
+/* PASS 155 [155-D] - set by a row tap, cleared by the next render. */
+let fsArJump = false;
+const FS_AR_PANEL_TOP = "155-A";
 
 /* ONE FORMULA, ONE PLACE (Pass 143). The last time THIS device was tested,
    as a real day - which only exists because of V0.135's o.td and V0.136
@@ -31859,6 +31879,12 @@ function fsAssetRegisterHtml(s) {
      for both, stacked on a phone, and no media query to keep in step with the
      rest of the app. */
   let h = '<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">';
+  /* PASS 155 [155-A] - W136-10. The panel is emitted FIRST and takes a whole
+     row (flex:1 1 100% on the card itself), so it is above the table at every
+     width instead of beside it on a desktop and lost under 25 rows on his
+     iPad. It returns "" when nothing is selected, so an unselected register
+     is byte-for-byte the layout it was. */
+  h += fsArPanelHtml(rows, s);
   h += '<div class="fscard" style="padding:16px 18px;flex:1 1 520px;min-width:0">';
   h += '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">' +
     '<input id="fsArQ" class="fsinput" placeholder="Search assets" value="' + fsEsc(fsArQ) + '" style="flex:1 1 190px;min-width:0">' +
@@ -31927,7 +31953,6 @@ function fsAssetRegisterHtml(s) {
       '</div>';
   }
   h += '</div>';
-  h += fsArPanelHtml(rows, s);
   h += '</div>';
   return h;
 }
@@ -31941,18 +31966,36 @@ function fsArPanelHtml(rows, s) {
   const ev = (typeof fsAssetHistory === "function") ? fsAssetHistory(r.o, r.level, s).slice(0, 3) : [];
   const openDef = (s && s.defects || []).filter(function (d) {
     return d && !d.closed && typeof fsAssetMatchDef === "function" && fsAssetMatchDef(d, r.o, r.level); }).length;
+  /* PASS 155 [155-C] - 116px, not 44%. The panel is full width now and a
+     percentage label column would put "Zone" half a screen from its value. */
   const row = function (k, v) {
     return '<div style="display:flex;gap:11px;padding:6px 0;border-top:1px solid var(--fs-border)">' +
-      '<div style="width:44%;color:var(--fs-sub);font-size:12.5px">' + k + '</div>' +
-      '<div style="flex:1;font-size:13px">' + v + '</div></div>'; };
-  let h = '<div class="fscard" id="fsArPanel" style="padding:16px 18px;flex:0 1 330px;min-width:280px">';
+      '<div style="flex:0 0 116px;color:var(--fs-sub);font-size:12.5px">' + k + '</div>' +
+      '<div style="flex:1;min-width:0;font-size:13px">' + v + '</div></div>'; };
+  let h = '<div class="fscard" id="fsArPanel" style="padding:16px 18px;flex:1 1 100%;min-width:0;order:-1">';
   h += '<div style="display:flex;align-items:flex-start;gap:10px">' +
     '<div style="flex:1"><div style="font-size:15.5px;font-weight:700">' + fsEsc(r.type) + '</div>' +
     '<div style="font-size:12.5px;color:var(--fs-sub)">' + fsEsc(r.name) + '</div></div>' +
     fsArPill(r.st) +
     '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:18px;line-height:1">&times;</a></div>';
-  if (r.o.photo) h += '<img src="' + fsPhotoSrc(r.o.photo) + '" class="fsPhotoView" style="width:100%;max-height:190px;object-fit:cover;border-radius:9px;margin-top:11px;cursor:pointer">';
-  h += '<div style="margin-top:11px">';
+  /* PASS 155 [155-C] - three columns that wrap. At 430 they stack, at 820 the
+     history drops to its own row, at 1280 all three fit. */
+  h += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:11px">';
+  if (r.o.photo) {
+    /* PASS 155 [155-B] - W136-9. object-fit:contain, not cover: cover CROPS,
+       and he asked for the full photo. Height stays auto under the 190 cap so
+       a wide photo letterboxes nothing; --fs-bg is behind it so a tall one
+       letterboxes in the page colour in either theme.
+       THE COLUMN GROWS, CAPPED AT 340. MEASURED, NOT GUESSED: fixed at 240 it
+       left 154px of dead width beside the photo on a 430 phone - the render
+       at /tmp/P155-430.png before this line was added shows it. 340 fills the
+       phone without letting the photo take the desktop panel over. */
+    h += '<div style="flex:1 1 240px;max-width:340px;min-width:0">' +
+      '<img src="' + fsPhotoSrc(r.o.photo) + '" class="fsPhotoView" style="width:100%;max-height:190px;object-fit:contain;background:var(--fs-bg);border-radius:9px;cursor:pointer">' +
+      (r.o.qid ? '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:11px">Show in workspace</button>' : '') +
+      '</div>';
+  }
+  h += '<div style="flex:1 1 300px;min-width:0">';
   h += row("Type", fsEsc(r.type));
   h += row("Status", fsArPill(r.st));
   h += row("Next service", fsEsc(fsArDate(r.due)) +
@@ -31962,8 +32005,12 @@ function fsArPanelHtml(rows, s) {
   h += row("Zone", fsEsc(r.o.zone || "–"));
   h += row("Loop", fsEsc(r.o.loop || "–"));
   h += row("Device number", fsEsc(r.o.dev || "–"));
+  /* Only ONE #fsArShowWs is ever emitted: it rides with the photo when there
+     is one, and sits under the details when there is not. */
+  if (!r.o.photo && r.o.qid) h += '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:13px">Show in workspace</button>';
   h += '</div>';
-  h += '<div style="margin-top:13px;font-size:13px;font-weight:700">Latest history</div>';
+  h += '<div style="flex:1 1 260px;min-width:0">';
+  h += '<div style="font-size:13px;font-weight:700">Latest history</div>';
   if (!ev.length) h += '<div style="font-size:12.5px;color:var(--fs-faint);padding:6px 0">Nothing recorded against this device yet.</div>';
   ev.forEach(function (e) {
     const w = (typeof fsHistWhen === "function") ? fsHistWhen(e) : { d: String(e.at || "").slice(0, 10), t: "" };
@@ -31971,7 +32018,8 @@ function fsArPanelHtml(rows, s) {
       '<span style="flex:0 0 78px;font-size:11.5px;color:var(--fs-sub)">' + fsEsc(w.d) + '</span>' +
       '<span style="flex:1;font-size:12.5px">' + fsEsc(e.text) + '</span></div>';
   });
-  if (r.o.qid) h += '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:13px">Show in workspace</button>';
+  h += '</div>';
+  h += '</div>';
   h += '</div>';
   return h;
 }
