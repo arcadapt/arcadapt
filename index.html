@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.144 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.145 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,12 +681,16 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.144 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.145 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnOpenProj" title="Open a PDF plan or saved project">&#128194; Open</button>
     <button class="btn" id="btnPhoto" title="Photo of the plan (camera on tablet/phone)">&#128247; Photo</button>
+    <!-- PASS 159 [159-A] - W107-6. "if I was just a blank page to work on I
+         have to open a photo and do a white hatch over it and flatten it, I
+         shouldn't have to do that." Beside the two doors he had. -->
+    <button class="btn" id="btnBlank" title="Start on a blank white sheet">&#128459; Blank page</button>
     <button class="btn" id="btnSaveProj" title="Save project file">&#128190; Save</button>
     <button class="btn" id="btnSaveAs" style="display:none" title="Save as a NEW project file (always asks where)">Save As</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept. saveProject() is UNCHANGED -->
     <button class="btn" id="btnFit" style="display:none" title="Fit the whole plan on screen">Fit all</button><!-- PASS 50 [50-3]: moved to the Tools tab "Fit all" tile; id+handler kept -->
@@ -745,6 +749,9 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <div class="big">Load your block plan to start</div>
       <div>Tap <b>&#128247; Photo</b> (opens camera on phone) for a photo or image<br>
       or <b>&#128194; Open</b> for a PDF plan or saved project<br>
+      <!-- PASS 159 [159-A] - a door he cannot see is a door he does not have.
+           The hint used to name only the two that need a file. -->
+      or <b>&#128459; Blank page</b> to start on an empty white sheet<br>
       or drag &amp; drop / Ctrl+V paste onto this area</div>
     </div>
   </div>
@@ -1684,6 +1691,9 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         <button class="btn" id="wsSetPlans" title="Plans saved on this device">&#9776; Plans</button>
         <button class="btn" id="wsSetNew" title="Start a new plan">&#65291; New</button>
+        <!-- PASS 159 [159-A] - Pass 50 moved New into this cog, so a door that
+             is only in the toolbar is half a door. -->
+        <button class="btn" id="wsSetBlank" title="Start on a blank white sheet">&#128459; Blank page</button>
         <button class="btn" id="wsSetSaveAs" title="Save as a NEW project file (always asks where)">Save As</button>
         <button class="btn" id="wsSetBin" title="Site recycle bin &mdash; replaced/deleted registered devices">&#128465; Bin</button>
       </div>
@@ -7035,6 +7045,7 @@ function fsWsCogFire(btnId) {
 }
 document.getElementById("wsSetPlans").onclick = () => fsWsCogFire("btnPlans");
 document.getElementById("wsSetNew").onclick = () => fsWsCogFire("btnNew");
+document.getElementById("wsSetBlank").onclick = () => fsWsCogFire("btnBlank");
 document.getElementById("wsSetSaveAs").onclick = () => fsWsCogFire("btnSaveAs");
 document.getElementById("wsSetBin").onclick = () => fsWsCogFire("fsBinBtn");
 /* PASS 144 [144-B] - the second door, wired to the SAME function. It closes
@@ -7598,6 +7609,7 @@ function setImage(im, dataUrl, keepObjects, keepView) {
   if (pageBaseH == null) pageBaseH = im.naturalHeight;
   clearSelection();
   document.getElementById("dropHint").classList.add("hidden");
+  fsWsBlankBtnSync();
   if (keepView) draw(); else fitView();
   if (!keepObjects) { curScaleMpp = null; measureLive = null; levels = [{ name:"Level 1", image:imgDataUrl, pageBaseH:pageBaseH, objects:objects, scaleMpp:null }]; curLevel = 0; } if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   else syncLevel();
@@ -7680,6 +7692,49 @@ function loadImageFile(file) {
   reader.readAsDataURL(file);
 }
 
+/* PASS 159 [159-A] - W107-6. A4 LANDSCAPE AT 210 dpi. A decision, not a
+   default: big enough to draw a block plan on and to export at print quality,
+   landscape because that is the shape he photographs, and small enough that a
+   plain white JPEG of it is a few kilobytes. One constant so a render can
+   move it. */
+const FS_BLANK_PAGE = { w: 2480, h: 1754 };
+/* THE SHEET IS A REAL IMAGE, AND THAT IS THE WHOLE DESIGN. `img` is what
+   seventeen `if (!img)` guards in this file ask about - Save, Export, Report,
+   Levels, the crop tool, the scale, the hatch. A blank page that left img null
+   would hand him a workspace where half the buttons say "Load a block plan
+   first", which is the dead end he is complaining about with a new button on
+   it. So this makes the thing he makes by hand today - open a photo, hatch it
+   white, flatten - and hands it to setImage, the one door every plan comes
+   through. Nothing downstream changes because nothing downstream can tell. */
+/* PASS 159 [159-A] - AND PASS 50 IS WHY THIS IS NOT JUST ANOTHER BUTTON.
+   Pass 50 took the phone toolbar from seventeen buttons to nine on purpose,
+   and test_p50 B1 went red the moment this pass added a tenth - the census
+   doing its job. So the door appears exactly where he needs it and nowhere
+   else: ON THE EMPTY SHEET, beside Photo and Open, and gone the moment a plan
+   is loaded. The cog keeps it for the rest of the time, next to New. It rides
+   with the drop hint - the two places that show or hide that hint are the two
+   places that call this - so the rule cannot drift into disagreeing with
+   itself. */
+function fsWsBlankBtnSync() {
+  const b = document.getElementById("btnBlank");
+  if (b) b.style.display = img ? "none" : "";
+}
+function fsWsBlankPage() {
+  if (img && !window.confirm("Start a blank page? Unsaved work on the current plan will be lost (saved Plans are kept).")) return;
+  const c = document.createElement("canvas");
+  c.width = FS_BLANK_PAGE.w; c.height = FS_BLANK_PAGE.h;
+  const g = c.getContext("2d");
+  /* OPAQUE WHITE, PAINTED. A canvas left untouched is transparent, and a
+     transparent plan exports as nothing - test_p159 R3c is that check. */
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, c.width, c.height);
+  const url = fsEncodePlan(c, 0.92);
+  const im = new Image();
+  im.onload = () => setImage(im, url, false);
+  im.onerror = () => alert("Couldn't start a blank page.");
+  im.src = url;
+}
+document.getElementById("btnBlank").onclick = fsWsBlankPage;
 document.getElementById("btnPhoto").onclick = () => document.getElementById("fileInput").click();
 let pendingPhoto = null;
 document.getElementById("fileInput").addEventListener("change", e => {
@@ -8821,6 +8876,7 @@ document.getElementById("btnNew").onclick = () => {
   curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   currentProjId = null; fileHandle = null;
   document.getElementById("dropHint").classList.remove("hidden");
+  fsWsBlankBtnSync();
   idbDel(fsAutoKey()).catch(() => {});
   lastSaveNote = "";
   updateStatus();
@@ -26773,6 +26829,7 @@ document.getElementById("fsBack").onclick = async () => {
   curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
   currentProjId = null; fileHandle = null;
   document.getElementById("dropHint").classList.remove("hidden");
+  fsWsBlankBtnSync();
   document.getElementById("app").style.display = "none";
   document.getElementById("fsReg").style.display = "block";
   fsRenderSite();
@@ -28070,7 +28127,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v148";
+const FS_BUILD = "aa-v149";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33571,6 +33628,7 @@ try {
     curScaleMpp = null; measureStart = null; measureLive = null; flashSym = null; if (typeof refreshMeasureNote === "function") refreshMeasureNote();
     currentProjId = null; fileHandle = null;
     document.getElementById("dropHint").classList.remove("hidden");
+  fsWsBlankBtnSync();
     document.getElementById("app").style.display = "none";
     document.getElementById("fsReg").style.display = "block";
     window._fsJobWs = false;
