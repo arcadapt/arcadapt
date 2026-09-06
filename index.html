@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.145 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.146 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.145 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.146 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1257,7 +1257,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   </div>
 </div>
 <div class="modal" id="fsAnnModal" style="z-index:124">
-  <div class="modalbox" style="max-width:min(96vw,760px);width:96vw;text-align:left">
+  <div class="modalbox" style="max-width:min(96vw,1100px);width:96vw;max-height:94vh;text-align:left">
     <h3 style="margin-bottom:2px">Photo</h3>
     <!-- PASS 151 [151-B] - the hint has to match the screen. In view-only
          there are no tools to press. -->
@@ -1307,7 +1307,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      liked. fsAnnPt() maps through getBoundingClientRect, so a CSS-scaled canvas
      needs no change at all to the stroke maths. -->
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center"><button class="btn" id="fsAnnZOut" type="button" title="Zoom out" style="min-height:40px">&#8722;</button><button class="btn" id="fsAnnZIn" type="button" title="Zoom in" style="min-height:40px">&#43;</button><button class="btn" id="fsAnnZFit" type="button" title="Fit the whole photo on screen" style="min-height:40px">Fit</button><span id="fsAnnZLbl" style="font-size:12px;color:#8fa2ab"></span></div>
-    <div id="fsAnnScroll" style="background:#000;border-radius:8px;overflow:auto;max-height:78vh;text-align:center">
+    <div id="fsAnnScroll" style="background:#000;border-radius:8px;overflow:auto;max-height:88vh;text-align:center">
       <!-- PASS 142 [142-A] W127-12 - touch-action is `none` AT ALL TIMES and
            the app owns pan, pinch and double-tap. Pass 121 put `pinch-zoom`
            here so the photo would "behave like a photo"; MDN is explicit that
@@ -1318,7 +1318,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
            NOT `manipulation`: it is defined as disabling double-tap to zoom,
            which is the gesture he ruled on, and iOS Safari's support has
            historically been auto/manipulation only. See wireAnnGest(). -->
-      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:74vh;touch-action:none;cursor:grab"></canvas>
+      <canvas id="fsAnnCanvas" style="max-width:100%;max-height:84vh;touch-action:none;cursor:grab"></canvas>
     </div>
     <div class="row" id="fsAnnFootRow" style="margin-top:10px">
       <!-- PASS 157 [157-A] - W142-4. This row is PINNED (see the #fsAnnModal
@@ -13184,8 +13184,16 @@ function fsCycCapMigrate() {
   let changed = false;
   r.routines.forEach(function (c) {
     if (!c || !(c.key in FS_CYC_OLD_LABELS)) return;
-    if (c.label !== FS_CYC_OLD_LABELS[c.key]) return;   /* his wording, not mine */
-    c.label = FS_CYC_NEW_LABELS[c.key];
+    const want = FS_CYC_NEW_LABELS[c.key];
+    /* PASS 160 [160-F] - ALREADY RIGHT IS NOT A CHANGE. Without this line the
+       loosened compare below would "rename" 6 Monthly to 6 Monthly on every
+       read, and fsCycles marks the register dirty when this returns true. */
+    if (c.label === want) return;
+    /* and it no longer turns on an exact byte match: a trailing space is not
+       him renaming it. "Six monthly" still is, and is still left alone. */
+    if (String(c.label || "").trim().toLowerCase() !==
+        FS_CYC_OLD_LABELS[c.key].toLowerCase()) return;   /* his wording, not mine */
+    c.label = want;
     changed = true;
   });
   return changed;
@@ -15376,7 +15384,12 @@ function fsLinkSweep() {
    register loaded from a file, from IndexedDB or from a fresh seed all get the
    same labels without three call sites to keep in step. */
 function fsCycles() {
-  fsCycCapMigrate();
+  /* PASS 160 [160-F] - W145-F, MINE not his. 158-A renamed the labels in
+     memory and this line threw the answer away, so the screen read correctly
+     while every export, report and backup still carried the old text. The
+     migration is a one-shot - once renamed nothing matches the old labels - so
+     marking the register dirty here cannot loop. */
+  if (fsCycCapMigrate() && typeof fsMarkDirty === "function") fsMarkDirty();
   const r = fsRegister && fsRegister.routines;
   return (r && r.length) ? r : FS_CYCLES;
 }
@@ -15526,14 +15539,28 @@ function fsCycRowHtml(cy, on) {
        as 142-A on the photo canvas. */
     '<span class="fsCycGrip" data-key="' + fsEsc(cy.key) + '" title="Drag to reorder" ' +
     'style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;' +
-    'width:32px;height:32px;cursor:grab;touch-action:none;color:var(--fs-sub2);' +
-    'font-size:15px;line-height:1;user-select:none">&#8942;&#8942;</span>' +
+    /* PASS 160 [160-D] - W145-D. His screenshot showed it nearly the same grey
+       as the field beside it. Bigger target, darker ink, and a tile behind it
+       so it reads as something you take hold of. */
+    'width:38px;height:38px;border-radius:8px;background:var(--fs-tile);' +
+    'cursor:grab;touch-action:none;color:var(--fs-sub);' +
+    'font-size:19px;line-height:1;user-select:none">&#8942;&#8942;</span>' +
     (why
       /* NOT AN EMOJI PADLOCK. The first build used one and it rendered as an
          empty box in this app's font - the same failure as Pass 149's "?"
          badge, and again only rendering the page showed it. A word needs no
          font support and says what it means without a tooltip. */
-      ? '<span class="fsCycLock" data-key="' + fsEsc(cy.key) + '" title="Cannot be deleted - ' + fsEsc(why) + '" style="flex:0 0 auto;font-size:11px;color:var(--fs-sub2);padding:2px 6px;white-space:nowrap">kept</span>'
+      /* PASS 160 [160-E] - a BUTTON, and it says why on a tap. The word alone
+         answered nothing: "what does kept do and is it needed". */
+      /* PASS 160 - THE CLASS fsCycLock STAYS ON IT. test_p150 R5/R7b read the
+         lock marker through that selector and went red when this became a
+         button with a new class. The guarantee it checks - there is a marker,
+         it is a readable WORD and it carries the reason - is still true, so
+         the PRODUCT keeps the name the check was written against rather than
+         the check being re-pointed at the new one. */
+      ? '<button type="button" class="fsbtn fsCycLock fsCycKeptWhy" data-key="' + fsEsc(cy.key) +
+        '" data-why="' + fsEsc(why) + '" title="Cannot be deleted - ' + fsEsc(why) + '" ' +
+        'style="flex:0 0 auto;font-size:11px;color:var(--fs-sub2);padding:3px 9px;white-space:nowrap">Kept</button>'
       : '<button type="button" class="fsbtn fsCycDel" data-key="' + fsEsc(cy.key) + '" title="Delete this period" style="padding:2px 8px;flex:0 0 auto;color:#c62828">&times;</button>') +
     '</div>';
 }
@@ -15613,6 +15640,20 @@ function fsCycDelete(key) {
 }
 const FS_CYC_DRAG = "158-C";
 let fsCycDragKey = null;
+/* PASS 160 [160-D] - the pointer Y the dragged row is currently measured from.
+   It is re-baselined at every crossing, because the row has physically moved
+   into the new slot by then and a stale origin would fling it off screen. */
+let fsCycDragY0 = 0;
+function fsCycDragLift(key, on) {
+  const me = document.querySelector('.fsCycRow[data-key="' + key + '"]');
+  if (!me) return null;
+  me.style.position = on ? "relative" : "";
+  me.style.zIndex = on ? "5" : "";
+  me.style.opacity = on ? "0.97" : "";
+  me.style.boxShadow = on ? "0 8px 18px rgba(0,0,0,.45)" : "";
+  me.style.transform = "";
+  return me;
+}
 function fsCycEdWire(s) {
   /* PASS 158 [158-C] - the drag. The drop goes through fsCycRowsRedraw
      BECAUSE THAT IS THE FUNCTION THAT CARRIES HIS TICKS AND HIS HALF-TYPED
@@ -15623,6 +15664,8 @@ function fsCycEdWire(s) {
   document.querySelectorAll(".fsCycGrip").forEach(function (g) {
     g.onpointerdown = function (ev) {
       fsCycDragKey = g.dataset.key;
+      fsCycDragY0 = ev.clientY;
+      fsCycDragLift(fsCycDragKey, true);
       g.style.cursor = "grabbing";
       try { g.setPointerCapture(ev.pointerId); } catch (e) {}
       ev.preventDefault();
@@ -15653,16 +15696,30 @@ function fsCycEdWire(s) {
         });
         row = best;
       }
-      if (!row || row.dataset.key === fsCycDragKey) return;
       const me = document.querySelector('.fsCycRow[data-key="' + fsCycDragKey + '"]');
-      if (!me || !row.parentElement) return;
+      if (!me) return;
+      /* PASS 160 [160-D] - THE ROW FOLLOWS HIS FINGER. 158-C only ever
+         re-ordered on crossing a neighbour, so between crossings nothing moved
+         and the row teleported from slot to slot: "operates however it works
+         oddly". The transform is applied BEFORE the swap test, so a drag that
+         has not yet reached a neighbour still moves. */
+      me.style.transform = "translateY(" + (ev.clientY - fsCycDragY0) + "px)";
+      if (!row || row.dataset.key === fsCycDragKey) return;
+      if (!row.parentElement) return;
       const rows = [].slice.call(row.parentElement.children);
       if (rows.indexOf(me) < rows.indexOf(row)) row.parentElement.insertBefore(me, row.nextSibling);
       else row.parentElement.insertBefore(me, row);
+      /* re-baseline: the row is in its new slot, so the offset starts again */
+      fsCycDragY0 = ev.clientY;
+      me.style.transform = "translateY(0px)";
     });
     document.addEventListener("pointerup", function () {
       if (!fsCycDragKey) return;
       const key = fsCycDragKey;
+      /* PASS 160 [160-D] - drop the lift BEFORE the redraw below, because a
+         redraw replaces these nodes and an inline transform left on one would
+         survive on nothing. */
+      fsCycDragLift(key, false);
       fsCycDragKey = null;
       /* The DOM is already in the order his finger left it; the register is
          told to match, one move at a time through the one move function. */
@@ -15683,6 +15740,18 @@ function fsCycEdWire(s) {
     });
   }
   fsCycEdSite = s || (typeof fsSite !== "undefined" ? fsSite : null);
+  /* PASS 160 [160-E] - the Kept button answers in the block, not in a tooltip. */
+  document.querySelectorAll(".fsCycKeptWhy").forEach(function (b) {
+    b.onclick = function () {
+      const w = document.getElementById("fsCycKeptWhy");
+      if (!w) return;
+      const lbl = document.querySelector('.fsCycLbl[data-key="' + b.dataset.key + '"]');
+      const nm = (lbl && lbl.value) || b.dataset.key;
+      w.textContent = "\u201c" + nm + "\u201d cannot be deleted \u2014 " +
+                      (b.dataset.why || "") + ". Everything else about it can be changed.";
+      w.style.display = "";
+    };
+  });
   document.querySelectorAll(".fsCycDel").forEach(function (b) {
     b.onclick = function () {
       const rt = fsCycles();
@@ -15711,10 +15780,19 @@ function fsCycEditHtml(s) {
        prints "every 5 years" off the month count, and fsCycDue, fsCycMs
        and fsCycWarnDays all already handle months. A `years` field would
        mean editing every one of them for no visible difference. */
-    '<select class="fsinput" id="fsCycNewU" style="width:106px"><option value="d">days</option>' +
-    '<option value="w">weeks</option><option value="m" selected>months</option>' +
-    '<option value="y">years</option></select>' +
+    /* PASS 160 [160-C] - W145-C. He answered "No" to "everything starts with a
+       capital" and his screenshot showed every period NAME already right. This
+       list and the Kept button are the lower case that was left. */
+    '<select class="fsinput" id="fsCycNewU" style="width:106px"><option value="d">Days</option>' +
+    '<option value="w">Weeks</option><option value="m" selected>Months</option>' +
+    '<option value="y">Years</option></select>' +
     '<button class="fsbtn" id="fsCycNewAdd" type="button" style="padding:6px 12px">Add</button></div>';
+  /* PASS 160 [160-E] - W145-E, "what does kept do and is it needed". It is
+     needed and it was mute: the reason lived in a title= tooltip and THERE IS
+     NO HOVER ON AN IPAD. Same family as the emoji padlock that rendered as an
+     empty box - a thing that only works on a machine he does not use. */
+  h += '<div id="fsCycKeptWhy" style="display:none;font-size:12px;color:var(--fs-sub);' +
+       'margin-top:6px;padding:6px 8px;border-left:2px solid var(--fs-border)"></div>';
   /* SAID ON THE SCREEN, because it is not guessable from it: the routines are
      register-level and the tick is not. Renaming one here renames it on every
      site in the register. */
@@ -18217,8 +18295,13 @@ function fsAnnChrome() {
      together to mark anything up. */
   const sc = document.getElementById("fsAnnScroll");
   const cv = document.getElementById("fsAnnCanvas");
-  if (sc) sc.style.maxHeight = drawing ? "62vh" : "78vh";
-  if (cv) cv.style.maxHeight = drawing ? "58vh" : "74vh";
+  /* PASS 160 [160-B] - W145-A/B, "make photo taller". Ten more points of
+     window in both states. The DRAWING pair moves too: the tools and the photo
+     still have to be on screen together (W130-5), and a taller photo with the
+     old drawing height would have made pressing a tool feel like the picture
+     shrank. */
+  if (sc) sc.style.maxHeight = drawing ? "72vh" : "88vh";
+  if (cv) cv.style.maxHeight = drawing ? "68vh" : "84vh";
 }
 /* Named and top-level so a suite can drive it. Opening the tools re-fits only
    if he has not zoomed by hand - the same rule the resize listener uses. */
@@ -23387,9 +23470,12 @@ function fsCycleStatus(site, cyc) {
   const due = fsCycDue(last, cyc);
   const days = Math.floor((due - Date.now()) / 86400000);
   const nice = due.toLocaleDateString(undefined, { day:"numeric", month:"short" });
-  if (days < 0) return { col:"#c62828", txt:"Overdue (" + nice + ")", overdue:true };
-  if (days <= fsCycWarnDays(cyc)) return { col:"#b58900", txt:"Due " + nice, overdue:false };
-  return { col:"#1b8a3f", txt:"Due " + nice, overdue:false };
+  /* PASS 160 [160-G] - `soon` is the warn band, named rather than left to be
+     read back off the colour. One arithmetic, one place: the strip, the dot
+     and Today's Priority sites all ask this function and cannot drift. */
+  if (days < 0) return { col:"#c62828", txt:"Overdue (" + nice + ")", overdue:true, soon:false };
+  if (days <= fsCycWarnDays(cyc)) return { col:"#b58900", txt:"Due " + nice, overdue:false, soon:true };
+  return { col:"#1b8a3f", txt:"Due " + nice, overdue:false, soon:false };
 }
 function fsSiteWorstDot(site) {
   let worst = "#1b8a3f";
@@ -23849,6 +23935,15 @@ function fsSiteOverdueN(s) {
   (s.buildings || []).forEach(b => { n += fsSiteOverdueN(b); });
   return n;
 }
+/* PASS 160 [160-G] - W145-G. THE SAME SHAPE AS fsSiteOverdueN, deliberately:
+   same filter for "this site is on this period", same roll-up of buildings,
+   same fsCycleStatus. A second way of deciding what is due would be a second
+   thing to keep in step. */
+function fsSiteDueSoonN(s) {
+  let n = fsCycles().filter(c => fsCycApplies(s, c)).filter(c => fsCycleStatus(s, c).soon).length;
+  (s.buildings || []).forEach(b => { n += fsSiteDueSoonN(b); });
+  return n;
+}
 function fsTodayData() {
   const stops = fsTodayStops();
   const booked = {};
@@ -23861,13 +23956,21 @@ function fsTodayData() {
   const pos = {};
   (stops || []).forEach((r, i) => { if (r.e && pos[r.e.s.id] === undefined) pos[r.e.s.id] = i; });
   const pri = fsPlSites()
-    .map(e => ({ e: e, n: fsSiteOverdueN(e.s), b: !!booked[e.s.id] }))
-    .filter(r => r.n > 0 || r.b)
+    /* PASS 160 [160-G] - W145-G. "It only shows one." It did, and it was
+       right: one site was overdue. THE CAP WAS NEVER THE PROBLEM - the filter
+       was. A card that appears only once something is already late is empty on
+       a good day, which is most days. Work coming DUE now counts too.
+       MY CALL, NOT HIS RULING: he did not answer the question, and this is
+       flagged on the walk sheet because one word reverses it. */
+    .map(e => ({ e: e, n: fsSiteOverdueN(e.s), w: fsSiteDueSoonN(e.s), b: !!booked[e.s.id] }))
+    .filter(r => r.n > 0 || r.w > 0 || r.b)
     .sort((a, b) => {
       const pa = pos[a.e.s.id], pb = pos[b.e.s.id];
       if (pa !== undefined && pb !== undefined) return pa - pb;
       if (pa !== undefined || pb !== undefined) return pa !== undefined ? -1 : 1;
-      return b.n - a.n;
+      /* overdue outranks due-soon, always: a late site cannot be pushed off
+         the card by one that merely has work coming. */
+      return (b.n - a.n) || (b.w - a.w);
     })
     /* PASS 158 [158-D] - P-14, "I think 3 or 4 sites would be max". Four. */
     .slice(0, 4);
@@ -23973,6 +24076,7 @@ function fsTodayHtml(d) {
         ((r.e.s.address || "") ? '<div style="font-size:11px;color:var(--fs-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(r.e.s.address) + '</div>' : '') +
         '<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">' +
         (r.n ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:var(--fs-dangerBg);color:var(--fs-danger);font-weight:700">' + r.n + ' overdue</span>' : '') +
+        (r.w ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:rgba(181,137,0,.18);color:#b58900;font-weight:700">' + r.w + ' due soon</span>' : '') +
         (r.b ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:#22262b;color:var(--fs-sub)">Booked today</span>' : '') +
         '</div></div></div>';
     });
@@ -28127,7 +28231,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v149";
+const FS_BUILD = "aa-v150";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -32024,7 +32128,12 @@ const FS_AR_FACETS = "156-C";
 const FS_COG_MOVE = "156-B";
 /* PASS 156 [156-D] - one constant, because the size came off a render at 430
    and 820 and will move again the next time he looks at it. */
-const FS_AR_THUMB = { w: 68, h: 50 };
+/* PASS 160 [160-A] - W145-A, and the answer to the open question that held
+   this screen for two passes: "double what they currently are". BOTH
+   dimensions, which is the plain reading of it. The row carries no fixed
+   height - the cell padding is 6px and nothing sets a height - so the row
+   grows with the picture instead of cropping it. */
+const FS_AR_THUMB = { w: 136, h: 100 };
 /* PASS 157 [157-D] - W142-1, "only marginally". His word, and it is the whole
    spec: the menu 200->224 wide and 264->320 tall, the tick boxes 20->22, the
    rows 40->44. Nothing here doubles. */
