@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.146 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.147 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.146 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.147 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1988,7 +1988,20 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   <div class="row">
     <button class="btn primary" id="exportPng">&#11015; Save as PNG</button>
     <button class="btn" id="exportPdf">&#128196; Save as PDF</button>
+    <!-- PASS 161 [161-C] - W136-1. "when I export or pdf I am exporting heaps
+         of blank space too." This picks the part of the EXPORT to keep; it does
+         not touch the plan. -->
+    <button class="btn" id="exportRegion" title="Choose the part of the sheet to export">&#9645; This part only</button>
     <button class="btn" id="exportClose">Close</button>
+  </div>
+  <!-- PASS 161 [161-D] - the same complaint, answered by machinery this app has
+       shipped since V0.23. OFF by default: an export that silently changes size
+       is not something to spring on a file he sends to a client. -->
+  <div class="row" style="justify-content:center;font-size:13px;color:#ccc">
+    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="exportTrim" style="width:18px;height:18px">
+      <span>Trim the blank space around the drawing</span>
+    </label>
   </div>
   <div class="hint">PNG for quick sharing, PDF for Bluebeam. Both are flattened &mdash; for an editable copy use <b>Save</b>.<br>On iPad/iPhone, saving opens the share sheet: choose Save to Files, AirDrop, or send it to someone.</div>
 </div>
@@ -8866,8 +8879,12 @@ async function openPlan(id) {
   im.src = lv.image;
 }
 
-document.getElementById("btnNew").onclick = () => {
-  if (img && !window.confirm("Start a new blank plan? Unsaved work on the current plan will be lost (saved Plans are kept).")) return;
+/* PASS 161 [161-A] - R-38. "If I do the wrong one, I cant delete it."
+   THIS BODY WAS ALREADY CORRECT AND ONLY btnNew COULD REACH IT. The Levels
+   modal refused on the last level, so a wrong plan imported as Level 1 was
+   permanent. It has a name now and two doors, rather than a second copy that
+   can drift from this one. */
+function fsWsResetToEmpty() {
   img = null; imgDataUrl = null;
   objects = []; clearSelection();
   undoStack = []; redoStack = [];
@@ -8881,6 +8898,10 @@ document.getElementById("btnNew").onclick = () => {
   lastSaveNote = "";
   updateStatus();
   draw();
+}
+document.getElementById("btnNew").onclick = () => {
+  if (img && !window.confirm("Start a new blank plan? Unsaved work on the current plan will be lost (saved Plans are kept).")) return;
+  fsWsResetToEmpty();
 };
 
 document.getElementById("btnPlans").onclick = () => {
@@ -9007,10 +9028,38 @@ function renderLevelsList() {
     open.className = "btn"; open.textContent = i === curLevel ? "Current" : "Open";
     open.disabled = i === curLevel;
     open.onclick = () => { switchLevel(i); document.getElementById("levelsModal").classList.remove("show"); };
+    /* PASS 161 [161-B] - R-38, and the word he used was "wrong one", not
+       "delete". Replacing is what he actually wanted; deleting then importing
+       is the long way round.
+       IT CLEARS THE LEVEL'S OBJECTS AND SAYS SO FIRST. Symbols are stored in
+       IMAGE coordinates - keeping devices that were placed on a different plan
+       would leave every one of them in the wrong place, which is worse than
+       making him place them again and is exactly the harm W136-1b is held back
+       for. */
+    const rep = document.createElement("button");
+    rep.className = "btn"; rep.textContent = "Replace";
+    rep.title = "Swap this level's plan for a different file";
+    rep.onclick = () => {
+      const n = (lv.objects || []).length;
+      if (!window.confirm('Replace the plan on "' + lv.name + '"?' +
+            (n ? "\n\nThe " + n + " item" + (n === 1 ? "" : "s") +
+                 " on this level will be removed - they were placed on the old plan and would " +
+                 "land in the wrong place on the new one." : "") )) return;
+      fsLvReplaceIdx = i;
+      document.getElementById("levelInput").click();
+    };
     const del = document.createElement("button");
-    del.className = "btn danger"; del.textContent = "Delete";
+    del.className = "btn danger";
+    /* the last level is not undeletable, it just empties the workspace */
+    del.textContent = levels.length === 1 ? "Clear" : "Delete";
     del.onclick = () => {
-      if (levels.length === 1) { alert("Can't delete the only level."); return; }
+      if (levels.length === 1) {
+        if (!window.confirm('Clear "' + lv.name + '" and start again with an empty workspace?' +
+                            '\n\nSaved Plans are kept.')) return;
+        document.getElementById("levelsModal").classList.remove("show");
+        fsWsResetToEmpty();
+        return;
+      }
       if (!window.confirm('Delete level "' + lv.name + '" and everything on it?')) return;
       const wasCurrent = i === curLevel;
       levels.splice(i, 1);
@@ -9024,7 +9073,7 @@ function renderLevelsList() {
       refreshLevelSel();
       scheduleAutosave();
     };
-    row.appendChild(name); row.appendChild(open); row.appendChild(del);
+    row.appendChild(name); row.appendChild(open); row.appendChild(rep); row.appendChild(del);
     wrap.appendChild(row);
   });
 }
@@ -9038,8 +9087,25 @@ document.getElementById("levelAdd").onclick = () => {
   document.getElementById("levelInput").click();
 };
 
+/* PASS 161 [161-B] - which level an import is REPLACING, or -1 for the normal
+   add. A module-level slot rather than a parameter because the import path runs
+   through a file input and three async branches, and threading an argument
+   through all of them is three more places to forget it. */
+let fsLvReplaceIdx = -1;
 function addLevelFromDataUrl(name, dataUrl) {
   syncLevel();
+  if (fsLvReplaceIdx >= 0 && fsLvReplaceIdx < levels.length) {
+    const at = fsLvReplaceIdx;
+    fsLvReplaceIdx = -1;
+    /* objects are DROPPED on purpose - see the confirm in renderLevelsList */
+    levels[at] = { name:levels[at].name, image:dataUrl, pageBaseH:null, objects:[] };
+    curLevel = -1;
+    switchLevel(at);
+    renderLevelsList();
+    refreshLevelSel();
+    scheduleAutosave();
+    return;
+  }
   levels.push({ name:name, image:dataUrl, pageBaseH:null, objects:[] });
   curLevel = -1;
   switchLevel(levels.length - 1);
@@ -9048,7 +9114,11 @@ function addLevelFromDataUrl(name, dataUrl) {
 document.getElementById("levelInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
-  if (!f) return;
+  /* PASS 161 [161-B] - DISARM ON THE WAY OUT, not on the way in. A cancelled
+     picker, an unreadable file or a project-file import must not leave Replace
+     armed for whatever he imports next - that would silently overwrite a level
+     he never pointed at. */
+  if (!f) { fsLvReplaceIdx = -1; return; }
   // saved project file → import its level(s) with all live objects, no redrawing
   if ((f.name || "").toLowerCase().endsWith(".json") || f.type === "application/json") {
     const rd = new FileReader();
@@ -9057,6 +9127,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         const proj = JSON.parse(rd.result);
         const lvs = proj.levels && proj.levels.length ? proj.levels
           : (proj.image ? [{ name:"Level " + (levels.length + 1), image:proj.image, pageBaseH:proj.pageBaseH != null ? proj.pageBaseH : null, objects:proj.objects || [] }] : null);
+        fsLvReplaceIdx = -1;   /* [161-B] a project file adds levels; it never replaces one */
         if (proj.app !== "block-plan-marker" || !lvs) { alert("That doesn't look like a saved project file."); return; }
         if (lvs.length > 1 && !confirm("That project has " + lvs.length + " levels — import all of them?")) return;
         syncLevel();
@@ -9076,8 +9147,10 @@ document.getElementById("levelInput").addEventListener("change", e => {
     rd.readAsText(f);
     return;
   }
-  const nm = window.prompt("Level name:", "Level " + (levels.length + 1));
-  if (nm == null) return;
+  /* [161-B] replacing keeps the level's own name - it is the same level */
+  const nm = fsLvReplaceIdx >= 0 ? (levels[fsLvReplaceIdx] || {}).name || "Level"
+                                 : window.prompt("Level name:", "Level " + (levels.length + 1));
+  if (nm == null) { fsLvReplaceIdx = -1; return; }
   const isPdf = f.type === "application/pdf" || (f.name || "").toLowerCase().endsWith(".pdf");
   if (isPdf) {
     ensurePdfJs().then(() => f.arrayBuffer())
@@ -13113,9 +13186,18 @@ function renderExportWithCfg() {
   exportYearCfg = currentExportCfg();
   let out;
   try { out = renderExportCanvas(); } finally { exportYearCfg = null; }
+  /* PASS 161 [161-D] - fsPdfTrim in AUTO mode, which is the same call the
+     import picker has made since V0.23. It returns the canvas UNCHANGED when
+     there is nothing to trim, so an already-tight plan is not re-encoded. */
+  const t = document.getElementById("exportTrim");
+  if (t && t.checked) { try { out = fsPdfTrim(out, true); } catch (e) {} }
   return out;
 }
+/* [161-C] the chosen region, or null for the whole sheet. Cleared by every
+   path that re-renders, so a stale crop cannot outlive the choice that made it. */
+let lastExportCut = null;
 function refreshExportPreview() {
+  lastExportCut = null;
   const out = renderExportWithCfg();
   exportImg.src = out.toDataURL("image/png");
   lastExportBlob = null;
@@ -13124,6 +13206,7 @@ function refreshExportPreview() {
 
 document.getElementById("btnExport").onclick = () => {
   if (!img) { alert("Load a block plan first."); return; }
+  lastExportCut = null;   /* [161-C] a new export starts on the whole sheet */
   buildExportTestOpts();
   refreshExportPreview();
   exportPanel.classList.add("show");
@@ -13134,9 +13217,26 @@ document.getElementById("exportPng").onclick = () => {
 };
 document.getElementById("exportPdf").onclick = () => {
   if (!img) return;
-  const out = renderExportWithCfg();
+  /* [161-C] the PDF has to be the picture he is looking at. Re-rendering here
+     would quietly hand him the whole sheet back after he chose a part of it. */
+  const out = lastExportCut || renderExportWithCfg();
   deliverFile(canvasToPdfBlob(out), exportName("pdf"), "application/pdf");
 };
+/* PASS 161 [161-C] - fsRegionPick's EIGHTH door and the first that is not an
+   import. On the rendered export canvas every symbol is already painted into
+   pixels, so choosing a region moves no object and changes no plan - the whole
+   reason this half of W136-1 could ship while W136-1b could not. */
+document.getElementById("exportRegion").onclick = async () => {
+  if (!img) return;
+  const full = renderExportWithCfg();
+  const cut = await fsRegionPick(full);
+  if (!cut) return;                 /* cancelled - the export is untouched */
+  exportImg.src = cut.toDataURL("image/png");
+  lastExportBlob = null;
+  lastExportCut = cut;
+  cut.toBlob(blob => { lastExportBlob = blob; }, "image/png");
+};
+document.getElementById("exportTrim").onchange = () => { lastExportCut = null; refreshExportPreview(); };
 document.getElementById("exportClose").onclick = () => exportPanel.classList.remove("show");
 
 /* ================= Boot ================= */
@@ -28231,7 +28331,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v150";
+const FS_BUILD = "aa-v151";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
