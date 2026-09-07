@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.150 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.151 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.150 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.151 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -939,7 +939,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       </div>
     </div>
     <div id="dbaFields" style="display:none">
-      <label>A = (dBA, ambient — lowest reading)</label>
+      <label>A = (dBA, ambient — average reading)</label>
       <div style="display:flex;gap:6px"><input type="text" id="dVa" autocomplete="off" style="flex:1"><button class="btn" id="mA" type="button">Measure</button></div>
       <label>E = (dBA, evac — highest reading)</label>
       <div style="display:flex;gap:6px"><input type="text" id="dVe" autocomplete="off" style="flex:1"><button class="btn" id="mE" type="button">Measure</button></div>
@@ -2095,6 +2095,17 @@ const TYPES = [
   { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true,  full:"Conc Thermal — a thermal detector in a concealed space, such as a ceiling void" },
   { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000", name:"Fire Indicator Panel", full:"FIP — Fire Indicator Panel, the main fire alarm panel" },
   { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000", name:"Fire Detection Control and Indicating Equipment", full:"FDCIE — Fire Detection Control and Indicating Equipment, the newer standards' name for a fire panel" },
+  /* PASS 166 [166-A] W148-E, [166-B] W148-L - THE PANEL FAMILY GROWS BY TWO.
+     "Mimic panel symbol, can look like FIP but just have 'Mim'" and "we should
+     add a SFIP symbol, that looks just like FIP but with the S".
+     NO DRAWING WORK: `widetext` sizes itself from `text` - that is how FDCIE
+     already fits five characters into the same plate.
+     THE ONE WORD I CHOSE is "Sub Fire Indicator Panel". SFIP is not spelled out
+     anywhere in the file; he called it "a sub panel ... one line from main FIP
+     to SFIP", so the words are his and the expansion is the obvious reading.
+     If he says otherwise it is a one-word change. */
+  { id:"sfip",     tab:"fire", label:"SFIP",         glyph:"widetext", text:"SFIP",  color:"#c40000", name:"Sub Fire Indicator Panel", full:"SFIP — Sub Fire Indicator Panel, a fire panel fed from the main FIP" },
+  { id:"mimic",    tab:"fire", label:"Mimic",        glyph:"widetext", text:"Mim",   color:"#c40000", name:"Mimic Panel", full:"Mimic Panel — repeats the main panel's indications at another entrance" },
   { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", name:"Manual Call Point", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
   { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
   { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00" },
@@ -2498,6 +2509,9 @@ const FS_SYM_MM = {
   exting:  { mm: 150,  mult: 0.98, draw: "symbol", src: "Reece, 150 w x 800 h", h: 800 },
   fip:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
   fdcie:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  /* PASS 166 [166-A/B] - the same plate as the panels they belong with. */
+  sfip:    { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  mimic:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
   wip:     { mm: null, mult: 1.0,  draw: "symbol", src: null },
   sounder: { mm: null, mult: 1.35, draw: "symbol", src: null },
   horn:    { mm: null, mult: 1.7,  draw: "symbol", src: null },
@@ -9903,6 +9917,17 @@ document.getElementById("photosClose").onclick = () => document.getElementById("
 let meterStream = null, meterCtx = null, meterAnalyser = null, meterTimer2 = null;
 let meterGen = 0;   /* PASS 42 [42-2] — bumped by every stop and every start; a start that loses its race stops its own tracks */
 let meterMinV = Infinity, meterMaxV = -Infinity, meterLastRaw = null, meterBegan = 0;
+/* PASS 166 [166-C] - W148-B. "this measure tool and the sound meter in general
+   is showing 10 db below every other sound meter I am using ... can you just
+   make it 10+ db offset higher then?" A FLAT OFFSET, not a percentage, applied
+   where the level is COMPUTED so the live readout, the min, the max, the
+   average and the Sound meter tool can never disagree about it.
+   IT DOES NOT DISTURB CALIBRATION: meterLastRaw stays `db - calOffset`, so a
+   calibration set against a real meter still lands on the number he types. */
+const FS_DBA_BASE = 10;
+/* the running mean, for A. He calls A ambient, and ambient is an average over
+   the window - not the quietest instant in it, which is what it used to take. */
+let meterSumV = 0, meterNV = 0, meterAvgV = Infinity;
 let calOffset = 0;
 try { calOffset = parseFloat(localStorage.getItem("bpm-cal")) || 0; } catch (e) {}
 let meterOnTick = null;
@@ -9930,6 +9955,7 @@ async function meterStart(onTick) {
   src.connect(meterAnalyser);
   const buf = new Float32Array(meterAnalyser.fftSize);
   meterMinV = Infinity; meterMaxV = -Infinity; meterBegan = Date.now();
+  meterSumV = 0; meterNV = 0; meterAvgV = Infinity;
   meterOnTick = onTick;
   /* V1.30 sensitivity pass (Reece 28 Jul): mic DC bias is now removed before the RMS
      (it was drowning quiet sounds), polls run every 50 ms with SPL "Fast" 125 ms
@@ -9947,11 +9973,15 @@ async function meterStart(onTick) {
     for (let i = 0; i < buf.length; i++) { const v = buf[i] - mean; sum += v * v; }
     meterMs += (sum / buf.length - meterMs) * META;
     const rms = Math.sqrt(meterMs);
-    const db = rms > 0 ? Math.max(10, Math.min(130, 20 * Math.log10(rms) + 94 + calOffset)) : 10;
+    const db = rms > 0 ? Math.max(10, Math.min(130, 20 * Math.log10(rms) + 94 + FS_DBA_BASE + calOffset)) : 10;
     meterLastRaw = db - calOffset;
     if (Date.now() - meterBegan > 400) {
       meterMinV = Math.min(meterMinV, db);
       meterMaxV = Math.max(meterMaxV, db);
+      /* PASS 166 [166-C] - the mean over the same settling-excluded window the
+         min and max already use, so all three describe one measurement. */
+      meterSumV += db; meterNV++;
+      meterAvgV = meterSumV / meterNV;
     }
     if (meterOnTick) meterOnTick(db, meterMinV, meterMaxV);
   }, 50);
@@ -10007,7 +10037,10 @@ let dbaMeasureTarget = null;   // "a" | "e" | null
 function dbaMeasureToggle(which) {
   const btn = document.getElementById(which === "a" ? "mA" : "mE");
   if (meterRunning() && dbaMeasureTarget === which) {
-    const val = which === "a" ? meterMinV : meterMaxV;
+    /* PASS 166 [166-C] - A TAKES THE AVERAGE NOW, NOT THE MINIMUM. E was
+       already the highest reading, so that half of W148-B was true before
+       this pass and only the label needed to stop saying "lowest". */
+    const val = which === "a" ? meterAvgV : meterMaxV;
     meterStop();
     dbaMeasureTarget = null;
     btn.textContent = "Measure";
@@ -10022,7 +10055,7 @@ function dbaMeasureToggle(which) {
   btn.textContent = "Stop";
   meterStart(db => {
     document.getElementById("mLive").textContent = "🎤 " + fmtDb(db) + " dBA (" +
-      (which === "a" ? "lowest " + fmtDb(meterMinV) : "highest " + fmtDb(meterMaxV)) + ")";
+      (which === "a" ? "average " + fmtDb(meterAvgV) : "highest " + fmtDb(meterMaxV)) + ")";
   }).catch(() => {
     dbaMeasureTarget = null;
     btn.textContent = "Measure";
@@ -26311,9 +26344,15 @@ function fsQrGoTo(r) {
     let hit = null;
     try { findLevelSets().forEach(set => (set.objects || []).forEach(o => { if (o && o.qid === qid) hit = { o: o, set: set }; })); } catch (e) {}
     if (hit && img) {
-      setSelection([hit.o]);
-      if (hit.set.li !== curLevel && levels.length > 1) { afterLevelSwitch = () => zoomFlashDevice(hit.o); switchLevel(hit.set.li); }
-      else zoomFlashDevice(hit.o);
+      /* PASS 166 [166-D] - W149-I. THE SAME ORDERING BUG PASS 165 FOUND in the
+         register's own jump, here in the QR path. switchLevel CLEARS the
+         selection, so selecting first and switching second left the device
+         flashed and unselectable - he scans a label, the plan moves, and he
+         still cannot act on the thing he scanned.
+         It survived this long because the QR suites assert the FLASH. */
+      const land = function () { setSelection([hit.o]); zoomFlashDevice(hit.o); };
+      if (hit.set.li !== curLevel && levels.length > 1) { afterLevelSwitch = land; switchLevel(hit.set.li); }
+      else land();
       return;
     }
     if (Date.now() - t0 < 9000) setTimeout(poll, 250);
@@ -28454,7 +28493,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v154";
+const FS_BUILD = "aa-v155";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
