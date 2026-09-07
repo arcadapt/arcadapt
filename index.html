@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.149 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.150 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.149 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.150 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2093,16 +2093,16 @@ const TYPES = [
   { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true,  full:"Conc Smoke — a smoke detector in a concealed space, such as a ceiling void" },
   { id:"thermal",  tab:"fire", label:"Thermal",      glyph:"circle",   text:"T",     color:"#1b8a3f", dashed:false },
   { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true,  full:"Conc Thermal — a thermal detector in a concealed space, such as a ceiling void" },
-  { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000", full:"FIP — Fire Indicator Panel, the main fire alarm panel" },
-  { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000", full:"FDCIE — Fire Detection Control and Indicating Equipment, the newer standards' name for a fire panel" },
-  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
-  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
+  { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000", name:"Fire Indicator Panel", full:"FIP — Fire Indicator Panel, the main fire alarm panel" },
+  { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000", name:"Fire Detection Control and Indicating Equipment", full:"FDCIE — Fire Detection Control and Indicating Equipment, the newer standards' name for a fire panel" },
+  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", name:"Manual Call Point", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
+  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
   { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00" },
   { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00" },
   { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200" },
   { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575", full:"dBA — a sound level reading in decibels, marking where the reading was taken" },
-  { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000", full:"OWS — Occupant Warning System, the speakers and sounders that tell everyone to get out" },
-  { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2", full:"VESDA — Very Early Smoke Detection Apparatus, samples air through small pipes to catch smoke sooner" },
+  { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000", name:"Occupant Warning System", full:"OWS — Occupant Warning System, the speakers and sounders that tell everyone to get out" },
+  { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2", name:"Very Early Smoke Detection Apparatus", full:"VESDA — Very Early Smoke Detection Apparatus, samples air through small pipes to catch smoke sooner" },
   { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a" },
   { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000" },
   /* PASS 24 item 7 — VAD, Visual Alarm Device. Reece called it a "visual alarm
@@ -2112,7 +2112,7 @@ const TYPES = [
      pink by default, and sound-wave arcs either side because a VAD sounds as
      well as flashes. Arc style only from refs/pass22-soundwave-ref-fire-bell
      .jpg — the bell symbol itself is not copied. */
-  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
+  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", name:"Visual Alarm Device", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
   { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
   /* PASS 108 [W107-4] - Reece sent a red FIRE BLANKET sign
      (refs/pass108-ref-fire-blanket-sign.png) and said "just take away the white
@@ -25322,8 +25322,11 @@ function fsRenderTab() {
     const ws = document.getElementById("fsArShowWs");
     if (ws) ws.onclick = () => {
       const r = fsArFilter(fsArRows(s)).filter(x => x.key === fsArSel)[0];
+      /* PASS 165 [165-D] - the QR path is PROVEN and is left exactly as it
+         was; only the no-qid case is new. */
       if (r && r.o.qid && typeof fsDefShowInWorkspace === "function")
         fsDefShowInWorkspace({ qid: r.o.qid, siteId: s.id });
+      else if (r) fsArShowInWorkspace(r);
     };
     /* PASS 155 [155-D] - cleared unconditionally, so a stale flag can never
        hijack a later render. */
@@ -28451,7 +28454,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v153";
+const FS_BUILD = "aa-v154";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -32446,7 +32449,27 @@ function fsArName(o) {
   if (o.zone) bits.push("Z" + o.zone);
   if (o.loop) bits.push("L" + o.loop);
   if (o.dev) bits.push("D" + o.dev);
-  return bits.length ? bits.join("-") : "(not registered)";
+  /* PASS 165 [165-A] - W149-A. EMPTY, NOT A FAKE NAME. His words: "FIP (not
+     registered) looks almost like corrupted/missing data ... that makes
+     incomplete information a status, rather than pretending it's the asset's
+     name." So the name slot is honestly blank and fsArUnregHtml() puts the
+     fact somewhere it reads as a state. */
+  return bits.join("-");
+}
+/* PASS 165 [165-A] - the badge. One definition, three call sites, so the
+   register cannot say "Unregistered" one way in the table and another in the
+   panel. */
+function fsArUnregHtml() {
+  return '<span style="display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;' +
+    'font-weight:700;color:#e0a33a;border:1px solid rgba(224,163,58,.55);' +
+    'background:rgba(224,163,58,.10)">Unregistered</span>';
+}
+/* PASS 165 [165-B] - W149-B, AND READ THE PATCH HEADER BEFORE TOUCHING IT.
+   This is NOT fsArLabel and must never become it: fsAssetKey() and the type
+   filter both read the label, and every stored defect key contains one. */
+function fsArTypeName(o) {
+  const t = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
+  return t ? (t.name || t.label || o.type) : (o.type || "Device");
 }
 function fsArRows(s) {
   const objs = (typeof annPlanObjects === "function") ? annPlanObjects() : [];
@@ -32645,7 +32668,9 @@ function fsAssetRegisterHtml(s) {
          about what a smoke detector looks like. */
       '<td style="padding:9px 8px"><div style="display:flex;align-items:center;gap:8px">' +
         fsArIcon(r.o) +
-        '<div><div style="font-weight:700">' + fsEsc(r.name) + '</div>' +
+        /* PASS 165 [165-A] - an unnamed asset shows its STATE here, not an
+           invented name and not an empty cell that reads as a broken row. */
+        '<div><div style="font-weight:700">' + (r.name ? fsEsc(r.name) : fsArUnregHtml()) + '</div>' +
         (r.o.info ? '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(r.o.info) + '</div>' : '') +
         '</div></div></td>' +
       /* PASS 157 [157-E] - W142-2, REVERTED ON HIS INSTRUCTION: "if squeezing
@@ -32681,6 +32706,54 @@ function fsAssetRegisterHtml(s) {
 /* THE RIGHT-HAND PANEL from his mockup. It reuses fsAssetHistory for Latest
    history, so the register and the device sheet can never disagree about
    what happened to a device. */
+/* PASS 165 [165-D] - W149-E, THE NO-QR JUMP. fsDefShowInWorkspace goes through
+   fsQrResolve and therefore needs a QR id. Most devices have none, so this
+   finds the object by the register's OWN key instead - the same fsAssetKey the
+   row was selected with, so the thing that lands is the thing he tapped.
+
+   It does not switch client or site: the register only ever lists the site you
+   are already in. Everything after that is fsQrGoTo's proven tail - enter the
+   workspace, poll until the plan is really loaded, select, switch level if the
+   device is on another one, then zoom and flash.
+
+   KNOWN AND ACCEPTED: fsAssetKey is not unique - two devices with the same
+   type, zone, loop and device number on one level share a key. That is already
+   true of the register's selection, so this jump is exactly as precise as the
+   row that launched it, and no less. */
+function fsArShowInWorkspace(r) {
+  if (!FS_WS_APP) {
+    alert("The floor-plan workspace is part of the Arc Adapt app.\n\nOpen this site in Arc Adapt to see the device on the plan.");
+    return;
+  }
+  fsEnterWorkspace();
+  const key = r.key, t0 = Date.now();
+  (function poll() {
+    let hit = null;
+    try {
+      findLevelSets().forEach(function (set) {
+        (set.objects || []).forEach(function (o) {
+          if (!hit && o && (o === r.o || fsAssetKey(o, set.name) === key)) hit = { o: o, set: set };
+        });
+      });
+    } catch (e) {}
+    if (hit && img) {
+      /* THE SELECTION IS MADE AFTER THE LEVEL SWITCH, NOT BEFORE IT. Measured,
+         not assumed: selecting first and then switching left NOTHING selected -
+         switchLevel clears it - so the device was flashed but could not be
+         acted on. His ask says "select/highlight it", and a flash that fades is
+         only half of that.
+         fsQrGoTo HAS THE SAME ORDERING and is left alone here on purpose: it is
+         a shipped, separately covered path, and widening this pass to touch it
+         would ship an untested change to QR scanning. Logged as W149-I. */
+      const land = function () { setSelection([hit.o]); zoomFlashDevice(hit.o); };
+      if (hit.set.li !== curLevel && levels.length > 1) { afterLevelSwitch = land; switchLevel(hit.set.li); }
+      else land();
+      return;
+    }
+    if (Date.now() - t0 < 9000) setTimeout(poll, 250);
+    else fsWsSay("Couldn't find that asset on the plan \u2014 open the right plan file and try again.");
+  })();
+}
 function fsArPanelHtml(rows, s) {
   if (!fsArSel) return "";
   const r = rows.filter(function (x) { return x.key === fsArSel; })[0];
@@ -32696,8 +32769,12 @@ function fsArPanelHtml(rows, s) {
       '<div style="flex:1;min-width:0;font-size:13px">' + v + '</div></div>'; };
   let h = '<div class="fscard" id="fsArPanel" style="padding:16px 18px;flex:1 1 100%;min-width:0;order:-1">';
   h += '<div style="display:flex;align-items:flex-start;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:15.5px;font-weight:700">' + fsEsc(r.type) + '</div>' +
-    '<div style="font-size:12.5px;color:var(--fs-sub)">' + fsEsc(r.name) + '</div></div>' +
+    /* PASS 165 [165-A/B] - "the item is a Fire Indicator Panel, so where there
+       is space to show that, we should". The panel HAS the space; the Type row
+       below still carries the code, so FIP is not lost. */
+    '<div style="flex:1"><div style="font-size:15.5px;font-weight:700">' + fsEsc(fsArTypeName(r.o)) + '</div>' +
+    '<div style="font-size:12.5px;color:var(--fs-sub)">' +
+      (r.name ? fsEsc(r.name) : fsArUnregHtml()) + '</div></div>' +
     fsArPill(r.st) +
     '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:18px;line-height:1">&times;</a></div>';
   /* PASS 155 [155-C] - three columns that wrap. At 430 they stack, at 820 the
@@ -32714,7 +32791,7 @@ function fsArPanelHtml(rows, s) {
        phone without letting the photo take the desktop panel over. */
     h += '<div style="flex:1 1 240px;max-width:340px;min-width:0">' +
       '<img src="' + fsPhotoSrc(r.o.photo) + '" class="fsPhotoView" style="width:100%;max-height:190px;object-fit:contain;background:var(--fs-bg);border-radius:9px;cursor:pointer">' +
-      (r.o.qid ? '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:11px">Show in workspace</button>' : '') +
+      '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:11px">Show in workspace</button>' +
       '</div>';
   }
   h += '<div style="flex:1 1 300px;min-width:0">';
@@ -32728,12 +32805,22 @@ function fsArPanelHtml(rows, s) {
   h += row("Loop", fsEsc(r.o.loop || "–"));
   h += row("Device number", fsEsc(r.o.dev || "–"));
   /* Only ONE #fsArShowWs is ever emitted: it rides with the photo when there
-     is one, and sits under the details when there is not. */
-  if (!r.o.photo && r.o.qid) h += '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:13px">Show in workspace</button>';
+     is one, and sits under the details when there is not.
+     PASS 165 [165-D] - W149-E. THE r.o.qid GATE IS GONE. It was there because
+     the only jump the app had went through fsQrResolve, which needs a QR id -
+     so the button was invisible on the great majority of devices, which is
+     almost certainly why he asked for a button that was already built. */
+  if (!r.o.photo) h += '<button class="fsbtn primary" id="fsArShowWs" style="width:100%;margin-top:13px">Show in workspace</button>';
   h += '</div>';
   h += '<div style="flex:1 1 260px;min-width:0">';
   h += '<div style="font-size:13px;font-weight:700">Latest history</div>';
-  if (!ev.length) h += '<div style="font-size:12.5px;color:var(--fs-faint);padding:6px 0">Nothing recorded against this device yet.</div>';
+  /* PASS 165 [165-C] - W149-D. His reason, and it is a good one: it "subtly
+     teaches the user what Arc is doing without asking them to manually
+     maintain a log." */
+  if (!ev.length) h += '<div style="font-size:12.5px;color:var(--fs-faint);padding:6px 0">' +
+    '<b style="color:var(--fs-sub)">No history yet</b><br>' +
+    'Tests, defects, rectifications and photos recorded against this asset ' +
+    'will appear here automatically.</div>';
   ev.forEach(function (e) {
     const w = (typeof fsHistWhen === "function") ? fsHistWhen(e) : { d: String(e.at || "").slice(0, 10), t: "" };
     h += '<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--fs-border)">' +
