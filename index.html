@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.147 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.148 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.147 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.148 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -711,6 +711,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <input type="file" id="imgObjInput" accept="image/*">
     <input type="file" id="cameraInput" accept="image/*" capture="environment">
     <input type="file" id="levelInput" accept="image/*,application/pdf,application/json,.json">
+    <!-- PASS 163 [163-A] - W147-A. A SECOND INPUT, AND THAT IS THE WHOLE FIX.
+         Replace used to arm a flag and share this one; a cancelled picker fires
+         NO event, so the flag outlived the cancel and the next ordinary import
+         overwrote a level he never chose. Two inputs means an Add is physically
+         incapable of replacing, with nothing to detect and nothing to guess. -->
+    <input type="file" id="levelReplaceInput" accept="image/*,application/pdf,application/json,.json">
   </div>
 
   <div id="midRow">
@@ -9046,7 +9052,7 @@ function renderLevelsList() {
                  " on this level will be removed - they were placed on the old plan and would " +
                  "land in the wrong place on the new one." : "") )) return;
       fsLvReplaceIdx = i;
-      document.getElementById("levelInput").click();
+      document.getElementById("levelReplaceInput").click();   /* [163-A] not the shared one */
     };
     const del = document.createElement("button");
     del.className = "btn danger";
@@ -9092,11 +9098,14 @@ document.getElementById("levelAdd").onclick = () => {
    through a file input and three async branches, and threading an argument
    through all of them is three more places to forget it. */
 let fsLvReplaceIdx = -1;
-function addLevelFromDataUrl(name, dataUrl) {
+function addLevelFromDataUrl(name, dataUrl, atIdx) {
   syncLevel();
-  if (fsLvReplaceIdx >= 0 && fsLvReplaceIdx < levels.length) {
-    const at = fsLvReplaceIdx;
-    fsLvReplaceIdx = -1;
+  /* PASS 163 [163-A] - EXPLICIT, not ambient. The caller that knows this is a
+     replace says so; nothing reads a flag that might be left over from a picker
+     the user closed ten minutes ago. */
+  const rep = (typeof atIdx === "number") ? atIdx : -1;
+  if (rep >= 0 && rep < levels.length) {
+    const at = rep;
     /* objects are DROPPED on purpose - see the confirm in renderLevelsList */
     levels[at] = { name:levels[at].name, image:dataUrl, pageBaseH:null, objects:[] };
     curLevel = -1;
@@ -9111,14 +9120,22 @@ function addLevelFromDataUrl(name, dataUrl) {
   switchLevel(levels.length - 1);
   renderLevelsList();
 }
-document.getElementById("levelInput").addEventListener("change", e => {
+/* PASS 163 [163-A] - ONE IMPORT, TWO DOORS, AND THE DOOR DECIDES.
+   161-B's comment below was right about the danger and wrong about the
+   mechanism: it disarmed on the no-file branch, and THERE IS NO NO-FILE BRANCH
+   when a picker is cancelled, because a cancelled picker fires nothing at all.
+   Which input fired is a fact, not an inference, so that is what decides now:
+   anything arriving through the ordinary input disarms Replace before it does
+   a thing, so an Add can never overwrite a level however the picker behaved. */
+function fsLvImportChange(e) {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
-  /* PASS 161 [161-B] - DISARM ON THE WAY OUT, not on the way in. A cancelled
-     picker, an unreadable file or a project-file import must not leave Replace
-     armed for whatever he imports next - that would silently overwrite a level
-     he never pointed at. */
-  if (!f) { fsLvReplaceIdx = -1; return; }
+  /* CONSUMED AND CLEARED ON THE FIRST LINE. Whatever happens below - a cancel
+     that fired nothing, an unreadable file, a project import, an exception -
+     the flag is already gone, so the next import cannot inherit it. */
+  const repIdx = (e.target.id === "levelReplaceInput") ? fsLvReplaceIdx : -1;
+  fsLvReplaceIdx = -1;
+  if (!f) return;
   // saved project file → import its level(s) with all live objects, no redrawing
   if ((f.name || "").toLowerCase().endsWith(".json") || f.type === "application/json") {
     const rd = new FileReader();
@@ -9127,7 +9144,6 @@ document.getElementById("levelInput").addEventListener("change", e => {
         const proj = JSON.parse(rd.result);
         const lvs = proj.levels && proj.levels.length ? proj.levels
           : (proj.image ? [{ name:"Level " + (levels.length + 1), image:proj.image, pageBaseH:proj.pageBaseH != null ? proj.pageBaseH : null, objects:proj.objects || [] }] : null);
-        fsLvReplaceIdx = -1;   /* [161-B] a project file adds levels; it never replaces one */
         if (proj.app !== "block-plan-marker" || !lvs) { alert("That doesn't look like a saved project file."); return; }
         if (lvs.length > 1 && !confirm("That project has " + lvs.length + " levels — import all of them?")) return;
         syncLevel();
@@ -9148,9 +9164,9 @@ document.getElementById("levelInput").addEventListener("change", e => {
     return;
   }
   /* [161-B] replacing keeps the level's own name - it is the same level */
-  const nm = fsLvReplaceIdx >= 0 ? (levels[fsLvReplaceIdx] || {}).name || "Level"
-                                 : window.prompt("Level name:", "Level " + (levels.length + 1));
-  if (nm == null) { fsLvReplaceIdx = -1; return; }
+  const nm = repIdx >= 0 ? (levels[repIdx] || {}).name || "Level"
+                        : window.prompt("Level name:", "Level " + (levels.length + 1));
+  if (nm == null) return;
   const isPdf = f.type === "application/pdf" || (f.name || "").toLowerCase().endsWith(".pdf");
   if (isPdf) {
     ensurePdfJs().then(() => f.arrayBuffer())
@@ -9171,7 +9187,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
         await page.render({ canvasContext: cx2, viewport: vp }).promise;
         const cc = await fsRegionPick(c);
-        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92));
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92), repIdx);
       })
       .catch(() => alert("Couldn't open that PDF."));
   } else {
@@ -9185,7 +9201,7 @@ document.getElementById("levelInput").addEventListener("change", e => {
         cx0.fillStyle = "#ffffff"; cx0.fillRect(0, 0, c0.width, c0.height);
         cx0.drawImage(im, 0, 0);
         const cc = await fsRegionPick(c0);
-        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92));
+        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92), repIdx);
       };
       /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
       im.onerror = () => alert("That image could not be read.");
@@ -9193,7 +9209,9 @@ document.getElementById("levelInput").addEventListener("change", e => {
     };
     reader.readAsDataURL(f);
   }
-});
+}
+document.getElementById("levelInput").addEventListener("change", fsLvImportChange);
+document.getElementById("levelReplaceInput").addEventListener("change", fsLvImportChange);
 
 /* ================= Timer ================= */
 /* V0.22 PASS 19 — timers are a LIST, not a singleton.
@@ -15599,6 +15617,15 @@ function fsCycNorm(s) {
 /* Returns "" when it can be deleted, or the reason it cannot. The reason is
    shown to him rather than the button silently vanishing - a control that is
    simply absent reads as a missing feature. */
+/* PASS 163 [163-B] - "they are just default on the apps", in his words, and it
+   is exactly the first two tests fsCycProtected makes. Kept as its own function
+   so the row markup and the guard cannot drift apart. */
+function fsCycDefault(cy) {
+  if (!cy) return false;
+  if (FS_CYC_KEEP.indexOf(fsCycNorm(cy.label)) >= 0) return true;
+  if (typeof FS_CYC_MOD !== "undefined" && FS_CYC_MOD[cy.key]) return true;
+  return false;
+}
 function fsCycProtected(cy) {
   if (!cy) return "unknown period";
   if (FS_CYC_KEEP.indexOf(fsCycNorm(cy.label)) >= 0)
@@ -15658,9 +15685,21 @@ function fsCycRowHtml(cy, on) {
          it is a readable WORD and it carries the reason - is still true, so
          the PRODUCT keeps the name the check was written against rather than
          the check being re-pointed at the new one. */
-      ? '<button type="button" class="fsbtn fsCycLock fsCycKeptWhy" data-key="' + fsEsc(cy.key) +
-        '" data-why="' + fsEsc(why) + '" title="Cannot be deleted - ' + fsEsc(why) + '" ' +
-        'style="flex:0 0 auto;font-size:11px;color:var(--fs-sub2);padding:3px 9px;white-space:nowrap">Kept</button>'
+      /* PASS 163 [163-B] - W147-B. He ruled against the FEATURE, not the wording:
+         "Don't have a reason, just don't give an option to delete those ones.
+         They are just default on the apps." 160-E made the word explain itself
+         on a tap; he does not want an explanation, he wants nothing there.
+
+         BUT NOT FOR ALL THREE REASONS, AND THIS IS A JUDGEMENT CALL FLAGGED ON
+         THE WALK. Two of fsCycProtected's reasons ARE "default on the apps" and
+         get nothing at all. The third is a period HE made and then recorded a
+         test against - that one is his own data, and removing the delete with
+         no word at all would be the app silently refusing. It keeps a marker. */
+      ? (fsCycDefault(cy)
+          ? '<span style="flex:0 0 auto;width:1px"></span>'
+          : '<button type="button" class="fsbtn fsCycLock fsCycKeptWhy" data-key="' + fsEsc(cy.key) +
+            '" data-why="' + fsEsc(why) + '" title="Cannot be deleted - ' + fsEsc(why) + '" ' +
+            'style="flex:0 0 auto;font-size:11px;color:var(--fs-sub2);padding:3px 9px;white-space:nowrap">Kept</button>')
       : '<button type="button" class="fsbtn fsCycDel" data-key="' + fsEsc(cy.key) + '" title="Delete this period" style="padding:2px 8px;flex:0 0 auto;color:#c62828">&times;</button>') +
     '</div>';
 }
@@ -28331,7 +28370,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v151";
+const FS_BUILD = "aa-v152";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
