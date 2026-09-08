@@ -590,7 +590,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.156 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.157 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -720,7 +720,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.156 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.157 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -5375,8 +5375,13 @@ function draw() {
     /* PASS 92 [92-A2] — the pill this block used to draw inline now lives in
        fsScalePill, so the measure label and the live-dimension labels are one
        renderer with three callers. Pixel-identical by D1. */
-    fsScalePill(ctx, (x1 + x2) / 2, (y1 + y2) / 2 - 16,
-                curScaleMpp ? fmtMetres(dpx * curScaleMpp) : "no scale set");
+    /* [172-A] R-37 - the measure label dodges too. It is the caller MOST
+       likely to sit on a snap label, because a measurement is taken FROM a
+       snapped point far more often than not. */
+    const fsMsLab = curScaleMpp ? fmtMetres(dpx * curScaleMpp) : "no scale set";
+    const fsMsX = (x1 + x2) / 2;
+    fsScalePill(ctx, fsMsX, fsPillDodge(ctx, fsMsX, (y1 + y2) / 2 - 16, fsMsLab),
+                fsMsLab);
     ctx.restore();
   }
 
@@ -5403,8 +5408,13 @@ function draw() {
   const fsDimTemp = tempShape ? fsScaleLiveDims(tempShape) : null;
   if (fsDimTemp) {
     const bt = objectBounds(tempShape);
-    fsScalePill(ctx, ((bt.x1 + bt.x2) / 2) * view.scale + view.x,
-                bt.y1 * view.scale + view.y - 16, fsDimTemp);
+    /* [172-A] R-37 - THE ONE HE ACTUALLY HIT. A drag straight down off a
+       snapped point puts this pill's box inside the snap label's box, on the
+       same x, drawn second. Measured: eleven shared rows on V0.156. */
+    const fsTx = ((bt.x1 + bt.x2) / 2) * view.scale + view.x;
+    fsScalePill(ctx, fsTx,
+                fsPillDodge(ctx, fsTx, bt.y1 * view.scale + view.y - 16, fsDimTemp),
+                fsDimTemp);
   } else if (activeTool === "select" && selection.length === 1 && !marquee && !viewHidden(selection[0])) {
     /* PASS 93 [93-A11] - Reece: "when drawing on revit it shows the length of
        the line while dragging and then the line disappears, if you select it,
@@ -5416,8 +5426,15 @@ function draw() {
     const fsDimSel = fsScaleDimFade(selection[0]) ? fsScaleLiveDims(selection[0]) : null;
     if (fsDimSel) {
       const bs = objectBounds(selection[0]);
-      fsScalePill(ctx, ((bs.x1 + bs.x2) / 2) * view.scale + view.x,
-                  bs.y2 * view.scale + view.y + 22, fsDimSel);
+      /* [172-A] R-37 - this one draws BELOW the geometry and a selection is
+         not under his finger, so it collides far less often. It dodges anyway:
+         a snap label can still be on screen from the tap that made the
+         selection, and one rule for all three callers is one rule to get
+         right. With no snap label the y is unchanged, to the pixel. */
+      const fsSx = ((bs.x1 + bs.x2) / 2) * view.scale + view.x;
+      fsScalePill(ctx, fsSx,
+                  fsPillDodge(ctx, fsSx, bs.y2 * view.scale + view.y + 22, fsDimSel),
+                  fsDimSel);
     }
   } else {
     /* Nothing selected: clear the timer, do not leave one pending. */
@@ -6922,6 +6939,59 @@ function fsScaleDimFade(sel) {
     }, FS_DIM_MS + 30);
   }
   return !!sel && Date.now() < fsScaleDimUntil;
+}
+/* PASS 172 [172-A] - R-37. THE SNAP LABEL'S FOOTPRINT, INCLUDING ITS SQUARE.
+
+   Built from the same three expressions the drawing block below uses, and it
+   has to stay that way: the box is `sy - 30` with an 11px rise and a 21px
+   height, and the green square runs to `sy + 7`. THE SQUARE IS PART OF IT.
+   It is the half that says WHICH POINT, so a dodge that clears the letters
+   and lands on the square has cleared nothing.
+
+   Returns null when there is no snap label, which is what makes this a dodge
+   rather than a move: with nothing to avoid, every pill stays exactly where
+   [92-A2] put it. */
+function fsSnapLabelRect(c) {
+  if (typeof fsWsSnapHit === "undefined" || !fsWsSnapHit) return null;
+  const sx = fsWsSnapHit.x * view.scale + view.x;
+  const sy = fsWsSnapHit.y * view.scale + view.y;
+  const lab = FS_WS_SNAP_LABEL[fsWsSnapHit.type] || "";
+  c.save();
+  c.font = "bold 12px system-ui, sans-serif";
+  const lw = c.measureText(lab).width;
+  c.restore();
+  const ly = sy - 30;
+  return { x1: sx - lw / 2 - 6, y1: ly - 11, x2: sx + lw / 2 + 6, y2: sy + 7 };
+}
+
+/* PASS 172 [172-A] - R-37. WHERE THE SIZE PILL SHOULD ACTUALLY DRAW.
+
+   Give it the y it WANTS and it hands back the y it can have. It returns the
+   requested y untouched unless the two rectangles genuinely intersect - not
+   "snapping is on", not "the shape is small", not any other proxy for the
+   collision. Measured on V0.156 the two shared ELEVEN ROWS of pixels with the
+   pill drawn second, so the label he needs was the one that lost.
+
+   ABOVE first, because above is where the tempShape pill already lives and
+   above is where his finger is not. UNDER the snap label only when there is no
+   room above - the snap point near the top of the canvas, which is his
+   "happened once when drawing close" - because a pill off the top edge is
+   worth less than a pill in an odd place. */
+function fsPillDodge(c, sx, sy, label) {
+  const s = fsSnapLabelRect(c);
+  if (!s) return sy;
+  c.save();
+  c.font = "bold 14px system-ui, sans-serif";
+  const half = c.measureText(label).width / 2 + 7;
+  c.restore();
+  /* fsScalePill's own box: sy - 12 to sy + 11, sx +/- half. Kept in step with
+     it by hand because the pill is drawn by one renderer with three callers
+     and giving it a second source of truth is how those drift apart. */
+  if (sx + half <= s.x1 || sx - half >= s.x2) return sy;
+  if (sy + 11 <= s.y1 || sy - 12 >= s.y2) return sy;
+  const up = s.y1 - 12;
+  if (up - 12 >= 2) return up;
+  return s.y2 + 13;
 }
 function fsScalePill(c, sx, sy, label) {
   c.save();
@@ -28950,7 +29020,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v160";
+const FS_BUILD = "aa-v161";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
