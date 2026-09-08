@@ -425,6 +425,45 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      every card floated. A contact shadow plus a soft lift, so a card
      reads as an object at arm's length in a switchboard room. */
   .fscard { background:var(--fs-card); border:1px solid var(--fs-border); border-radius:14px; box-shadow:0 1px 2px rgba(18,34,44,.07), 0 3px 10px -2px rgba(18,34,44,.06); }
+  /* PASS 171 [171-A] - W149-F. THE SELECTED ASSET STOPS TAKING THE REGISTER'S
+     SPACE. It was an in-flow card with `flex:1 1 100%; order:-1`, forced above
+     the list at every width - "the selected asset permanently pushes the list
+     halfway down the page". It is a sheet OVER the register now, so the
+     register keeps its full width and closing puts him straight back.
+
+     THE 720px BREAKPOINT IS THE ONE THIS FILE ALREADY HAS. A
+     sheet-versus-full-screen split is a different CONTAINER, not a different
+     arrangement of one, so flex-wrap cannot do it and a second breakpoint would
+     be a second thing to keep in step. iPad and desktop get the centred sheet;
+     an iPhone gets his "full-screen Asset page. No modal trying to squeeze
+     everything in."
+
+     overscroll-behavior:contain so a flick inside the sheet does not scroll the
+     register out from under it - the restore on close handles the rest.
+
+     [171-C] z-index 120, NOT 70. MEASURED, NOT REASONED: at 70 the render at
+     430 showed the bottom nav bar sitting ON TOP of a full-screen asset page,
+     because #fsNavBar lives INSIDE #fsReg (it has to - the workspace canvas
+     must never show it) and carries z-index 80. A sheet below it is a sheet
+     with a 59px strip of another screen across its foot, and any panel taller
+     than the viewport - W149-G is about to make one - would park its last 59px
+     under the bar where he cannot reach it. 120 is the tier every other modal
+     in this file uses, so the sheet now behaves like one: over the nav, and
+     still UNDER the photo lightbox (210) and the camera (215), which is what
+     lets him tap the asset photo from inside the sheet and get it full size.
+     #fsReg itself stays at 80, so a real modal opened from the sheet still
+     covers the sheet. */
+  .fsArSheet { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.55);
+               display:flex; align-items:center; justify-content:center;
+               padding:16px; overscroll-behavior:contain; }
+  .fsArSheetBox { width:100%; max-width:720px; max-height:86vh; overflow-y:auto;
+                  overscroll-behavior:contain; }
+  @media (max-width:720px) {
+    .fsArSheet { padding:0; align-items:stretch; justify-content:stretch; }
+    .fsArSheetBox { max-width:none; max-height:none; height:100%; }
+    .fsArSheetBox > .fscard { border-radius:0; border-left:0; border-right:0;
+                              min-height:100%; }
+  }
   /* PASS 34 — Reece, on the device: the highlight on hold is off-putting. It
      is iOS text selection firing during the press.
 
@@ -551,7 +590,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.155 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.156 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +720,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.155 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.156 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25744,15 +25783,34 @@ function fsRenderTab() {
          in the search box, so the flag is what gates it, not fsArSel. */
       tr.onclick = () => {
         const same = fsArSel === tr.dataset.k;
+        /* PASS 171 [171-B] - W149-F. "Then close it and you're immediately back
+           where you were in the register." fsRenderTab rebuilds the tab and the
+           page scroll goes with it, so opening RECORDS where he was and closing
+           puts it back. The page of the table and the row highlight ride on
+           fsArPage and fsArSel and are left alone - asserted, not assumed. */
+        if (!same) fsArScrollY = fsArScroller().scrollTop;
         fsArSel = same ? "" : tr.dataset.k;
-        fsArJump = !same;
+        /* [171-B] the jump is GONE. [155-D] scrolled the panel into view
+           because the panel sat ABOVE the table and opening one pushed the
+           table down under his finger. A sheet is centred on the screen; there
+           is nothing to scroll to, and scrolling the register behind it would
+           undo the restore. */
         fsRenderTab();
+        if (!same) fsArScroller().scrollTop = fsArScrollY;
       };
     });
     document.querySelectorAll(".fsArPrev").forEach(b => b.onclick = () => { if (fsArPage > 1) { fsArPage--; fsRenderTab(); } });
     document.querySelectorAll(".fsArNext").forEach(b => b.onclick = () => { fsArPage++; fsRenderTab(); });
     const cl = document.getElementById("fsArClose");
-    if (cl) cl.onclick = () => { fsArSel = ""; fsRenderTab(); };
+    /* [171-B] one function closes it, so the X and a tap on the backdrop
+       cannot drift apart. */
+    const fsArShut = () => { fsArSel = ""; fsRenderTab(); fsArScroller().scrollTop = fsArScrollY; };
+    if (cl) cl.onclick = fsArShut;
+    const sh = document.getElementById("fsArSheet");
+    /* A TAP ON THE BACKDROP AND NOT ON THE CARD. Without the target test a tap
+       anywhere inside the sheet closes it, which on a phone is every scroll
+       that ends on a dead spot. */
+    if (sh) sh.onclick = (ev) => { if (ev.target === sh) fsArShut(); };
     const ws = document.getElementById("fsArShowWs");
     if (ws) ws.onclick = () => {
       const r = fsArFilter(fsArRows(s)).filter(x => x.key === fsArSel)[0];
@@ -25762,14 +25820,12 @@ function fsRenderTab() {
         fsDefShowInWorkspace({ qid: r.o.qid, siteId: s.id });
       else if (r) fsArShowInWorkspace(r);
     };
-    /* PASS 155 [155-D] - cleared unconditionally, so a stale flag can never
-       hijack a later render. */
-    if (fsArJump) {
-      fsArJump = false;
-      const pn = document.getElementById("fsArPanel");
-      if (pn && typeof pn.scrollIntoView === "function")
-        pn.scrollIntoView({ block: "nearest" });
-    }
+    /* PASS 171 [171-B] - [155-D]'s jump is retired. It scrolled the panel into
+       view because the panel was IN THE FLOW above the table; the sheet is
+       fixed and centred, so there is nothing to scroll to and scrolling here
+       would fight the restore. The flag is still cleared, because a stale one
+       must never hijack a later render. */
+    fsArJump = false;
   }
   if (fsTab === "qr") fsQrTabWire(s);
 
@@ -28894,7 +28950,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v159";
+const FS_BUILD = "aa-v160";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -32803,6 +32859,18 @@ const FS_AR_THUMB = { w: 136, h: 100 };
 const FS_AR_FACET_BIG = { w: 224, h: 320, box: 22, row: 44 };
 /* PASS 155 [155-D] - set by a row tap, cleared by the next render. */
 let fsArJump = false;
+/* [171-B] where the register was when he opened an asset, so closing the
+   sheet puts him back on the same row rather than at the top.
+   THE REGISTER IS NOT THE PAGE. `body` is overflow:hidden and #fsReg is the
+   thing that scrolls, so window.scrollY is ALWAYS 0 here. The first version
+   of this restore used window.scrollTo and was a no-op - it passed its own
+   check because both sides of the comparison were zero, and mutate-p171 M4
+   (drop the restore entirely) SURVIVED, which is what said so. */
+function fsArScroller() {
+  return document.getElementById("fsReg") || document.scrollingElement ||
+         document.documentElement;
+}
+let fsArScrollY = 0;
 const FS_AR_PANEL_TOP = "155-A";
 
 /* ONE FORMULA, ONE PLACE (Pass 143). The last time THIS device was tested,
@@ -33221,7 +33289,15 @@ function fsArPanelHtml(rows, s) {
     return '<div style="display:flex;gap:11px;padding:6px 0;border-top:1px solid var(--fs-border)">' +
       '<div style="flex:0 0 116px;color:var(--fs-sub);font-size:12.5px">' + k + '</div>' +
       '<div style="flex:1;min-width:0;font-size:13px">' + v + '</div></div>'; };
-  let h = '<div class="fscard" id="fsArPanel" style="padding:16px 18px;flex:1 1 100%;min-width:0;order:-1">';
+  /* PASS 171 [171-A] - W149-F. The card is inside a SHEET now, so it is a
+     plain block: the full-width flow basis that forced it ahead of the list is
+     gone, and that is the entire structural change. W149-F's probe FORBIDS that
+     basis anywhere in this function, quoted string included, so it is described
+     here rather than repeated - a probe that a comment can trip is a probe that
+     stops meaning anything. Everything below this line is what W149-A/B/D/E
+     shipped, carried across untouched. */
+  let h = '<div class="fsArSheet" id="fsArSheet"><div class="fsArSheetBox">' +
+    '<div class="fscard" id="fsArPanel" style="padding:16px 18px;min-width:0">';
   h += '<div style="display:flex;align-items:flex-start;gap:10px">' +
     /* PASS 165 [165-A/B] - "the item is a Fire Indicator Panel, so where there
        is space to show that, we should". The panel HAS the space; the Type row
@@ -33230,7 +33306,7 @@ function fsArPanelHtml(rows, s) {
     '<div style="font-size:12.5px;color:var(--fs-sub)">' +
       (r.name ? fsEsc(r.name) : fsArUnregHtml()) + '</div></div>' +
     fsArPill(r.st) +
-    '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:18px;line-height:1">&times;</a></div>';
+    '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:22px;line-height:1;padding:0 6px">&times;</a></div>';
   /* PASS 155 [155-C] - three columns that wrap. At 430 they stack, at 820 the
      history drops to its own row, at 1280 all three fit. */
   h += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:11px">';
@@ -33284,6 +33360,8 @@ function fsArPanelHtml(rows, s) {
   h += '</div>';
   h += '</div>';
   h += '</div>';
+  /* [171-A] two more: the scrolling box and the backdrop the card now sits in. */
+  h += '</div></div>';
   return h;
 }
 /* PASS 147 [147-A] - W133-5. "why cant we just have it record the date it was
