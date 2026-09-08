@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.152 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.153 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.152 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.153 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -854,6 +854,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="detailsModal">
   <div class="modalbox">
     <h3 id="detailsTitle">Device details</h3>
+    <!-- PASS 168 [168-B] W152-A - "and what it is abbreviated for". This sheet
+         has said "MCP details" since Pass 26 and never once said what MCP stands
+         for. Same shape the register got in W149-B: the CODE stays the heading he
+         recognises, the words go underneath. Hidden when the label already is
+         the full name, and on a multi-selection. -->
+    <div id="detailsSub" style="display:none;margin:-8px 0 12px;font-size:12.5px;color:var(--fs-sub2)"></div>
     <!-- PASS 141 [141-A] W128-1 - the Size block used to sit HERE, above the
          tabs. He asked for it beside the photo; it is now the right-hand
          column of #photoWrap, further down this modal. -->
@@ -885,7 +891,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="dZlRow" style="display:flex;gap:8px;align-items:flex-end">
       <div style="flex:1;min-width:0"><label>Zone</label><input type="text" id="dZone" autocomplete="off" maxlength="5" style="width:100%"></div>
       <div style="flex:1;min-width:0"><label>Loop</label><input type="text" id="dLoop" autocomplete="off" maxlength="5" style="width:100%"></div>
-      <div style="flex:1;min-width:0"><label>Device number</label><input type="text" id="dDev" autocomplete="off" maxlength="5" style="width:100%"></div>
+      <div style="flex:1;min-width:0"><label id="dDevLab">Device number</label><input type="text" id="dDev" autocomplete="off" maxlength="5" style="width:100%"></div>
     </div>
     <!-- PASS 124 [W120-4] FS_DET_CIRCUIT - layout B, chosen off a render on
          30 Aug. The row above is deliberately untouched: option A needed the
@@ -1998,6 +2004,17 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div id="exportPanel">
   <img id="exportImg" alt="Exported plan">
   <div class="row" id="exportTestOpts" style="display:none;align-items:center;gap:8px;font-size:13px;color:#ccc"></div>
+  <!-- PASS 168 [168-C] - W152-B. Which levels go in the PDF. Its own flag,
+       lv.inExp, NOT the report's lv.inRep: ticking a level out of the annual
+       report must not silently drop it from the marked-up plans he hands a
+       client. Hidden when there is one level, and hidden while a region cut is
+       live, because "This part only" is a piece of the sheet in front of him
+       and cannot mean anything across levels. -->
+  <div id="fsExpScope" style="display:none;margin:0 10px 8px;padding:8px 10px;border:1px solid #3a3f46;border-radius:8px;background:#22262b">
+    <div style="font-size:11px;color:#8fa2ab;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Levels in the PDF</div>
+    <div id="fsExpScopeRows" style="display:flex;flex-wrap:wrap;gap:4px 14px"></div>
+    <div id="fsExpScopeNote" style="font-size:11.5px;color:#8fa2ab;margin-top:6px"></div>
+  </div>
   <div class="row">
     <button class="btn primary" id="exportPng">&#11015; Save as PNG</button>
     <button class="btn" id="exportPdf">&#128196; Save as PDF</button>
@@ -2106,8 +2123,18 @@ const TYPES = [
      If he says otherwise it is a one-word change. */
   { id:"sfip",     tab:"fire", label:"SFIP",         glyph:"widetext", text:"SFIP",  color:"#c40000", name:"Sub Fire Indicator Panel", full:"SFIP — Sub Fire Indicator Panel, a fire panel fed from the main FIP" },
   { id:"mimic",    tab:"fire", label:"Mimic",        glyph:"widetext", text:"Mimic", color:"#c40000", name:"Mimic Panel", full:"Mimic Panel — repeats the main panel's indications at another entrance" },
-  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", name:"Manual Call Point", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
-  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
+  /* PASS 168 [168-A] W148-F - HIS RULING, AGAINST THE RESEARCH, AND IT STANDS.
+     "MCP is definitely a module from the FIP not a device so change that."
+     The catalogues describe what a supplier SELLS; he is describing how it is
+     wired and addressed from the FIP. `numLbl` reaches a <label> and a row
+     heading and NOTHING ELSE - `label` still feeds fsAssetKey. */
+  { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", name:"Manual Call Point", numLbl:"Module number", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
+  /* PASS 168 [168-B] W152-A - a WIP is not on the detection loop at all. It is
+     EWIS, AS 2220 / AS 1670.4, and its number is a POINT on the intercom -
+     which is why Vigilant sell the same article as a "Warden Intercom POINT".
+     `name` keeps the commoner expansion (Honeywell, Notifier); the walk offers
+     him the other one. */
+  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", numLbl:"Point number", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
   { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00", name:"Alarm Sounder" },
   { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00", name:"Alarm Horn" },
   { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200", name:"240V Smoke Alarm" },
@@ -8996,8 +9023,18 @@ function syncLevel() {
      declining here loses nothing. */
   if (levelLoading) return;
   if (!levels.length) levels.push({ name:"Level 1" });
-  levels[curLevel] = { name:levels[curLevel] ? levels[curLevel].name : "Level " + (curLevel + 1),
-                       image:imgDataUrl, pageBaseH:pageBaseH, objects:objects, scaleMpp:curScaleMpp };
+  /* PASS 168 [168-D] W152-C - MERGE, DO NOT REPLACE, and this is a data-loss
+     fix not a tidy. This line used to build a FRESH object with five keys, so
+     every other field on the level he was standing on was destroyed on every
+     level switch, every report open and every autosave. lv.inRep - W148-C's
+     report scope, shipped in Pass 164 - was one of them: untick the level you
+     are ON and the tick silently comes back. Measured on the V0.151 bytes
+     before this was written. Object.assign keeps whatever a later pass adds,
+     so the next flag cannot be eaten the same way. */
+  const prev = levels[curLevel] || {};
+  levels[curLevel] = Object.assign({}, prev, {
+    name: prev.name || ("Level " + (curLevel + 1)),
+    image: imgDataUrl, pageBaseH: pageBaseH, objects: objects, scaleMpp: curScaleMpp });
 }
 function refreshLevelSel() {
   const sel = document.getElementById("levelSel");
@@ -12147,6 +12184,19 @@ function openDetails() {
   document.getElementById("detailsTitle").textContent = multi
     ? syms.length + " devices — filled fields apply to all"
     : (t ? t.label : "Device") + " details";
+  /* PASS 168 [168-A/B] - the expansion, and the right word for the number.
+     Both read off TYPE_MAP so the Details sheet and the register panel cannot
+     disagree about what a thing is called. */
+  (function () {
+    const sub = document.getElementById("detailsSub");
+    if (sub) {
+      const nm = (!multi && t && t.name && t.name !== t.label) ? t.name : "";
+      sub.textContent = nm;
+      sub.style.display = nm ? "" : "none";
+    }
+    const dl = document.getElementById("dDevLab");
+    if (dl) dl.textContent = multi ? "Device number" : fsNumLabel(syms[0]);
+  })();
   /* PASS 24 item 5 — Brand/Model/Serial join the plain-text fields, so they
      inherit multi-select's "leave blank to keep" semantics for free rather
      than growing a second, subtly different rule. */
@@ -13315,37 +13365,54 @@ function renderExportCanvasInner() {
 }
 
 /* ---- minimal single-page PDF wrapping a JPEG ---- */
-function canvasToPdfBlob(canvas) {
-  /* the single flatten point for export: a PDF page is opaque, and a raw
-     JPEG encode of a transparent notch would print it BLACK */
-  const jpegB64 = fsJpegFlat(canvas, 0.92).split(",")[1];
-  const bin = atob(jpegB64);
-  const jpeg = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) jpeg[i] = bin.charCodeAt(i);
-  const W = canvas.width, H = canvas.height;
+/* PASS 168 [168-C] W152-B - ONE WRITER, N PAGES.
+   canvasToPdfBlob KEEPS ITS SIGNATURE and becomes a one-element wrapper: the
+   site report, the planner calendar and the single-level export all call it and
+   none of them change. The object numbering is the whole risk here, so it is
+   written out rather than inferred - catalog 1, pages 2, then per page i
+   (0-based) page 3+3i, image 4+3i, content 5+3i, and the xref counts 3+3N. */
+function canvasesToPdfBlob(canvases) {
+  const list = (canvases || []).filter(Boolean);
+  if (!list.length) return null;
   const enc = new TextEncoder();
   const parts = [];
   const offsets = [];
   let pos = 0;
   function push(x) { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); pos += b.length; }
   function beginObj() { offsets.push(pos); }
+  /* the single flatten point for export: a PDF page is opaque, and a raw
+     JPEG encode of a transparent notch would print it BLACK */
+  const pages = list.map(function (cv) {
+    const b64 = fsJpegFlat(cv, 0.92).split(",")[1];
+    const bin = atob(b64);
+    const jpeg = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) jpeg[i] = bin.charCodeAt(i);
+    return { jpeg: jpeg, W: cv.width, H: cv.height };
+  });
+  const N = pages.length;
   push("%PDF-1.4\n");
   beginObj(); push("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
-  beginObj(); push("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n");
-  beginObj(); push("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 " + W + " " + H + "] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >> endobj\n");
-  beginObj();
-  push("4 0 obj << /Type /XObject /Subtype /Image /Width " + W + " /Height " + H + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.length + " >> stream\n");
-  push(jpeg);
-  push("\nendstream endobj\n");
-  const content = "q " + W + " 0 0 " + H + " 0 0 cm /Im1 Do Q";
-  beginObj(); push("5 0 obj << /Length " + content.length + " >> stream\n" + content + "\nendstream endobj\n");
+  const kids = pages.map(function (_p, i) { return (3 + 3 * i) + " 0 R"; }).join(" ");
+  beginObj(); push("2 0 obj << /Type /Pages /Kids [" + kids + "] /Count " + N + " >> endobj\n");
+  pages.forEach(function (p, i) {
+    const pg = 3 + 3 * i, im = 4 + 3 * i, ct = 5 + 3 * i;
+    beginObj(); push(pg + " 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 " + p.W + " " + p.H + "] /Resources << /XObject << /Im1 " + im + " 0 R >> >> /Contents " + ct + " 0 R >> endobj\n");
+    beginObj();
+    push(im + " 0 obj << /Type /XObject /Subtype /Image /Width " + p.W + " /Height " + p.H + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + p.jpeg.length + " >> stream\n");
+    push(p.jpeg);
+    push("\nendstream endobj\n");
+    const content = "q " + p.W + " 0 0 " + p.H + " 0 0 cm /Im1 Do Q";
+    beginObj(); push(ct + " 0 obj << /Length " + content.length + " >> stream\n" + content + "\nendstream endobj\n");
+  });
+  const size = 3 + 3 * N;
   const xrefPos = pos;
-  let xref = "xref\n0 6\n0000000000 65535 f \n";
-  offsets.forEach(o => { xref += String(o).padStart(10, "0") + " 00000 n \n"; });
+  let xref = "xref\n0 " + size + "\n0000000000 65535 f \n";
+  offsets.forEach(function (o) { xref += String(o).padStart(10, "0") + " 00000 n \n"; });
   push(xref);
-  push("trailer << /Size 6 /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF");
+  push("trailer << /Size " + size + " /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF");
   return new Blob(parts, { type: "application/pdf" });
 }
+function canvasToPdfBlob(canvas) { return canvasesToPdfBlob([canvas]); }
 
 const exportPanel = document.getElementById("exportPanel");
 const exportImg = document.getElementById("exportImg");
@@ -13407,23 +13474,134 @@ function refreshExportPreview() {
   out.toBlob(blob => { lastExportBlob = blob; }, "image/png");
 }
 
+/* ===================== PASS 168 [168-C] - W152-B ==========================
+   "I suppose having the extra option for export can't hurt? So sure."
+
+   SWITCHLEVEL IS DELIBERATELY NOT USED. It clears the selection, throws away
+   the undo stacks, refits the view and schedules an autosave - every one of
+   which is right for a person changing floors and vandalism inside an export.
+   The pages are built by swapping img/objects/pageBaseH around the SAME
+   renderExportWithCfg the single-level export already uses, and putting them
+   back in a finally. syncLevel() runs first so the level he is standing on has
+   its objects written back before they are read out again. */
+function fsExpIn(lv) { return !lv || lv.inExp !== false; }   /* absent = included */
+function fsExpLevels() { return (levels || []).filter(fsExpIn); }
+function fsExpLoadImg(dataUrl) {
+  return new Promise(function (res) {
+    if (!dataUrl) { res(null); return; }
+    const im = new Image();
+    im.onload = function () { res(im); };
+    im.onerror = function () { res(null); };   /* a level that will not decode is SKIPPED, not fatal */
+    im.src = dataUrl;
+  });
+}
+/* THE LEVEL NAME IS STAMPED ONLY WHEN THERE IS MORE THAN ONE PAGE. A single
+   level export is byte-for-byte what it was before this pass - the one thing a
+   client-facing file must not change without him asking. */
+function fsExpStamp(cv, name) {
+  const band = Math.max(24, Math.round(cv.width * 0.024));
+  const out = document.createElement("canvas");
+  out.width = cv.width; out.height = cv.height + band;
+  const c = out.getContext("2d");
+  c.fillStyle = "#ffffff"; c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(cv, 0, band);
+  c.fillStyle = "#111111";
+  c.font = "bold " + Math.round(band * 0.62) + "px system-ui, sans-serif";
+  c.textAlign = "left"; c.textBaseline = "middle";
+  c.fillText(String(name || ""), Math.round(band * 0.5), Math.round(band / 2));
+  return out;
+}
+async function fsExpCanvases() {
+  syncLevel();
+  const out = [];
+  const sImg = img, sObjs = objects, sPB = pageBaseH;
+  try {
+    for (let i = 0; i < levels.length; i++) {
+      const lv = levels[i];
+      if (!fsExpIn(lv)) continue;
+      const im = (i === curLevel && sImg) ? sImg : await fsExpLoadImg(lv.image);
+      if (!im) continue;
+      img = im;
+      objects = lv.objects || [];
+      pageBaseH = lv.pageBaseH || im.naturalHeight;
+      out.push({ name: lv.name || ("Level " + (i + 1)), canvas: renderExportWithCfg() });
+    }
+  } finally {
+    img = sImg; objects = sObjs; pageBaseH = sPB;
+  }
+  return out;
+}
+function fsExpScopeRender() {
+  const wrap = document.getElementById("fsExpScope");
+  const rows = document.getElementById("fsExpScopeRows");
+  const note = document.getElementById("fsExpScopeNote");
+  const pdf = document.getElementById("exportPdf");
+  if (!wrap || !rows) return;
+  const multi = (levels || []).length > 1;
+  const cut = !!lastExportCut;
+  wrap.style.display = (multi && !cut) ? "" : "none";
+  rows.innerHTML = "";
+  if (multi && !cut) {
+    levels.forEach(function (lv, i) {
+      const lab = document.createElement("label");
+      lab.className = "fsExpLv";
+      lab.style.cssText = "display:flex;align-items:center;gap:7px;min-height:34px;font-size:13px;cursor:pointer";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "fsExpLvBox";
+      cb.dataset.i = String(i);
+      cb.checked = fsExpIn(lv);
+      cb.style.cssText = "width:20px;height:20px";
+      cb.onchange = function () {
+        lv.inExp = cb.checked;      /* on the LEVEL, so it saves with the plan */
+        scheduleAutosave();
+        fsExpScopeRender();
+      };
+      const nm = document.createElement("span");
+      nm.textContent = lv.name || ("Level " + (i + 1));
+      lab.appendChild(cb); lab.appendChild(nm);
+      rows.appendChild(lab);
+    });
+  }
+  const n = (multi && !cut) ? fsExpLevels().length : 1;
+  if (note) {
+    note.textContent = n > 1
+      ? "The PDF gets one page per ticked level, in this order, each headed with the level name. Save as PNG is one image \u2014 it saves the level you are looking at."
+      : (multi && !cut ? "Nothing ticked \u2014 the PDF will be the level you are looking at." : "");
+  }
+  if (pdf) {
+    pdf.textContent = n > 1 ? "\u{1F4C4} Save as PDF (" + n + " levels)" : "\u{1F4C4} Save as PDF";
+  }
+}
 document.getElementById("btnExport").onclick = () => {
   if (!img) { alert("Load a block plan first."); return; }
   lastExportCut = null;   /* [161-C] a new export starts on the whole sheet */
   buildExportTestOpts();
   refreshExportPreview();
+  fsExpScopeRender();
   exportPanel.classList.add("show");
 };
 document.getElementById("exportPng").onclick = () => {
   if (!lastExportBlob) return;
   deliverFile(lastExportBlob, exportName("png"), "image/png");
 };
-document.getElementById("exportPdf").onclick = () => {
+document.getElementById("exportPdf").onclick = async () => {
   if (!img) return;
   /* [161-C] the PDF has to be the picture he is looking at. Re-rendering here
-     would quietly hand him the whole sheet back after he chose a part of it. */
-  const out = lastExportCut || renderExportWithCfg();
-  deliverFile(canvasToPdfBlob(out), exportName("pdf"), "application/pdf");
+     would quietly hand him the whole sheet back after he chose a part of it.
+     PASS 168 [168-C]: a region cut still wins and is still ONE page - it is a
+     piece of the sheet in front of him and cannot mean anything across levels. */
+  if (lastExportCut) {
+    deliverFile(canvasToPdfBlob(lastExportCut), exportName("pdf"), "application/pdf");
+    return;
+  }
+  const picked = ((levels || []).length > 1) ? await fsExpCanvases() : [];
+  if (picked.length > 1) {
+    const pages = picked.map(function (p) { return fsExpStamp(p.canvas, p.name); });
+    deliverFile(canvasesToPdfBlob(pages), exportName("pdf"), "application/pdf");
+    return;
+  }
+  deliverFile(canvasToPdfBlob(renderExportWithCfg()), exportName("pdf"), "application/pdf");
 };
 /* PASS 161 [161-C] - fsRegionPick's EIGHTH door and the first that is not an
    import. On the rendered export canvas every symbol is already painted into
@@ -13438,8 +13616,9 @@ document.getElementById("exportRegion").onclick = async () => {
   lastExportBlob = null;
   lastExportCut = cut;
   cut.toBlob(blob => { lastExportBlob = blob; }, "image/png");
+  fsExpScopeRender();   /* [168-C] a live cut hides the level list and says one page */
 };
-document.getElementById("exportTrim").onchange = () => { lastExportCut = null; refreshExportPreview(); };
+document.getElementById("exportTrim").onchange = () => { lastExportCut = null; refreshExportPreview(); fsExpScopeRender(); };
 document.getElementById("exportClose").onclick = () => exportPanel.classList.remove("show");
 
 /* ================= Boot ================= */
@@ -28564,7 +28743,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v156";
+const FS_BUILD = "aa-v157";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -32530,6 +32709,13 @@ function fsArStatusOf(o, level, site) {
 }
 /* PASS 149 [149-F] - one source for the badge. TYPE_MAP.text and .color are
    what draw() uses on the plan. */
+/* PASS 168 [168-A/B] - ONE DEFINITION OF WHAT THE NUMBER IS CALLED, because the
+   Details sheet and the register panel both show it and they must not drift.
+   Absent = "Device number", which is what every other type is. */
+function fsNumLabel(o) {
+  const t = (typeof TYPE_MAP !== "undefined" && o && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
+  return (t && t.numLbl) || "Device number";
+}
 function fsArIcon(o) {
   const t = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
   const col = (t && t.color) || "#6b7580";
@@ -32920,7 +33106,7 @@ function fsArPanelHtml(rows, s) {
   h += row("Location", fsEsc(r.level || "–"));
   h += row("Zone", fsEsc(r.o.zone || "–"));
   h += row("Loop", fsEsc(r.o.loop || "–"));
-  h += row("Device number", fsEsc(r.o.dev || "–"));
+  h += row(fsNumLabel(r.o), fsEsc(r.o.dev || "–"));
   /* Only ONE #fsArShowWs is ever emitted: it rides with the photo when there
      is one, and sits under the details when there is not.
      PASS 165 [165-D] - W149-E. THE r.o.qid GATE IS GONE. It was there because
