@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.153 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.154 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.153 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.154 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2134,7 +2134,7 @@ const TYPES = [
      which is why Vigilant sell the same article as a "Warden Intercom POINT".
      `name` keeps the commoner expansion (Honeywell, Notifier); the walk offers
      him the other one. */
-  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", numLbl:"Point number", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
+  { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", numLbl:"Point number", full:"WIP — a Warden Intercom Phone that runs off an EWIS, the handset wardens use during an evacuation" },
   { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00", name:"Alarm Sounder" },
   { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00", name:"Alarm Horn" },
   { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200", name:"240V Smoke Alarm" },
@@ -2150,7 +2150,18 @@ const TYPES = [
      pink by default, and sound-wave arcs either side because a VAD sounds as
      well as flashes. Arc style only from refs/pass22-soundwave-ref-fire-bell
      .jpg — the bell symbol itself is not copied. */
-  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", name:"Visual Alarm Device", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
+  /* PASS 169 [169-A] W148-A - "VAD Detectors, should be default smoke and count
+     towards any counts as a smoke detector", and RULED 7 Sep: "just duplicate
+     the existing one and make the default colour a slightly darker green than
+     the normal thermal detector... the Thermal counts towards the thermal counts
+     and smoke towards the smoke counts."
+     `countsAs` IS READ AT COUNT TIME AND NOTHING IS STORED. No object is
+     rewritten, no key moves, no migration - a reversal is a one-line revert.
+     It reaches zoneCounts and the report Totals ONLY. Not the legend (a KEY to
+     the symbols on the drawing), not the palette badge (how many of THAT tile),
+     not the register (what the asset IS). See claude/W148-A-I-SCOPE.md. */
+  { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", name:"Visual Alarm Device", countsAs:"smoke", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
+  { id:"vadt",     tab:"fire", label:"VAD Thermal",  glyph:"vad",      text:"V",     color:"#12662d", name:"Visual Alarm Device — Thermal", countsAs:"thermal", full:"VAD Thermal — a Visual Alarm Device on a thermal detector, so it counts as a thermal rather than a smoke" },
   { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000", name:"Fire Extinguisher" },
   /* PASS 108 [W107-4] - Reece sent a red FIRE BLANKET sign
      (refs/pass108-ref-fire-blanket-sign.png) and said "just take away the white
@@ -2166,6 +2177,15 @@ const TYPES = [
   { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f", name:"Exit Sign (Right Arrow)" },
   { id:"bglass",   tab:"exit", label:"Break Glass",  glyph:"bglass",   text:"",      color:"#1b8a3f", name:"Break Glass Unit" },
   { id:"spitfire", tab:"exit", label:"Spitfire",     glyph:"spitfire", text:"",      color:"#1b8a3f", name:"Spitfire Emergency Light", full:"Spitfire — the trade's name for the round surface-mounted emergency light" },
+  /* PASS 169 [169-B] W148-I - "same as a spitfire but a bit of a white square
+     around it with a black outline of the square", and RULED: "Spitfire counts
+     normally on spitfire totals but there can be a note where it says how many
+     of each." So it is a SUB-COUNT, not a second total - which is a different
+     shape from W148-A's answer even though the two arrived together.
+     THE ROUNDEL IS UNTOUCHED. It is the same fitting; `sq` draws the square
+     BEHIND it and symDims widens to match, so selection, hit-testing and the
+     export bounds all agree with what is drawn. */
+  { id:"spitsm",   tab:"exit", label:"SM Spitfire",  glyph:"spitfire", text:"",      color:"#1b8a3f", sq:true, name:"Surface Mount Spitfire", countsAs:"spitfire", full:"SM Spitfire — a surface-mounted spitfire. It counts in the spitfire total, with a note saying how many of each" },
   { id:"db",       tab:"elec", label:"DB Board",     glyph:"db",       text:"",      color:"#111111", name:"Distribution Board" },
   { id:"batten",   tab:"elec", label:"Batten",       glyph:"batten",  text:"", color:"#111111", name:"Batten Light" },
   { id:"embatten", tab:"elec", label:"Em. Batten",   glyph:"batten",  text:"", color:"#111111", em:true, name:"Emergency Batten Light" },
@@ -2548,6 +2568,7 @@ const FS_SYM_MM = {
   io:      { mm: null, mult: 1.0,  draw: "symbol", src: null },
   hreel:   { mm: null, mult: 1.35, draw: "symbol", src: null },
   vad:     { mm: null, mult: 1.9,  draw: "symbol", src: null },
+  vadt:    { mm: null, mult: 1.9,  draw: "symbol", src: null },   /* [169-A] same fitting, same size */
   blanket: { mm: null, mult: 0.95, draw: "symbol", src: null },
 
   /* --- Electrical: no standard plate size exists, so these stay blank ---- */
@@ -2576,6 +2597,7 @@ const FS_SYM_MM = {
   exitr:    { mm: null, mult: 2.4,  draw: "symbol", src: null },
   bglass:   { mm: null, mult: 1.0,  draw: "symbol", src: null },
   spitfire: { mm: null, mult: 1.0,  draw: "symbol", src: null },
+  spitsm:   { mm: null, mult: 1.15, draw: "symbol", src: null },   /* [169-B] the square makes it wider */
   campin:   { mm: null, mult: 1.15, draw: "symbol", src: null }
 };
 /* ================= PASS 140 [140-A] ================================
@@ -2956,6 +2978,10 @@ function symDims(o) {   // image-space width/height (before rotation)
   else if (t.glyph === "msensor") { w = s * 1.5; h = s * 1.5; }
   else if (t.glyph === "hreel") { w = s * 1.35; h = s * 1.2; }
   else if (t.glyph === "vad") { w = s * 1.9; h = s; }
+  /* [169-B] the surface-mount square is drawn BEHIND the roundel and is
+     bigger than it, so the bounds have to know about it or the selection
+     box, the hit test and the export crop all disagree with the picture. */
+  else if (t.glyph === "spitfire" && t.sq) { w = s * 1.24; h = s * 1.24; }
   else if (t.glyph === "exting") { w = s * 0.98; h = s * 1.25; }
   else if (t.glyph === "blanket") { w = s * 0.95; h = s * 0.95; }   /* PASS 108 [W107-4] */
   const rr = ((o.rot || 0) % 360) * Math.PI / 180;
@@ -3093,6 +3119,15 @@ function drawSym(c, o, scale) {
   } else if (t.glyph === "spitfire") {
     /* quartered circle, opposing quadrants filled (survey-target style emergency fitting) */
     const r = s / 2;
+    /* PASS 169 [169-B] W148-I - "a bit of a white square around it with a black
+       outline of the square". Drawn FIRST so the roundel sits on top of it and
+       is pixel-for-pixel the spitfire that already ships. */
+    if (t.sq) {
+      const q = s * 1.24;
+      c.fillStyle = "#ffffff"; c.strokeStyle = "#111111";
+      c.lineWidth = Math.max(1, s * 0.07);
+      c.beginPath(); c.rect(-q / 2, -q / 2, q, q); c.fill(); c.stroke();
+    }
     c.fillStyle = "#ffffff"; c.strokeStyle = col;
     c.lineWidth = Math.max(1, s * 0.08);
     c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
@@ -12872,11 +12907,13 @@ function reportLines() {
   lvList.forEach(lv => {
     const objs = lv.objects || [];
     lines.push(["h2", multiLevel ? ("Devices by zone — " + lv.name) : "Devices by zone"]);
-    const zones = zoneCounts(objs.filter(o => !(o.kind === "sym" && o.type === "campin")));
+    const noPins = objs.filter(o => !(o.kind === "sym" && o.type === "campin"));
+    const zones = zoneCounts(noPins);
+    const zp = zoneParts(noPins);   /* [169-C] what counted into each bucket */
     const zoneKeys = Object.keys(zones).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
     if (!zoneKeys.length) lines.push(["t", "No devices"]);
     zoneKeys.forEach(z => {
-      const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+      const parts = Object.entries(zones[z]).map(([ty, n]) => fsCountLine(ty, n, zp[z]));
       const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
       lines.push(["b", "Zone " + z + " (" + total + ")"]);
       lines.push(["t", parts.join(", ")]);
@@ -12887,12 +12924,16 @@ function reportLines() {
   all.forEach(({ o }) => {
     if (o.kind !== "sym") return;
     if (o.type === "campin") { pins++; return; }   // photo pins aren't devices
-    totals[o.type] = (totals[o.type] || 0) + 1;
+    /* [169-C] "count towards any counts as a smoke detector" - the BUCKET.
+       The register and the legend still say what each thing actually is. */
+    totals[fsCountAs(o.type)] = (totals[fsCountAs(o.type)] || 0) + 1;
     grand++;
   });
+  const totParts = fsCountParts(all.map(function (e) { return e.o; })
+                                   .filter(function (o) { return o && o.type !== "campin"; }));
   lines.push(["h2", !multiLevel ? "Totals"
                    : (repOut.length ? "Totals (levels included above)" : "Totals (all levels)")]);
-  Object.entries(totals).forEach(([ty, n]) => lines.push(["t", (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n]));
+  Object.entries(totals).forEach(([ty, n]) => lines.push(["t", fsCountLine(ty, n, totParts)]));
   lines.push(["b", "All devices: " + grand]);
   if (pins) lines.push(["t", "Photo pins × " + pins]);
   const failed = all.filter(({ o }) => o.kind === "sym" && o.failed);
@@ -13019,15 +13060,63 @@ document.getElementById("reportPdf").onclick = () => {
 };
 
 /* ================= Zones panel ================= */
+/* ===================== PASS 169 [169-C] - THE COUNTING MODEL =================
+   ONE PLACE ANSWERS "what does this count as", and only the two sites that
+   TALLY read it. claude/W148-A-I-SCOPE.md has the table of all five sites that
+   count by type and why three of them are deliberately left literal. */
+function fsCountAs(type) {
+  const t = (typeof TYPE_MAP !== "undefined") ? TYPE_MAP[type] : null;
+  return (t && t.countsAs) || type;
+}
+/* WHAT COUNTED INTO EACH BUCKET, so a total can say what is inside it.
+   "Spitfire counts normally on spitfire totals but there can be a note where it
+   says how many of each." Only members whose own type differs from the bucket
+   appear - a plain smoke detector is not "a member of smoke". */
+function fsCountParts(list) {
+  const parts = {};
+  (list || []).forEach(function (o) {
+    if (!o || o.kind !== "sym") return;
+    const ct = fsCountAs(o.type);
+    if (ct === o.type) return;
+    parts[ct] = parts[ct] || {};
+    parts[ct][o.type] = (parts[ct][o.type] || 0) + 1;
+  });
+  return parts;
+}
+function fsCountLine(ty, n, parts) {
+  const lab = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[ty]) ? TYPE_MAP[ty].label : ty;
+  const p = parts && parts[ty];
+  if (!p) return lab + " × " + n;
+  const bits = Object.keys(p).map(function (k) {
+    return p[k] + " " + ((TYPE_MAP[k] && TYPE_MAP[k].label) || k);
+  });
+  return lab + " × " + n + " (" + bits.join(", ") + ")";
+}
 function zoneCounts(objs) {
   const zones = {};
   (objs || objects).forEach(o => {
     if (o.kind !== "sym") return;
     const z = (o.zone || "").trim() || "(no zone)";
     zones[z] = zones[z] || {};
-    zones[z][o.type] = (zones[z][o.type] || 0) + 1;
+    /* [169-C] the BUCKET, not the drawn type. A VAD lands in smoke. */
+    const ct = fsCountAs(o.type);
+    zones[z][ct] = (zones[z][ct] || 0) + 1;
   });
   return zones;
+}
+/* the same shape as zoneCounts, one level deeper: zone -> bucket -> member */
+function zoneParts(objs) {
+  const out = {};
+  (objs || objects).forEach(function (o) {
+    if (o.kind !== "sym") return;
+    const ct = fsCountAs(o.type);
+    if (ct === o.type) return;
+    const z = (o.zone || "").trim() || "(no zone)";
+    out[z] = out[z] || {};
+    out[z][ct] = out[z][ct] || {};
+    out[z][ct][o.type] = (out[z][ct][o.type] || 0) + 1;
+  });
+  return out;
 }
 /* PASS 167 [167-D] - W151-E. TEST COUNTS ON THE ZONE COUNTS TOOL.
    "have a few more columns, and have the year and how many were tested that
@@ -13069,8 +13158,9 @@ document.getElementById("btnZones").onclick = () => {
   } else {
     html = "<table><tr><th>Zone</th><th>Devices</th><th>Total</th><th>Tested " + yr + "</th></tr>";
     let tAll = 0, dAll = 0;
+    const zp = zoneParts(null);   /* [169-C] what counted into each bucket */
     keys.forEach(z => {
-      const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+      const parts = Object.entries(zones[z]).map(([ty, n]) => fsCountLine(ty, n, zp[z]));
       const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
       const tz = tested[z] || { n:0, done:0 };
       tAll += tz.n; dAll += tz.done;
@@ -13351,9 +13441,10 @@ function renderExportCanvasInner() {
     }
   }
 
+  const zpExp = zoneParts(null);   /* [169-C] what counted into each bucket */
   if (!testExport) zoneKeys.forEach((z, i) => {
     const zy = out.height + 4 + lh + 8 + zoneRowH * i + zoneRowH / 2;
-    const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
+    const parts = Object.entries(zones[z]).map(([ty, n]) => fsCountLine(ty, n, zpExp[z]));
     const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
     sc.fillStyle = "#222";
     sc.font = "bold " + Math.round(zoneRowH * 0.5) + "px system-ui, sans-serif";
@@ -28743,7 +28834,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v157";
+const FS_BUILD = "aa-v158";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
