@@ -456,7 +456,18 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .fsArSheet { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.55);
                display:flex; align-items:center; justify-content:center;
                padding:16px; overscroll-behavior:contain; }
-  .fsArSheetBox { width:100%; max-width:720px; max-height:86vh; overflow-y:auto;
+  /* FS_SHEET800 - PASS 174 [174-A], W159-A. "Could be a bit wider and fair bit
+     taller." 720 -> 800, AND NOT A PIXEL FURTHER, for a reason the geometry
+     fixes rather than taste: the card's three columns carry 800px of flex basis
+     (240 photo + 300 rows + 260 history). At a 764px content box the history
+     column WRAPS TO ITS OWN ROW, and that wrap is what makes the card tall.
+     Widen past about 836 and all three sit side by side and THE CARD GETS
+     SHORTER - the opposite of the same sentence's second half.
+     max-height is UNCHANGED at 86vh because it was never the constraint:
+     measured at 820x1100 the card was 384px against a 946px cap, using 41% of
+     the height it already had. Raising the cap would have changed nothing he
+     could see. The height comes from content - see the history slice. */
+  .fsArSheetBox { width:100%; max-width:800px; max-height:86vh; overflow-y:auto;
                   overscroll-behavior:contain; }
   @media (max-width:720px) {
     .fsArSheet { padding:0; align-items:stretch; justify-content:stretch; }
@@ -621,7 +632,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.158 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.159 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -751,7 +762,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.158 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.159 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -10925,7 +10936,21 @@ cv.addEventListener("pointermove", e => {
         color:penColor, alpha:0.14 };
     } else {
       let ep = ip;
-      const straight = (activeTool === "line" || activeTool === "arrow" || activeTool === "brk");
+      /* FS_VESDAR_STRAIGHT - PASS 174 [174-C], R-159. VESDAR BELONGS IN THIS
+         LIST AND WAS MISSING FROM IT. fsWsSnapIsLine() - what you may snap TO -
+         already reads line/arrow/brk/VESDAR, and a vesdar is a two-point
+         straight shape with x1,y1,x2,y2 differing from a line only in colour
+         and a minimum width. The consequence of the mismatch was backwards: you
+         could snap a line to a VESDA run but not a VESDA run to anything, for
+         the one object type that is literally a pipe joining things end to end.
+         It cost that tool Shift's 45 and the angle lock as well, from this same
+         list. MEASURED before and after - fsWsSnapHit was null on a vesdar
+         where line, arrow and brk all reported {600,300,"end"}.
+         RECT AND CIRCLE ARE NOT ADDED. Whether a rectangle's corners should
+         snap is a FEATURE and his call (W159-C); this is one tool already
+         treated as a line everywhere else. */
+      const straight = (activeTool === "line" || activeTool === "arrow" ||
+                        activeTool === "brk" || activeTool === "vesdar");
       if (fsShift(e) && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
       else if (fsWsAngle && straight) ep = fsWsAngleLock(shapeStart.x, shapeStart.y, ip.x, ip.y);
       /* [86-3] AN OBJECT SNAP BEATS THE ANGLE LOCK - applied last, and tested
@@ -29139,7 +29164,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v162";
+const FS_BUILD = "aa-v163";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33472,7 +33497,12 @@ function fsArPanelHtml(rows, s) {
   if (!fsArSel) return "";
   const r = rows.filter(function (x) { return x.key === fsArSel; })[0];
   if (!r) return "";
-  const ev = (typeof fsAssetHistory === "function") ? fsAssetHistory(r.o, r.level, s).slice(0, 3) : [];
+  /* [174-A] W159-A, the "fair bit taller" half. THREE -> SIX. The card is
+     content-sized, so the honest way to make it taller is to put something in
+     it: a min-height would have been dead space in a bigger box, and enlarging
+     the photo would pre-judge W149-C, which is HIS open item saying the photo is
+     already too dominant. Six still fits inside 86vh at 820 with room over. */
+  const ev = (typeof fsAssetHistory === "function") ? fsAssetHistory(r.o, r.level, s).slice(0, 6) : [];
   const openDef = (s && s.defects || []).filter(function (d) {
     return d && !d.closed && typeof fsAssetMatchDef === "function" && fsAssetMatchDef(d, r.o, r.level); }).length;
   /* PASS 155 [155-C] - 116px, not 44%. The panel is full width now and a
@@ -33517,7 +33547,11 @@ function fsArPanelHtml(rows, s) {
       '</div>';
   }
   h += '<div style="flex:1 1 300px;min-width:0">';
-  h += row("Type", fsEsc(r.type));
+  /* [174-B] W159-B - HIS RULING off the walk, [ Leave it ] vs [ Full name in
+     both ], and he took the second. fsArTypeName reads TYPE_MAP[t].name.
+     NEVER .label - fsAssetKey is built from label and every defect he has ever
+     raised stores one. */
+  h += row("Type", fsEsc(fsArTypeName(r.o)));
   h += row("Status", fsArPill(r.st));
   h += row("Next service", fsEsc(fsArDate(r.due)) +
     (r.due ? "" : ' <span style="font-size:11.5px;color:var(--fs-sub2)">&mdash; no test date stored yet</span>'));
