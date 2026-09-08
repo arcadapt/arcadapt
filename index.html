@@ -632,7 +632,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.159 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.160 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -762,7 +762,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.159 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.160 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25850,7 +25850,7 @@ function fsRenderTab() {
           '<span style="font-size:11.5px;font-weight:700;color:' + nl.col + '">' + fsEsc(nl.txt) + '</span>' +
           (d.notify && d.notify.writtenAt ? '' : '<a class="fsDefNotify" data-id="' + fsEsc(d.id) + '" style="color:var(--fs-accent);cursor:pointer;font-size:11.5px;font-weight:700">Mark notified in writing</a>') +
           '</div>' : '') +
-        (d.qid ? '<div style="margin-top:5px"><a class="fsDefWs" data-id="' + fsEsc(d.id) + '" style="color:var(--fs-accent);cursor:pointer;font-size:12px;font-weight:700">&#128205; Show me this on the plan</a></div>' : '') +
+        (d.qid ? '<div style="margin-top:5px"><a class="fsDefWs fsTap44" data-id="' + fsEsc(d.id) + '" style="color:var(--fs-accent);cursor:pointer;font-size:12px;font-weight:700">&#128205; Show me this on the plan</a></div>' : '') +
         '</div>' +
         (fsCan("field") ? '<div style="display:flex;flex-direction:column;gap:4px;flex:none">' +
         '<button class="fsbtn fsDefFix" data-id="' + fsEsc(d.id) + '" style="color:#1b8a3f;font-weight:700">&#10003; Rectified</button>' +
@@ -29164,7 +29164,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v163";
+const FS_BUILD = "aa-v164";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33382,6 +33382,9 @@ function fsAssetRegisterHtml(s) {
     return h;
   }
 
+  /* [175-B] the same pager, above the table as well - so "next page" is where
+     he already is rather than three screens down. */
+  h += fsArPagerHtml(from, fsArPer, rows.length, fsArPage, pages, "top");
   h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<thead><tr style="text-align:left;color:var(--fs-sub);font-size:11.5px">' +
     '<th style="padding:7px 8px;font-weight:600">Asset</th>' +
@@ -33428,16 +33431,11 @@ function fsAssetRegisterHtml(s) {
       '</tr>';
   });
   h += '</tbody></table></div>';
-  if (pages > 1) {
-    h += '<div style="display:flex;gap:8px;align-items:center;margin-top:11px;font-size:12.5px;color:var(--fs-sub)">' +
-      /* [173-B] R-158 - 29x26, and it is how he moves through the register
-         W149-F just made the way he browses assets. It should not be the
-         smallest control on the page. */
-      '<button class="fsbtn fsTap44 fsArPrev"' + (fsArPage <= 1 ? ' disabled' : '') + ' style="padding:4px 11px">&#8249;</button>' +
-      '<span>' + (from + 1) + '–' + Math.min(from + fsArPer, rows.length) + ' of ' + rows.length + '</span>' +
-      '<button class="fsbtn fsTap44 fsArNext"' + (fsArPage >= pages ? ' disabled' : '') + ' style="padding:4px 11px">&#8250;</button>' +
-      '</div>';
-  }
+  /* [175-B] and the one that was always here, from the same renderer.
+     [173-B] R-158 sized these to 44 - the pager is how he moves through the
+     register W149-F made his main screen, and it was the smallest control on
+     the page. */
+  h += fsArPagerHtml(from, fsArPer, rows.length, fsArPage, pages, "bottom");
   h += '</div>';
   h += '</div>';
   return h;
@@ -33493,6 +33491,31 @@ function fsArShowInWorkspace(r) {
     else fsWsSay("Couldn't find that asset on the plan \u2014 open the right plan file and try again.");
   })();
 }
+/* FS_PAGER_TOP - PASS 175 [175-B], W160-D. "add the next and previous page
+   navigator buttons on the bottom to the top also so you don't have to scroll
+   down to go to the next page."
+   MEASURED: with 40 assets the only pager sat at y=2773 on a 900px phone -
+   1,873px below the fold, about three screens - and pressing it landed him at
+   the BOTTOM of page 2 wanting the top of it.
+   ONE RENDERER, TWO CALLS. The same twenty lines written twice is how one copy
+   gets the next fix and the other does not; [155-C] nearly shipped exactly that
+   with #fsArShowWs.
+   CLASSES, NEVER IDS. Two controls cannot share an id - the second is silently
+   orphaned - which is why fsArPrev/fsArNext were classes to begin with and why
+   their handlers already use querySelectorAll().forEach(). A second copy needs
+   no new wiring at all. */
+function fsArPagerHtml(from, per, total, page, pages, where) {
+  if (pages <= 1) return "";
+  const mt = where === "top" ? "0;margin-bottom:11px" : "11px";
+  return '<div class="fsArPager" data-where="' + where + '" style="display:flex;gap:8px;' +
+    'align-items:center;margin-top:' + mt + ';font-size:12.5px;color:var(--fs-sub)">' +
+    '<button class="fsbtn fsTap44 fsArPrev"' + (page <= 1 ? ' disabled' : '') +
+      ' style="padding:4px 11px">&#8249;</button>' +
+    '<span>' + (from + 1) + '\u2013' + Math.min(from + per, total) + ' of ' + total + '</span>' +
+    '<button class="fsbtn fsTap44 fsArNext"' + (page >= pages ? ' disabled' : '') +
+      ' style="padding:4px 11px">&#8250;</button>' +
+    '</div>';
+}
 function fsArPanelHtml(rows, s) {
   if (!fsArSel) return "";
   const r = rows.filter(function (x) { return x.key === fsArSel; })[0];
@@ -33528,7 +33551,12 @@ function fsArPanelHtml(rows, s) {
     '<div style="font-size:12.5px;color:var(--fs-sub)">' +
       (r.name ? fsEsc(r.name) : fsArUnregHtml()) + '</div></div>' +
     fsArPill(r.st) +
-    '<a id="fsArClose" style="cursor:pointer;color:var(--fs-sub);font-size:22px;line-height:1;padding:0 6px">&times;</a></div>';
+    /* PASS 175 [175-A] - W160-C. "I've missed it multiple times now when
+       trying to close." Measured at 30 x 22 against the 44px floor he set in
+       Pass 113. It carries .fsTap44 like the five R-158 fixed - it should have
+       been in that list, and it was missed because the audit's selector was
+       `a[class]` and this is an <a> with an id and no class. */
+    '<a id="fsArClose" class="fsTap44" style="cursor:pointer;color:var(--fs-sub);font-size:26px;line-height:1;padding:0 6px">&times;</a></div>';
   /* PASS 155 [155-C] - three columns that wrap. At 430 they stack, at 820 the
      history drops to its own row, at 1280 all three fit. */
   h += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:11px">';
