@@ -517,6 +517,37 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .fsCrumb { display:inline-block; color:var(--fs-accent); font-weight:800; font-size:17px; line-height:1; cursor:pointer; padding:9px 15px 9px 11px; border:1.5px solid var(--fs-accent); border-radius:999px; background:var(--fs-card); -webkit-tap-highlight-color:transparent; }
   .fsCrumb:active { background:var(--fs-accent); color:#fff; }
   .fstab { padding:13px 4px; margin-right:22px; font-size:14.5px; color:var(--fs-sub); cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
+  /* FS_TABSTRIP - PASS 173 [173-A], R-157. THE STRIP SAYS WHEN THERE IS MORE.
+     Measured on V0.157 at 430: 744px of tabs in a 368px row, four of seven off
+     screen, and nothing on the page said so - the only hint was "Test history"
+     chopped to "Test", which reads as a short tab name. Same shape as W136-10,
+     "I didnt even know it was there at first".
+     THE CLASS IS TOGGLED FROM A REAL MEASUREMENT after every render, never left
+     on: a fade painted when everything already fits is a lie about there being
+     more, and at 1024 all seven tabs fit. See fsTabMoreSync.
+     ::before is the fade and ::after is the chevron, in that order on purpose -
+     both are on the same element, so the later one paints on top and the
+     chevron must not be under its own gradient. */
+  .fsTabWrap { position:relative; }
+  .fsTabWrap.fsTabMore::before { content:""; position:absolute; top:1px; right:1px; bottom:1px;
+    width:36px; pointer-events:none; border-radius:0 10px 10px 0;
+    background:linear-gradient(to right, rgba(0,0,0,0), var(--fs-card) 72%); }
+  .fsTabWrap.fsTabMore::after { content:"\203a"; position:absolute; right:9px; top:50%;
+    transform:translateY(-50%); pointer-events:none; color:var(--fs-accent);
+    font-weight:800; font-size:17px; line-height:1; }
+  /* FS_TAP44 - PASS 173 [173-B], R-158. HIS FLOOR, PASS 113 [W109-1b]: "44 is
+     the floor for a touch control and he works switchboards in gloves - six
+     pixels of screen is not worth six pixels of thumb."
+     Applied ONLY to the five controls R-158 names, all of which measured 20-26px
+     and two of which DELETE DATA. `.fsbtn` itself renders at 42 and is NOT
+     touched here - that is a global change to layout he has already approved,
+     and he agreed to leave it until buttons feel tight.
+     THE HIT AREA IS THE VISIBLE AREA. Extending it with an invisible
+     pseudo-element would put a 44px unseen delete target over a photo whose own
+     job is to open the viewer. A control you cannot see is not a bigger target,
+     it is a trap. */
+  .fsTap44 { min-height:44px; min-width:44px; display:inline-flex; align-items:center;
+    justify-content:center; }
   .fstab.on { color:var(--fs-accent); border-bottom-color:var(--fs-accent); }
   .fsinput { width:100%; background:var(--fs-card); border:1px solid var(--fs-border); border-radius:8px; color:var(--fs-text); padding:10px; font-size:15px; font-family:inherit; }
   textarea.fsinput { min-height:56px; overflow:hidden; resize:vertical; }   /* auto-grows to content (fsGrowTa) - iPad can't drag-resize */
@@ -590,7 +621,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.157 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.158 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -720,7 +751,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.157 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.158 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25473,6 +25504,11 @@ function fsRenderSite() {
     (hubAcc.text ? '<span style="color:#e8b4b0;font-size:13px">' + fsEsc(hubAcc.text) + '</span>' : '') + '</div>';
 
   // tabs
+  /* [173-A] R-157 - HIS PICK, option D off four rendered options. The labels are
+     short AT EVERY WIDTH, not behind the 720 breakpoint: 820 is wider than 720,
+     so a breakpoint-scoped rename would have left the iPad - the device he works
+     on - exactly as broken. Asset register -> Assets, Test history -> Tests,
+     QR tags -> QR, Files & photos -> Files. The counts are unchanged. */
   const tabs = [["overview", "Overview"]];
   if (!fsParentSite) tabs.push(["buildings", "Buildings" + ((s.buildings || []).length ? " (" + s.buildings.length + ")" : "")]);
   /* PASS 65 [65-2] — EVERY ROUTE INTO THESE FEATURES PASSES THROUGH HERE, so
@@ -25483,18 +25519,22 @@ function fsRenderSite() {
      the same one, in the same place in the strip, exactly as he drew it. The
      survey that used to live behind this tab now renders on Overview - see
      149-B; the data is untouched and nothing about it is deleted. */
-  if (fsTabAllowed("equip")) tabs.push(["assets", "Asset register"]);
-  if (fsTabAllowed("history")) tabs.push(["history", "Test history"]);
+  if (fsTabAllowed("equip")) tabs.push(["assets", "Assets"]);
+  if (fsTabAllowed("history")) tabs.push(["history", "Tests"]);
   if (fsTabAllowed("defects")) tabs.push(["defects", "Defects"]);
-  if (fsTabAllowed("qr")) tabs.push(["qr", "QR tags" + ((s.qrItems || []).length ? " (" + s.qrItems.length + ")" : "")]);
-  tabs.push(["files", "Files & photos"]);
+  if (fsTabAllowed("qr")) tabs.push(["qr", "QR" + ((s.qrItems || []).length ? " (" + s.qrItems.length + ")" : "")]);
+  tabs.push(["files", "Files"]);
   /* fsTab IS STICKY — it survives a re-render and it survives the feature
      being switched off underneath it. Without this line, turning defects off
      while standing on the Defects tab leaves the pane on screen with no tab
      above it: hidden in the strip, fully present in the body. Runs BEFORE the
      panes are built below. */
   if (!fsTabAllowed(fsTab)) fsTab = "overview";
-  html += '<div class="fscard" style="padding:0 20px"><div style="display:flex;overflow-x:auto">';
+  /* [173-A] R-157 - the card carries the affordance and the inner div is still
+     the scroller. Both get a name: the strip was an anonymous inline style with
+     no comment, which is how it went four tabs over the edge unnoticed. */
+  html += '<div class="fscard fsTabWrap" id="fsTabStrip" style="padding:0 20px">' +
+          '<div class="fsTabScroll" style="display:flex;overflow-x:auto">';
   tabs.forEach(([id, label]) => {
     html += '<div class="fstab' + (fsTab === id ? ' on' : '') + '" data-tab="' + id + '">' + label + '</div>';
   });
@@ -25548,8 +25588,83 @@ function fsRenderSite() {
   document.querySelectorAll(".fstab").forEach(t => {
     t.onclick = () => { fsTab = t.dataset.tab; fsEquipEdit = false; fsRenderSite(); };
   });
+  fsTabMoreSync();
   fsRenderTab();
 }
+
+/* [173-A] R-157 - MEASURED, NOT ASSUMED. The fade and chevron go on only when
+   the strip really cannot show every tab, so at 1024 - where all seven fit -
+   there is nothing to see. A rotation changes the answer, so it re-measures on
+   resize as well as on every render; the listener is passive and the whole body
+   is two reads and a classList.toggle. */
+function fsTabMoreSync(attempt) {
+  const w = document.getElementById("fsTabStrip");
+  const sc = w ? w.querySelector(".fsTabScroll") : null;
+  if (!w || !sc) return null;
+  /* A HIDDEN ELEMENT MEASURES ZERO, AND THAT IS THE COMMON PATH HERE.
+     fsRenderSite() runs BEFORE fsShow("fsSiteView"), so the first measurement
+     of every visit to a site is taken while the view is still display:none.
+     scrollWidth and clientWidth both come back 0, 0 is not greater than 0 + 1,
+     and the affordance stays OFF on exactly the render that needs it.
+     MEASURED, not reasoned: at 430 the strip really did overflow (526 into 368)
+     and `more` was false until this existed. A second call one frame later -
+     after fsShow has run - gets real numbers.
+     BOUNDED ON PURPOSE. Rescheduling unconditionally would spin a frame loop
+     for as long as the register is hidden; ten frames is about a sixth of a
+     second and then it gives up. `attempt` is typeof-checked because the resize
+     listener calls this with an Event. */
+  if (!sc.clientWidth) {
+    const n = (typeof attempt === "number" ? attempt : 0) + 1;
+    if (n <= 10 && typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(function () { fsTabMoreSync(n); });
+    }
+    return null;
+  }
+  fsTabScrollToActive();
+  /* THE SCROLLER IS REBUILT ON EVERY RENDER, so this is an assignment rather
+     than addEventListener - a fresh listener each time and never a stack of
+     them. He swipes the strip; the gradient has to answer for where he IS. */
+  sc.onscroll = fsTabMorePaint;
+  return fsTabMorePaint();
+}
+
+/* [173-A] "MORE" MEANS MORE TO THE RIGHT OF WHERE HE IS, not "the strip is
+   wider than its box". Those are the same thing at the left end and different
+   at the right one, and the difference is visible: standing on Files - the last
+   tab - the strip is scrolled fully right, there is nothing further along, and
+   the first version of this still painted a gradient and a chevron over the
+   tab he was standing on. A fade that points at nothing is the same lie as a
+   fade on a desktop where everything fits. */
+function fsTabMorePaint() {
+  const w = document.getElementById("fsTabStrip");
+  const sc = w ? w.querySelector(".fsTabScroll") : null;
+  if (!w || !sc || !sc.clientWidth) return null;
+  const more = sc.scrollWidth - sc.clientWidth - sc.scrollLeft > 1;
+  w.classList.toggle("fsTabMore", more);
+  return more;
+}
+
+/* [173-A] AND THE TAB YOU ARE STANDING ON HAS TO BE ONE OF THE ONES YOU CAN SEE.
+   The fade is what made this visible, and the fade half-caused it: on Defects
+   at 430 the active tab sat under the gradient with "Defe" showing and its
+   underline hidden. It was true before this pass too - the strip never scrolled
+   to the active tab - but shipping the gradient over it would have been a
+   regression arriving beside a fix, which is the exact W124-1 failure.
+
+   NOT scrollIntoView. [155-D] cost a pass because scrollIntoView moved an
+   ancestor nobody asked to move; this sets scrollLeft on the scroller and
+   touches nothing else. The 40px clears the 36px fade and the chevron sitting
+   in it, so the active tab lands beside the affordance rather than under it. */
+function fsTabScrollToActive() {
+  const sc = document.querySelector("#fsTabStrip .fsTabScroll");
+  const on = sc ? sc.querySelector(".fstab.on") : null;
+  if (!sc || !on || !sc.clientWidth) return null;
+  const l = on.offsetLeft, r = l + on.offsetWidth, pad = 40;
+  if (r + pad > sc.scrollLeft + sc.clientWidth) sc.scrollLeft = r + pad - sc.clientWidth;
+  else if (l < sc.scrollLeft) sc.scrollLeft = l;
+  return Math.round(sc.scrollLeft);
+}
+window.addEventListener("resize", fsTabMoreSync, { passive: true });
 
 function fsRenderTab() {
   const s = fsSite;
@@ -25714,14 +25829,17 @@ function fsRenderTab() {
         '</div>' +
         (fsCan("field") ? '<div style="display:flex;flex-direction:column;gap:4px;flex:none">' +
         '<button class="fsbtn fsDefFix" data-id="' + fsEsc(d.id) + '" style="color:#1b8a3f;font-weight:700">&#10003; Rectified</button>' +
-        '<button class="fsbtn fsDefPhAdd" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px">&#128247; Photo</button>' +
-        '<button class="fsbtn fsDefDel" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px;color:#c62828">Delete</button>' +
+        /* [173-B] R-158 - these measured 105x20, less than HALF his 44px floor,
+           and Delete DESTROYS A DEFECT RECORD from 20px below Photo. The font
+           size stays: he never asked for bigger text, he is owed a target. */
+        '<button class="fsbtn fsTap44 fsDefPhAdd" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px">&#128247; Photo</button>' +
+        '<button class="fsbtn fsTap44 fsDefDel" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px;color:#c62828">Delete</button>' +
         '</div>' : '') + '</div>';
     });
     if (closed.length) {
       html += '<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--fs-sub);font-size:13.5px">' + closed.length + ' rectified</summary>';
       closed.forEach(d => {
-        html += '<div style="border-top:1px solid var(--fs-border);padding:8px 0;font-size:13px;color:var(--fs-sub);display:flex;gap:10px;align-items:center"><div style="flex:1"><s>' + fsEsc(d.desc) + '</s><div style="font-size:12px;color:var(--fs-faint)">rectified ' + fsEsc((d.closed || "").slice(0, 10)) + (d.closedBy ? ' by ' + fsEsc(d.closedBy) : '') + (d.reopened ? ' &middot; was reopened ' + fsEsc((d.reopened || "").slice(0, 10)) : '') + '</div></div>' + (fsCan("field") ? '<button class="fsbtn fsDefReopen" data-id="' + fsEsc(d.id) + '" style="padding:2px 10px">&#8617; Reopen</button>' : '') + '</div>';
+        html += '<div style="border-top:1px solid var(--fs-border);padding:8px 0;font-size:13px;color:var(--fs-sub);display:flex;gap:10px;align-items:center"><div style="flex:1"><s>' + fsEsc(d.desc) + '</s><div style="font-size:12px;color:var(--fs-faint)">rectified ' + fsEsc((d.closed || "").slice(0, 10)) + (d.closedBy ? ' by ' + fsEsc(d.closedBy) : '') + (d.reopened ? ' &middot; was reopened ' + fsEsc((d.reopened || "").slice(0, 10)) : '') + '</div></div>' + (fsCan("field") ? '<button class="fsbtn fsTap44 fsDefReopen" data-id="' + fsEsc(d.id) + '" style="padding:2px 10px">&#8617; Reopen</button>' : '') + '</div>';
       });
       html += '</details>';
     }
@@ -25764,7 +25882,8 @@ function fsRenderTab() {
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
       ph.forEach((p, i) => {
         html += '<div style="position:relative"><img src="' + fsPhotoSrc(p.src || p) + '" class="fsPhotoView" style="width:150px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer" title="Tap to view full size">' +
-          '<button class="fsbtn fsFileDel" data-i="' + i + '" style="position:absolute;top:4px;right:4px;padding:2px 8px;color:#c62828">&#10005;</button></div>';
+          /* [173-B] R-158 - 30x22 over a photo, and it deletes it. */
+          '<button class="fsbtn fsTap44 fsFileDel" data-i="' + i + '" style="position:absolute;top:4px;right:4px;padding:2px 8px;color:#c62828">&#10005;</button></div>';
       });
       html += '</div>';
     }
@@ -29020,7 +29139,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v161";
+const FS_BUILD = "aa-v162";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33286,9 +33405,12 @@ function fsAssetRegisterHtml(s) {
   h += '</tbody></table></div>';
   if (pages > 1) {
     h += '<div style="display:flex;gap:8px;align-items:center;margin-top:11px;font-size:12.5px;color:var(--fs-sub)">' +
-      '<button class="fsbtn fsArPrev"' + (fsArPage <= 1 ? ' disabled' : '') + ' style="padding:4px 11px">&#8249;</button>' +
+      /* [173-B] R-158 - 29x26, and it is how he moves through the register
+         W149-F just made the way he browses assets. It should not be the
+         smallest control on the page. */
+      '<button class="fsbtn fsTap44 fsArPrev"' + (fsArPage <= 1 ? ' disabled' : '') + ' style="padding:4px 11px">&#8249;</button>' +
       '<span>' + (from + 1) + '–' + Math.min(from + fsArPer, rows.length) + ' of ' + rows.length + '</span>' +
-      '<button class="fsbtn fsArNext"' + (fsArPage >= pages ? ' disabled' : '') + ' style="padding:4px 11px">&#8250;</button>' +
+      '<button class="fsbtn fsTap44 fsArNext"' + (fsArPage >= pages ? ' disabled' : '') + ' style="padding:4px 11px">&#8250;</button>' +
       '</div>';
   }
   h += '</div>';
