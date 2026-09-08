@@ -551,7 +551,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.151 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.152 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -681,7 +681,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.151 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.152 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2089,10 +2089,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 
 /* ================= Symbol definitions ================= */
 const TYPES = [
-  { id:"smoke",    tab:"fire", label:"Smoke",        glyph:"circle",   text:"S",     color:"#d81e05", dashed:false },
-  { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true,  full:"Conc Smoke — a smoke detector in a concealed space, such as a ceiling void" },
-  { id:"thermal",  tab:"fire", label:"Thermal",      glyph:"circle",   text:"T",     color:"#1b8a3f", dashed:false },
-  { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true,  full:"Conc Thermal — a thermal detector in a concealed space, such as a ceiling void" },
+  { id:"smoke",    tab:"fire", label:"Smoke",        glyph:"circle",   text:"S",     color:"#d81e05", dashed:false, name:"Smoke Detector" },
+  { id:"csmoke",   tab:"fire", label:"Conc Smoke",   glyph:"circle",   text:"S",     color:"#f4693f", dashed:true,  name:"Concealed Smoke Detector", full:"Conc Smoke — a smoke detector in a concealed space, such as a ceiling void" },
+  { id:"thermal",  tab:"fire", label:"Thermal",      glyph:"circle",   text:"T",     color:"#1b8a3f", dashed:false, name:"Thermal Detector" },
+  { id:"cthermal", tab:"fire", label:"Conc Thermal", glyph:"circle",   text:"T",     color:"#63b76c", dashed:true,  name:"Concealed Thermal Detector", full:"Conc Thermal — a thermal detector in a concealed space, such as a ceiling void" },
   { id:"fip",      tab:"fire", label:"FIP",          glyph:"widetext", text:"FIP",   color:"#c40000", name:"Fire Indicator Panel", full:"FIP — Fire Indicator Panel, the main fire alarm panel" },
   { id:"fdcie",    tab:"fire", label:"FDCIE",        glyph:"widetext", text:"FDCIE", color:"#c40000", name:"Fire Detection Control and Indicating Equipment", full:"FDCIE — Fire Detection Control and Indicating Equipment, the newer standards' name for a fire panel" },
   /* PASS 166 [166-A] W148-E, [166-B] W148-L - THE PANEL FAMILY GROWS BY TWO.
@@ -2105,17 +2105,17 @@ const TYPES = [
      to SFIP", so the words are his and the expansion is the obvious reading.
      If he says otherwise it is a one-word change. */
   { id:"sfip",     tab:"fire", label:"SFIP",         glyph:"widetext", text:"SFIP",  color:"#c40000", name:"Sub Fire Indicator Panel", full:"SFIP — Sub Fire Indicator Panel, a fire panel fed from the main FIP" },
-  { id:"mimic",    tab:"fire", label:"Mimic",        glyph:"widetext", text:"Mim",   color:"#c40000", name:"Mimic Panel", full:"Mimic Panel — repeats the main panel's indications at another entrance" },
+  { id:"mimic",    tab:"fire", label:"Mimic",        glyph:"widetext", text:"Mimic", color:"#c40000", name:"Mimic Panel", full:"Mimic Panel — repeats the main panel's indications at another entrance" },
   { id:"mcp",      tab:"fire", label:"MCP",          glyph:"sqtext",   text:"MCP",   color:"#c40000", name:"Manual Call Point", full:"MCP — Manual Call Point, the break-glass button that raises the alarm by hand" },
   { id:"wip",      tab:"fire", label:"WIP",          glyph:"phone",    text:"",      color:"#c40000", name:"Warden Intercom Phone", full:"WIP — Warden Intercom Phone, the emergency handset wardens use during an evacuation" },
-  { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00" },
-  { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00" },
-  { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200" },
-  { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575", full:"dBA — a sound level reading in decibels, marking where the reading was taken" },
+  { id:"sounder",  tab:"fire", label:"Sounder",      glyph:"sndr",     text:"",      color:"#e07b00", name:"Alarm Sounder" },
+  { id:"horn",     tab:"fire", label:"Horn",         glyph:"horn",     text:"",      color:"#e07b00", name:"Alarm Horn" },
+  { id:"sm240",    tab:"fire", label:"240V Smoke",   glyph:"sm240",    text:"",      color:"#f2c200", name:"240V Smoke Alarm" },
+  { id:"dba",      tab:"fire", label:"dBA",          glyph:"dba",      text:"",      color:"#757575", name:"Sound Level Reading", full:"dBA — a sound level reading in decibels, marking where the reading was taken" },
   { id:"ows",      tab:"fire", label:"OWS",          glyph:"widetext", text:"OWS",   color:"#c40000", name:"Occupant Warning System", full:"OWS — Occupant Warning System, the speakers and sounders that tell everyone to get out" },
   { id:"vesda",    tab:"fire", label:"VESDA",        glyph:"circle",   text:"V",     color:"#7b1fa2", name:"Very Early Smoke Detection Apparatus", full:"VESDA — Very Early Smoke Detection Apparatus, samples air through small pipes to catch smoke sooner" },
-  { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a" },
-  { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000" },
+  { id:"io",       tab:"fire", label:"Interface",    glyph:"sqtext",   text:"IO",    color:"#546e7a", name:"Interface Module" },
+  { id:"hreel",    tab:"fire", label:"Hose Reel",    glyph:"hreel",    text:"",      color:"#c40000", name:"Fire Hose Reel" },
   /* PASS 24 item 7 — VAD, Visual Alarm Device. Reece called it a "visual alarm
      detector"; the standard term is device and the label follows the standard,
      because the label is what lands in a register a third party reads. Round
@@ -2124,7 +2124,7 @@ const TYPES = [
      well as flashes. Arc style only from refs/pass22-soundwave-ref-fire-bell
      .jpg — the bell symbol itself is not copied. */
   { id:"vad",      tab:"fire", label:"VAD",          glyph:"vad",      text:"V",     color:"#e91e8c", name:"Visual Alarm Device", full:"VAD — Visual Alarm Device, flashes when the alarm sounds so it reaches people who cannot hear it" },
-  { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000" },
+  { id:"exting",   tab:"fire", label:"Extinguisher", glyph:"exting",   text:"",      color:"#c40000", name:"Fire Extinguisher" },
   /* PASS 108 [W107-4] - Reece sent a red FIRE BLANKET sign
      (refs/pass108-ref-fire-blanket-sign.png) and said "just take away the white
      on the outside of the picture". The MEANING is taken from it; the geometry is
@@ -2134,28 +2134,28 @@ const TYPES = [
      beside the extinguisher and hose reel at plan size, at 26px on white paper
      and as the palette button, and PUT TO HIM BEFORE IT SHIPPED. */
   { id:"blanket",  tab:"fire", label:"Fire Blanket", glyph:"blanket",  text:"",      color:"#c40000", full:"Fire Blanket \u2014 smothers a small fire, usually a cooking fire, by cutting off its air" },
-  { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f" },
-  { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f" },
-  { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f" },
-  { id:"bglass",   tab:"exit", label:"Break Glass",  glyph:"bglass",   text:"",      color:"#1b8a3f" },
-  { id:"spitfire", tab:"exit", label:"Spitfire",     glyph:"spitfire", text:"",      color:"#1b8a3f", full:"Spitfire — the trade's name for the round surface-mounted emergency light" },
-  { id:"db",       tab:"elec", label:"DB Board",     glyph:"db",       text:"",      color:"#111111" },
-  { id:"batten",   tab:"elec", label:"Batten",       glyph:"batten",  text:"", color:"#111111" },
-  { id:"embatten", tab:"elec", label:"Em. Batten",   glyph:"batten",  text:"", color:"#111111", em:true },
+  { id:"exitl",    tab:"exit", label:"Exit Left",    glyph:"exit",     text:"EXIT",  arrow:"l", color:"#1b8a3f", name:"Exit Sign (Left Arrow)" },
+  { id:"exit",     tab:"exit", label:"Exit",         glyph:"exit",     text:"EXIT",  arrow:"",  color:"#1b8a3f", name:"Exit Sign" },
+  { id:"exitr",    tab:"exit", label:"Exit Right",   glyph:"exit",     text:"EXIT",  arrow:"r", color:"#1b8a3f", name:"Exit Sign (Right Arrow)" },
+  { id:"bglass",   tab:"exit", label:"Break Glass",  glyph:"bglass",   text:"",      color:"#1b8a3f", name:"Break Glass Unit" },
+  { id:"spitfire", tab:"exit", label:"Spitfire",     glyph:"spitfire", text:"",      color:"#1b8a3f", name:"Spitfire Emergency Light", full:"Spitfire — the trade's name for the round surface-mounted emergency light" },
+  { id:"db",       tab:"elec", label:"DB Board",     glyph:"db",       text:"",      color:"#111111", name:"Distribution Board" },
+  { id:"batten",   tab:"elec", label:"Batten",       glyph:"batten",  text:"", color:"#111111", name:"Batten Light" },
+  { id:"embatten", tab:"elec", label:"Em. Batten",   glyph:"batten",  text:"", color:"#111111", em:true, name:"Emergency Batten Light" },
   { id:"downlt",   tab:"elec", label:"Downlight",    glyph:"downlt",  text:"", color:"#111111" },
-  { id:"sqlum",    tab:"elec", label:"Square light", glyph:"lum",     text:"", color:"#111111", lw:1, lh:1 },
-  { id:"emsqlum",  tab:"elec", label:"Em. Square",   glyph:"lum",     text:"", color:"#111111", lw:1, lh:1, em:true },
-  { id:"rectlum",  tab:"elec", label:"Rect light",   glyph:"lum",     text:"", color:"#111111", lw:1.7, lh:1 },
-  { id:"emrectlum",tab:"elec", label:"Em. Rect",     glyph:"lum",     text:"", color:"#111111", lw:1.7, lh:1, em:true },
-  { id:"troffer",  tab:"elec", label:"Troffer",      glyph:"lum",     text:"", color:"#111111", lw:2.4, lh:0.7, inner:true },
-  { id:"emtroffer",tab:"elec", label:"Em. Troffer",  glyph:"lum",     text:"", color:"#111111", lw:2.4, lh:0.7, inner:true, em:true },
+  { id:"sqlum",    tab:"elec", label:"Square light", glyph:"lum",     text:"", color:"#111111", lw:1, lh:1, name:"Square Luminaire" },
+  { id:"emsqlum",  tab:"elec", label:"Em. Square",   glyph:"lum",     text:"", color:"#111111", lw:1, lh:1, em:true, name:"Emergency Square Luminaire" },
+  { id:"rectlum",  tab:"elec", label:"Rect light",   glyph:"lum",     text:"", color:"#111111", lw:1.7, lh:1, name:"Rectangular Luminaire" },
+  { id:"emrectlum",tab:"elec", label:"Em. Rect",     glyph:"lum",     text:"", color:"#111111", lw:1.7, lh:1, em:true, name:"Emergency Rectangular Luminaire" },
+  { id:"troffer",  tab:"elec", label:"Troffer",      glyph:"lum",     text:"", color:"#111111", lw:2.4, lh:0.7, inner:true, name:"Troffer Luminaire" },
+  { id:"emtroffer",tab:"elec", label:"Em. Troffer",  glyph:"lum",     text:"", color:"#111111", lw:2.4, lh:0.7, inner:true, em:true, name:"Emergency Troffer Luminaire" },
   { id:"exfan",    tab:"elec", label:"Exhaust fan",  glyph:"exfan",   text:"", color:"#111111" },
   { id:"ceilfan",  tab:"elec", label:"Ceiling fan",  glyph:"ceilfan", text:"", color:"#111111" },
   { id:"walllt",   tab:"elec", label:"Wall light",   glyph:"walllt",  text:"", color:"#111111" },
-  { id:"gpo1",     tab:"elec", label:"Single GPO",   glyph:"gpo",     text:"", color:"#111111" },
-  { id:"gpo2",     tab:"elec", label:"Double GPO",   glyph:"gpo",     text:"", color:"#111111", dbl:true },
-  { id:"data1",    tab:"elec", label:"Data point",   glyph:"datap",   text:"", color:"#111111" },
-  { id:"data2",    tab:"elec", label:"Double data",  glyph:"datap",   text:"", color:"#111111", dbl:true },
+  { id:"gpo1",     tab:"elec", label:"Single GPO",   glyph:"gpo",     text:"", color:"#111111", name:"Single General Purpose Outlet" },
+  { id:"gpo2",     tab:"elec", label:"Double GPO",   glyph:"gpo",     text:"", color:"#111111", dbl:true, name:"Double General Purpose Outlet" },
+  { id:"data1",    tab:"elec", label:"Data point",   glyph:"datap",   text:"", color:"#111111", name:"Data Point" },
+  { id:"data2",    tab:"elec", label:"Double data",  glyph:"datap",   text:"", color:"#111111", dbl:true, name:"Double Data Point" },
   { id:"msensor",  tab:"elec", label:"Motion sensor",glyph:"msensor", text:"", color:"#111111" },
   { id:"door",     tab:"bldg", label:"Door",         glyph:"door",     text:"",      color:"#111111" },
   { id:"dbldoor",  tab:"bldg", label:"Double Door",  glyph:"dbldoor",  text:"",      color:"#111111" },
@@ -2164,7 +2164,7 @@ const TYPES = [
   { id:"window",   tab:"bldg", label:"Window",       glyph:"window",   text:"",      color:"#111111" },
   { id:"opening",  tab:"bldg", label:"Opening",      glyph:"opening",  text:"",      color:"#111111" },
   { id:"stair",    tab:"bldg", label:"Stairs",       glyph:"stair",    text:"",      color:"#111111" },
-  { id:"lstair",   tab:"bldg", label:"L Stairs",     glyph:"lstair",   text:"",      color:"#111111" },
+  { id:"lstair",   tab:"bldg", label:"L Stairs",     glyph:"lstair",   text:"",      color:"#111111", name:"L-Shaped Stairs" },
   { id:"campin",   tab:"tools", label:"Photo pin",   glyph:"campin",   text:"",      color:"#0277bd" }
 ];
 const TYPE_MAP = {}; TYPES.forEach(t => TYPE_MAP[t.id] = t);
@@ -5731,7 +5731,40 @@ function flipObj(o, axis) {
 }
 /* PASS 68 [68ws-6] — guarded in the handler for the same reason as btnDel:
    the keyboard map invokes these by name and never reads `disabled`. */
-btnRotate.onclick = () => { if (!selection.length || fsWsSelLocked()) return; pushUndo(); selection.forEach(rotObj); draw(); };
+/* PASS 167 [167-C] - W148-N / W151-D. ROTATE THE SELECTION, NOT THE DEVICES.
+   "I just wanted it to rotate the select devices as a whole not the individual
+   devices", and on the V0.151 walk: "yes, I don't want the actual devices to
+   rotate if I have multi selected. just the whole selection".
+
+   ONE OBJECT IS UNTOUCHED. Spinning a single symbol in place is correct and is
+   how he points a directional symbol - mutant M4 sends a single object down the
+   group path to prove that guard is real, not incidental.
+
+   THE MATHS REUSES rotObj VERBATIM. Rotating a body about a distant centre is
+   the same as rotating each part about its OWN centre and then moving that
+   centre to where it lands, so no per-kind rotation code is duplicated here.
+   The union-bounds idiom is alignSel's, which already spans a selection. */
+function fsRotGroup() {
+  const items = selection.map(o => ({ o:o, b:objectBounds(o) }));
+  const U = { x1:Infinity, y1:Infinity, x2:-Infinity, y2:-Infinity };
+  items.forEach(it => { U.x1 = Math.min(U.x1, it.b.x1); U.y1 = Math.min(U.y1, it.b.y1); U.x2 = Math.max(U.x2, it.b.x2); U.y2 = Math.max(U.y2, it.b.y2); });
+  const cx = (U.x1 + U.x2) / 2, cy = (U.y1 + U.y2) / 2;
+  items.forEach(it => {
+    const c0x = (it.b.x1 + it.b.x2) / 2, c0y = (it.b.y1 + it.b.y2) / 2;
+    /* the same 90 degrees clockwise rotObj already applies to its own points */
+    const tx = cx - (c0y - cy), ty = cy + (c0x - cx);
+    rotObj(it.o);
+    const b1 = objectBounds(it.o);
+    moveObjBy(it.o, tx - (b1.x1 + b1.x2) / 2, ty - (b1.y1 + b1.y2) / 2);
+  });
+}
+btnRotate.onclick = () => {
+  if (!selection.length || fsWsSelLocked()) return;
+  pushUndo();
+  if (selection.length > 1) fsRotGroup();
+  else selection.forEach(rotObj);
+  draw();
+};
 btnFlipH.onclick = () => { if (!selection.length || fsWsSelLocked()) return; pushUndo(); selection.forEach(o => flipObj(o, "h")); draw(); };
 btnFlipV.onclick = () => { if (!selection.length || fsWsSelLocked()) return; pushUndo(); selection.forEach(o => flipObj(o, "v")); draw(); };
 /* PASS 68 [68ws-5] — the Pin toggle. Mixed selection pins ALL of it: the
@@ -12946,20 +12979,58 @@ function zoneCounts(objs) {
   });
   return zones;
 }
+/* PASS 167 [167-D] - W151-E. TEST COUNTS ON THE ZONE COUNTS TOOL.
+   "have a few more columns, and have the year and how many were tested that
+   year. or even have a little button that is turn on test mode within that tool
+   and it will tell you currently how many is ticked in each zone currently."
+
+   HIS TWO SHAPES ARE THE SAME DATA. A tick is a YEAR in o.ty, so "how many are
+   ticked right now" is that same count for the year the test toolbar is already
+   set to - there is no toggle to build and no new state to keep.
+
+   THE POPULATION IS THE TEST COUNTER'S, not zoneCounts'. zoneCounts has always
+   put photo pins in Total; the test counter has always excluded them. The
+   tested column follows the counter so a zone cannot read 6/7 beside a Total of
+   8 with nothing to explain it - and the line under the table says so out loud
+   rather than leaving him to work it out.
+
+   THIS COUNTS THE YEAR A DEVICE WAS TICKED IN, which is all a tick carries.
+   It cannot say which SERVICE PERIOD the tick belonged to - W148-D, still its
+   own pass. */
+function fsZoneTested(objs, yr) {
+  const out = {};
+  (objs || objects).forEach(o => {
+    if (o.kind !== "sym" || o.type === "campin") return;
+    const z = (o.zone || "").trim() || "(no zone)";
+    out[z] = out[z] || { n:0, done:0 };
+    out[z].n++;
+    if ((o.ty || []).includes(+yr)) out[z].done++;
+  });
+  return out;
+}
 document.getElementById("btnZones").onclick = () => {
   const zones = zoneCounts();
+  const yr = +testYearSel;
+  const tested = fsZoneTested(null, yr);
   const keys = Object.keys(zones).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
   let html;
   if (!keys.length) {
     html = '<p style="font-size:13px;color:#aaa">No devices placed yet.</p>';
   } else {
-    html = "<table><tr><th>Zone</th><th>Devices</th><th>Total</th></tr>";
+    html = "<table><tr><th>Zone</th><th>Devices</th><th>Total</th><th>Tested " + yr + "</th></tr>";
+    let tAll = 0, dAll = 0;
     keys.forEach(z => {
       const parts = Object.entries(zones[z]).map(([ty, n]) => (TYPE_MAP[ty] ? TYPE_MAP[ty].label : ty) + " × " + n);
       const total = Object.values(zones[z]).reduce((a, b) => a + b, 0);
-      html += "<tr><td>" + z + "</td><td>" + parts.join(", ") + "</td><td>" + total + "</td></tr>";
+      const tz = tested[z] || { n:0, done:0 };
+      tAll += tz.n; dAll += tz.done;
+      const cell = tz.n ? (tz.done + " / " + tz.n) : "—";
+      html += "<tr><td>" + z + "</td><td>" + parts.join(", ") + "</td><td>" + total + "</td><td>" + cell + "</td></tr>";
     });
+    html += '<tr><td><b>All zones</b></td><td></td><td></td><td><b>' + dAll + " / " + tAll + "</b></td></tr>";
     html += "</table>";
+    html += '<p style="font-size:12px;color:#aaa;margin-top:8px">Tested counts devices ticked for ' + yr +
+            ' &mdash; the year the test toolbar is set to. This level only, and photo pins are not counted as devices.</p>';
   }
   document.getElementById("zonesTable").innerHTML = html;
   document.getElementById("zonesModal").classList.add("show");
@@ -28493,7 +28564,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v155";
+const FS_BUILD = "aa-v156";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -32470,8 +32541,15 @@ function fsArIcon(o) {
      shows on those rows. */
   const lb = (t && t.label) || o.type || "";
   const tx = (t && t.text) || (lb ? lb.trim().charAt(0).toUpperCase() : "\u00b7");
+  /* PASS 167 [167-E] W151-F - THE CHIP HAD TO FIT WHAT THE PLATE ALREADY DID.
+     22px of circle and a fixed 10.5px font: measured at 820, MCP spilled to
+     24px, OWS 25, SFIP 24 and FDCIE 28, and every one of those shipped that way
+     because nothing ever measured the chip. "Mimic" made it 28 and made it
+     obvious. ONE AND TWO CHARACTERS ARE UNTOUCHED at 10.5px, so every detector
+     chip he already knows looks exactly as it did. */
+  const cfs = tx.length >= 5 ? 7 : tx.length === 4 ? 8.5 : tx.length === 3 ? 9 : 10.5;
   return '<span style="flex:0 0 22px;width:22px;height:22px;border-radius:50%;display:inline-flex;' +
-    'align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff;' +
+    'align-items:center;justify-content:center;font-size:' + cfs + 'px;font-weight:700;color:#fff;' +
     'background:' + col + '">' + fsEsc(tx) + '</span>';
 }
 function fsArLabel(o) {
