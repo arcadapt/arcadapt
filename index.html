@@ -679,7 +679,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.164 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.165 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -809,7 +809,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.164 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.165 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2487,7 +2487,11 @@ const FS_WS_SNAP_PX = 16;
 const FS_WS_SNAP_NEAR_PX = 8;
 /* [86-3] The source's number. snap45's 45 degrees on Shift is NOT touched. */
 const FS_WS_ANGLE_DEG = 15;
-const FS_WS_SNAP_LABEL = { end:"END", int:"INT", mid:"MID", perp:"PERP", near:"NEAR" };
+/* PASS 180 [180-A] - quad and cen join the five. The label is what he READS
+   under his finger, so a snap type with no entry here snaps silently and looks
+   like the tool moving on its own. */
+const FS_WS_SNAP_LABEL = { end:"END", int:"INT", mid:"MID", perp:"PERP", near:"NEAR",
+                           quad:"QUAD", cen:"CEN" };
 let fsWsChain = false;
 let fsWsAngle = false;
 let fsWsSnapOn = true;
@@ -4448,6 +4452,56 @@ function fsWsSnapSegs(o) {
                                   x2:p[(i + 1) % 4].x, y2:p[(i + 1) % 4].y }));
 }
 
+/* FS_SNAP_ELLIPSE - PASS 180 [180-A], W163-E. "Both like revit."
+
+   A SECOND FUNCTION, NOT A WIDER fsWsSnapSegs, AND THE REASON IS THE GEOMETRY.
+   fsWsSnap searches SEGMENTS: end, mid, near, perp and int are all derived from
+   a straight x1,y1->x2,y2. A centre and a quadrant are POINTS. Handing the
+   ellipse back as an N-segment polyline would have been one line and would have
+   shipped OUTLINE snapping - which Revit does not do, and which he was told in
+   the last walk that this would not do. Same shape as [178-A]: when the new
+   thing is not the old thing, stop sharing.
+
+   WHICH POINTS, AND WHY THOSE (#0e - convention is research). Revit's 14 object
+   snaps include Centers ("the center of a circle or arc"), Quadrants ("a
+   Quadrant point of a circle, arc, or ellipse") and Tangents ("tangent to an
+   ARC"). So: centre and the four axis ends. NOT tangent - Revit scopes it to an
+   arc and nothing here constructs one. NOT nearest-on-outline - "near" in this
+   file is a projection onto a straight segment, the elliptic version is a
+   quartic, and it would land a pixel from the quadrant and outrank it.
+   NOT intersections with an ellipse - a conic solve, a much bigger job.
+
+   RANKS FOLLOW THE EXISTING LADDER (end 0, int 1, mid 2, perp 3, near 4). A
+   quadrant is a defining point of the curve, like an endpoint -> 0. A centre is
+   the midpoint of both axes -> 2. That is also Revit's own ordering, where
+   Endpoints outrank Centers.
+
+   ROTATION IS NOT OPTIONAL - the same trap as the rectangle above. An ellipse
+   carries o.rot and drawObject turns it about its bbox centre. MEASURED: a
+   30-degree ellipse centred (200,150), rx 100, has its east quadrant at
+   (286.6, 200.0) and not (300, 150). The centre is invariant under a rotation
+   about itself and is rotated anyway, so the two cannot drift apart if the
+   pivot ever changes. */
+function fsWsSnapPts(o) {
+  if (!o || o.kind !== "shape" || o.shape !== "ellipse" || o.cx != null) return [];
+  const x1 = Math.min(o.x1, o.x2), x2 = Math.max(o.x1, o.x2);
+  const y1 = Math.min(o.y1, o.y2), y2 = Math.max(o.y1, o.y2);
+  const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+  const rx = (x2 - x1) / 2, ry = (y2 - y1) / 2;
+  let p = [{ x:cx, y:cy, type:"cen", rank:2 },
+           { x:cx + rx, y:cy, type:"quad", rank:0 },
+           { x:cx - rx, y:cy, type:"quad", rank:0 },
+           { x:cx, y:cy - ry, type:"quad", rank:0 },
+           { x:cx, y:cy + ry, type:"quad", rank:0 }];
+  if (o.rot) {
+    const a = o.rot * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    p = p.map(q => ({ x:cx + (q.x - cx) * ca - (q.y - cy) * sa,
+                      y:cy + (q.x - cx) * sa + (q.y - cy) * ca,
+                      type:q.type, rank:q.rank }));
+  }
+  return p;
+}
+
 /* [86-2] The five snaps SS Item 2 calls the useful 90%.
 
    `anchor` is the fixed end of whatever is being drawn or dragged: it is what
@@ -4483,6 +4537,18 @@ function fsWsSnap(ip, anchor, skipO) {
       }
     }
   }
+  /* PASS 180 [180-A] - THE POINT PASS. Ellipses contribute points rather than
+     segments, so they cannot ride in `ls`: everything in there is crossed with
+     everything else looking for intersections, and a point has no body to
+     cross. Collected here and fed to the SAME take(), so one ranking decides
+     between a rectangle corner and an ellipse quadrant. */
+  const ps = [];
+  for (let k = 0; k < objects.length; k++) {
+    const o = objects[k];
+    if (o === skipO || viewHidden(o)) continue;
+    const pts = fsWsSnapPts(o);
+    for (let m = 0; m < pts.length; m++) ps.push(pts[m]);
+  }
   let best = null;
   const take = (x, y, type, rank) => {
     const d = Math.hypot(x - ip.x, y - ip.y);
@@ -4514,6 +4580,9 @@ function fsWsSnap(ip, anchor, skipO) {
       if (xp) take(xp.x, xp.y, "int", 1);
     }
   }
+  /* PASS 180 [180-A] - after the segments, so a tie at the same rank and the
+     same distance keeps the older behaviour. take() applies the same radius. */
+  for (let i = 0; i < ps.length; i++) take(ps[i].x, ps[i].y, ps[i].type, ps[i].rank);
   return best;
 }
 
@@ -11093,7 +11162,11 @@ cv.addEventListener("pointermove", e => {
          and both arriving silently beside the thing he did ask for. */
       const straight = (activeTool === "line" || activeTool === "arrow" ||
                         activeTool === "brk" || activeTool === "vesdar");
-      const snappy = straight || activeTool === "rect";
+      /* PASS 180 [180-A] - ellipse joins `snappy` and NOT `straight`, for the
+         reason [178-A] separated them: Shift-45 and the angle lock mean
+         nothing on an ellipse, and adding it to the old single flag would have
+         handed it both, silently, beside the thing he did ask for. */
+      const snappy = straight || activeTool === "rect" || activeTool === "ellipse";
       if (fsShift(e) && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
       else if (fsWsAngle && straight) ep = fsWsAngleLock(shapeStart.x, shapeStart.y, ip.x, ip.y);
       /* [86-3] AN OBJECT SNAP BEATS THE ANGLE LOCK - applied last, and tested
@@ -13658,6 +13731,59 @@ function runHotkey(code) {
 const FS_NUDGE_KEYS = { ArrowLeft:[-1, 0], ArrowRight:[1, 0],
                         ArrowUp:[0, -1], ArrowDown:[0, 1] };
 let fsNudgeAt = 0;
+/* FS_NUDGE_STEP - PASS 180 [180-B], W163-F. ONE CSS PIXEL IS NOT A NUDGE HE CAN
+   SEE, IT IS ONE HE CAN MEASURE. He marked the nudge NEEDS CHANGING while
+   describing exactly what [178-B] shipped, so the direction was right and the
+   MAGNITUDE was the fault. Settled by rendering it, not by arguing: a red
+   rectangle nudged 0/1/2/4/8px under a fixed blue reference at 2x device
+   pixels. At 1px the left edges are indistinguishable; at 2px arguable; at 4px
+   plain. Shift stays 10x, the ratio Figma, Illustrator and Sketch all use.
+   THE ZOOM PROPORTIONALITY HE ASKED FOR IS UNTOUCHED - still one division by
+   view.scale, so 16 plan units at 0.25x and 1 at 4x. */
+const FS_NUDGE_STEP = 4;
+const FS_NUDGE_SHIFT = 10;
+/* FS_ARROW_SELECT - PASS 180 [180-C], W163-G. "whtever is recommended."
+   IT IS TAB, NOT THE ARROWS, AND THE RESEARCH IS WHY (#0e). Figma moves between
+   layers on Tab / Shift+Tab and leaves plain arrows to nudge; PowerPoint's own
+   documentation says "Select another object when one object is selected: Tab
+   key or Shift+Tab"; Illustrator selects next/previous object on the same pair.
+   Three tools, one answer, and it DISSOLVES the clash he was shown rather than
+   managing it: the arrows already nudge whenever something is selected, so
+   stepping the selection with them would need one key to do two things
+   depending on a state he cannot see.
+   ORDER IS DRAWN ORDER (the objects[] array) - the same stacking order all
+   three tools step, and the one he can already read off the screen as what
+   covers what. "Nearest in the direction pressed" needs a direction; Tab has
+   none. Hidden objects are skipped for the same reason the register is guarded
+   below: selecting what he cannot see is the fault, not the feature. */
+function fsWsStepSelection(back) {
+  const vis = objects.filter(o => !viewHidden(o));
+  if (!vis.length) return false;
+  let i = selection.length ? vis.indexOf(selection[selection.length - 1]) : -1;
+  if (i < 0) i = back ? 0 : vis.length - 1;
+  const n = vis[(i + (back ? -1 : 1) + vis.length) % vis.length];
+  clearSelection();
+  selection.push(n);
+  fsWsRevealObj(n);
+  draw();
+  return true;
+}
+/* A SELECTION HE CANNOT SEE IS NOT A SELECTION, so Tab pans to what it picked -
+   but ONLY when that lands off screen, and NEVER by changing the zoom.
+   zoomFlashDevice() was the tempting reuse and it rewrites view.scale; a zoom
+   that jumps on every Tab is worse than the problem it solves. */
+function fsWsRevealObj(o) {
+  const r = (typeof stage !== "undefined" && stage) ? stage.getBoundingClientRect() : null;
+  if (!r || !r.width || typeof objectBounds !== "function") return;
+  const b = objectBounds(o);
+  if (!b) return;
+  const m = 40;
+  const sx1 = b.x1 * view.scale + view.x, sx2 = b.x2 * view.scale + view.x;
+  const sy1 = b.y1 * view.scale + view.y, sy2 = b.y2 * view.scale + view.y;
+  if (sx1 >= m && sy1 >= m && sx2 <= r.width - m && sy2 <= r.height - m) return;
+  view.x = r.width / 2 - ((b.x1 + b.x2) / 2) * view.scale;
+  view.y = r.height / 2 - ((b.y1 + b.y2) / 2) * view.scale;
+}
 window.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   const k = e.key.toLowerCase();
@@ -13692,13 +13818,26 @@ window.addEventListener("keydown", e => {
      ONE UNDO PER BURST: pushUndo() on every key repeat would fill the stack in
      under a second and throw away the state he wants back. 700ms of quiet
      starts a new one, so four taps and one undo puts it back. */
+  /* FS_ARROW_SELECT - PASS 180 [180-C]. GUARDED THE SAME WAY THE NUDGE IS. This
+     listener is on `window`, so without it Tab would re-select plan objects
+     while he is reading the asset register - and it would also swallow Tab from
+     every focusable control on that screen, which is worse than useless.
+     preventDefault ONLY when it actually stepped, so Tab still moves focus
+     normally everywhere this does not act. */
+  else if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const regT = document.getElementById("fsReg");
+    if (regT && regT.style.display !== "none") return;
+    if (!objects.length) return;
+    if (fsWsStepSelection(e.shiftKey)) e.preventDefault();
+  }
   else if (!e.ctrlKey && !e.metaKey && !e.altKey && FS_NUDGE_KEYS[e.key]) {
     const regEl = document.getElementById("fsReg");
     if (regEl && regEl.style.display !== "none") return;
     if (!selection.length) return;
     e.preventDefault();
     const d = FS_NUDGE_KEYS[e.key];
-    const step = (e.shiftKey ? 10 : 1) / ((typeof view !== "undefined" && view && view.scale) ? view.scale : 1);
+    const step = FS_NUDGE_STEP * (e.shiftKey ? FS_NUDGE_SHIFT : 1) /
+                 ((typeof view !== "undefined" && view && view.scale) ? view.scale : 1);
     const now = Date.now();
     if (now - fsNudgeAt > 700) pushUndo();
     fsNudgeAt = now;
@@ -26153,7 +26292,17 @@ function fsRenderTab() {
     }
     const fls = fsPhTab ? [] : (s.files || []);
     if (fls.length) {
-      html += '<div style="margin-top:14px"><div style="font-size:13px;font-weight:700;color:var(--fs-sub);margin-bottom:2px">Files</div>';
+      /* PASS 180 [180-D], R-164 - THE HEADING IS GONE AND THE MARGIN IS NOT.
+         Measured on V0.164: the Files tab rendered the heading list
+         ["Files", "Files"] - this one, one line under the card title [179-A]
+         gave it. It earned its place when the card was "Files & photos" and had
+         photo tiles above this list; it does not now.
+         MINE, found by rendering [179-A] and looking at it (#0d-3) after every
+         check in Pass 179 was green.
+         R-165 ("More site photos") IS NOT FIXED HERE. Same origin, but its
+         answer is what the two photo groups should be CALLED, and that went to
+         him as an open question on the V0.164 walk. */
+      html += '<div style="margin-top:14px">';
       fls.forEach((f, i) => {
         html += '<div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--fs-border);padding:9px 0">' +
           '<div style="font-size:20px">&#128196;</div>' +
@@ -29397,7 +29546,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v168";
+const FS_BUILD = "aa-v169";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
