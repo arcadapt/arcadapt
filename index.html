@@ -659,7 +659,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.162 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.163 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -789,7 +789,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.162 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.163 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -4377,6 +4377,46 @@ function fsWsSnapIsLine(o) {
             (o.shape === "line" || o.shape === "arrow" ||
              o.shape === "brk" || o.shape === "vesdar"));
 }
+/* FS_SNAP_SHAPES - PASS 178 [178-A], W161-J. "so why can I not snap to the
+   middle side of a rectangle? or end of it?" ... "Yes it should all work
+   basically like revit... I think you can snap to middle and ends and points"
+
+   WHAT AN OBJECT CONTRIBUTES TO THE SNAP SEARCH, AS SEGMENTS. A line is one
+   segment; a rectangle is its four edges. Everything downstream - ends, mids,
+   perpendicular, near-point, intersections - already works on segments, so
+   his "middle and ends" arrive without a single new kind of candidate, and
+   two crossing rectangles snap at the crossing because that falls out.
+
+   THIS IS A SEPARATE FUNCTION FROM fsWsSnapIsLine ON PURPOSE, AND THE REASON
+   IS A BUG THAT DID NOT SHIP: fsWsSnapIsLine is ALSO the trim tool's gate
+   (fsWsTrimTap - "Tap a line, trim joins two lines into one corner"). Adding
+   rect to it would have got the snapping right and silently taught trim to
+   accept rectangles. What you may snap TO and what you may trim are two
+   questions that happened to share an answer.
+
+   ELLIPSE IS DELIBERATELY NOT HERE. Revit snaps a circle at its CENTRE and
+   QUADRANTS - different points, different question, and he said rectangle.
+
+   ROTATION IS NOT OPTIONAL. A rect carries o.rot and the renderer turns it
+   about the centre of its own bounding box; corners read straight off
+   x1/y1/x2/y2 would sit off the drawn edge on every rotated rectangle, which
+   looks like a broken feature rather than an absent one. Same centre, same
+   direction, same degrees as drawObject. */
+function fsWsSnapSegs(o) {
+  if (fsWsSnapIsLine(o)) return [{ x1:o.x1, y1:o.y1, x2:o.x2, y2:o.y2 }];
+  if (!o || o.kind !== "shape" || o.shape !== "rect" || o.cx != null) return [];
+  const x1 = Math.min(o.x1, o.x2), x2 = Math.max(o.x1, o.x2);
+  const y1 = Math.min(o.y1, o.y2), y2 = Math.max(o.y1, o.y2);
+  let p = [{ x:x1, y:y1 }, { x:x2, y:y1 }, { x:x2, y:y2 }, { x:x1, y:y2 }];
+  if (o.rot) {
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const a = o.rot * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    p = p.map(q => ({ x:cx + (q.x - cx) * ca - (q.y - cy) * sa,
+                      y:cy + (q.x - cx) * sa + (q.y - cy) * ca }));
+  }
+  return [0, 1, 2, 3].map(i => ({ x1:p[i].x, y1:p[i].y,
+                                  x2:p[(i + 1) % 4].x, y2:p[(i + 1) % 4].y }));
+}
 
 /* [86-2] The five snaps SS Item 2 calls the useful 90%.
 
@@ -4392,11 +4432,26 @@ function fsWsSnap(ip, anchor, skipO) {
   if (!fsWsSnapOn) return null;
   const r = FS_WS_SNAP_PX / view.scale;
   const rn = FS_WS_SNAP_NEAR_PX / view.scale;
+  /* PASS 178 [178-A] - THE SEARCH IS OVER SEGMENTS NOW, NOT OBJECTS, because a
+     rectangle contributes four of them (fsWsSnapSegs). Two things had to move
+     with that and both are exact rather than approximate:
+       - the pre-filter measures to the SEGMENT. Measuring a rectangle as one
+         x1,y1->x2,y2 span would measure its DIAGONAL, which is not an edge and
+         is not where any of its snap points are.
+       - `own` remembers which object a segment came from, so skipO still skips
+         the thing being dragged and the intersection pass below can refuse to
+         cross a rectangle with itself. */
   const ls = [];
   for (let k = 0; k < objects.length; k++) {
     const o = objects[k];
-    if (o === skipO || !fsWsSnapIsLine(o) || viewHidden(o)) continue;
-    if (distToSeg(ip, { x:o.x1, y:o.y1 }, { x:o.x2, y:o.y2 }) <= r) ls.push(o);
+    if (o === skipO || viewHidden(o)) continue;
+    const segs = fsWsSnapSegs(o);
+    for (let m = 0; m < segs.length; m++) {
+      const sg = segs[m];
+      if (distToSeg(ip, { x:sg.x1, y:sg.y1 }, { x:sg.x2, y:sg.y2 }) <= r) {
+        sg.own = o; ls.push(sg);
+      }
+    }
   }
   let best = null;
   const take = (x, y, type, rank) => {
@@ -4419,6 +4474,12 @@ function fsWsSnap(ip, anchor, skipO) {
       if (tp >= 0 && tp <= 1) take(o.x1 + tp * (o.x2 - o.x1), o.y1 + tp * (o.y2 - o.y1), "perp", 3);
     }
     for (let j = i + 1; j < ls.length; j++) {
+      /* PASS 178 [178-A] - two edges of the SAME rectangle meet at its corners,
+         and a corner is already an "end" (rank 0, which beats "int" at rank 1).
+         Crossing a shape with itself can only produce candidates that are
+         either duplicates of better ones or, on a rotated box, floating-point
+         noise a pixel off a corner. */
+      if (o.own && ls[j].own === o.own) continue;
       const xp = fsWsSegXSeg(o, ls[j]);
       if (xp) take(xp.x, xp.y, "int", 1);
     }
@@ -10992,13 +11053,22 @@ cv.addEventListener("pointermove", e => {
          RECT AND CIRCLE ARE NOT ADDED. Whether a rectangle's corners should
          snap is a FEATURE and his call (W159-C); this is one tool already
          treated as a line everywhere else. */
+      /* FS_SNAP_SHAPES - PASS 178 [178-A], W161-J. ONE FLAG WAS GATING THREE
+         DIFFERENT BEHAVIOURS and they only ever looked like one because the
+         same four tools wanted all three. `straight` means "this tool draws a
+         straight run, so an ANGLE constraint is meaningful"; `snappy` means
+         "this tool's live end may land on an object snap". Adding rect to the
+         single old flag would have handed the rectangle tool Shift-45 and the
+         angle lock as well - neither asked for, neither meaningful on a box,
+         and both arriving silently beside the thing he did ask for. */
       const straight = (activeTool === "line" || activeTool === "arrow" ||
                         activeTool === "brk" || activeTool === "vesdar");
+      const snappy = straight || activeTool === "rect";
       if (fsShift(e) && straight) ep = snap45(shapeStart.x, shapeStart.y, ip.x, ip.y);
       else if (fsWsAngle && straight) ep = fsWsAngleLock(shapeStart.x, shapeStart.y, ip.x, ip.y);
       /* [86-3] AN OBJECT SNAP BEATS THE ANGLE LOCK - applied last, and tested
          against the RAW finger position, never against the angle-locked one. */
-      const ssn = straight ? fsWsSnap(ip, shapeStart) : null;
+      const ssn = snappy ? fsWsSnap(ip, shapeStart) : null;
       if (ssn) ep = { x:ssn.x, y:ssn.y };
       fsWsSnapHit = ssn;
       tempShape = { kind:"shape", shape:activeTool, x1:shapeStart.x, y1:shapeStart.y, x2:ep.x, y2:ep.y, color:penColor, width:base.width, ls:lineStyle };
@@ -13552,6 +13622,12 @@ function runHotkey(code) {
   return false;
 }
 
+/* FS_NUDGE - PASS 178 [178-B]. The arrow map and the burst clock live beside
+   the handler that uses them. `fsNudgeAt` starts far enough in the past that
+   the first tap of a session always opens its own undo entry. */
+const FS_NUDGE_KEYS = { ArrowLeft:[-1, 0], ArrowRight:[1, 0],
+                        ArrowUp:[0, -1], ArrowDown:[0, 1] };
+let fsNudgeAt = 0;
 window.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   const k = e.key.toLowerCase();
@@ -13567,6 +13643,39 @@ window.addEventListener("keydown", e => {
      constant so Esc and the toggle cannot drift apart. Probed anyway: an
      unprobed shipped behaviour is where rule #0c says the next loss hides. */
   else if (e.key === "Escape") { hkBuf = ""; clearSelection(); setTool(FS_TOOL_NEUTRAL); draw(); }
+  /* FS_NUDGE - PASS 178 [178-B], W161-K. "I would also like to be able to
+     nudge items and select things with the arrow keys." NUDGE ONLY - moving
+     the SELECTION with the arrows is the other half of that sentence, it is
+     not standard, it has no obvious order on a plan, and it is back with him.
+
+     GUARDED ON THE REGISTER BEING HIDDEN. This listener is on `window`, so
+     without the guard the arrow keys would shove objects around a plan while
+     he is reading the asset register - invisibly, and autosaved. (The Ctrl+Z
+     and Delete branches above have never had that guard. That is pre-existing,
+     it is logged as R-163, and it is NOT quietly changed inside a nudge item.)
+
+     ONE SCREEN PIXEL, NOT ONE PLAN UNIT: dividing by view.scale keeps the step
+     the same distance on glass at every zoom, which is the whole point of a
+     nudge. Shift is 10x. FS_SNAP_STEPS is an ANGLE ladder in degrees and is
+     deliberately not reused here.
+
+     ONE UNDO PER BURST: pushUndo() on every key repeat would fill the stack in
+     under a second and throw away the state he wants back. 700ms of quiet
+     starts a new one, so four taps and one undo puts it back. */
+  else if (!e.ctrlKey && !e.metaKey && !e.altKey && FS_NUDGE_KEYS[e.key]) {
+    const regEl = document.getElementById("fsReg");
+    if (regEl && regEl.style.display !== "none") return;
+    if (!selection.length) return;
+    e.preventDefault();
+    const d = FS_NUDGE_KEYS[e.key];
+    const step = (e.shiftKey ? 10 : 1) / ((typeof view !== "undefined" && view && view.scale) ? view.scale : 1);
+    const now = Date.now();
+    if (now - fsNudgeAt > 700) pushUndo();
+    fsNudgeAt = now;
+    selection.forEach(o => moveObjBy(o, d[0] * step, d[1] * step));
+    draw();
+    scheduleAutosave();
+  }
   else if (!e.ctrlKey && !e.metaKey && !e.altKey && /^[a-z]$/.test(k)) {
     const now = Date.now();
     if (now - hkTime > 900) hkBuf = "";
@@ -29231,7 +29340,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v166";
+const FS_BUILD = "aa-v167";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
