@@ -632,7 +632,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.160 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.161 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -762,7 +762,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.160 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.161 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25857,8 +25857,15 @@ function fsRenderTab() {
         /* [173-B] R-158 - these measured 105x20, less than HALF his 44px floor,
            and Delete DESTROYS A DEFECT RECORD from 20px below Photo. The font
            size stays: he never asked for bigger text, he is owed a target. */
-        '<button class="fsbtn fsTap44 fsDefPhAdd" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px">&#128247; Photo</button>' +
-        '<button class="fsbtn fsTap44 fsDefDel" data-id="' + fsEsc(d.id) + '" style="font-size:11.5px;padding:3px 8px;color:#c62828">Delete</button>' +
+        /* PASS 176 [176-C] - W161-G. "quite small wording/font in relation to the
+           button. should be the same as rectified." [173-B] gave these two a 44px
+           box and left font-size:11.5px and padding:3px 8px on them, while
+           Rectified overrides neither and inherits .fsbtn - so they were big
+           buttons with small labels floating in them. HE NAMED THE TARGET, so
+           the fix is to DELETE the overrides rather than pick a number. Delete
+           keeps its red, which is not a size. */
+        '<button class="fsbtn fsTap44 fsDefPhAdd" data-id="' + fsEsc(d.id) + '">&#128247; Photo</button>' +
+        '<button class="fsbtn fsTap44 fsDefDel" data-id="' + fsEsc(d.id) + '" style="color:#c62828">Delete</button>' +
         '</div>' : '') + '</div>';
     });
     if (closed.length) {
@@ -29164,7 +29171,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v164";
+const FS_BUILD = "aa-v165";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33419,7 +33426,12 @@ function fsAssetRegisterHtml(s) {
          at 820 and 1280 it already fills its box and trimming cell padding
          cannot hand the photo column a pixel. THE 68x50 THUMBNAIL STAYS: that
          is the change that actually gave the photo room. */
-      '<td style="padding:9px 8px">' + fsEsc(r.type) + '</td>' +
+      /* PASS 176 [176-D] - W161-L, his ruling on R-162. The column showed the
+         raw TYPE_MAP key, so the same table read "Smoke" on one row and "ext"
+         on the next. fsArTypeName reads TYPE_MAP.name.
+         THE STANDING TRAP: fsAssetKey is built from TYPE_MAP.label and every
+         defect he has raised is keyed off it. Read the name; never move it. */
+      '<td style="padding:9px 8px">' + fsEsc(fsArTypeName(r.o)) + '</td>' +
       '<td style="padding:9px 8px">' + fsEsc(r.level || "–") + '</td>' +
       '<td style="padding:9px 8px">' + (r.o.zone ? "Zone " + fsEsc(r.o.zone) : "–") +
         (r.o.loop ? '<div style="font-size:11.5px;color:var(--fs-sub2)">Loop ' + fsEsc(r.o.loop) + '</div>' : '') + '</td>' +
@@ -33550,13 +33562,24 @@ function fsArPanelHtml(rows, s) {
     '<div style="flex:1"><div style="font-size:15.5px;font-weight:700">' + fsEsc(fsArTypeName(r.o)) + '</div>' +
     '<div style="font-size:12.5px;color:var(--fs-sub)">' +
       (r.name ? fsEsc(r.name) : fsArUnregHtml()) + '</div></div>' +
-    fsArPill(r.st) +
-    /* PASS 175 [175-A] - W160-C. "I've missed it multiple times now when
-       trying to close." Measured at 30 x 22 against the 44px floor he set in
-       Pass 113. It carries .fsTap44 like the five R-158 fixed - it should have
-       been in that list, and it was missed because the audit's selector was
-       `a[class]` and this is an <a> with an id and no class. */
-    '<a id="fsArClose" class="fsTap44" style="cursor:pointer;color:var(--fs-sub);font-size:26px;line-height:1;padding:0 6px">&times;</a></div>';
+    /* FS_ONE_PILL - PASS 176 [176-A], W161-B. "why is 'tested' up there, looks
+       ridiculous". THE PILL WAS DRAWN TWICE IN THIS CARD, ABOUT 90px APART:
+       here, and again as the value of the Status row below. His screenshot
+       circles this one and arrows down to that one. It has been like this since
+       the card was built - the header pill came from his mockup, the Status row
+       from the field list, two different passes - and every render this project
+       has taken of this card contains it.
+       THE ROW IS THE ONE THAT STAYS: it is labelled, and it sits with Next
+       service and Open defects, which are what status is read against. */
+    /* FS_X_VISIBLE - PASS 176 [176-B], W161-A. "I dont think it looks much
+       bigger" - and he is right. Pass 175 grew the TAP TARGET 30x22 -> 44x44
+       and left the glyph at 26px, so the only part of it he can SEE barely
+       moved. The 44px box is untouched; this is the half that was missing:
+       the pill beside it is gone (above), the glyph goes 26 -> 34, and the
+       colour goes from --fs-sub to --fs-text. --fs-sub is the token for
+       SECONDARY TEXT - it was never right for the only way out of a
+       full-screen sheet, and on the dark theme it is a hairline grey. */
+    '<a id="fsArClose" class="fsTap44" style="cursor:pointer;color:var(--fs-text);font-size:34px;line-height:1;padding:0 6px">&times;</a></div>';
   /* PASS 155 [155-C] - three columns that wrap. At 430 they stack, at 820 the
      history drops to its own row, at 1280 all three fit. */
   h += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:11px">';
