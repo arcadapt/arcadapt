@@ -516,18 +516,42 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      one runs until the user dismisses it. The controls still appear — only the
      movement stops — so the feature is intact for anyone who needs stillness. */
   @media (prefers-reduced-motion: reduce) { .fsWobble { animation:none; } }
-  .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
+  /* FS_BTN_44 - PASS 177 [177-C], W161-H. HE HAS REVERSED [W124-1]: the walk
+     asked "do the ordinary buttons feel tight now?" and he answered NEEDS
+     CHANGING. 9 Sep 2026, his words: "ordinary buttons everywhere else are
+     still 42px, two under your own floor."
+     HE WAS GIVEN A NUMBER THAT WAS WRONG IN HIS FAVOUR. Measured on V0.161:
+     42.0px at 430 (the <=720 rule's 12px) but 40.0px at 820 - the iPad he
+     actually works on - which is FOUR under his floor, not two.
+     13px IS MEASURED, NOT COMPUTED: content box 16px, 13 + 13 + 16 + 2 = 44.0.
+     test_p173 B7 was written to assert this padding NEVER changes. It is
+     TURNED ROUND rather than deleted, and it now guards the floor. */
+  .fsbtn { border:1px solid var(--fs-border); background:var(--fs-card); color:var(--fs-text); border-radius:10px; padding:13px 16px; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
   .fsbtn:active { opacity:.75; }
   /* PASS 63 [63-2] — the hub header's REAL buttons stand out by being alone
      AND by this: accent outline, taller for a gloved thumb. A modifier on
      .fsbtn, never a new button species (test_p45 C9's uniformity survives:
      hub-body buttons still match each other). */
-  .fsbtn.fsbtnHero { border-color:var(--fs-accent); color:var(--fs-accent); font-weight:700; padding:14px 18px; }
-  .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+  /* PASS 177 [177-C] - and the hero moves WITH it, which is not scope creep.
+     [63-2] is his own August ask ("Navigate and Open/create workspace... used
+     to stick out") and it was answered with an accent outline AND six pixels
+     of height: 46 against 40. Leaving this at 14 while the base goes to 13
+     leaves two pixels and quietly spends one of his asks to pay for another.
+     16px keeps it 50 against 44 - the same six pixels, both asks intact. */
+  .fsbtn.fsbtnHero { border-color:var(--fs-accent); color:var(--fs-accent); font-weight:700; padding:16px 18px; }
+  /* PASS 177 [177-C] - W161-H. "ordinary buttons EVERYWHERE ELSE". .fsbtnP is
+     the same button in primary clothing and it measured 40.0px too. */
+  .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:13px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
   .fsbtnP:active { background:var(--fs-accentD); }
   .fsCrumb { display:inline-block; color:var(--fs-accent); font-weight:800; font-size:17px; line-height:1; cursor:pointer; padding:9px 15px 9px 11px; border:1.5px solid var(--fs-accent); border-radius:999px; background:var(--fs-card); -webkit-tap-highlight-color:transparent; }
   .fsCrumb:active { background:var(--fs-accent); color:#fff; }
-  .fstab { padding:13px 4px; margin-right:22px; font-size:14.5px; color:var(--fs-sub); cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
+  /* PASS 177 [177-A] - W161-D. 22px x 6 gaps was 132px of a 742px strip spent
+     on air at the width where the room is needed. MEASURED, not trimmed by
+     feel: with the long names back, 22px overflows his iPad on a real site and
+     10px does not. IN SPREAD MODE THIS NUMBER IS INVISIBLE - space-between
+     sets the gaps - so it costs nothing he can see. The <=720 rule further
+     down (14px) is [173-A]'s phone fix and is deliberately NOT touched. */
+  .fstab { padding:13px 4px; margin-right:10px; font-size:14.5px; color:var(--fs-sub); cursor:pointer; border-bottom:3px solid transparent; font-weight:600; white-space:nowrap; }
   /* FS_TABSTRIP - PASS 173 [173-A], R-157. THE STRIP SAYS WHEN THERE IS MORE.
      Measured on V0.157 at 430: 744px of tabs in a 368px row, four of seven off
      screen, and nothing on the page said so - the only hint was "Test history"
@@ -624,7 +648,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     .fsPlDay.fsPlDrop { outline:2px dashed var(--fs-accent); outline-offset:-2px; background:rgba(37,150,171,.20) !important; }
     #fsReg h1 { font-size:24px !important; }
     .fstab { margin-right:14px; font-size:13.5px; padding:12px 2px; }
-    .fsbtnP, .fsbtn { padding:12px 14px; }
+    /* PASS 177 [177-C] - W161-H. 12px measured 42.0px on the phone, which is
+       under his floor as well; the phone was never at 44 either. Horizontal
+       stays 14px - this rule exists to narrow the button, not to shorten it. */
+    .fsbtnP, .fsbtn { padding:13px 14px; }
   }
 </style>
 <div id="fsReg">
@@ -632,7 +659,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.161 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.162 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -762,7 +789,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.161 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.162 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1715,8 +1742,24 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <h3 style="margin-bottom:4px">&#128207; Set the scale</h3>
     <div style="font-size:12.5px;color:#999;margin-bottom:12px">How long is that line in real life?</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-      <input type="text" id="fsScaleVal" inputmode="decimal" autocomplete="off" placeholder="6000" style="flex:1;min-width:0;box-sizing:border-box;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:10px;font-size:17px">
-      <select id="fsScaleUnit" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:10px;font-size:15px">
+      <!-- FS_SCALE_BOX - PASS 177 [177-D], W161-M. "you cannot see what I am
+           typing the box is too small it doesn't show". TWO FAULTS, ONE ROW,
+           and the big one was only found by RENDERING IT (#0d-3) after the
+           small one was already fixed and green.
+           WIDTH: .modalbox's shared rule covers `select` too, so the unit
+           picker demanded width:100% OF THIS FLEX ROW and the input beside it,
+           flex:1 with min-width:0, collapsed to 22.00px - two paddings, two
+           borders, AND ZERO PIXELS OF TEXT. That is his complaint, exactly.
+           The select is three options wide and never wanted the row:
+           width:auto + flex:0 0 auto. The input's min-width goes 0 -> 120px so
+           it can never collapse to nothing again.
+           HEIGHT: this inline style overrode the padding and the font but not
+           the class's height:38px, and box-sizing is border-box - content box
+           16.00px for a line needing 20.00px, CLIPPED BY 4.00px. 44px with
+           11px padding is 11 + 11 + 20 + 2, the line fits exactly, and it puts
+           the box on his own 44px floor. The select matches it. -->
+      <input type="text" id="fsScaleVal" inputmode="decimal" autocomplete="off" placeholder="6000" style="flex:1;min-width:120px;box-sizing:border-box;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;height:44px;padding:11px 10px;font-size:17px">
+      <select id="fsScaleUnit" style="width:auto;flex:0 0 auto;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;height:44px;padding:11px 10px;font-size:15px">
         <option value="mm">mm</option>
         <option value="cm">cm</option>
         <option value="m">m</option>
@@ -25038,11 +25081,18 @@ function fsHubHtml(s) {
   /* Reece, 12 Aug: "where are the buttons that are supposed to be the
      uniform buttons throughout the app?" — these are STANDARD .fsbtn,
      no bespoke sizing. Uniformity is suite-checked (C9). */
-  let h = '<div id="fsHubActions" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' +
-    '<button class="fsbtn" id="fsHubQaScan">Scan QR</button>' +
-    ((typeof fsCan !== "function" || fsCan("field")) ? '<button class="fsbtn" id="fsHubQaDefect">Add defect</button>' : '') +
-    '<button class="fsbtn" id="fsHubQaPhoto">Take photo</button>' +
-    '</div>';
+  /* FS_NO_HUB_QA - PASS 177 [177-B], W161-E. "when I am in overview there is
+     scan qr, add defect, take photo? I don't need these buttons there. scan qr
+     code is in tools, I don't need a take photo button either and if I want to
+     add a defect I can click the defects tab and add it there."
+     HE NAMED ALL THREE AND GAVE A REASON FOR EACH, so this is a decided item
+     and not a preference to weigh. Measured at 42px plus a 12px margin: ~54px
+     of the first screenful of every site comes back, on the screen he called
+     cluttered. Nothing here was a sole route - Scan QR is in Tools, Add defect
+     is on the Defects tab, and a photo is added from the photo card.
+     The slot map above is unchanged: fsHubWrap simply becomes the first thing
+     in the pane, which is what test_p45's slot assertion now pins. */
+  let h = '';
   h += '<div id="fsHubWrap" style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">';
   /* LEFT column */
   h += '<div id="fsHubColL" style="flex:1.2;min-width:250px;display:flex;flex-direction:column;gap:10px">';
@@ -25155,12 +25205,11 @@ function fsHubHtml(s) {
 function fsHubWire(s) {
   const ed = document.getElementById("fsInfoEditBtn");
   if (ed) ed.onclick = () => { fsInfoEdit = true; fsRenderTab(); };
-  const qs = document.getElementById("fsHubQaScan");
-  if (qs) qs.onclick = fsQrLookOpen;
-  const qd = document.getElementById("fsHubQaDefect");
-  if (qd) qd.onclick = () => fsDefFormOpen(s, {});
-  const qp = document.getElementById("fsHubQaPhoto");
-  if (qp) qp.onclick = () => { fsPhotoTarget = { kind: s.photo ? "siteAdd" : "site" }; document.getElementById("fsPhotoInput").click(); };
+  /* PASS 177 [177-B] - W161-E. The three quick-action handlers went with their
+     buttons. Left as a comment rather than silently: fsQrLookOpen,
+     fsDefFormOpen and the fsPhotoTarget/fsPhotoInput pair are all still live
+     and still reached from Tools, the Defects tab and the photo card - the
+     three places he named. Nothing lost a sole entry point. */
   const ph = document.getElementById("fsHubPhoto");
   if (ph) ph.onclick = () => fsViewPhoto(s.photo, { kind: "siteIdx", i: 0 });
   const ep = document.getElementById("fsHubEntryPhoto");
@@ -25544,10 +25593,21 @@ function fsRenderSite() {
      the same one, in the same place in the strip, exactly as he drew it. The
      survey that used to live behind this tab now renders on Overview - see
      149-B; the data is untouched and nothing about it is deleted. */
-  if (fsTabAllowed("equip")) tabs.push(["assets", "Assets"]);
-  if (fsTabAllowed("history")) tabs.push(["history", "Tests"]);
+  /* PASS 177 [177-A] - W161-D. "why did we even change this? I prefer the
+     other way how it was." THE RENAME WAS MINE ([173-A]), approved sight-
+     unseen and now seen, so it comes back - but only as far as it FITS.
+     MEASURED at 820 with LIVE counts on a 24-building / 140-QR site, which is
+     the case that catches this: the four long names together are 882px of ink
+     in a 742px scroller. Three of them, with the margin reclaimed above, are
+     731px and every tab stays on his iPad.
+     "Files & photos" is the one left short and it is not arbitrary - it is the
+     most expensive single rename of the four (+79px on its own) and it is the
+     one that pushes a big site over. [[W161-F]] may split that tab into two
+     anyway, which would make "Files" the correct word regardless. */
+  if (fsTabAllowed("equip")) tabs.push(["assets", "Asset register"]);
+  if (fsTabAllowed("history")) tabs.push(["history", "Test history"]);
   if (fsTabAllowed("defects")) tabs.push(["defects", "Defects"]);
-  if (fsTabAllowed("qr")) tabs.push(["qr", "QR" + ((s.qrItems || []).length ? " (" + s.qrItems.length + ")" : "")]);
+  if (fsTabAllowed("qr")) tabs.push(["qr", "QR tags" + ((s.qrItems || []).length ? " (" + s.qrItems.length + ")" : "")]);
   tabs.push(["files", "Files"]);
   /* fsTab IS STICKY — it survives a re-render and it survives the feature
      being switched off underneath it. Without this line, turning defects off
@@ -29171,7 +29231,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v165";
+const FS_BUILD = "aa-v166";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
