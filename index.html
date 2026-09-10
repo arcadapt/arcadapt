@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.172 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.173 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.172 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.173 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1933,10 +1933,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="flex:1;font-size:13.5px">Who did what in this register</span>
       <button class="btn" id="fsActBtn">&#128203; Activity</button>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <span style="flex:1;font-size:13.5px">Your business details, GST and tax codes</span>
-      <button class="btn" id="fsBizBtn">Business &amp; tax</button>
-    </div>
+    <!-- PASS 192 [192-A] R-7 - BUSINESS & TAX IS NOT IN SETTINGS ANY MORE.
+         Reece, 30 Aug: "I don't think the business/tax should be in settings
+         and only admin can change it." It lives in Office now, beside the
+         other things only the office does, and it renders for an admin only.
+         The row is gone rather than hidden: a disabled control in Settings
+         would still say "this is a Settings thing", and it is not. -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="fsSetVer"></b></span>
       <button class="btn" id="fsSetUpd">&#8635; Check for updates</button>
@@ -24502,7 +24504,11 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:19px;height:19px;vertical-align:-2px;margin-right:7px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</h2>' +
-    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button>' + (fsSiteFeatOn("defects") ? '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' : '') + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button><button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button>' + (fsSiteFeatOn("defects") ? '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' : '') + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button>' +
+    /* PASS 192 [192-A] R-7 - FS_BIZTAX_ADMIN. Rendered for an admin only,
+       and fsBizOpen/fsBizSave refuse for anyone else regardless: a hidden
+       control that still works is the failure, not the fix. */
+    (typeof fsCan === "function" && fsCan("admin") ? '<button class="fsbtn" id="fsBizBtn">&#127970; Business &amp; tax</button>' : '') +'<button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + (fsSiteFeatOn("defects") ? chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") : '') + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -24519,6 +24525,9 @@ function fsDashRender() {
   document.getElementById("fsDashBack").onclick = () => fsShow("fsClientsView");
   document.getElementById("fsDashPdf").onclick = fsDashPdf;
   document.getElementById("fsDashLibBtn").onclick = fsLibOpen;
+  /* PASS 192 [192-A] - gated exactly as the button is rendered ([59]'s rule). */
+  const bizBtn = document.getElementById("fsBizBtn");
+  if (bizBtn) bizBtn.onclick = fsBizOpen;
   /* PASS 66 [66-3] — gated exactly as the button is rendered ([59]'s rule). */
   const pipeBtn = document.getElementById("fsPipeBtn");
   if (pipeBtn) pipeBtn.onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
@@ -29598,6 +29607,19 @@ function fsBizGstLine() {
   }
 }
 function fsBizOpen() {
+  /* PASS 192 [192-A] R-7 - FS_BIZTAX_ADMIN, THE GATE ITSELF.
+     The button is admin-only, and so is this, because the button is not the
+     control - the function is. Hiding a control that still works is the shape
+     this ledger has caught before, and the way in here is not hypothetical:
+     the Office passcode is SHARED (it lives in the register file so colleagues'
+     copies match), so anyone who is in Office at all can reach this. The gate
+     is the ROLE, and it is checked on the way in AND on the way out
+     (fsBizSave), because a sheet left open across a sign-out on a shared iPad
+     is an ordinary Tuesday. */
+  if (typeof fsCan === "function" && !fsCan("admin")) {
+    alert("Business & tax is admin only.\n\nYour business name, ABN, GST setup and bank details go on every invoice, so only an admin can change them.");
+    return;
+  }
   if (!fsRegister) { alert("Load a register first — these settings live inside it."); return; }
   const b = fsBiz(), a = fsAcct();
   const bk = (b.bank && typeof b.bank === "object") ? b.bank : {};
@@ -29617,6 +29639,11 @@ function fsBizOpen() {
   document.getElementById("fsBizModal").classList.add("show");
 }
 function fsBizSave() {
+  /* PASS 192 [192-A] - the second half of the gate. See fsBizOpen. */
+  if (typeof fsCan === "function" && !fsCan("admin")) {
+    alert("Business & tax is admin only — nothing was saved.");
+    return;
+  }
   const b = fsBiz(), a = fsAcct();
   const v = id => { const el = document.getElementById(id); return el ? String(el.value || "").trim() : ""; };
   b.name = v("fsBizName"); b.abn = v("fsBizAbn"); b.address = v("fsBizAddr");
@@ -29683,10 +29710,10 @@ function fsBizSave() {
   document.getElementById("fsBizModal").classList.remove("show");
   try { if (typeof fsQuoteRender === "function" && document.getElementById("fsQuoteWrap")) fsQuoteRender(); } catch (e) {}
 }
-document.getElementById("fsBizBtn").onclick = () => {
-  document.getElementById("fsSettingsModal").classList.remove("show");
-  fsBizOpen();
-};
+/* PASS 192 [192-A] R-7 - the load-time wiring is GONE, and it had to be: the
+   button is rendered by fsDashRender now, so this line would have thrown a
+   TypeError on every start and taken every handler below it with it. Wired
+   beside the other Office buttons instead. */
 document.getElementById("fsBizClose").onclick = () => document.getElementById("fsBizModal").classList.remove("show");
 document.getElementById("fsBizSave").onclick = () => fsBizSave();
 document.getElementById("fsBizGst").onchange = function () {
@@ -29713,7 +29740,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v180";
+const FS_BUILD = "aa-v181";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
