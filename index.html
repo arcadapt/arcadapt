@@ -679,7 +679,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.165 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.166 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -809,7 +809,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.165 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.166 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -26055,7 +26055,7 @@ function fsRenderTab() {
   if (fsTab === "buildings") {
     const blds = [...(s.buildings || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric:true }));
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;margin-bottom:10px"><h3 style="font-size:16px;font-weight:700;flex:1">Buildings</h3><button class="fsbtn" id="fsBldAdd">&#65291; Add building</button></div>';
+    html += '<div style="display:flex;align-items:center;margin-bottom:10px">' + /* FS_NO_ECHO [184-A] */ '<div style="flex:1"></div><button class="fsbtn" id="fsBldAdd">&#65291; Add building</button></div>';
     if (!blds.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No buildings yet. Add one for each separate building on this site &mdash; every building gets its own equipment, test history, defects and plans.</div>';
     blds.forEach(b => {
       const bi = (s.buildings || []).indexOf(b);
@@ -26147,7 +26147,7 @@ function fsRenderTab() {
   if (fsTab === "history") {
     const hist = s.history || [];
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap"><h3 style="font-size:16px;font-weight:700;flex:1">Test history</h3><button class="fsbtn" id="fsAddTestBtn">+ Add test</button>' + (hist.length ? '<button class="fsbtn" id="fsAfssBtn">&#128196; AFSS pack</button><button class="fsbtn" id="fsYearPdfBtn">&#128197; Year summary PDF</button>' : '') + '</div>';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">' + /* FS_NO_ECHO [184-A] */ '<div style="flex:1"></div><button class="fsbtn" id="fsAddTestBtn">+ Add test</button>' + (hist.length ? '<button class="fsbtn" id="fsAfssBtn">&#128196; AFSS pack</button><button class="fsbtn" id="fsYearPdfBtn">&#128197; Year summary PDF</button>' : '') + '</div>';
     if (!hist.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No tests recorded yet. Open the Site Workspace and tap <b>&#9654; Start test</b> &mdash; or use <b>+ Add test</b> to record one done on paper.</div>';
     hist.forEach(r => {
       const failBits = (r.checklist && r.checklist.f ? r.checklist.f : 0) + ((r.failedDevices || []).length);
@@ -26176,7 +26176,9 @@ function fsRenderTab() {
     const open = defs.filter(d => !d.closed), closed = defs.filter(d => d.closed);
     html += '<div class="fscard" style="padding:20px">';
     html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
-      '<h3 style="font-size:16px;font-weight:700;flex:1;min-width:120px">Defects <span style="color:' + (open.length ? '#c62828' : 'var(--fs-sub2)') + ';font-size:13px">(' + open.length + ' open)</span></h3>' +
+      /* FS_NO_ECHO [184-A] - the word "Defects" is the tab above; the COUNT was
+         the information and it stays, same colour rule. */
+      '<div style="flex:1;min-width:120px;font-size:13px;font-weight:700;color:' + (open.length ? '#c62828' : 'var(--fs-sub2)') + '">' + open.length + ' open</div>' +
       (fsCan("field") ? '<button class="fsbtnP" id="fsDefAddBtn">&#65291; Raise defect</button>' : '') + '</div>';
     if (!defs.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No defects recorded. Failed checklist items and failed devices from tests carry forward here until rectified, and you can log one yourself with &#65291; Raise defect.</div>';
     open.forEach(d => {
@@ -26231,7 +26233,7 @@ function fsRenderTab() {
   if (fsTab === "qr") {
     const qits = s.qrItems || [];
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h3 style="font-size:16px;font-weight:700;flex:1">QR tags</h3>';
+    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">' + /* FS_NO_ECHO [184-A] */ '<div style="flex:1"></div>';
     if (qits.length) html += '<button class="fsbtn" id="fsQrSheetBtn">&#128424; Label sheet PDF</button>';
     html += '<button class="fsbtnP" id="fsQrAddBtn">+ Add QR tag</button></div>';
     if (!qits.length) html += '<div style="color:var(--fs-faint);font-size:13.5px">No QR tags yet. Add one here (device details, barcode, QR photo, printable label), or create one from a device on the plan (double-tap the device &rarr; Details). Scan any printed tag from &#128295; Tools in the bottom bar to look it up from anywhere.</div>';
@@ -26263,8 +26265,10 @@ function fsRenderTab() {
        he did not ask for. */
     const fsPhTab = fsTab === "photos";
     html += '<div class="fscard" style="padding:20px">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap"><h3 style="font-size:16px;font-weight:700;flex:1">' +
-      (fsPhTab ? 'Photos' : 'Files') + '</h3><button class="fsbtn" id="fsFileAnyAdd">&#128247; ' +
+    /* FS_NO_ECHO [184-A] - W164-A, "the Files tab says the word Files twice, one
+       line apart": the tab strip and this card title. The title is gone on
+       both doors; the row and the one button stay. */
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap"><div style="flex:1"></div><button class="fsbtn" id="fsFileAnyAdd">&#128247; ' +
       (fsPhTab ? 'Add photo' : 'Add file') + '</button></div>';
     const ph = fsPhTab ? (s.photos || []) : [];
     if (fsPhTab && !ph.length && !(s.photoExtra || []).filter(Boolean).length)
@@ -29546,7 +29550,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v169";
+const FS_BUILD = "aa-v170";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
