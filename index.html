@@ -679,7 +679,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.168 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.169 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -809,7 +809,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.168 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.169 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -27798,10 +27798,17 @@ function fsTestedTap() {
 /* [186-A] the assets a Tested tap reaches on one node: the symbols on that
    node's own plan. A building is a site-shaped node with its own plan, so the
    modal calls this once per ticked node. Same filter fsArRows uses. */
+/* FS_MONTHLY_TYPES - PASS 187 [187-A], W168-A. "Not every asset gets tested
+   every visit. Only certain items like FIPs SFIP OWS FDCIE MIMIC SOUNDERS
+   STROBES would be tested on that monthly routine test." His list, mapped onto
+   the TYPES table: strobes are the register's Visual Alarm Devices; horn rides
+   with sounder as the other audible. Detectors, MCPs, hose reels,
+   extinguishers, exits - not on the list, not touched by a monthly tap. */
+const FS_MONTHLY_TYPES = ["fip", "sfip", "fdcie", "mimic", "ows", "sounder", "horn", "vad", "vadt"];
 function fsTestedAssets(node) {
   const out = [];
   (((node || {}).plan || {}).levels || []).forEach(lv => {
-    (lv.objects || []).forEach(o => { if (o && o.kind === "sym" && o.type !== "campin") out.push(o); });
+    (lv.objects || []).forEach(o => { if (o && o.kind === "sym" && FS_MONTHLY_TYPES.indexOf(o.type) >= 0) out.push(o); });
   });
   return out;
 }
@@ -27951,24 +27958,24 @@ function fsTestedModal(s, blds, date, tech) {
     const at = fsTestedWhen(when);
     const before = (s.testing || {}).lastMonthly || "";
     const journal = { date: when, madeOn: date, tech: tech, recs: [], assets: [], nodes: targets.slice() };
-    let nAssets = 0, nNewYear = 0;
-    const otherYears = {};
+    let nAssets = 0, nSkipped = 0;
     targets.forEach(n2 => {
       fsQuickTestedWrite(n2, when, tech);
       journal.recs.push({ n2: n2, r: n2.history[0] });
       /* RULING 1 + the modal's own words: the site's plan and every TICKED
-         building's plan. An unticked building is one he did not do. */
+         building's plan. An unticked building is one he did not do.
+         [187-A] and only the monthly-routine types - fsTestedAssets filters. */
       fsTestedAssets(n2).forEach(o => {
         const had = (o.ty || []).includes(yr);
+        /* FS_OTHER_YEAR_SAFE - PASS 187 [187-B], W168-B. "make it the safest
+           option... I just don't want it to be annoying". The tap NEVER ADDS
+           a year tick: an asset without this year's tick is left as it was,
+           and the notice says so. The records above are still written, so
+           the date is never refused. */
+        if (!had) { nSkipped++; return; }
         const prev = (o.td || {})[String(yr)];
-        journal.assets.push({ o: o, yr: yr, had: had, prev: prev });
-        if (had) fsTyStamp(o, yr, at);
-        else {
-          /* RULING 3: a date in another year is ALLOWED and ticks that year.
-             The other years stay ticked; he said he unticks himself. */
-          fsTyTick(o, yr, true, at); nNewYear++;
-          (o.ty || []).forEach(y => { if (y !== yr) otherYears[y] = (otherYears[y] || 0) + 1; });
-        }
+        journal.assets.push({ o: o, yr: yr, had: true, prev: prev });
+        fsTyStamp(o, yr, at);
         nAssets++;
       });
     });
@@ -27979,14 +27986,14 @@ function fsTestedModal(s, blds, date, tech) {
     let msg = '<div style="font-size:15px;font-weight:700;margin-bottom:8px">Recorded ' + fsEsc(pretty(when)) + '</div>';
     msg += '<div style="font-size:13.5px;line-height:1.5">' +
       (bN ? 'The site and ' + bN + ' building' + (bN === 1 ? '' : 's') : 'The site') + ' &mdash; one Test history record each, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.<br>' +
-      '<b>' + nAssets + ' asset' + (nAssets === 1 ? '' : 's') + '</b> marked tested on that date.';
+      '<b>' + nAssets + ' monthly item' + (nAssets === 1 ? '' : 's') + '</b> (panels, OWS, sounders, strobes) marked tested on that date.';
     /* RULING 2, said on screen: the strip moves only when this is the newest. */
     if (after === when) msg += '<br>Last done on the monthly strip is now <b>' + fsEsc(pretty(when)) + '</b>.';
     else if (before && when < before) msg += '<br><b>Last done stays ' + fsEsc(pretty(before)) + '</b> &mdash; that is the newer test, so the due date does not move.';
-    if (nNewYear) {
-      const oy = Object.keys(otherYears).sort();
-      msg += '<br><b>' + yr + ' ticked</b> on ' + nNewYear + ' asset' + (nNewYear === 1 ? '' : 's') + ' that had no ' + yr + ' tick' +
-        (oy.length ? ' &mdash; ' + oy.join(', ') + ' ' + (oy.length === 1 ? 'stays' : 'stay') + ' ticked too.' : '.');
+    if (nSkipped) {
+      msg += '<br><b>' + nSkipped + ' monthly item' + (nSkipped === 1 ? '' : 's') + ' left as ' + (nSkipped === 1 ? 'it was' : 'they were') +
+        '</b> &mdash; no ' + yr + ' tick on ' + (nSkipped === 1 ? 'it' : 'them') + ', and this button never adds one. ' +
+        'Tick ' + yr + ' on the asset itself if you did test it.';
     }
     msg += '<br><span style="color:var(--fs-sub2)">Tap the green Tested pill to undo the lot.</span></div>';
     /* The window CLOSES ITSELF - it did the work (test_p95 D2d/D4c). The
@@ -29658,7 +29665,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v172";
+const FS_BUILD = "aa-v173";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
