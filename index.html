@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.173 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.174 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.173 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.174 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3125,7 +3125,47 @@ function drawYearChip(c, x, y, br, txt, bg) {
   c.fillText(txt, x, y + fs * 0.05);
 }
 
-function symDims(o) {   // image-space width/height (before rotation)
+/* ================= PASS 193 [193-A] ================================
+   W127-9. THE LENGTH AXIS.
+
+   Reece, V0.127 walk: "keep it it the width you had and just make the symbol
+   draggable length wise."
+
+   ONE STORED NUMBER, AND IT IS A RATIO. `o.asp` is the stretch of the length
+   axis relative to the glyph's natural proportion; absent - which is every
+   plan saved before this build - it is 1 and nothing renders differently.
+
+       length    = symPx(o) * xmult                (unchanged: this is the mm)
+       thickness = symPx(o) * ymult / fsSymAsp(o)  (the only new term)
+
+   A RATIO RATHER THAN A STORED THICKNESS IS WHAT KEEPS THE OTHER TWO CONTROLS
+   WORKING. The corner grip and the size slider move `size`; both axes follow
+   it, the aspect is preserved, and neither of them needed a line changed. The
+   length handle multiplies size AND asp by the same factor, the thickness term
+   cancels, and only the length moves.
+
+   FOUR GLYPHS, AND THE OTHER FOUR ARE A RULING. A wall opening's thickness is
+   a drafting convention (a roller door curtain is about 100 mm; the glyph
+   draws 0.306 of its length, 734 mm at 2400), so stretching it says nothing
+   untrue. A hinged door's swing ARC has the leaf as its radius - an 820 leaf
+   swings 820 - and a stair's going and width are both real (1000 mm, his own
+   ruling on W127-8). Those four keep one size, deliberately.
+
+   fsSymAsp asks fsSymLenAble itself, so a stretch cannot smear onto a glyph
+   with no length axis through a copy, a paste, or a type edited underneath an
+   existing placement. */
+const FS_SYM_LENAXIS = "193-A";
+const FS_LEN_GLYPHS = { sldoor: 1, rldoor: 1, window: 1, opening: 1 };
+function fsSymLenAble(o) {
+  const t = o && o.kind === "sym" && TYPE_MAP[o.type];
+  return !!(t && FS_LEN_GLYPHS[t.glyph]);
+}
+function fsSymAsp(o) {
+  if (!fsSymLenAble(o)) return 1;
+  const a = o.asp;
+  return (typeof a === "number" && a >= 0.15 && a <= 10) ? a : 1;
+}
+function symDimsBase(o) {   // the glyph in its OWN frame, before rotation
   const t = TYPE_MAP[o.type] || {};
   /* PASS 139: derived, not stored. objectBounds() is the only caller that
      matters here, so selection, hit-testing and the bounding box all follow
@@ -3139,8 +3179,8 @@ function symDims(o) {   // image-space width/height (before rotation)
   else if (t.glyph === "dba") { w = s * 1.4; h = s * 1.9; }
   else if (t.glyph === "door") { w = s * 1.35; h = s * 1.2; }
   else if (t.glyph === "dbldoor") { w = s * 1.9; h = s * 1.1; }
-  else if (t.glyph === "sldoor" || t.glyph === "rldoor") { w = s * 1.8; h = s * 0.55; }
-  else if (t.glyph === "window" || t.glyph === "opening") { w = s * 1.6; h = s * 0.4; }
+  else if (t.glyph === "sldoor" || t.glyph === "rldoor") { w = s * 1.8; h = s * 0.55 / fsSymAsp(o); }
+  else if (t.glyph === "window" || t.glyph === "opening") { w = s * 1.6; h = s * 0.4 / fsSymAsp(o); }
   else if (t.glyph === "stair") { w = s * 1.8; h = s; }
   else if (t.glyph === "lstair") { w = s * 1.45; h = s * 1.45; }
   else if (t.glyph === "db") { w = s * 1.9; h = s * 1.15; }
@@ -3161,6 +3201,16 @@ function symDims(o) {   // image-space width/height (before rotation)
   else if (t.glyph === "spitfire" && t.sq) { w = s * 1.24; h = s * 1.24; }
   else if (t.glyph === "exting") { w = s * 0.98; h = s * 1.25; }
   else if (t.glyph === "blanket") { w = s * 0.95; h = s * 0.95; }   /* PASS 108 [W107-4] */
+  return { w, h };
+}
+/* [193-A] THE SPLIT IS THE WHOLE REASON THIS PAIR EXISTS. symDims bakes
+   ROTATION into an axis-aligned box - which is what bounds, hit-testing and
+   the export crop want, and is exactly wrong for a handle that has to sit on
+   the END of the symbol's own length. symDimsBase is the glyph in its own
+   frame; symDims is that box turned. Callers are unchanged. */
+function symDims(o) {   // image-space width/height, rotation baked in
+  const d = symDimsBase(o);
+  let w = d.w, h = d.h;
   const rr = ((o.rot || 0) % 360) * Math.PI / 180;
   if (rr) {
     const ca = Math.abs(Math.cos(rr)), sa = Math.abs(Math.sin(rr));
@@ -3168,6 +3218,55 @@ function symDims(o) {   // image-space width/height (before rotation)
     w = w2; h = h2;
   }
   return { w, h };
+}
+/* [193-A] W127-9 - THE DRAG ITSELF.
+
+   THE FAR END IS THE ANCHOR, exactly as [80-2] made the corner grip anchor its
+   opposite corner. Without it the symbol grows from its centre, the far end
+   walks backwards under the finger, and that is the "runs away" feeling R-3
+   turned out to be.
+
+   It writes `size` and then symSyncMm, the same two lines and the same order
+   as the corner grip, so the LENGTH is the millimetres and there is still only
+   one writer of o.mm. asp moves by the factor that was ACTUALLY applied after
+   the clamp, not the factor that was asked for, or a drag into the stop would
+   quietly change the thickness. */
+function fsSymLenDrag(o, nx, ny) {
+  if (!fsSymLenAble(o)) return;
+  const a = (o.rot || 0) * Math.PI / 180;
+  const ux = Math.cos(a), uy = Math.sin(a);
+  const db = symDimsBase(o);
+  const half = db.w / 2;
+  const ax = o.x + half * ux, ay = o.y + half * uy;      /* the anchored end */
+  /* the pointer PROJECTED onto the length axis, measured back from the anchor:
+     off-axis travel is ignored, which is what "lengthwise" means */
+  const len = Math.max(6, -((nx - ax) * ux + (ny - ay) * uy));
+  const px = symPx(o);
+  const want = px * (len / (db.w || 1));
+  const size = Math.max(12, Math.min(400, want));
+  o.asp = Math.max(0.15, Math.min(10, fsSymAsp(o) * (size / (px || 1))));
+  o.size = size;
+  symSyncMm(o);
+  const d2 = symDimsBase(o);
+  o.x = ax - (d2.w / 2) * ux;
+  o.y = ay - (d2.w / 2) * uy;
+}
+/* [193-A] NEAREST, NOT FIRST - AND IT WAS MEASURED FIRST (measure-p193).
+   With a second handle on the length axis, the end of a window sits 8.00px
+   from the corner grip at rot 0 and 90, and the other end does the same at 180
+   and 270 - INSIDE the 14px hit radius, on the flattest glyphs, which are the
+   ones this feature is for. "First in the array" would hand the same gesture
+   to the corner grip on some rotations and to the length handle on others.
+   Nearest wins is one rule at all four, and it is here rather than in three
+   copies so the zone tool and the shape tools get it too. */
+function fsHandlePick(hs, px, py) {
+  let best = null, bd = 14;
+  for (const hd of hs) {
+    const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
+    const d = Math.hypot(px - hx, py - hy);
+    if (d <= bd) { bd = d; best = hd; }
+  }
+  return best;
 }
 
 function drawEmMark(c, col, d) {   // mini quartered "emergency fitting" roundel (same motif as spitfire)
@@ -3186,6 +3285,14 @@ function drawSym(c, o, scale) {
      one, and the stored pixels when there is not. */
   const oPx = symPx(o);
   const s = oPx * scale;
+  /* [193-A] THE THICKNESS AXIS. 1:1 with `s` on every glyph but the four that
+     carry a length, and on those it is what stops a stretched opening being
+     drawn with a fattening pen: the stroke weights below come off `ty`, not
+     off `s`. That is also why this is four hand-written branches rather than
+     one c.scale(f, 1) around the glyph - an anisotropic transform strokes with
+     an elliptical pen, and a roller door's slats would come out heavier than
+     its frame. */
+  const ty = s / fsSymAsp(o);
   const x = o.x * scale, y = o.y * scale;
   const sx = o.fx ? -1 : 1, sy = o.fy ? -1 : 1;
   c.save();
@@ -3418,35 +3525,66 @@ function drawSym(c, o, scale) {
     c.beginPath(); c.moveTo(lw2, s * 0.5); c.lineTo(lw2, s * 0.5 - lw2); c.stroke();
     c.beginPath(); c.arc(lw2, s * 0.5, lw2, Math.PI, Math.PI * 1.5); c.stroke();
   } else if (t.glyph === "sldoor") {
-    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.09); c.lineCap = "butt";
+    /* [193-A] x stays on `s`, y and every stroke weight on `ty`. */
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, ty * 0.09); c.lineCap = "butt";
     c.beginPath();
-    c.moveTo(-s * 0.9, -s * 0.09); c.lineTo(s * 0.12, -s * 0.09);
-    c.moveTo(-s * 0.12, s * 0.09); c.lineTo(s * 0.9, s * 0.09);
+    c.moveTo(-s * 0.9, -ty * 0.09); c.lineTo(s * 0.12, -ty * 0.09);
+    c.moveTo(-s * 0.12, ty * 0.09); c.lineTo(s * 0.9, ty * 0.09);
     c.stroke();
-    c.lineWidth = Math.max(1, s * 0.05);
-    c.strokeRect(-s * 0.9, -s * 0.2, s * 1.8, s * 0.4);
+    c.lineWidth = Math.max(1, ty * 0.05);
+    c.strokeRect(-s * 0.9, -ty * 0.2, s * 1.8, ty * 0.4);
   } else if (t.glyph === "rldoor") {
-    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.06);
-    c.strokeRect(-s * 0.9, -s * 0.22, s * 1.8, s * 0.44);
+    c.strokeStyle = col; c.lineWidth = Math.max(1, ty * 0.06);
+    c.strokeRect(-s * 0.9, -ty * 0.22, s * 1.8, ty * 0.44);
     c.beginPath();
-    for (let xx = -s * 0.72; xx <= s * 0.72; xx += s * 0.18) {
-      c.moveTo(xx, -s * 0.22); c.lineTo(xx, s * 0.22);
+    /* [193-A] THE SLAT PITCH COMES OFF `ty`, AND THE RENDER IS WHY.
+       The first build left it on `s`. Drawn and looked at (#0d-3, look-p193 at
+       390px): at x3.5 the same eight slats were simply three and a half times
+       wider, which reads as a bigger door rather than a longer one. Slat
+       hatching is a drafting convention like the stroke weight beside it, so
+       it holds its pitch and a longer door gets MORE slats - which is what a
+       drawing does, and what makes the stretch legible at a glance.
+       The floor is a hang guard: `xx += 0` at s = 0 never terminates, which
+       the pre-193 line was one bad scale away from too. */
+    const pitch = Math.max(0.5, ty * 0.18);
+    /* [193-A] AND THE SLAT FIELD FILLS THE FRAME, less one pitch at each end.
+       Also from the render: with the pitch held constant but the range still
+       written as +-0.72s, a x3.5 door came out with a wide blank panel at each
+       end and read as a door with gaps in it. At asp 1 ty === s and this is
+       arithmetically the pre-193 range (-0.9s + 0.18s = -0.72s), so a roller
+       door already on a plan does not move - L9c pins the ink PIXEL COUNT, not
+       an argument about floating point. */
+    /* A COUNT, NOT AN ACCUMULATION, and test_p193 L8d is why. Written as
+       `xx += pitch` the sum of 33 copies of 7.2 lands a hair ABOVE the end,
+       the final `xx <= to` fails, and a stretched door loses its LAST slat -
+       one blank panel at the right-hand end, 2.14x the usual gap, on a build
+       whose geometry is otherwise exactly right. The pre-193 line had the same
+       accumulation in it and was one bad scale away from the same thing. */
+    const span = s * 1.8 - pitch * 2;
+    const nsl = Math.max(1, Math.round(span / pitch));
+    for (let i = 0; i <= nsl; i++) {
+      const xx = -s * 0.9 + pitch + span * (i / nsl);
+      c.moveTo(xx, -ty * 0.22); c.lineTo(xx, ty * 0.22);
     }
     c.stroke();
   } else if (t.glyph === "window") {
-    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.06); c.lineCap = "butt";
+    c.strokeStyle = col; c.lineWidth = Math.max(1, ty * 0.06); c.lineCap = "butt";
     c.beginPath();
-    [-s * 0.14, 0, s * 0.14].forEach(yy => { c.moveTo(-s * 0.8, yy); c.lineTo(s * 0.8, yy); });
-    c.moveTo(-s * 0.8, -s * 0.14); c.lineTo(-s * 0.8, s * 0.14);
-    c.moveTo(s * 0.8, -s * 0.14); c.lineTo(s * 0.8, s * 0.14);
+    [-ty * 0.14, 0, ty * 0.14].forEach(yy => { c.moveTo(-s * 0.8, yy); c.lineTo(s * 0.8, yy); });
+    c.moveTo(-s * 0.8, -ty * 0.14); c.lineTo(-s * 0.8, ty * 0.14);
+    c.moveTo(s * 0.8, -ty * 0.14); c.lineTo(s * 0.8, ty * 0.14);
     c.stroke();
   } else if (t.glyph === "opening") {
-    c.strokeStyle = col; c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "butt";
+    c.strokeStyle = col; c.lineWidth = Math.max(1.2, ty * 0.08); c.lineCap = "butt";
     c.beginPath();
-    c.moveTo(-s * 0.8, -s * 0.16); c.lineTo(-s * 0.8, s * 0.16);
-    c.moveTo(s * 0.8, -s * 0.16); c.lineTo(s * 0.8, s * 0.16);
+    c.moveTo(-s * 0.8, -ty * 0.16); c.lineTo(-s * 0.8, ty * 0.16);
+    c.moveTo(s * 0.8, -ty * 0.16); c.lineTo(s * 0.8, ty * 0.16);
     c.stroke();
-    c.setLineDash([s * 0.12, s * 0.1]);
+    /* [193-A] and the dash pitch holds too, for the same reason as the slats:
+       a dashed line is a convention, not a measurement. Looked at before it
+       was changed - on `s` a stretched opening became long strokes with big
+       gaps and stopped reading as an opening at all. */
+    c.setLineDash([ty * 0.12, ty * 0.1]);
     c.beginPath(); c.moveTo(-s * 0.8, 0); c.lineTo(s * 0.8, 0); c.stroke();
     c.setLineDash([]);
   } else if (t.glyph === "stair") {
@@ -5264,6 +5402,19 @@ function getHandles(o) {
       o.x = left + d2.w / 2;
       o.y = top + d2.h / 2;
     }});
+    /* [193-A] W127-9 - THE SECOND HANDLE, ON THE LENGTH AXIS AND NOTHING ELSE.
+       It sits on the NEGATIVE end of the symbol's own x axis: at rot 0 and 90 -
+       the two a plan is actually drawn at - that is 64px from the corner grip
+       on a window, where the positive end is 8.00px from it (measure-p193).
+       fsHandlePick covers 180 and 270, where the two ends swap. Rendered as a
+       ROUND grip so it is not the same control as the square one. */
+    if (fsSymLenAble(o)) {
+      const db = symDimsBase(o);
+      const ar = (o.rot || 0) * Math.PI / 180;
+      const ux = Math.cos(ar), uy = Math.sin(ar);
+      H.push({ lenh:true, x:o.x - (db.w / 2) * ux, y:o.y - (db.w / 2) * uy,
+               set:(nx, ny) => fsSymLenDrag(o, nx, ny) });
+    }
   } else if (o.kind === "text") {
     const b = objectBounds(o);
     H.push({ x:b.x2, y:(b.y1 + b.y2) / 2, set:(nx, ny) => {
@@ -5490,7 +5641,7 @@ function draw() {
     hs.forEach(hd => {
       const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
       ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#00a5c8"; ctx.lineWidth = 2;
-      if (hd.edge) {
+      if (hd.edge || hd.lenh) {   /* [193-A] the length grip is ROUND */
         ctx.beginPath(); ctx.arc(hx, hy, 6, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
       } else {
@@ -10913,15 +11064,14 @@ cv.addEventListener("pointerdown", e => {
   if (activeTool === "zones") {
     if (selection.length === 1 && selection[0].kind === "zone") {
       const hz2 = getHandles(selection[0]);
-      for (const hd of hz2) {
-        const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
-        if (Math.hypot(p.x - hx, p.y - hy) <= 14) {
-          pushUndo();
-          dragMode = "handle";
-          activeHandle = hd;
-          setHandleAnchor(hd);
-          return;
-        }
+      /* [193-A] NEAREST within 14px, not the first found - see fsHandlePick. */
+      const hzp = fsHandlePick(hz2, p.x, p.y);
+      if (hzp) {
+        pushUndo();
+        dragMode = "handle";
+        activeHandle = hzp;
+        setHandleAnchor(hzp);
+        return;
       }
     }
     const hz = hitObject(p.x, p.y);
@@ -10949,15 +11099,14 @@ cv.addEventListener("pointerdown", e => {
     // endpoints of the just-drawn (still selected) shape stay grabbable without switching to Select
     if (selection.length === 1 && (selection[0].kind === "shape" || selection[0].kind === "callout")) {
       const hs2 = getHandles(selection[0]);
-      for (const hd of hs2) {
-        const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
-        if (Math.hypot(p.x - hx, p.y - hy) <= 14) {
-          pushUndo();
-          dragMode = "handle";
-          activeHandle = hd;
-          setHandleAnchor(hd);
-          return;
-        }
+      /* [193-A] NEAREST within 14px, not the first found - see fsHandlePick. */
+      const hsp = fsHandlePick(hs2, p.x, p.y);
+      if (hsp) {
+        pushUndo();
+        dragMode = "handle";
+        activeHandle = hsp;
+        setHandleAnchor(hsp);
+        return;
       }
     }
     if (activeTool === "hatch") {
@@ -11003,15 +11152,14 @@ cv.addEventListener("pointerdown", e => {
     }
     if (selection.length === 1) {
       const hs = getHandles(selection[0]);
-      for (const hd of hs) {
-        const hx = hd.x * view.scale + view.x, hy = hd.y * view.scale + view.y;
-        if (Math.hypot(p.x - hx, p.y - hy) <= 14) {
-          pushUndo();
-          dragMode = "handle";
-          activeHandle = hd;
-          setHandleAnchor(hd);
-          return;
-        }
+      /* [193-A] NEAREST within 14px, not the first found - see fsHandlePick. */
+      const hsq = fsHandlePick(hs, p.x, p.y);
+      if (hsq) {
+        pushUndo();
+        dragMode = "handle";
+        activeHandle = hsq;
+        setHandleAnchor(hsq);
+        return;
       }
     }
     const hit = hitObject(p.x, p.y);
@@ -29740,7 +29888,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v181";
+const FS_BUILD = "aa-v182";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
