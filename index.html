@@ -543,7 +543,20 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      the same button in primary clothing and it measured 40.0px too. */
   .fsbtnP { border:1px solid var(--fs-accent); background:var(--fs-accent); color:#fff; border-radius:10px; padding:13px 18px; font-size:14px; font-weight:700; cursor:pointer; touch-action:manipulation; }
   .fsbtnP:active { background:var(--fs-accentD); }
-  .fsCrumb { display:inline-block; color:var(--fs-accent); font-weight:800; font-size:17px; line-height:1; cursor:pointer; padding:9px 15px 9px 11px; border:1.5px solid var(--fs-accent); border-radius:999px; background:var(--fs-card); -webkit-tap-highlight-color:transparent; }
+  .fsCrumb { display:inline-block; color:var(--fs-accent); font-weight:800; font-size:17px; line-height:1; cursor:pointer; padding:13px 15px 13px 11px; border:1.5px solid var(--fs-accent); border-radius:999px; background:var(--fs-card); -webkit-tap-highlight-color:transparent; }
+  /* PASS 189 [189-A] R-171 - HIS 44px FLOOR (Pass 113, gloves), on the
+     controls nine years of passes never reached. The breadcrumb above was
+     37.0, and the replacement was MEASURED not computed: the
+     arithmetic said 12px of padding would make 44 and the rendered
+     element came back 43, so 13px is what actually clears the floor.
+     Pass 177 nearly closed a 44px item with a padding chosen the
+     other way - 12px 16px renders 42.
+     .fsTap44L is for a control whose INK IS CORRECT AND MUST NOT MOVE -
+     a bare <a> that renders as its own 19px line box. flex-end spends the
+     44px LEFTWARDS, into empty space, so the word stays where it is.
+     The hit area is the visible area ([173-B]); never a ghost over a
+     small control. */
+  .fsTap44L { display:inline-flex; align-items:center; justify-content:flex-end; min-height:44px; min-width:44px; }
   .fsCrumb:active { background:var(--fs-accent); color:#fff; }
   /* PASS 177 [177-A] - W161-D. 22px x 6 gaps was 132px of a 742px strip spent
      on air at the width where the room is needed. MEASURED, not trimmed by
@@ -667,7 +680,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     .fsCyc { flex:1 1 42% !important; min-width:0 !important; }
     .fsPlDay.fsPlDrop { outline:2px dashed var(--fs-accent); outline-offset:-2px; background:rgba(37,150,171,.20) !important; }
     #fsReg h1 { font-size:24px !important; }
-    .fstab { margin-right:14px; font-size:13.5px; padding:12px 2px; }
+    /* PASS 189 [189-A] - 43.0 measured at 430 (12+12+16+3), one pixel under
+       his floor. 13px makes it 45. VERTICAL ONLY: the horizontal padding
+       and the margin are untouched, so [177-A]'s width budget - three long
+       names in a 742px scroller - does not move by a pixel. */
+    .fstab { margin-right:14px; font-size:13.5px; padding:13px 2px; }
     /* PASS 177 [177-C] - W161-H. 12px measured 42.0px on the phone, which is
        under his floor as well; the phone was never at 44 either. Horizontal
        stays 14px - this rule exists to narrow the button, not to shorten it. */
@@ -679,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.169 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.170 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -809,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.169 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.170 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -18821,7 +18838,7 @@ function fsAccessList() {
   return (custom && custom.length) ? custom : FSMoney.ACCESS_LEVELS;
 }
 function fsAccessSelect(id, val, extra) {
-  return '<select id="' + id + '" ' + (extra || '') + ' style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:12.5px">' +
+  return '<select id="' + id + '" ' + (extra || '') + ' style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:12.5px;min-height:44px">' +
     fsAccessList().map(l => '<option value="' + fsEsc(l.k) + '"' + (l.k === (val || "normal") ? ' selected' : '') + '>' + fsEsc(l.label) + '</option>').join('') +
     '</select>';
 }
@@ -25405,7 +25422,7 @@ function fsHubHtml(s) {
   if (s.furtherInfo) rows.push(["Further information", fsEsc(s.furtherInfo)]);
   h += '<div class="fscard fsHubCard" id="fsHubInfo" style="padding:16px">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Important information</h3>' +
-    '<a id="fsInfoEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">Edit</a></div>';
+    '<a id="fsInfoEditBtn" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">Edit</a></div>';
   if (rows.length) rows.forEach(r => {
     h += '<div style="display:flex;gap:11px;padding:8px 0;border-top:1px solid var(--fs-border)">' +
       '<div style="width:38%;color:var(--fs-sub);font-size:12.5px;font-weight:600">' + r[0] + '</div>' +
@@ -25417,7 +25434,7 @@ function fsHubHtml(s) {
   if (ev.length) {
     h += '<div class="fscard fsHubCard" id="fsHubActivity" style="padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Recent activity</h3>' +
-      '<a id="fsHubActAll" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
+      '<a id="fsHubActAll" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
     ev.forEach(e => {
       h += '<div style="padding:8px 0;border-top:1px solid var(--fs-border)">' +
         '<div style="font-size:11.5px;color:var(--fs-sub2)">' + fsEsc(e.d) + '</div>' +
@@ -25448,7 +25465,7 @@ function fsHubHtml(s) {
   if (open.length) {
     mh += '<div class="fscard fsHubCard" id="fsHubDefects" style="padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="font-size:15px;font-weight:700">Open defects</h3>' +
-      '<a id="fsHubDefAll" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
+      '<a id="fsHubDefAll" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">View all</a></div>';
     open.forEach(d => {
       const dc = fsDefCls(d.cls);
       mh += '<div class="fsHubDefRow" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--fs-border);cursor:pointer">' +
@@ -25575,7 +25592,7 @@ function fsInfoPhotoHtml() {
   let html = "";
   html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">';
   html += '<div class="fscard" style="flex:2;min-width:300px;padding:20px">';
-  html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
+  html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:17px;font-weight:700;flex:1">Site information</h3><a id="fsInfoEditBtn" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsInfoEdit ? 'Save' : 'Edit') + '</a></div>';
   if (fsInfoEdit) {
     html += '<div class="fslabel">' + (fsParentSite ? 'Building name' : 'Site name') + '</div><input class="fsinput" id="fsSiteNameIn" autocomplete="off" value="' + fsEsc(s.name || "") + '">';
     html += '<div class="fslabel">Address (shown under the site name)</div><input class="fsinput" id="fsSiteAddrIn" autocomplete="off" value="' + fsEsc(s.address || "") + '">';
@@ -26090,7 +26107,7 @@ function fsRenderTab() {
      and the battery chip. Moved, not rewritten, and not deleted. */
   if (fsTab === "overview" && fsTabAllowed("equip")) {
     html += '<div class="fscard" style="padding:20px;margin-top:14px">';
-    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
+    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
     /* Access difficulty lives HERE, on the place, not on the defect - that
        detector above the stairwell is awkward every single time. */
     html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:#15181b;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:10px">' +
@@ -29665,7 +29682,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v173";
+const FS_BUILD = "aa-v174";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33752,7 +33769,7 @@ function fsArFacetHtml(id, label, opts, sel) {
   let h = '<div class="fsArFacet" style="position:relative;flex:0 1 auto">';
   h += '<button type="button" class="fsbtn fsArFacetBtn" id="' + id + 'Btn" data-facet="' + id + '"' +
        ' data-label="' + fsEsc(label) + '" aria-expanded="false"' +
-       ' style="min-height:40px;padding:9px 13px;font-size:13.5px">' +
+       ' style="min-height:44px;padding:11px 13px;font-size:13.5px">' +
        fsEsc(label) + (n ? ' &middot; ' + n : '') + ' &#9662;</button>';
   h += '<div class="fsArFacetMenu" id="' + id + 'Menu" data-facet="' + id + '" hidden' +
        ' style="position:absolute;z-index:40;top:calc(100% + 5px);left:0;min-width:' + FS_AR_FACET_BIG.w + 'px;' +
@@ -33863,7 +33880,7 @@ function fsAssetRegisterHtml(s) {
     sCount[r.st.k] = (sCount[r.st.k] || 0) + 1;
   });
   h += '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">' +
-    '<input id="fsArQ" class="fsinput" placeholder="Search assets" value="' + fsEsc(fsArQ) + '" style="flex:1 1 190px;min-width:0">' +
+    '<input id="fsArQ" class="fsinput" placeholder="Search assets" value="' + fsEsc(fsArQ) + '" style="flex:1 1 190px;min-width:0;min-height:44px">' +
     fsArFacetHtml("fsArType", "Asset type",
       types.map(function (t) { return [t, t, tCount[t] || 0]; }), fsArType) +
     fsArFacetHtml("fsArStatus", "Status",
