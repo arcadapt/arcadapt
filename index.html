@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.170 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.171 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.170 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.171 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25797,7 +25797,36 @@ function fsRenderSite() {
        from the edge while Monthly sat at 13px, so the three cells still did
        not agree. MEASURED, then fixed. He said ALWAYS. */
     '#fsHubStrip>div>*:nth-child(4){justify-content:flex-end}' +
-    '#fsHubStrip>div{padding:8px 12px 9px;display:grid;grid-template-rows:15px 20px 12px 28px;row-gap:2px;align-content:start;min-width:0}' +
+    /* PASS 190 [190-A] W170-A - THE PHONE GETS THE LAYOUT THAT WAS BUILT FOR A
+       NARROW CELL, WHICH IT NEVER HAD. The fourth track here was a hard-coded
+       28px and R-161 put 44px controls in it in V0.168: measured at 390 the
+       pill shared 2.5px with the progress bar and hung 8px below its own row.
+
+       THE OBVIOUS FIX IS THE WRONG ONE AND HIS OWN SUITE SAID SO. Making the
+       track `auto` clears the overlap and takes the strip from 199px to 258
+       with a 141px cell - and test_p101 C1b and test_p103 C2b refused it,
+       because W97-13 / W100-1 are his asks that the pill must NOT re-grow the
+       cell (cells <= 104px, strip <= 210 at 430). Two of his asks, and the
+       first build satisfied one by breaking the other.
+
+       A 44px control cannot fit a 104px cell in a FOUR-row stack: 15 + 20 +
+       12 + 44 + 17 of padding + gaps is 114 before anything else. It fits
+       easily in THREE - and the three-row arrangement already exists, ten
+       lines below, written in Pass 109 for exactly this reason and scoped to
+       >=820 where the cells were never narrow. Label and status share row 1,
+       the controls get row 2 to themselves, the bar underlines the cell.
+       Measured: ~94px cells, and the strip comes in UNDER the geometry he
+       approved rather than over it.
+
+       So this is not a new layout. It is the one that was designed for a
+       narrow cell, finally applied where the cells are narrow. */
+    '#fsHubStrip>div{padding:8px 12px 9px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:20px 44px 5px;column-gap:10px;row-gap:4px;align-content:start;min-width:0}' +
+    '#fsHubStrip>div>*:nth-child(1){grid-column:1;grid-row:1;align-self:center}' +
+    '#fsHubStrip>div>*:nth-child(2){grid-column:2;grid-row:1;justify-self:end;text-align:right;align-self:center;overflow:visible}' +
+    '#fsHubStrip>div>*:nth-child(3){grid-column:1 / span 2;grid-row:3;align-self:center;width:100%}' +
+    '#fsHubStrip>div>*:nth-child(4){grid-column:1 / span 2;grid-row:2;justify-self:stretch;justify-content:flex-end}' +
+    '#fsCycTick{margin-right:auto}' +
+    '#fsCycDefCell>*:nth-child(2){grid-column:2 !important;grid-row:1 !important;align-self:center !important;justify-self:end}' +
     '#fsHubStrip>div:nth-child(even){border-left:1px solid var(--fs-border)}' +
     '#fsHubStrip>div:nth-child(n+3){border-top:1px solid var(--fs-border)}' +
     '@media(min-width:820px){#fsHubStrip{grid-template-columns:repeat(' + cycs.length + ',1fr) 96px}' +
@@ -25865,7 +25894,9 @@ function fsRenderSite() {
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;align-self:center;white-space:nowrap;overflow:hidden">' + c.label + '</div>' +
       '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';white-space:nowrap;align-self:center">' + st.txt + '</div>' +
       '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;align-self:center;margin:0"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
-      '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
+      /* PASS 190 [190-A] - the row gets a NAME so a check can find it, and
+         nothing else. It deliberately does NOT wrap: see the note above. */
+      '<div class="fsCycCtl" style="display:flex;align-items:center;gap:6px;min-width:0">' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc(t || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:2px 3px;font-size:11px;color:var(--fs-sub2);background:var(--fs-card);max-width:108px;min-width:0;' + (t ? '' : 'display:none') + '">' +
       (t ? '' : '<span class="fsCycAdd fsTap44" data-key="' + c.key + '" style="font-size:11px;color:var(--fs-faint);border:1px dashed var(--fs-border);border-radius:5px;padding:3px 10px;cursor:pointer;white-space:nowrap">&#65291; set date</span>') +
       tick + '</div></div>';
@@ -29682,7 +29713,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v174";
+const FS_BUILD = "aa-v179";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33725,6 +33756,26 @@ function fsArTypeName(o) {
   const t = (typeof TYPE_MAP !== "undefined" && TYPE_MAP[o.type]) ? TYPE_MAP[o.type] : null;
   return t ? (t.name || t.label || o.type) : (o.type || "Device");
 }
+/* PASS 190 [190-B] - W170-B, "zone/loop looks weird. Make it look better".
+   The cells used to write the words "Zone" and "Loop" again under a heading
+   that already says both, so the column needed width for them twice, got
+   49.1px at his phone's 390, and broke the heading onto three lines with the
+   slash on its own.
+
+   Values only, in heading order. NOT an abbreviation - W151-B is his ask that
+   every abbreviated TYPE reads in full in this register, and nothing here
+   becomes a code; the words move to the heading, which is where a table says
+   what a column is.
+
+   A missing half is an en dash rather than an absent line, so "15 / -" says
+   the zone is known and the loop is not. The old form could not say that: it
+   dropped the Loop line and looked exactly like an asset with no loop. */
+function fsArZoneLoop(o) {
+  const z = (o && o.zone) ? String(o.zone) : "";
+  const l = (o && o.loop) ? String(o.loop) : "";
+  if (!z && !l) return "\u2013";
+  return fsEsc(z || "\u2013") + " / " + fsEsc(l || "\u2013");
+}
 function fsArRows(s) {
   const objs = (typeof annPlanObjects === "function") ? annPlanObjects() : [];
   const out = [];
@@ -33908,7 +33959,17 @@ function fsAssetRegisterHtml(s) {
     '<th style="padding:7px 8px;font-weight:600">Asset</th>' +
     '<th style="padding:7px 8px;font-weight:600">Type</th>' +
     '<th style="padding:7px 8px;font-weight:600">Location</th>' +
-    '<th style="padding:7px 8px;font-weight:600">Zone / Loop</th>' +
+    /* PASS 190 [190-B] W170-B - measured at 390 this broke to three lines with
+       the slash stranded on the middle one, and dragged every other heading
+       to 56.5px with it.
+       ONE nbsp, NOT TWO, AND THE DIFFERENCE WAS MEASURED. Making the whole
+       heading unbreakable does fix the slash - and takes the column from
+       49.1px to 91.8 and the table from 523 to 566 in a 332px window, so a
+       table that already scrolled sideways scrolls further. Binding only
+       'Zone /' lets it break where it should: two lines, 'Zone /' then
+       'Loop', the column unchanged, and the header row no taller than the
+       two lines 'Next service' already needs. */
+    '<th style="padding:7px 8px;font-weight:600">Zone&nbsp;/ Loop</th>' +
     '<th style="padding:7px 8px;font-weight:600">Status</th>' +
     '<th style="padding:7px 8px;font-weight:600">Next service</th>' +
     /* PASS 149 [149-D] - W134-2, and it is the ONLY thing taken from mockup
@@ -33944,8 +34005,8 @@ function fsAssetRegisterHtml(s) {
          defect he has raised is keyed off it. Read the name; never move it. */
       '<td style="padding:9px 8px">' + fsEsc(fsArTypeName(r.o)) + '</td>' +
       '<td style="padding:9px 8px">' + fsEsc(r.level || "–") + '</td>' +
-      '<td style="padding:9px 8px">' + (r.o.zone ? "Zone " + fsEsc(r.o.zone) : "–") +
-        (r.o.loop ? '<div style="font-size:11.5px;color:var(--fs-sub2)">Loop ' + fsEsc(r.o.loop) + '</div>' : '') + '</td>' +
+      /* PASS 190 [190-B] - the column stopped repeating its own heading. */
+      '<td style="padding:9px 8px;white-space:nowrap">' + fsArZoneLoop(r.o) + '</td>' +
       '<td style="padding:9px 8px">' + fsArPill(r.st) + '</td>' +
       '<td style="padding:9px 8px;white-space:nowrap">' + fsEsc(fsArDate(r.due)) + '</td>' +
       '<td style="padding:6px 8px;text-align:right">' +
