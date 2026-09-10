@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.175 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.176 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.175 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.176 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -5345,6 +5345,8 @@ function getHandles(o) {
      in the drag branch would be a second place to keep in step. */
   if (fsWsPinned(o)) return H;
   if (o.kind === "sym") {
+    /* [195-A] `d` still positions the grip - that is read once per render and
+       is correct. It is no longer used INSIDE set(); see FS_GRIP_LIVE below. */
     const d = symDims(o);
     H.push({ x:o.x + d.w / 2, y:o.y + d.h / 2, set:(nx, ny) => {
       /* PASS 68b [68b-1] — W-3: "when dragging to resize it goes MASSIVE
@@ -5376,7 +5378,36 @@ function getHandles(o) {
 
          Single-axis drags move by under 3% — the half nobody complained about
          is preserved, deliberately. This is a bug fix, not a redesign. */
-      const aw = d.w / o.size, ah = d.h / o.size;   /* constant: symDims is linear in size */
+      /* PASS 195 [195-A] W174-A - FS_GRIP_LIVE. THE DIMENSIONS ARE READ NOW,
+         NOT AT THE MOMENT THE FINGER LANDED.
+
+         Reece: "it's almost like it's throbbing, big and small and it doesn't
+         get larger or anything ... this often happens with other items."
+
+         `d` above is captured in this closure, and `activeHandle` is grabbed
+         once at pointerdown and reused for the whole drag - so `d` was frozen
+         at the size the object had when the finger touched, while o.size moved
+         every frame. Measured: calling set() with FRESHLY fetched handles 24
+         times is monotonic on every glyph (measure-p195), and a real
+         pointerdown/move/up drag is 12 up, 12 down, alternating, ending
+         SMALLER after 78px outward (measure-p195b). A detector does it too,
+         which is his "other items".
+
+         aw IS constant - but only while the dims and the size describe the
+         same moment. Frozen dims over a moving size is a ratio that drifts,
+         the projection overshoots, over-corrects, and oscillates.
+
+         AND THE BASE IS symPx(o), NOT o.size. symDims is linear in symPx; the
+         two are the same number only until a real dimension drives the pixels
+         ([139-A4]), and o.size there is a second, quieter version of this same
+         error.
+
+         HIS OWN SENTENCE IS THE CONTROL: "the new grab point works perfectly."
+         fsSymLenDrag calls symDimsBase(o) inside itself every time. Same
+         object, same drag, no frozen geometry, no throb. */
+      const dl = symDims(o);
+      const base = symPx(o) || o.size;
+      const aw = dl.w / base, ah = dl.h / base;
       const den = aw * aw + ah * ah;
       /* PASS 80 [80-2] — R-3. THE OBJECT IS ANCHORED AT ITS OPPOSITE CORNER
          NOW, NOT ITS CENTRE, AND THAT IS THE WHOLE FIX.
@@ -5396,8 +5427,14 @@ function getHandles(o) {
          every drawing app does. THE FACTOR OF 2 IS GONE — it was the bug. The
          [68b-2] projection stays and still does its own job: resolving a
          diagonal drag on a glyph that is not square. */
-      const left = o.x - d.w / 2, top = o.y - d.h / 2;
-      const k = den > 0 ? ((nx - left) * aw + (ny - top) * ah) / den : o.size;
+      /* [195-A] and the anchor comes off the LIVE half-width too. [80-2] said
+         "left/top recompute to the same numbers on the next pointermove, so
+         the anchor cannot creep across a drag" - true of the code it was
+         written for, false the moment d stopped being recomputed. A stale
+         half-width walks the anchor under the object, which is the other half
+         of the oscillation. */
+      const left = o.x - dl.w / 2, top = o.y - dl.h / 2;
+      const k = den > 0 ? ((nx - left) * aw + (ny - top) * ah) / den : base;
       o.size = Math.max(12, Math.min(400, k));
       symSyncMm(o);                      /* PASS 139 [139-A2]: the grip writes mm */
       /* Put the anchored corner back where it was. Self-consistent: left/top
@@ -29966,7 +30003,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v183";
+const FS_BUILD = "aa-v184";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
