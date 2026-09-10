@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.174 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.175 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.174 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.175 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -3903,11 +3903,17 @@ function drawSym(c, o, scale) {
   c.restore();
 
   // ID label (always upright, below the symbol)
-  if (labelsOn && (o.zone || o.loop || o.dev)) {
+  /* PASS 194 [194-A] W127-11 - each part asks whether it is wanted. The outer
+     guard asks the SAME questions as the parts below it rather than a looser
+     version of them, so "all three parts off" draws nothing at all instead of
+     an empty label with a white halo around it. */
+  if (labelsOn && ((o.zone && fsLabelPartOn("zone")) ||
+                   (o.loop && fsLabelPartOn("loop")) ||
+                   (o.dev  && fsLabelPartOn("dev")))) {
     const parts = [];
-    if (o.zone) parts.push("Z" + o.zone);
-    if (o.loop) parts.push("L" + o.loop);
-    if (o.dev)  parts.push("D" + o.dev);
+    if (o.zone && fsLabelPartOn("zone")) parts.push("Z" + o.zone);
+    if (o.loop && fsLabelPartOn("loop")) parts.push("L" + o.loop);
+    if (o.dev  && fsLabelPartOn("dev"))  parts.push("D" + o.dev);
     const label = parts.join("·");
     const d = symDims(o);
     const fs = Math.max(8 * scale, oPx * scale * 0.32);
@@ -6903,6 +6909,13 @@ function viewsToggleDefs() {
   return [
     { id:"vw_labels", icon:"\u{1F3F7}", label:"Device labels", get:() => labelsOn, set:v => { labelsOn = v; refreshLabelsBtn(); } },
     { id:"vw_zones", icon:"▧", label:"Zones", get:() => zonesShow, set:v => { zonesShow = v; const zc = document.getElementById("znShow"); if (zc) zc.checked = v; } },
+    /* PASS 194 [194-A] W127-11 - the three parts of a device label, each its
+       own tile, sitting directly under the master "Device labels" toggle they
+       belong to. New ids sort to the end of a saved tab order (applyOrder
+       gives an unknown id position 999), so nobody's arrangement moves. */
+    { id:"vw_lbl_zone", icon:"Z", label:"Label: Zone", get:() => labelParts.zone, set:v => fsLabelPartSet("zone", v) },
+    { id:"vw_lbl_loop", icon:"L", label:"Label: Loop", get:() => labelParts.loop, set:v => fsLabelPartSet("loop", v) },
+    { id:"vw_lbl_dev",  icon:"D", label:"Label: Device", get:() => labelParts.dev,  set:v => fsLabelPartSet("dev", v) },
     { id:"vw_prevyear", icon:"\u{1F4C5}", label:"Last-year tags", get:() => testPrevOn, set:v => { testPrevOn = v; const tc = document.getElementById("testPrevOn"); if (tc) tc.checked = v; try { localStorage.setItem("bpm-prevyear", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_qr", icon:'<span style="font-size:13px;font-weight:800;color:#1565c0">QR</span>', label:"QR-linked tag", get:() => viewQrTag, set:v => { viewQrTag = v; try { localStorage.setItem("bpm-viewqr", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_photodot", icon:"\u{1F4F7}", label:"Photo dot", get:() => viewPhotoDot, set:v => { viewPhotoDot = v; try { localStorage.setItem("bpm-viewphotodot", v ? "1" : "0"); } catch (e) {} } },
@@ -7632,9 +7645,28 @@ document.getElementById("lineStyleSel").addEventListener("change", e => {
 let lineEnds = { line:{ hs:"none", he:"none" }, arrow:{ hs:"arrow", he:"none" } };
 try { const le = JSON.parse(localStorage.getItem("bpm-lineends") || "null"); if (le && le.line && le.arrow) lineEnds = le; } catch (e) {}
 function saveLineEnds() { try { localStorage.setItem("bpm-lineends", JSON.stringify(lineEnds)); } catch (e) {} }
-let selAfterDraw = localStorage.getItem("bpm-selafter") !== "0";   // default ON: drawing a shape selects it straight away
+/* PASS 194 [194-B] R-176 - ONE WRAPPED READ, AND IT IS NOT COSMETIC.
+   These four top-level initialisers read localStorage BARE. On a browser that
+   THROWS on read - Safari with cross-site tracking prevention in some contexts,
+   Chrome with "Block all cookies" - the script aborts on this line and EVERY
+   `let` and `const` below it never initialises. The app comes up as a shell:
+   hoisted functions present, state absent, console reading only "denied".
+   Found by mutate-p194 M10, which survived because the fallback it mutates can
+   only be reached by a suite that makes localStorage throw - and when one did,
+   the app did not load at all. test_p194 L8.
+   Hoisted, so the three hatch reads below can use it too. */
+function fsLS(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? (fallback === undefined ? null : fallback) : v;
+  } catch (e) { return fallback === undefined ? null : fallback; }
+}
+function fsLSSet(key, v) {
+  try { localStorage.setItem(key, v); } catch (e) {}
+}
+let selAfterDraw = fsLS("bpm-selafter") !== "0";   // default ON: drawing a shape selects it straight away
 document.getElementById("selAfterOn").checked = selAfterDraw;
-document.getElementById("selAfterOn").onchange = ev => { selAfterDraw = ev.target.checked; localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0"); const wsc = document.getElementById("wsSetSelAfter"); if (wsc) wsc.checked = selAfterDraw; };
+document.getElementById("selAfterOn").onchange = ev => { selAfterDraw = ev.target.checked; fsLSSet("bpm-selafter", selAfterDraw ? "1" : "0"); const wsc = document.getElementById("wsSetSelAfter"); if (wsc) wsc.checked = selAfterDraw; };
 /* C17-beta: workspace settings cog */
 let wsLastAutoT = null;
 /* PASS 144 [144-B] - A NAMED FUNCTION, because W127-6's probe names one and
@@ -7876,7 +7908,7 @@ function fsWsCropUndoPt() {
 }
 document.getElementById("wsSetSelAfter").onchange = ev => {
   selAfterDraw = ev.target.checked;
-  localStorage.setItem("bpm-selafter", selAfterDraw ? "1" : "0");
+  fsLSSet("bpm-selafter", selAfterDraw ? "1" : "0");
   document.getElementById("selAfterOn").checked = selAfterDraw;
 };
 document.getElementById("wsSetAutoNow").onclick = async () => {
@@ -7900,10 +7932,10 @@ document.getElementById("endStartSel").addEventListener("change", e => applyEndS
 document.getElementById("endEndSel").addEventListener("change", e => applyEndSel("he", e.target.value));
 
 /* ---- hatch style (one hatch tool + fill patterns on shapes) ---- */
-let hatchStyle = localStorage.getItem("bpm-hatchstyle") || "diag";
+let hatchStyle = fsLS("bpm-hatchstyle") || "diag";
 if (hatchStyle === "none") hatchStyle = "diag";
-let hatchOutline = localStorage.getItem("bpm-hatchoutline") || "solid";
-let hatchOutlineCol = localStorage.getItem("bpm-hatchoutcol") || "";
+let hatchOutline = fsLS("bpm-hatchoutline") || "solid";
+let hatchOutlineCol = fsLS("bpm-hatchoutcol") || "";
 document.getElementById("hatchOutlineSel").value = hatchOutline;
 if (hatchOutlineCol) document.getElementById("hatchOutlineCol").value = hatchOutlineCol;
 document.getElementById("hatchOutlineSel").addEventListener("change", e => {
@@ -7947,6 +7979,52 @@ try { viewPhotoDot = localStorage.getItem("bpm-viewphotodot") === "1"; } catch (
 try { viewMarkups = localStorage.getItem("bpm-viewmarkups") !== "0"; } catch (e) {}
 try { viewPins = localStorage.getItem("bpm-viewpins") !== "0"; } catch (e) {}
 let exportPaint = false;   // true while an export canvas renders
+/* ================= PASS 194 [194-A] ================================
+   W127-11. WHAT A DEVICE LABEL CARRIES.
+
+   Reece, V0.127 walk: "device labels would include zone labels, so we have an
+   overlap. We either need to make device labels not include zone labels or we
+   need to be able to select what device labels capture."
+
+   THE SECOND OPTION CONTAINS THE FIRST, so it is the one built: three parts,
+   three tiles, and "no zone on the label" is one tap rather than a decision
+   taken on his behalf.
+
+   SIZED BEFORE IT WAS BUILT (measure-p194): one zone with six devices in it
+   draws the same zone number SEVEN times - once under each device and once on
+   the zone polygon. Ways to show a device number without its zone: zero.
+
+   DEFAULTS ARE TODAY'S BEHAVIOUR, ALL THREE ON. `o.zone` is a text field on
+   the item and a zone polygon is a separate object, so a device can carry Z15
+   on a plan with no zone drawn anywhere: defaulting the zone part off would
+   take that off his screen with nothing to replace it. Which default he wants
+   is a question on the walk sheet, and the tile answers it faster than a pass
+   would. */
+const FS_LABEL_PARTS = "194-A";
+const FS_LBL_KEYS = { zone: "bpm-lblzone", loop: "bpm-lblloop", dev: "bpm-lbldev" };
+let labelParts = { zone: true, loop: true, dev: true };
+Object.keys(FS_LBL_KEYS).forEach(function (k) {
+  /* !== "0" so a browser that has never heard of the key, and a Safari private
+     window that throws on read, both land on TODAY'S behaviour. */
+  try { labelParts[k] = localStorage.getItem(FS_LBL_KEYS[k]) !== "0"; } catch (e) {}
+});
+function fsLabelPartSet(k, v) {
+  labelParts[k] = !!v;
+  try { localStorage.setItem(FS_LBL_KEYS[k], v ? "1" : "0"); } catch (e) {}
+}
+/* THE EXPORT GATE, and it is the whole reason this is a function and not a
+   property read. The Views panel promises "exports and reports are never
+   affected" and renderExportCanvas sets exportPaint to keep that promise;
+   viewHidden, the QR tag and the photo dot all honour it. The ID label never
+   has - measure-p194 shows its ink on an export whenever labelsOn is true -
+   and THAT IS NOT FIXED HERE, because changing what his exported plans look
+   like is his call, not a side effect of this item. This pass simply refuses
+   to make it worse: whatever the three tiles say, an export draws all three
+   parts, byte for byte. test_p194 X1/X2. */
+function fsLabelPartOn(k) {
+  if (exportPaint) return true;
+  return labelParts[k] !== false;
+}
 const MARKUP_KINDS = { ink:1, shape:1, callout:1, text:1, img:1 };
 function viewHidden(o) {
   if (exportPaint) return false;
@@ -29888,7 +29966,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v182";
+const FS_BUILD = "aa-v183";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
