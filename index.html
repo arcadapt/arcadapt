@@ -679,7 +679,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.167 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.168 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -809,7 +809,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.167 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.168 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -25828,6 +25828,12 @@ function fsRenderSite() {
        look at the cycle cells. Re-placed, not left to chance. */
     '#fsCycDefCell>*:nth-child(2){grid-column:2 !important;grid-row:1 !important;align-self:center !important;justify-self:end}' +
     '}</style>';
+  /* [186-A] RULING 2, SAID ON SCREEN. What the last Tested tap did, in a
+     sentence, above the strip it may or may not have moved. Dismissed with
+     the X or replaced by the next tap. */
+  if (fsTestedNotice) html += '<div class="fscard" id="fsTestedDone" style="margin-bottom:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;border-color:#2e7d32">' +
+    '<div style="flex:1;min-width:0">' + fsTestedNotice + '</div>' +
+    '<a id="fsTestedDoneX" class="fsTap44" style="cursor:pointer;color:var(--fs-text);font-size:26px;line-height:1;flex:0 0 auto" title="Dismiss">&times;</a></div>';
   html += '<div class="fscard" id="fsHubStrip" style="margin-bottom:14px;overflow:hidden">';
   cycs.forEach(c => {
     const st = fsCycleStatus(s, c);
@@ -25836,15 +25842,15 @@ function fsRenderSite() {
     let pct = 0;
     if (t && !isNaN(new Date(t))) pct = Math.max(0, Math.min(100, Math.round((Date.now() - new Date(t).getTime()) / fsCycMs(c) * 100)));
     const tick = c.key !== "lastMonthly" ? "" : (fsCycTickOn(s)
-      ? '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid #2e7d32;background:#2e7d32;color:#fff;cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Today\u2019s monthly test is recorded, tagged \u201c' + FS_TESTED_TAG + '\u201d. Tap again today to remove it \u2014 the accidental-tap undo.">Tested &#10003;</button>'
-      : '<button id="fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid var(--fs-border);background:transparent;color:var(--fs-sub);cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session. It stays green for the rest of today; tapping it again while green removes it.">Tested &#10003;</button>');
+      ? '<button id="fsCycTick" class="fsbtn fsTap44 fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 10px;border-radius:999px;border:1px solid #2e7d32;background:#2e7d32;color:#fff;cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Today\u2019s monthly test is recorded, tagged \u201c' + FS_TESTED_TAG + '\u201d. Tap again today to remove it \u2014 the accidental-tap undo.">Tested &#10003;</button>'
+      : '<button id="fsCycTick" class="fsbtn fsTap44 fsCycTick" style="flex:0 0 auto;font-size:11px;font-weight:700;line-height:1;padding:5px 10px;border-radius:999px;border:1px solid var(--fs-border);background:transparent;color:var(--fs-sub);cursor:pointer;touch-action:manipulation;white-space:nowrap" title="Records today\u2019s monthly test against this site \u2014 your name and the date go on it, and Test history shows it as \u201c' + FS_TESTED_TAG + '\u201d, not as a completed test session. It stays green for the rest of today; tapping it again while green removes it.">Tested &#10003;</button>');
     html += '<div class="fsCyc">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;align-self:center;white-space:nowrap;overflow:hidden">' + c.label + '</div>' +
       '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';white-space:nowrap;align-self:center">' + st.txt + '</div>' +
       '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;align-self:center;margin:0"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
       '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
       '<input type="date" class="fsCycDate" data-key="' + c.key + '" value="' + fsEsc(t || "") + '" title="Last done" style="border:1px solid var(--fs-border);border-radius:5px;padding:2px 3px;font-size:11px;color:var(--fs-sub2);background:var(--fs-card);max-width:108px;min-width:0;' + (t ? '' : 'display:none') + '">' +
-      (t ? '' : '<span class="fsCycAdd" data-key="' + c.key + '" style="font-size:11px;color:var(--fs-faint);border:1px dashed var(--fs-border);border-radius:5px;padding:3px 8px;cursor:pointer;white-space:nowrap">&#65291; set date</span>') +
+      (t ? '' : '<span class="fsCycAdd fsTap44" data-key="' + c.key + '" style="font-size:11px;color:var(--fs-faint);border:1px dashed var(--fs-border);border-radius:5px;padding:3px 10px;cursor:pointer;white-space:nowrap">&#65291; set date</span>') +
       tick + '</div></div>';
   });
   const openDef = (s.defects || []).filter(d => !d.closed).length;
@@ -25941,6 +25947,8 @@ function fsRenderSite() {
      REMOVES that tap (fsCycUntap) - the accidental-tap undo. */
   const fsCt = document.getElementById("fsCycTick");
   if (fsCt) fsCt.onclick = () => { if (fsCycTickOn(fsSite)) fsCycUntap(); else fsTestedTap(); };
+  const fsTdX = document.getElementById("fsTestedDoneX");
+  if (fsTdX) fsTdX.onclick = () => { fsTestedNotice = null; const n = document.getElementById("fsTestedDone"); if (n) n.remove(); };
   /* PASS 101 [W100-2] - a "No record" cell hides its empty date box behind
      the "+ set date" affordance; the editable date STAYS one tap away
      (45-3), on the same .fsCycDate change wiring below. */
@@ -27779,16 +27787,32 @@ function fsTestedTap() {
   /* Same sort the Buildings tab uses, so the two lists agree instead of
      drifting. Object references are held directly — no index mapping. */
   const blds = [...(s.buildings || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
-  if (!blds.length) {
-    /* No confirmation on a plain site (or on a building page, where
-       s.buildings is empty). One tap is the entire point; the undo is the
-       history delete, which already recalculates the due date. */
-    fsQuickTestedWrite(s, date, tech);
-    fsMarkDirty();
-    fsRenderSite();
-    return;
-  }
+  /* FS_CYC_DATE_TWOWAY - PASS 186 [186-A], W161-C. "if I hit the tested button
+     and it opens the window with the buildings I should be able to select date
+     in there". THE WINDOW ALWAYS OPENS NOW, buildings or not, because the date
+     lives in it: the one-tap plain-site path could only ever record TODAY, and
+     "I forgot and came back two days later" is the whole ask. `date` is the
+     DEFAULT the window shows; what he picks in it is what gets written. */
   fsTestedModal(s, blds, date, tech);
+}
+/* [186-A] the assets a Tested tap reaches on one node: the symbols on that
+   node's own plan. A building is a site-shaped node with its own plan, so the
+   modal calls this once per ticked node. Same filter fsArRows uses. */
+function fsTestedAssets(node) {
+  const out = [];
+  (((node || {}).plan || {}).levels || []).forEach(lv => {
+    (lv.objects || []).forEach(o => { if (o && o.kind === "sym" && o.type !== "campin") out.push(o); });
+  });
+  return out;
+}
+/* [186-A] the journal of the LAST tap this session, so the pill can undo
+   exactly what it wrote - including a backdated one. In memory on purpose:
+   it is an accidental-tap undo, not a record. */
+let fsCycLastTap = null;
+let fsTestedNotice = null;   /* [186-A] the sentence the last tap earned, shown above the strip */
+function fsTestedWhen(date) {
+  const p = String(date || "").split("-").map(Number);
+  return new Date(p[0], (p[1] || 1) - 1, p[2] || 1, 12, 0, 0);
 }
 /* PASS 101 [W100-1] - the green state and its undo. The state IS THE RECORD:
    the pill is green exactly while a quick, marked-tested record dated
@@ -27803,7 +27827,13 @@ function fsCycTickRecs(node, date, tech) {
   return ((node && node.history) || []).filter(r => r.quick && (r.finished || "").slice(0, 10) === date && (!tech || r.tech === tech));
 }
 function fsCycTickOn(s2) {
-  return !!s2 && fsCycTickRecs(s2, fsTodayLocal(), fsWho() || "").length > 0;
+  if (!s2) return false;
+  if (fsCycTickRecs(s2, fsTodayLocal(), fsWho() || "").length > 0) return true;
+  /* [186-A] a backdated tap is green too, for as long as its records exist
+     and it is still the day it was MADE (Reece's 24 hours, test_p101 B2) - so
+     the pill can undo it. */
+  const j = fsCycLastTap;
+  return !!(j && j.madeOn === fsTodayLocal() && j.nodes.indexOf(s2) >= 0 && j.recs.some(x => (x.n2.history || []).indexOf(x.r) >= 0));
 }
 /* The un-tap reverses THE WHOLE TAP and nothing else: every quick record the
    tap wrote (the site + the buildings its prompt ticked), matched on
@@ -27816,6 +27846,30 @@ function fsCycTickOn(s2) {
 function fsCycUntap() {
   const s2 = fsSite;
   if (!s2) return;
+  /* [186-A] THE UNDO FOLLOWS THE TAP. When this session's last tap is still
+     on the site, reverse exactly what it wrote: the records (by reference),
+     the year ticks it ADDED, the stamps it OVERWROTE (restored to what was
+     there), and the due dates. Then fall through to nothing. Without a
+     journal - a reload, a different site - the today-match below still works. */
+  const j = fsCycLastTap;
+  if (j && j.madeOn === fsTodayLocal() && j.nodes.indexOf(s2) >= 0 && j.recs.some(x => (x.n2.history || []).indexOf(x.r) >= 0)) {
+    const bN = j.nodes.length - 1;
+    const what = bN ? "for the site and " + bN + " building" + (bN === 1 ? "" : "s") : "for this site";
+    const nA = j.assets.length;
+    if ((j.recs.length > 1 || nA) && !confirm("Remove the \u201c" + FS_TESTED_TAG + "\u201d records dated " + j.date + " " + what +
+        (nA ? ", and the tested date on " + nA + " asset" + (nA === 1 ? "" : "s") : "") + "?\nThe monthly due dates move back.")) return;
+    j.recs.forEach(x => { const i2 = (x.n2.history || []).indexOf(x.r); if (i2 >= 0) x.n2.history.splice(i2, 1); });
+    j.assets.forEach(a => {
+      if (!a.had) fsTyTick(a.o, a.yr, false);
+      else if (a.o.td) { if (a.prev == null) delete a.o.td[String(a.yr)]; else a.o.td[String(a.yr)] = a.prev; }
+    });
+    j.nodes.forEach(n2 => { if ((n2.testing || {}).lastMonthly === j.date) fsHistRecalc(n2, "monthly"); });
+    fsCycLastTap = null;
+    fsTestedNotice = null;
+    fsMarkDirty();
+    fsRenderSite();
+    return;
+  }
   const date = fsTodayLocal(), tech = fsWho() || "";
   const nodes = [s2].concat(s2.buildings || []);
   const hits = nodes.map(n2 => ({ n2: n2, recs: fsCycTickRecs(n2, date, tech) })).filter(h => h.recs.length);
@@ -27844,8 +27898,11 @@ function fsTestedModal(s, blds, date, tech) {
     (sub ? '<div style="font-size:12px;color:var(--fs-sub2)">' + sub + '</div>' : '') + '</div></div>';
   d.innerHTML = '<div class="fscard" id="fsTestedCard" style="padding:20px;max-width:420px;width:100%;max-height:86vh;overflow:auto">' +
     '<h3 style="font-size:16px;font-weight:800;margin-bottom:4px">Monthly — mark as tested</h3>' +
-    '<div style="font-size:13px;color:var(--fs-sub);margin-bottom:6px">' + fsEsc(date) + ' &middot; ' + fsEsc(tech) +
-    '. Everything is ticked — untick any building you did not do; the site itself is always recorded. Each one gets its own Test history record, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.</div>' +
+    /* [186-A] the date is HIS to set, default today, never the future. */
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><label for="fsTestedDate" style="font-size:13px;color:var(--fs-sub);flex:0 0 auto">Tested on</label>' +
+    '<input type="date" id="fsTestedDate" class="fsinput" value="' + fsEsc(date) + '" max="' + fsEsc(date) + '" style="flex:1;min-width:0;padding:8px 10px;font-size:15px;min-height:44px"></div>' +
+    '<div style="font-size:13px;color:var(--fs-sub);margin-bottom:6px">' + fsEsc(tech) +
+    '. Everything is ticked — untick any building you did not do; the site itself is always recorded. Each one gets its own Test history record, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;, and every asset on its plan is marked tested on that date.</div>' +
     row(-1, s.name, "the site itself — always recorded") +
     blds.map((b, i) => row(i, b.name, "")).join("") +
     '<div style="display:flex;gap:8px;margin-top:14px">' +
@@ -27884,7 +27941,58 @@ function fsTestedModal(s, blds, date, tech) {
     if (sel["-1"]) targets.push(s);
     blds.forEach((b, i) => { if (sel[String(i)]) targets.push(b); });
     if (!targets.length) return;
-    targets.forEach(n2 => fsQuickTestedWrite(n2, date, tech));
+    /* [186-A] the date HE chose. Empty or future falls back to today - the
+       input's max already refuses the future in the picker, this is the
+       typed-in path. */
+    const inp = d.querySelector("#fsTestedDate");
+    let when = (inp && inp.value) || date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(when) || when > date) when = date;
+    const yr = +when.slice(0, 4);
+    const at = fsTestedWhen(when);
+    const before = (s.testing || {}).lastMonthly || "";
+    const journal = { date: when, madeOn: date, tech: tech, recs: [], assets: [], nodes: targets.slice() };
+    let nAssets = 0, nNewYear = 0;
+    const otherYears = {};
+    targets.forEach(n2 => {
+      fsQuickTestedWrite(n2, when, tech);
+      journal.recs.push({ n2: n2, r: n2.history[0] });
+      /* RULING 1 + the modal's own words: the site's plan and every TICKED
+         building's plan. An unticked building is one he did not do. */
+      fsTestedAssets(n2).forEach(o => {
+        const had = (o.ty || []).includes(yr);
+        const prev = (o.td || {})[String(yr)];
+        journal.assets.push({ o: o, yr: yr, had: had, prev: prev });
+        if (had) fsTyStamp(o, yr, at);
+        else {
+          /* RULING 3: a date in another year is ALLOWED and ticks that year.
+             The other years stay ticked; he said he unticks himself. */
+          fsTyTick(o, yr, true, at); nNewYear++;
+          (o.ty || []).forEach(y => { if (y !== yr) otherYears[y] = (otherYears[y] || 0) + 1; });
+        }
+        nAssets++;
+      });
+    });
+    fsCycLastTap = journal;
+    const after = (s.testing || {}).lastMonthly || "";
+    const bN = targets.length - 1;
+    const pretty = x => { const q = String(x).split("-"); return q.length === 3 ? (+q[2]) + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+q[1] - 1] + " " + q[0] : x; };
+    let msg = '<div style="font-size:15px;font-weight:700;margin-bottom:8px">Recorded ' + fsEsc(pretty(when)) + '</div>';
+    msg += '<div style="font-size:13.5px;line-height:1.5">' +
+      (bN ? 'The site and ' + bN + ' building' + (bN === 1 ? '' : 's') : 'The site') + ' &mdash; one Test history record each, tagged &ldquo;' + FS_TESTED_TAG + '&rdquo;.<br>' +
+      '<b>' + nAssets + ' asset' + (nAssets === 1 ? '' : 's') + '</b> marked tested on that date.';
+    /* RULING 2, said on screen: the strip moves only when this is the newest. */
+    if (after === when) msg += '<br>Last done on the monthly strip is now <b>' + fsEsc(pretty(when)) + '</b>.';
+    else if (before && when < before) msg += '<br><b>Last done stays ' + fsEsc(pretty(before)) + '</b> &mdash; that is the newer test, so the due date does not move.';
+    if (nNewYear) {
+      const oy = Object.keys(otherYears).sort();
+      msg += '<br><b>' + yr + ' ticked</b> on ' + nNewYear + ' asset' + (nNewYear === 1 ? '' : 's') + ' that had no ' + yr + ' tick' +
+        (oy.length ? ' &mdash; ' + oy.join(', ') + ' ' + (oy.length === 1 ? 'stays' : 'stay') + ' ticked too.' : '.');
+    }
+    msg += '<br><span style="color:var(--fs-sub2)">Tap the green Tested pill to undo the lot.</span></div>';
+    /* The window CLOSES ITSELF - it did the work (test_p95 D2d/D4c). The
+       sentence goes on the site page, above the strip, until dismissed or
+       the next tap - fsTestedNotice, rendered by fsRenderSite. */
+    fsTestedNotice = msg;
     d.remove();
     fsMarkDirty();
     fsRenderSite();
@@ -29550,7 +29658,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v171";
+const FS_BUILD = "aa-v172";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -34044,12 +34152,15 @@ function fsArPanelHtml(rows, s) {
    It is deliberately separate from fsTyTick rather than a third mode on it:
    one function changes what the register says, the other says when it was
    last checked, and a caller should have to pick. */
-function fsTyStamp(o, yr) {
+function fsTyStamp(o, yr, when) {
   if (!o) return false;
   yr = +yr;
   if (!(o.ty || []).includes(yr)) return false;   /* only stamps what is ticked */
   o.td = o.td || {};
-  o.td[String(yr)] = fsLocalIso(new Date());
+  /* FS_TY_WHEN - PASS 186 [186-A], W161-C. `when` is OPTIONAL and means "the
+     date he chose in the Tested window"; omitted, this is byte-for-byte the
+     stamp it always was. Every existing caller omits it. */
+  o.td[String(yr)] = fsLocalIso(when || new Date());
   return true;
 }
 /* A TAP THAT CHANGES NOTHING VISIBLE HAS TO SAY SOMETHING. Re-stamping an
@@ -34065,7 +34176,7 @@ function fsFlashOnly(o) {
     else { flashSym = null; requestDraw(); }
   })();
 }
-function fsTyTick(o, yr, on) {
+function fsTyTick(o, yr, on, when) {
   if (!o) return false;
   yr = +yr;
   o.ty = o.ty || [];
@@ -34075,7 +34186,7 @@ function fsTyTick(o, yr, on) {
   if (want) {
     o.ty.push(yr);
     o.td = o.td || {};
-    o.td[String(yr)] = fsLocalIso(new Date());
+    o.td[String(yr)] = fsLocalIso(when || new Date());   /* FS_TY_WHEN [186-A] */
   } else {
     o.ty.splice(i, 1);
     /* An untick takes its date with it. A date left behind on an unticked
