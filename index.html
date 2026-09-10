@@ -696,7 +696,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.171 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.172 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +826,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.171 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.172 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -29713,7 +29713,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v179";
+const FS_BUILD = "aa-v180";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33654,7 +33654,44 @@ function fsArLastTested(o) {
 /* The site's shortest ACTIVE cycle is what a device is next due under. Asking
    fsCycles() rather than FS_CYCLES means a period he named himself in V0.131
    counts, and fsCycDue is the only thing that turns a date into a due date. */
-function fsArCycle() {
+/* PASS 191 [191-A] - W136-3, HIS RULING B. THE PERIOD AN ASSET IS DATED
+   AGAINST, when its TYPE has been given one in Arc Command.
+
+   It rides on the row Arc Command already writes per type and the profile
+   already carries - fsProfile.symbols[type] - beside the real size and the
+   symbol size. Not through fsSymSpec(): that function's contract says mm is
+   the only field an edit may move, and it returns null for a type that is not
+   in FS_SYM_MM. A test period is not a drawing spec.
+
+   THE KEY IS ARC ADAPT'S, NOT ARC COMMAND'S. The two apps name the same five
+   periods differently (monthly/sixMonthly/... against lastMonthly/last6m/...),
+   so the app that READS decides the vocabulary and FS_TEST_PERIODS in Arc
+   Command translates on the way in. Storing Arc Command's key would have made
+   every lookup here fall through silently and shipped the feature inert.
+
+   THREE WAYS TO FALL BACK, ALL OF THEM TODAY'S BEHAVIOUR: no profile, a type
+   with no period set, or a period this register does not have or has switched
+   off. A client who runs no 6-monthly cannot be given 6-monthly due dates by a
+   profile. mutate-p191 M1 is this guard removed. */
+function fsTypePeriod(o) {
+  if (!o || !o.type) return null;
+  let sym = null;
+  /* fsProfile is declared thousands of lines below; a bare read would throw
+     from the temporal dead zone. Same guard fsSymSpecProfile uses. */
+  try { sym = (fsProfile && fsProfile.symbols) || null; } catch (e) { sym = null; }
+  const row = sym && sym[o.type];
+  const key = row && row.period;
+  if (!key || typeof key !== "string") return null;
+  const cy = (typeof fsCycles === "function" ? fsCycles() : FS_CYCLES) || [];
+  let hit = null;
+  cy.forEach(function (c) { if (c && c.key === key) hit = c; });
+  if (!hit) return null;
+  if (typeof fsCycOn === "function" && !fsCycOn(hit.key)) return null;
+  return hit;
+}
+function fsArCycle(o) {
+  const own = fsTypePeriod(o);
+  if (own) return own;
   const cy = (typeof fsCycles === "function" ? fsCycles() : FS_CYCLES) || [];
   let best = null;
   cy.forEach(function (c) {
@@ -33666,7 +33703,7 @@ function fsArCycle() {
 }
 function fsArNextDue(o) {
   const last = fsArLastTested(o);
-  const cyc = fsArCycle();
+  const cyc = fsArCycle(o);
   if (!last || !cyc || typeof fsCycDue !== "function") return null;
   try { return fsCycDue(new Date(last), cyc); } catch (e) { return null; }
 }
@@ -33681,7 +33718,10 @@ function fsArStatusOf(o, level, site) {
   if (o.failed) return { k: "failed", label: "Failed", col: "#c62828" };
   const due = fsArNextDue(o);
   if (due) {
-    const now = Date.now(), warn = (typeof fsCycWarnDays === "function" ? fsCycWarnDays(fsArCycle()) : 30) * 86400000;
+    /* PASS 191 [191-A] - THE SAME PERIOD, TWICE. The warning window has to come
+       from the period the due date came from: a 6-monthly extinguisher warned
+       on a monthly window is "Due soon" for its whole second half. */
+    const now = Date.now(), warn = (typeof fsCycWarnDays === "function" ? fsCycWarnDays(fsArCycle(o)) : 30) * 86400000;
     if (due.getTime() < now) return { k: "overdue", label: "Overdue", col: "#c62828" };
     if (due.getTime() - now <= warn) return { k: "soon", label: "Due soon", col: "#c9761f" };
   }
