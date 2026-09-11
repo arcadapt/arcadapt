@@ -174,6 +174,37 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .tab.active { color:#fff; background:#3a2b27; border-color:#ff5a3c; font-weight:600; }
 
   #palette { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#31363d; border-bottom:1px solid #333; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:74px; }
+  /* PASS 197 [197-A] W176-B. THE LABEL IS THE TAP TARGET, NOT THE BOX -
+     W121-1, measured in Pass 121, and why each part is a 44px-high <label>
+     rather than a 16px checkbox with words next to it. W124-1 (eleven 16x16
+     checkboxes) is still unanswered and this does not add a twelfth. */
+  #vwLabelParts { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+                  padding:6px 10px; background:#2a2e34; border-bottom:1px solid #333; }
+  #vwLabelParts .lp {
+    display:inline-flex; align-items:center; gap:7px; min-height:44px;
+    padding:4px 12px 4px 10px; border-radius:9px; background:#262a30;
+    border:2px solid transparent; color:#c9d1d9; font-size:13px; cursor:pointer;
+    user-select:none;
+  }
+  #vwLabelParts .lp.on { border-color:#00a5c8; color:#e8f6fa; }
+  #vwLabelParts .lp input { width:18px; height:18px; margin:0; flex:0 0 auto; }
+  #vwLabelParts .lphint { font-size:11px; color:#8b949e; padding-left:2px; }
+  /* PASS 197 [197-C] R-177 - IT WRAPPED 2+1 ON EVERY PHONE AND THE NUMBERS
+     SAID IT WAS FINE. measure-p197b.py: the four items need 364.8px; the strip
+     is 290 at 360, 320 at 390 and 360 at 430 - short at all three, so Device
+     dropped to a second line and the row stood 111px tall. A wrap is not an
+     overflow, which is why look-p197.py reported overflow=False and three
+     heights of 44 over a control that was stacked.
+     Under 720 the hint becomes a caption on its own line and the three parts
+     share the rest equally - 274/3 = 91.3px each against a widest part of 84 -
+     so one line is arithmetic, not luck. 44px min-height untouched: W121-1,
+     the label is the tap target. Above 720 nothing moves; it fitted at 57px. */
+  @media (max-width:720px) {
+    #vwLabelParts { gap:8px; }
+    #vwLabelParts .lphint { flex:0 0 100%; padding-left:0; }
+    #vwLabelParts .lp { flex:1 1 0; min-width:0; justify-content:center;
+                        gap:6px; padding:4px 6px; }
+  }
   .pal { display:flex; flex-direction:column; align-items:center; gap:2px; border:2px solid transparent; background:#262a30; border-radius:10px; padding:5px 8px; cursor:pointer; min-width:58px; user-select:none; touch-action:none; flex:0 0 auto; }
   .pal.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
   /* PASS 36 — THE 1.5 s FAVOURITE ARM HAD NO FEEDBACK ON AN iPAD AT ALL.
@@ -696,7 +727,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.176 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.178 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -826,7 +857,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.176 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.178 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -884,6 +915,12 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn bigur" id="btnFocus" title="Focus — hide all bars and maximise the plan">&#x26F6;</button>
   </div>
   <div id="palette"></div>
+  <!-- PASS 197 [197-A] W176-B - the parts of a device label, under the tile
+       they belong to. A SIBLING of #palette rather than a child, because
+       #palette is a horizontal scroller and "check boxes down the bottom" is a
+       second row, not more things in the strip. Hidden on every tab but Views,
+       and on Views only while Device labels is on. -->
+  <div id="vwLabelParts" style="display:none"></div>
 
   <div id="focusBar">
     <button class="btn" id="focusExit" title="Exit focus">&#x26F6; Exit</button>
@@ -6946,13 +6983,11 @@ function viewsToggleDefs() {
   return [
     { id:"vw_labels", icon:"\u{1F3F7}", label:"Device labels", get:() => labelsOn, set:v => { labelsOn = v; refreshLabelsBtn(); } },
     { id:"vw_zones", icon:"▧", label:"Zones", get:() => zonesShow, set:v => { zonesShow = v; const zc = document.getElementById("znShow"); if (zc) zc.checked = v; } },
-    /* PASS 194 [194-A] W127-11 - the three parts of a device label, each its
-       own tile, sitting directly under the master "Device labels" toggle they
-       belong to. New ids sort to the end of a saved tab order (applyOrder
-       gives an unknown id position 999), so nobody's arrangement moves. */
-    { id:"vw_lbl_zone", icon:"Z", label:"Label: Zone", get:() => labelParts.zone, set:v => fsLabelPartSet("zone", v) },
-    { id:"vw_lbl_loop", icon:"L", label:"Label: Loop", get:() => labelParts.loop, set:v => fsLabelPartSet("loop", v) },
-    { id:"vw_lbl_dev",  icon:"D", label:"Label: Device", get:() => labelParts.dev,  set:v => fsLabelPartSet("dev", v) },
+    /* PASS 197 [197-A] W176-B - THE THREE LABEL-PART TILES ARE GONE. Reece,
+       on the V0.173-176 sheet: "we would only need one tile, device labels and
+       we can mix and match with what we want on by the bottom checkbox
+       selections". They are a row under the strip now (#vwLabelParts); the
+       mechanism behind them ([194-A] labelParts / fsLabelPartSet) is unchanged. */
     { id:"vw_prevyear", icon:"\u{1F4C5}", label:"Last-year tags", get:() => testPrevOn, set:v => { testPrevOn = v; const tc = document.getElementById("testPrevOn"); if (tc) tc.checked = v; try { localStorage.setItem("bpm-prevyear", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_qr", icon:'<span style="font-size:13px;font-weight:800;color:#1565c0">QR</span>', label:"QR-linked tag", get:() => viewQrTag, set:v => { viewQrTag = v; try { localStorage.setItem("bpm-viewqr", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_photodot", icon:"\u{1F4F7}", label:"Photo dot", get:() => viewPhotoDot, set:v => { viewPhotoDot = v; try { localStorage.setItem("bpm-viewphotodot", v ? "1" : "0"); } catch (e) {} } },
@@ -6963,7 +6998,16 @@ function viewsToggleDefs() {
 function buildViewsPanel() {
   const note = document.createElement("div");
   note.style.cssText = "font-size:10.5px;color:#888;padding:4px 8px;max-width:120px;flex:0 0 auto;touch-action:pan-x";
-  note.textContent = "Show / hide on screen only. Exports and reports are never affected.";
+  /* PASS 197 [197-B] W176-C - THE NOTE STOPPED BEING TRUE AND HAD TO CHANGE.
+     His ruling, asked whether turning Device labels off should also take them
+     off the exported plan: "What's on screen". So the device label and the
+     parts it carries now reach an export, and a panel that still said "exports
+     are never affected" would be lying about the control directly above it.
+     THE OTHER FOUR STILL HONOUR exportPaint and he was NOT asked about them -
+     markups, photo pins, the QR tag and the photo dot. The wording says which
+     is which rather than generalising three words into a ruling over six
+     toggles. */
+  note.textContent = "Show / hide on screen. Device labels also apply to the exported plan; the others are screen only.";
   paletteEl.appendChild(note);
   /* PASS 34 — BUG NUMBER ONE, and the only one the brief's diagnosis would
      have caught. This is a SECOND tile render path and it never attached the
@@ -6993,11 +7037,59 @@ function buildViewsPanel() {
     attachTileGestures(d, tg.id, { fav:false });
     paletteEl.appendChild(d);
   });
+  fsLabelPartsRow();
+}
+/* PASS 197 [197-A] W176-B - THE PARTS OF A DEVICE LABEL, UNDER THE TILE.
+
+   "when device labels tile is selected/activated that you have check boxes
+   down the bottom that are the labels. Zone, loop, device ... Then we would
+   only need one tile."
+
+   It exists only while Device labels is ON, which is the only time it means
+   anything, and only on the Views tab - buildPalette() hides it on every other
+   build so it cannot survive a tab change. */
+const FS_LBL_ROW = "197-A";
+function fsLabelPartsRow() {
+  const row = document.getElementById("vwLabelParts");
+  if (!row) return;
+  row.innerHTML = "";
+  if (activeTab !== "views" || !labelsOn) { row.style.display = "none"; return; }
+  row.style.display = "flex";
+  const hint = document.createElement("span");
+  hint.className = "lphint";
+  hint.textContent = "Label shows:";
+  row.appendChild(hint);
+  [["zone", "Zone"], ["loop", "Loop"], ["dev", "Device"]].forEach(function (p) {
+    const k = p[0];
+    const lab = document.createElement("label");
+    lab.className = "lp" + (labelParts[k] !== false ? " on" : "");
+    lab.id = "lp-" + k;
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = labelParts[k] !== false;
+    cb.dataset.part = k;
+    /* on the INPUT, so the 44px label is the tap target and the box is not a
+       second, smaller one competing with it */
+    cb.onchange = function () {
+      fsLabelPartSet(k, cb.checked);
+      fsLabelPartsRow();
+      draw();
+    };
+    lab.appendChild(cb);
+    const tx = document.createElement("span");
+    tx.textContent = p[1];
+    lab.appendChild(tx);
+    row.appendChild(lab);
+  });
 }
 function buildPalette() {
   refreshTabs();
   paletteEl.innerHTML = "";
   if (activeTab === "views") { buildViewsPanel(); updateStatus(); return; }
+  /* [197-A] every OTHER build hides the row, so it cannot outlive a tab
+     change. buildViewsPanel calls fsLabelPartsRow() for the Views case. */
+  const lpRow = document.getElementById("vwLabelParts");
+  if (lpRow) { lpRow.style.display = "none"; lpRow.innerHTML = ""; }
   const entries = entriesForTab(activeTab);
   if (!entries.length) {
     const hint = document.createElement("div");
@@ -8059,7 +8151,20 @@ function fsLabelPartSet(k, v) {
    to make it worse: whatever the three tiles say, an export draws all three
    parts, byte for byte. test_p194 X1/X2. */
 function fsLabelPartOn(k) {
-  if (exportPaint) return true;
+  /* PASS 197 [197-B] W176-C - THE EXPORT GATE IS GONE, AND IT IS HIS RULING.
+     Asked whether turning Device labels off should also take them off the
+     exported plan, he answered: "What's on screen".
+
+     [194-A] had `if (exportPaint) return true;` here, deliberately: the Views
+     panel promised exports were never affected, the ID label had never honoured
+     that promise anyway, and the new parts were gated rather than make an old
+     inconsistency worse. That was the right call to make WITHOUT him and the
+     wrong answer once he had ruled.
+
+     SCOPED TO WHAT HE WAS SHOWN. viewHidden (markups, photo pins), the QR tag
+     and the photo dot still honour exportPaint - he was asked about device
+     labels and nothing else, and three words are not a ruling over six toggles.
+     The panel's note says which is which. */
   return labelParts[k] !== false;
 }
 const MARKUP_KINDS = { ink:1, shape:1, callout:1, text:1, img:1 };
@@ -11306,6 +11411,42 @@ cv.addEventListener("pointerdown", e => {
   }
 
   // symbol placement tool
+  /* PASS 196 [196-A] W176-A - FS_SYM_GRIP_ARMED. THE GRIPS OF THE SYMBOL YOU
+     JUST PLACED STAY GRABBABLE WITHOUT SWITCHING TO SELECT.
+
+     Reece: "why when I place something do I have to then unselect it or hit
+     select then select it again to edit it, is that extra step required?"
+
+     It was not, and the state he was in was worse than an extra step. Measured
+     (measure-p196): after placing, the symbol IS selected and its grips ARE
+     drawn - the drawing block is `if (selection.length === 1)` with no test of
+     activeTool - so the control is on screen. Tapping it gave dragMode
+     "moveSel" and dragged the whole symbol, because hitObject() below runs
+     first and the corner grip sits inside the symbol's own hit slack. The same
+     tap with Select armed gives "handle" and resizes. The only difference was
+     activeTool.
+
+     THIS IS THE PATTERN ALREADY TWENTY LINES ABOVE, in the SHAPE_TOOLS branch:
+     "endpoints of the just-drawn (still selected) shape stay grabbable without
+     switching to Select" ([86-1]). Symbols never got it.
+
+     AND NOT setTool("select"), which is the other half of what shapes do
+     (selAfterDraw). A shape is drawn one at a time; a tech drops eleven
+     detectors down a corridor without looking up, and handing the tool back
+     after each one would cost ten taps to save one. A tap anywhere that is not
+     a 14px grip still places the next symbol.
+     Not gated on selAfterDraw either: that preference is about giving the TOOL
+     back, and this does not. */
+  if (selection.length === 1 && selection[0].kind === "sym") {
+    const hsy = fsHandlePick(getHandles(selection[0]), p.x, p.y);
+    if (hsy) {
+      pushUndo();
+      dragMode = "handle";
+      activeHandle = hsy;
+      setHandleAnchor(hsy);
+      return;
+    }
+  }
   const hit = hitObject(p.x, p.y);
   if (hit) {
     setSelection(hit.grp ? objects.filter(o => o.grp === hit.grp) : [hit]);
@@ -30003,7 +30144,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v184";
+const FS_BUILD = "aa-v186";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
