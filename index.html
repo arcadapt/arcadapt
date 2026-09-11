@@ -66,7 +66,19 @@
    stylesheet that has not parsed yet. patch-p118 GUARDS that they still match
    --fs-bg, and test_p118 asserts it - if the tokens move and this does not,
    the suite goes red instead of his phone going wrong. */
-try{var d=localStorage.getItem("fs-theme")!=="light";if(d)document.documentElement.classList.add("fsdark");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#15181c":"#e2e8ed");}catch(e){}</script>
+try{var d=localStorage.getItem("fs-theme")!=="light";if(d)document.documentElement.classList.add("fsdark");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#15181c":"#e2e8ed");}catch(e){}
+/* PASS 200 [200-A] W176-E - THE SECOND THING THAT MUST BE DECIDED BEFORE
+   FIRST PAINT. #fsImportView is the only view without display:none, so it
+   is what the browser draws while the boot IIFE is still awaiting
+   IndexedDB - measured at 144-497 ms on synthetic registers and about a
+   second on his iPad. IndexedDB cannot answer before paint by
+   construction; localStorage can, which is why the flag is here and not
+   in the database it is describing. fs-boot-reg is written by
+   fsPersistReg, cleared by the wipe, and self-healed by fsReadReg when it
+   comes back empty, so a stale flag costs exactly one boot.
+   THE 15 s TIMER IS A GIVE-UP, NOT A LOADER: if the read never resolves,
+   the import card is the honest screen for an app that does not know. */
+try{if(localStorage.getItem("fs-boot-reg")==="1"){document.documentElement.classList.add("fsbooting");setTimeout(function(){document.documentElement.classList.remove("fsbooting");},15000);}}catch(e){}</script>
 <title>Arc Adapt</title>
 <script src="./qr.js" defer></script>
 <script src="./jsqr.js" defer></script>
@@ -450,6 +462,18 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   #fsReg.fsdark, html.fsdark #fsReg { color-scheme: dark; }
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
   #fsReg .wrap { max-width:1060px; margin:0 auto; padding:18px 18px 80px; }
+  /* PASS 200 [200-A] W176-E - WHAT THE APP SHOWS WHILE IT DOES NOT YET KNOW.
+     display:none !important because fsShow() writes an INLINE display on every
+     view, and the whole point of this state is that it outranks the markup
+     until the boot has decided. The class is removed the moment it has, so the
+     inline value wins from then on and nothing about fsShow changes.
+     #fsBootNote is delayed 2500 ms - four times the worst flash measured by
+     measure-p200.py - so a normal cold start never paints it. */
+  html.fsbooting #fsImportView { display:none !important; }
+  #fsBootNote { display:none; }
+  html.fsbooting #fsBootNote { display:block; max-width:430px; margin:80px auto; text-align:center;
+    font-size:14px; color:var(--fs-faint); opacity:0; animation:fsBootIn .18s linear 2500ms forwards; }
+  @keyframes fsBootIn { to { opacity:1; } }
   /* PASS 120 [P-12 / L4] - the edge. Measured by _probe_l4_card.py rather
      than assumed: the old border was a twelfth of a step from the ground
      and the old shadow was a fifth of a shadow, which is the real reason
@@ -727,7 +751,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.178 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.179 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -798,6 +822,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
               style="padding:3px 9px;font-size:15px;line-height:1.1">&times;</button>
     </div>
 
+    <div id="fsBootNote">Opening your register&hellip;</div>
+
     <div id="fsImportView">
       <div class="fscard" style="max-width:430px;margin:60px auto;padding:26px;text-align:center">
         <p style="color:#3d4f57;font-size:14.5px;margin-bottom:18px">Load your local client register to begin.<br>The register never leaves this device &mdash; the app is an empty shell without it.</p>
@@ -857,7 +883,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.178 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.179 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2708,8 +2734,29 @@ function symSizeFor(typeId) {
 
    The millimetres are research, not a question for him (Rule #0e): larnec
    .com.au for door leaves (820), doorsupply.com.au for roller doors (2400
-   single). STAIR WIDTH IS THE ONE NUMBER WITHOUT A CITATION - 1000 mm is the
-   common NCC minimum, and it is flagged in the receipt rather than dressed up.
+   single).
+
+   PASS 198 [198-A] W174-D - THE SOURCES ARE ALL IN NOW, AND ONE NUMBER MOVED.
+   The line that used to stand here said the stair width was the one number
+   without a citation. It has one: AS 1428.1 cl 6.3 puts a continuous
+   accessible path at 1000 mm and Fig 26(A) puts an accessible stairway at
+   1000 mm between handrails, with NCC D2D8 at not less than 1 m for an exit
+   or path of travel. THE NUMBER WAS RIGHT AND ONLY THE SOURCE WAS MISSING.
+
+   dbldoor moved 1640 -> 1840. 1640 is a pair of 820 DOMESTIC leaves; this app
+   draws Class 2-9 buildings, where a double entry is a pair of 920s because
+   the accessible path needs 850 mm clear. Revit's generic metric double
+   default is 1830, which agrees within 10 mm and is the only thing Revit's
+   library is good for here: its "metric" doors are imperial conversions
+   (0762 = 2'6", 0915 = 3'0", 2134 = 7'0") and there is no Australian 915 leaf
+   or 2134 height, so his "get them from default revit ones" was answered NO
+   for everything except as a cross-check on the double.
+
+   THE SINGLE STAYS AT 820 ON PURPOSE - store rooms, risers and switch rooms
+   are 820, and 820 is what the cited source calls the Australian standard.
+   920 is a flagged walk box with both numbers, not a decision taken here.
+
+   Full working and every source: claude/W174-D-DIMENSION-RESEARCH.md
 */
 /* ================= PASS 139 [139-A] ================================
    EVERY ITEM CARRIES A REAL DIMENSION. Reece: "giving all the items in arc
@@ -2743,13 +2790,27 @@ function symSizeFor(typeId) {
 const FS_SYM_MM = {
   /* --- Building: real extent on a plan, so drawn at real size (Pass 125) -- */
   door:    { mm: 820,  mult: 1.0,  draw: "real",   src: "leaf width" },
-  dbldoor: { mm: 1640, mult: 1.8,  draw: "real",   src: "two 820 leaves" },
-  sldoor:  { mm: 1800, mult: 1.8,  draw: "real",   src: "sliding door" },
+  dbldoor: { mm: 1840, mult: 1.8,  draw: "real",   src: "two 920 leaves, AS 1428.1 850 clear" },
+  sldoor:  { mm: 1800, mult: 1.8,  draw: "real",   src: "2-panel AU slider" },
   rldoor:  { mm: 2400, mult: 1.8,  draw: "real",   src: "single roller" },
-  window:  { mm: 1200, mult: 1.6,  draw: "real",   src: "common window" },
-  opening: { mm: 900,  mult: 1.6,  draw: "real",   src: "common opening" },
-  stair:   { mm: 1000, mult: 1.8,  draw: "real",   src: "NCC minimum, UNCITED" },
-  lstair:  { mm: 1000, mult: 1.44, draw: "real",   src: "NCC minimum, UNCITED" },
+  window:  { mm: 1200, mult: 1.6,  draw: "real",   src: "most-ordered AU width" },
+  opening: { mm: 900,  mult: 1.6,  draw: "real",   src: "820 leaf + frame, nominal" },
+  /* PASS 199 [199-A] R-179 - `mm` IS THE LENGTH ON EVERY draw:"real" TYPE
+     (that is what `mult`, the glyph's X extent, means), and this row carried
+     the NCC/AS 1428.1 minimum WIDTH in it. The app drew a stair 1000 long and
+     556 WIDE. `mmW` is the cross-axis number, so the pair can never silently
+     disagree again. 4200 = 15 goings at 280 (NCC Class 2-9: going 250-355,
+     max 18 risers per flight). Reece ruled both numbers, 11 Sep. */
+  stair:   { mm: 4200, mmW: 1000, mult: 1.8,  draw: "real",   src: "15 goings @280; AS 1428.1 width" },
+  /* [199-A] the L's FOOTPRINT, and deliberately NO `mmW`. Its arms are a
+     fixed 0.5 of the size param, so 2900 of footprint IS a 1007 mm flight -
+     R-179's lstair half fixed with no new mechanism, the arms going 347 ->
+     1007. `mmW` means ONE thing, the glyph's BOUNDING-BOX cross dimension,
+     and an L-stair's box height is its far arm's outer edge rather than any
+     flight width. Writing 1000 here would be R-179 all over again in a new
+     field - a true number on the wrong axis. It lives in this comment, where
+     it is documentation and cannot become arithmetic. */
+  lstair:  { mm: 2900, mult: 1.44, draw: "real",   src: "L flight, 1007 arms, AS 1428.1" },
 
   /* --- Fire: legible symbols, with their real size recorded -------------- */
   /* PASS 144 [144-A] W127-5 - "a smoke detector should have a little diameter
@@ -2871,7 +2932,10 @@ function fsSymSpec(typeId) {
      everything else. A shape does not change because a client profile set a
      different millimetre figure, and leaving it out of this object is how the
      mark would vanish for exactly the sites that have a profile. */
-  const out = { mm: base.mm, mult: base.mult, draw: base.draw, src: base.src, h: base.h, dia: base.dia };
+  /* [199-A] `mmW` rides through with `dia` and `h`. Leaving it out is how the
+     cross-axis dimension would vanish for exactly the sites that HAVE a
+     profile - [144-A]'s lesson, same object, one field later. */
+  const out = { mm: base.mm, mmW: base.mmW, mult: base.mult, draw: base.draw, src: base.src, h: base.h, dia: base.dia };
   layers.forEach(o => {
     if (!o || typeof o !== "object") return;
     if (o.mm === null) { out.mm = null; out.src = null; }
@@ -3192,7 +3256,63 @@ function drawYearChip(c, x, y, br, txt, bg) {
    with no length axis through a copy, a paste, or a type edited underneath an
    existing placement. */
 const FS_SYM_LENAXIS = "193-A";
-const FS_LEN_GLYPHS = { sldoor: 1, rldoor: 1, window: 1, opening: 1 };
+/* [199-A] W174-B - the straight flight joins them. lstair does NOT: its length
+   and its arm width are not the two axes of its bounding box. */
+const FS_LEN_GLYPHS = { sldoor: 1, rldoor: 1, window: 1, opening: 1, stair: 1, lstair: 1 };
+/* [199-A] AND THE WIDTH AXIS, WHICH IS A SHORTER LIST ON PURPOSE. A width grip
+   only makes sense where the glyph's THICKNESS is its real cross dimension.
+   On an L-stair the box height is the far arm's outer edge, not a flight
+   width, so narrowing it squashes the L. */
+const FS_SYM_WIDAXIS = "199-A";
+const FS_WID_GLYPHS = { stair: 1 };
+function fsSymWidAble(o) {
+  const t = o && o.kind === "sym" && TYPE_MAP[o.type];
+  return !!(t && FS_WID_GLYPHS[t.glyph]);
+}
+/* [199-A] THE GOING, IN PIXELS. See the note at the draw site: this is
+   the one number that survives BOTH a length drag and a width drag, which
+   is why it is neither `s` nor `ty`. `len` is the glyph's drawn length in
+   the same pixel space as the caller, so the ratio carries the view zoom
+   with it and nothing here needs to know the scale. */
+const FS_STAIR_GOING_MM = 280;
+function fsStairPitch(o, s, ty) {
+  const mm = o && o.mm;
+  if (typeof mm === "number" && mm > 0) {
+    return Math.max(0.5, (s * 1.8) * (FS_STAIR_GOING_MM / mm));
+  }
+  return Math.max(0.5, s * 0.18);   /* no real length: what it draws today */
+}
+/* [199-A] THE DEFAULT ASPECT, READ OFF THE GEOMETRY AND NOT OFF `mult`.
+   symDimsBase is linear in symPx, so a probe at any size gives the glyph's
+   natural w:h exactly. Deriving it here rather than dividing mm by mult means
+   a redrawn glyph moves its own default - which is the promise the mult table
+   makes and cannot keep by itself (lstair's mult says 1.44; it draws at 1.45).
+   Returns undefined when the type has no cross-axis number, so the property is
+   simply absent on everything else and fsSymAsp keeps returning 1. */
+function fsSymAspDefault(typeId) {
+  const t = TYPE_MAP[typeId];
+  /* GATED ON FS_WID_GLYPHS, not on `mmW` alone. What this returns is a
+     BOUNDING BOX aspect, so it may only be derived for a glyph whose box
+     height IS a real width. Without this line an `mmW` added to any other
+     glyph would quietly start writing a stored aspect onto every one placed -
+     inert until the day something divides by it, which is exactly the shape
+     of the bug this pass exists to fix. */
+  if (!t || !FS_WID_GLYPHS[t.glyph]) return undefined;
+  /* AND DO NOT CALL THIS FROM fsSymAsp. It is the obvious shortcut - make
+     the FALLBACK the catalogue aspect and the placement line gets shorter -
+     and it does two things, the second worse than the first. It re-draws
+     every stair already on a plan, AND IT INFINITELY RECURSES: this function
+     calls symDimsBase, which calls fsSymAsp. mutate-p199 M7 is that build
+     and it does not fail the suite, it STACK-OVERFLOWS THE APP. */
+  const b = (typeof fsSymSpec === "function") ? fsSymSpec(typeId) : null;
+  if (!b || b.draw !== "real" || !(b.mm > 0) || !(b.mmW > 0)) return undefined;
+  const probe = { kind: "sym", type: typeId, x: 0, y: 0, size: 100, rot: 0 };
+  const d = symDimsBase(probe);            /* no `mm`, no `asp` -> s = 100, asp = 1 */
+  if (!(d.w > 0) || !(d.h > 0)) return undefined;
+  const natW = b.mm * (d.h / d.w);         /* the width it would draw at, unstretched */
+  const a = natW / b.mmW;
+  return (a >= 0.15 && a <= 10) ? a : undefined;
+}
 function fsSymLenAble(o) {
   const t = o && o.kind === "sym" && TYPE_MAP[o.type];
   return !!(t && FS_LEN_GLYPHS[t.glyph]);
@@ -3218,7 +3338,7 @@ function symDimsBase(o) {   // the glyph in its OWN frame, before rotation
   else if (t.glyph === "dbldoor") { w = s * 1.9; h = s * 1.1; }
   else if (t.glyph === "sldoor" || t.glyph === "rldoor") { w = s * 1.8; h = s * 0.55 / fsSymAsp(o); }
   else if (t.glyph === "window" || t.glyph === "opening") { w = s * 1.6; h = s * 0.4 / fsSymAsp(o); }
-  else if (t.glyph === "stair") { w = s * 1.8; h = s; }
+  else if (t.glyph === "stair") { w = s * 1.8; h = s / fsSymAsp(o); }   /* [199-A] */
   else if (t.glyph === "lstair") { w = s * 1.45; h = s * 1.45; }
   else if (t.glyph === "db") { w = s * 1.9; h = s * 1.15; }
   else if (t.glyph === "campin") { w = s * 1.15; h = s * 1.5; }
@@ -3287,6 +3407,37 @@ function fsSymLenDrag(o, nx, ny) {
   const d2 = symDimsBase(o);
   o.x = ax - (d2.w / 2) * ux;
   o.y = ay - (d2.w / 2) * uy;
+}
+/* [199-A] W174-B - THE WIDTH GRIP, AND IT IS SHORTER THAN THE LENGTH ONE ON
+   PURPOSE. Thickness is `s / asp`, so changing the width alone means writing
+   `asp` ALONE: `size` never moves, therefore the LENGTH never moves, by
+   construction rather than by arithmetic that has to come out even. That is
+   the whole argument for a ratio over a second stored millimetre figure.
+
+   Everything else is fsSymLenDrag's shape, on the perpendicular axis: the far
+   EDGE is the anchor so the symbol does not walk under the finger (R-3), the
+   pointer is PROJECTED so travel along the flight is ignored - which is what
+   "width" means - and symDimsBase is recomputed INSIDE this function every
+   call, so the frozen-geometry throb of [195-A] cannot happen here. */
+function fsSymWidDrag(o, nx, ny) {
+  if (!fsSymWidAble(o)) return;
+  const a = (o.rot || 0) * Math.PI / 180;
+  const ux = Math.cos(a), uy = Math.sin(a);
+  /* the symbol's own +y axis in world coordinates */
+  const vx = -uy, vy = ux;
+  const db = symDimsBase(o);
+  const half = db.h / 2;
+  const ax = o.x + half * vx, ay = o.y + half * vy;     /* the anchored edge */
+  const wid = Math.max(4, -((nx - ax) * vx + (ny - ay) * vy));
+  const want = fsSymAsp(o) * ((db.h || 1) / wid);
+  o.asp = Math.max(0.15, Math.min(10, want));
+  /* NO symSyncMm HERE, AND THAT IS NOT AN OVERSIGHT. symSyncMm writes o.mm
+     from o.size and o.mm is the LENGTH; size has not moved, so calling it
+     would be a no-op on a good day and a second writer of the length on a bad
+     one. [193-A] made symSyncMm the one writer of mm; this keeps it that. */
+  const d2 = symDimsBase(o);
+  o.x = ax - (d2.h / 2) * vx;
+  o.y = ay - (d2.h / 2) * vy;
 }
 /* [193-A] NEAREST, NOT FIRST - AND IT WAS MEASURED FIRST (measure-p193).
    With a second handle on the length axis, the end of a window sits 8.00px
@@ -3625,18 +3776,48 @@ function drawSym(c, o, scale) {
     c.beginPath(); c.moveTo(-s * 0.8, 0); c.lineTo(s * 0.8, 0); c.stroke();
     c.setLineDash([]);
   } else if (t.glyph === "stair") {
-    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.055); c.lineCap = "butt";
-    c.strokeRect(-s * 0.9, -s * 0.5, s * 1.8, s);
+    /* [199-A] x stays on `s`, y and every stroke weight on `ty` - [193-A]'s
+       split, and the stair is now a glyph that carries a real width. */
+    c.strokeStyle = col; c.lineWidth = Math.max(1, ty * 0.055); c.lineCap = "butt";
+    c.strokeRect(-s * 0.9, -ty * 0.5, s * 1.8, ty);
     c.beginPath();
-    for (let xx = -s * 0.72; xx <= s * 0.72; xx += s * 0.18) {
-      c.moveTo(xx, -s * 0.5); c.lineTo(xx, s * 0.5);
+    /* [199-A] THE TREAD PITCH IS A REAL GOING, AND NEITHER AXIS WOULD DO.
+       [193-A]'s slat lessons both bite harder here - the default flight goes
+       from 1000 mm to 4200 - and this pass found a THIRD one by rendering it.
+
+         on `s`   the treads stretch with the flight: a 4200 stair reads as a
+                  GIANT staircase with the same twelve treads. That is Pass
+                  193's "a x3.5 roller door read as a bigger door", verbatim.
+         on `ty`  the first build here, and the render showed it: NARROWING a
+                  stair doubled its tread count. A 4200 flight has fifteen
+                  treads whether it is 1000 wide or 500.
+
+       `ty` WAS A SAFE STAND-IN FOR "CONSTANT" ONLY WHILE NOTHING COULD CHANGE
+       IT. It is right on a roller door, which has a length grip and no width
+       grip. The moment this pass gave the stair a SECOND drag axis, a
+       convention that was correct when it was written stopped being correct.
+
+       So the pitch is the GOING, in millimetres, off the flight's own real
+       length - the only number that is invariant under both drags. 280 mm is
+       the NCC-typical figure, inside the 250-355 a Class 2-9 stair allows.
+       With no `o.mm` there is no real length and no honest going, so it falls
+       back to `s * 0.18` - byte-identical to what every stair already on a
+       plan draws today, which is the migration [139-A4] promises.
+       COUNTED, not accumulated: `xx += pitch` drifts on a long flight and
+       drops the last tread off the end, the other half of [193-A]. */
+    const tp = fsStairPitch(o, s, ty);
+    const tn = Math.max(1, Math.floor((s * 1.44) / tp));
+    for (let i = 0; i <= tn; i++) {
+      const xx = -s * 0.72 + i * tp;
+      if (xx > s * 0.72 + 0.001) break;
+      c.moveTo(xx, -ty * 0.5); c.lineTo(xx, ty * 0.5);
     }
     c.stroke();
-    c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
+    c.lineWidth = Math.max(1.2, ty * 0.08); c.lineCap = "round";
     c.beginPath(); c.moveTo(-s * 0.78, 0); c.lineTo(s * 0.68, 0); c.stroke();
     c.beginPath();
-    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, -s * 0.14);
-    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, s * 0.14);
+    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, -ty * 0.14);
+    c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, ty * 0.14);
     c.stroke();
   } else if (t.glyph === "lstair") {
     c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.055); c.lineCap = "butt";
@@ -5494,6 +5675,20 @@ function getHandles(o) {
       const ux = Math.cos(ar), uy = Math.sin(ar);
       H.push({ lenh:true, x:o.x - (db.w / 2) * ux, y:o.y - (db.w / 2) * uy,
                set:(nx, ny) => fsSymLenDrag(o, nx, ny) });
+    }
+    /* [199-A] W174-B - THE WIDTH GRIP, on the NEGATIVE end of the symbol's own
+       y axis. Separate from the block above because the two lists are not the
+       same list: every glyph with a width has a length, and lstair has a
+       length and no width. Round like the length grip - they are the same
+       species of control - and fsHandlePick's nearest-wins rule covers the two
+       of them landing close together on a short, wide stair exactly as it
+       covers the corner grip. */
+    if (fsSymWidAble(o)) {
+      const db = symDimsBase(o);
+      const ar = (o.rot || 0) * Math.PI / 180;
+      const vx = -Math.sin(ar), vy = Math.cos(ar);
+      H.push({ widh:true, x:o.x - (db.h / 2) * vx, y:o.y - (db.h / 2) * vy,
+               set:(nx, ny) => fsSymWidDrag(o, nx, ny) });
     }
   } else if (o.kind === "text") {
     const b = objectBounds(o);
@@ -11944,7 +12139,12 @@ function endPointer(e) {
       /* PASS 139 [139-A1]: EVERY item is born carrying its real dimension,
          whether or not it is drawn at it. mm may be null - 36 of the 51
          types have no number yet, and a blank is the honest state. */
-      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:(trueSz || symSizeFor(activeTool)), mm:fsSymMm(activeTool), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
+      /* [199-A] AND ITS ASPECT, beside its millimetres and for the same reason.
+         fsSymAsp STILL FALLS BACK TO 1, so every stair already on a plan draws
+         exactly as it does today - a catalogue-derived fallback would have been
+         shorter and would have silently re-drawn all of them. undefined for
+         every type without a cross-axis number, so the key is simply absent. */
+      const m = { kind:"sym", type:activeTool, x:ip.x, y:ip.y, size:(trueSz || symSizeFor(activeTool)), mm:fsSymMm(activeTool), asp:fsSymAspDefault(activeTool), rot:0, fx:false, fy:false, zone:"", loop:"", dev:"", info:"" };
       if (activeTool === "thermal" || activeTool === "cthermal") { m.thm = "ror"; m.thv = "60"; }
       /* PASS 125 [125-B]: NEVER remember a scale-derived size. symSizes is
          per type and outlives the register, so remembering it would carry
@@ -15150,6 +15350,9 @@ function fsPersistReg(now) {
     const sp = await fsSplitReg(fsRegister);
     await fsWriteParts(sp);
     await idbPut("fsIdx", sp.idx);
+    /* PASS 200 [200-A] W176-E - the marker rides with the write that makes it
+       true, so it can never claim a register this device has not stored. */
+    try { localStorage.setItem("fs-boot-reg", "1"); } catch (e) {}
   };
   if (now) {
     if (fsPersistT) { clearTimeout(fsPersistT); fsPersistT = null; }
@@ -15179,7 +15382,14 @@ async function fsReadReg() {
   }
   let idx = null;
   try { idx = await idbGet("fsIdx"); } catch (e) {}
-  if (!idx || !idx.clients) return null;
+  if (!idx || !idx.clients) {
+    /* PASS 200 [200-A] W176-E - the read is the authority, not the marker.
+       Storage eviction and the danger-zone deleteDatabase both land here, so
+       a stale flag costs one boot and clears itself rather than pinning the
+       app on a boot state forever. */
+    try { localStorage.removeItem("fs-boot-reg"); } catch (e) {}
+    return null;
+  }
   return await fsJoinReg(idx);
 }
 /* ================= Bundle file format (.fsbundle) - Stage 1B =================
@@ -16658,6 +16868,10 @@ async function fsWipeRegister() {
     }
   } catch (e) {}
   fsBlobHave = null; fsBlobHashes = new Map();
+  /* PASS 200 [200-A] W176-E - "Remove this register from this device" has to
+     remove the boot marker too, or the next launch holds a boot state for a
+     register he deliberately deleted. */
+  try { localStorage.removeItem("fs-boot-reg"); } catch (e) {}
   fsCloseRegister();
   alert("\u2713 Removed from this device (" + n + " items).\n\nThe company profile and any library files are still here. Load a register file to start again.");
 }
@@ -30144,7 +30358,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v186";
+const FS_BUILD = "aa-v187";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33035,6 +33249,13 @@ if (document.readyState !== "loading") fsModalXInstall();
       fsShow(toToday ? "fsTodayView" : "fsClientsView");
     }
   } catch (e) {}
+  /* PASS 200 [200-A] W176-E - EVERY path out of the read ends the boot state:
+     register found (fsShow has already put the real view up), nothing found
+     (this reveals the import card, which is now correct), or a throw. It sits
+     after the catch rather than inside the branch on purpose - a boot state
+     that survives an exception is a blank app, which is the thing he was
+     asked about. */
+  document.documentElement.classList.remove("fsbooting");
   fsLoadProfile();
   /* Cloud pickup. Quiet unless the user has just come back from a sign-in, and it never
      touches a register that is already open and unsaved. */
