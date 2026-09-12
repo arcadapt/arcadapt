@@ -751,7 +751,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.179 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.180 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -883,7 +883,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.179 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.180 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1951,7 +1951,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div style="border-top:1px solid #3a4047;padding-top:10px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
-      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; Shift while drawing = 0/45/90&deg; only; Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
+      <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; EH hide &middot; HC hide this type &middot; RH show hidden &middot; Shift while drawing = 0/45/90&deg; only; Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
   </div>
@@ -2497,6 +2497,10 @@ const MODIFY_TOOLS = [
   { id:"m_half",    label:"Halftone",         icon:"◑",  btn:"btnHalf" },
   { id:"m_multi",   label:"Multi",            icon:"✛",  btn:"btnMulti" },
   { id:"m_same",    label:"Select same",      icon:"▦",  btn:"btnSame" },
+  /* PASS 201 [201-A] W160-A / S-4 - two ways in, because he asked for both.
+     No `btn`: there is no hidden topbar button to proxy, same as m_align. */
+  { id:"m_hide",    label:"Hide (EH)",       icon:"◌" },
+  { id:"m_hidetype", label:"Hide this type (HC)", icon:"⊘" },
   { id:"m_group",   label:"Group (GP)",       icon:"⧉",  btn:"btnGroup" },
   { id:"m_ungroup", label:"Ungroup (UG)",     icon:"⬚",  btn:"btnUngroup" },
   { id:"m_pin",     label:"Pin / Unpin",      icon:"📌", btn:"btnPin" },
@@ -5851,7 +5855,20 @@ function draw() {
   ctx.save();
   ctx.translate(view.x, view.y);
   objects.forEach(o => { if (o.kind === "zone") drawObject(ctx, o, view.scale); });
-  objects.forEach(o => { if (o.kind !== "zone" && !viewHidden(o)) drawObject(ctx, o, view.scale); });
+  /* PASS 201 [201-A] S-4 - REVEALED ITEMS DRAW GHOSTED. viewHidden already
+     let them through when viewShowHidden is on, which is what makes them
+     selectable again so they can be unhidden; without a visual difference he
+     would have no way to tell a revealed plan from a normal one, and would
+     unhide nothing because nothing looked hidden. Revit tints them magenta for
+     this exact reason. Alpha rather than a colour because these glyphs carry
+     meaning in their colour. */
+  objects.forEach(o => {
+    if (o.kind === "zone" || viewHidden(o)) return;
+    const gh = viewShowHidden && fsIsHidden(o);
+    if (gh) { ctx.save(); ctx.globalAlpha = 0.3; }
+    drawObject(ctx, o, view.scale);
+    if (gh) ctx.restore();
+  });
   if (tempShape) drawObject(ctx, tempShape, view.scale);
   /* PASS 68b [68b-3] — THE MARKER IS NOW DRAWN FOR SELECTED OBJECTS ONLY.
      Reece, 22 Aug: "I don't think I want the marker on" always.
@@ -6279,10 +6296,13 @@ function updateStatus() {
    synchronously and the plan lands on load. Both undo() and redo() go
    through fsUndoApply so the two can never drift apart. */
 function fsUndoSnap() {
-  return { o: JSON.stringify(objects), img: (typeof imgDataUrl !== "undefined" ? imgDataUrl : null) };
+  return { o: JSON.stringify(objects), img: (typeof imgDataUrl !== "undefined" ? imgDataUrl : null),
+           /* PASS 201 [201-A] - the per-type hide lives on the level, not in objects[] */
+           ht: JSON.stringify(fsHiddenTypes()) };
 }
 function fsUndoApply(s) {
   objects = JSON.parse(s.o);
+  if (s.ht !== undefined) { const lv = levels[curLevel]; if (lv) lv.hiddenTypes = JSON.parse(s.ht); }
   clearSelection();
   if (s.img && typeof imgDataUrl !== "undefined" && s.img !== imgDataUrl) {
     const im = new Image();
@@ -7187,12 +7207,16 @@ function viewsToggleDefs() {
     { id:"vw_qr", icon:'<span style="font-size:13px;font-weight:800;color:#1565c0">QR</span>', label:"QR-linked tag", get:() => viewQrTag, set:v => { viewQrTag = v; try { localStorage.setItem("bpm-viewqr", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_photodot", icon:"\u{1F4F7}", label:"Photo dot", get:() => viewPhotoDot, set:v => { viewPhotoDot = v; try { localStorage.setItem("bpm-viewphotodot", v ? "1" : "0"); } catch (e) {} } },
     { id:"vw_markups", icon:"✏️", label:"Markups", get:() => viewMarkups, set:v => { viewMarkups = v; try { localStorage.setItem("bpm-viewmarkups", v ? "1" : "0"); } catch (e) {} if (!v) setSelection(selection.filter(o => !viewHidden(o))); } },
-    { id:"vw_pins", icon:"\u{1F4CD}", label:"Photo pins", get:() => viewPins, set:v => { viewPins = v; try { localStorage.setItem("bpm-viewpins", v ? "1" : "0"); } catch (e) {} if (!v) setSelection(selection.filter(o => !viewHidden(o))); } }
+    { id:"vw_pins", icon:"\u{1F4CD}", label:"Photo pins", get:() => viewPins, set:v => { viewPins = v; try { localStorage.setItem("bpm-viewpins", v ? "1" : "0"); } catch (e) {} if (!v) setSelection(selection.filter(o => !viewHidden(o))); } },
+    /* PASS 201 [201-A] S-4 - "a show hidden items button too", his words, and
+       his wording beats Revit's "Reveal Hidden Elements". This tile is the ONLY
+       way back to something hidden, so it is not optional furniture. */
+    { id:"vw_showhidden", icon:"\u{1F441}", label:"Show hidden", get:() => viewShowHidden, set:v => fsSetShowHidden(v) },
   ];
 }
 function buildViewsPanel() {
   const note = document.createElement("div");
-  note.style.cssText = "font-size:10.5px;color:#888;padding:4px 8px;max-width:120px;flex:0 0 auto;touch-action:pan-x";
+  note.style.cssText = "font-size:10.5px;color:#888;padding:4px 8px;max-width:170px;flex:0 0 auto;touch-action:pan-x";
   /* PASS 197 [197-B] W176-C - THE NOTE STOPPED BEING TRUE AND HAD TO CHANGE.
      His ruling, asked whether turning Device labels off should also take them
      off the exported plan: "What's on screen". So the device label and the
@@ -7202,7 +7226,13 @@ function buildViewsPanel() {
      markups, photo pins, the QR tag and the photo dot. The wording says which
      is which rather than generalising three words into a ruling over six
      toggles. */
-  note.textContent = "Show / hide on screen. Device labels also apply to the exported plan; the others are screen only.";
+  /* PASS 201 [201-A] - the panel has TWO behaviours ON PURPOSE. He was offered
+     the chance to bring the six tiles into line with Hide and declined, so
+     the note says which is which rather than letting him find out from a
+     PDF. [197-B] rewrote this same note for the same reason. Rendered at
+     120px the longer note ran ten lines and doubled the strip's height;
+     170px holds it to the tile height. */
+  note.textContent = "Screen only, except Device labels (also on the export). Hidden items stay off the export too; Show hidden reveals them on screen only.";
   paletteEl.appendChild(note);
   /* PASS 34 — BUG NUMBER ONE, and the only one the brief's diagnosis would
      have caught. This is a SECOND tile render path and it never attached the
@@ -7351,6 +7381,38 @@ function buildPalette() {
 /* ---- Modify tab: tiles proxy the (hidden) action buttons ---- */
 function modifyAction(id) {
   if (id === "m_align") { openAlign(); return; }
+  /* PASS 201 [201-A] W160-A / S-4 - HIDE, AND UNHIDE THROUGH THE SAME TILE.
+     With Show hidden on, a revealed item is selectable, so tapping Hide on one
+     that is already hidden is the unhide. One control, both directions - a
+     separate Unhide tile would be dead nine times out of ten. */
+  if (id === "m_hide") {
+    if (!selection.length) { fsWsSay("Select something first (use Select or Multi)"); return; }
+    pushUndo();
+    const anyVisible = selection.some(o => !fsIsHidden(o));
+    const n = selection.length;
+    selection.forEach(o => { if (anyVisible) o.hidden = true; else delete o.hidden; });
+    if (anyVisible && !viewShowHidden) clearSelection();
+    /* fsWsSay, not a bare statusEl write - draw() rewrites the status line and
+       [W104-2] already learned that a bare write is wiped before it is read. */
+    fsWsSay(anyVisible
+      ? (n + " hidden \u2014 turn on Show hidden in Views to get them back")
+      : "Unhidden");
+    scheduleAutosave(); draw(); refreshModifyTiles();
+    return;
+  }
+  if (id === "m_hidetype") {
+    const syms = selection.filter(o => o.kind === "sym");
+    if (!syms.length) { fsWsSay("Select a symbol first \u2014 this hides every one of its type"); return; }
+    pushUndo();
+    const ht = fsHiddenTypes();
+    const types = Array.from(new Set(syms.map(o => o.type)));
+    const turningOn = types.some(ty => ht[ty] !== true);
+    types.forEach(ty => { if (turningOn) ht[ty] = true; else delete ht[ty]; });
+    if (turningOn && !viewShowHidden) clearSelection();
+    fsWsSay((turningOn ? "Hid every " : "Showing every ") + types.join(", ") + " on this level");
+    scheduleAutosave(); draw(); refreshModifyTiles();
+    return;
+  }
   if (id === "m_crop") { fsWsCropCanvas(); return; }   /* [91-S2] */
   if (id === "m_cropreg") {                            /* PASS 97 [P-9] */
     fsToolToggle("cropreg");
@@ -7390,6 +7452,10 @@ function refreshModifyTiles() {
       el.classList.toggle("pdis", !!b.disabled);
     } else if (mt.id === "m_align") {
       el.classList.toggle("pdis", selection.length < 2);
+    } else if (mt.id === "m_hide") {
+      el.classList.toggle("pdis", !selection.length);
+    } else if (mt.id === "m_hidetype") {
+      el.classList.toggle("pdis", !selection.some(o => o.kind === "sym"));
     }
     if (mt.id === "m_trim") el.classList.toggle("active", activeTool === "trim");
     if (mt.id === "m_cropreg") el.classList.toggle("active", activeTool === "cropreg");   /* [P-9] */
@@ -8303,6 +8369,39 @@ try { viewPhotoDot = localStorage.getItem("bpm-viewphotodot") === "1"; } catch (
 try { viewMarkups = localStorage.getItem("bpm-viewmarkups") !== "0"; } catch (e) {}
 try { viewPins = localStorage.getItem("bpm-viewpins") !== "0"; } catch (e) {}
 let exportPaint = false;   // true while an export canvas renders
+/* PASS 201 [201-A] W160-A / S-4 - THE HIDE TOOL'S STATE, AND IT IS TWO THINGS.
+   Per element: o.hidden, which measure-p201 proved survives projectBlob() for
+   free. Per type: levels[curLevel].hiddenTypes, read through the accessor
+   below and NEVER mirrored into a global - syncLevel's own comment records a
+   pass that lost a level flag to exactly that kind of copy. */
+let viewShowHidden = false;
+try { viewShowHidden = localStorage.getItem("bpm-showhidden") === "1"; } catch (e) {}
+function fsHiddenTypes() {
+  /* A plan that has been loaded but never synced has NO level record yet -
+     syncLevel() creates it (and declines, correctly, with no image or with a
+     switch in flight). Without this a type hidden in that window went into a
+     throwaway object and came back on the next autosave. */
+  if (typeof levels !== "undefined" && levels && !levels.length && typeof syncLevel === "function") syncLevel();
+  const lv = (typeof levels !== "undefined" && levels) ? levels[curLevel] : null;
+  if (!lv) return {};
+  if (!lv.hiddenTypes) lv.hiddenTypes = {};
+  return lv.hiddenTypes;
+}
+/* The editorial hide - what HE turned off - as opposed to the six Views tiles,
+   which are screen aids. Kept separate because the export rule differs. */
+function fsIsHidden(o) {
+  if (!o) return false;
+  if (o.hidden === true) return true;
+  return o.kind === "sym" && fsHiddenTypes()[o.type] === true;
+}
+/* One setter for the Views tile AND the RH hotkey, so the two cannot drift.
+   Turning reveal off drops any revealed item from the selection - a selection
+   he cannot see is not a selection (fsWsStepSelection says the same). */
+function fsSetShowHidden(v) {
+  viewShowHidden = !!v;
+  try { localStorage.setItem("bpm-showhidden", viewShowHidden ? "1" : "0"); } catch (e) {}
+  if (!viewShowHidden) setSelection(selection.filter(o => !fsIsHidden(o)));
+}
 /* ================= PASS 194 [194-A] ================================
    W127-11. WHAT A DEVICE LABEL CARRIES.
 
@@ -8364,6 +8463,16 @@ function fsLabelPartOn(k) {
 }
 const MARKUP_KINDS = { ink:1, shape:1, callout:1, text:1, img:1 };
 function viewHidden(o) {
+  /* PASS 201 [201-A] W160-E - HIS RULING, AND IT SITS ABOVE exportPaint
+     DELIBERATELY. Asked whether a hidden item comes back in the PDF he
+     said what is on screen is what prints, which is also Revit (Hide in
+     View does not print) and also his own W176-C ruling. The six category
+     tiles below KEEP their old behaviour - he was offered the change and
+     declined it - so this line is the whole difference between an
+     editorial hide and a screen aid.
+     During an export, reveal mode is ignored: a ghost is a working aid
+     and has no business in a client PDF. */
+  if (fsIsHidden(o)) return exportPaint ? true : !viewShowHidden;
   if (exportPaint) return false;
   if (!viewMarkups && MARKUP_KINDS[o.kind]) return true;
   if (!viewPins && o.kind === "sym" && o.type === "campin") return true;
@@ -14338,6 +14447,12 @@ const HOTKEY_ACTS = {
   fh:() => { if (!btnFlipH.disabled) btnFlipH.onclick(); },
   fv:() => { if (!btnFlipV.disabled) btnFlipV.onclick(); },
   ss:() => { const b = document.getElementById("btnSame"); if (!b.disabled) b.onclick(); },
+  /* PASS 201 [201-A] - audited the [91-C6] way, against Autodesk's published
+     defaults: EH Hide in View: Hide Elements, HC Hide Category, RH Toggle
+     Reveal Hidden Elements Mode. NOT HI - that is Revit's Isolate. */
+  eh:() => modifyAction("m_hide"),
+  hc:() => modifyAction("m_hidetype"),
+  rh:() => { fsSetShowHidden(!viewShowHidden); buildPalette(); draw(); fsWsSay(viewShowHidden ? "Show hidden: on" : "Show hidden: off"); },
   /* [91-C6] PN is Revit's Pin, and pinning already exists here - the code was
      just taken by the pen tool, which has moved to PE. */
   pn:() => { const b = document.getElementById("btnPin"); if (b && !b.disabled) b.onclick(); }
@@ -14493,11 +14608,19 @@ function renderExportCanvasInner() {
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(img, 0, 0);
-  objects.forEach(o => { if (o.kind === "zone") drawObject(c, o, 1); });
-  objects.forEach(o => { if (o.kind !== "zone") drawObject(c, o, 1); });
+  /* PASS 201 [201-A] W160-E - HIS RULING LANDS HERE, NOT IN viewHidden. This
+     loop never asked viewHidden (the six tiles are screen aids and exports
+     always drew everything), so a hidden item would have come straight back
+     in the PDF. ONE filtered list feeds the drawing, the legend, its counts
+     and the zone rows: a plan that draws ten detectors and prints a legend
+     saying twelve is the ghost coming back as a number. Reveal mode is NOT
+     consulted - a ghost is a working aid, not something a client sees. */
+  const expObjs = objects.filter(o => !fsIsHidden(o));
+  expObjs.forEach(o => { if (o.kind === "zone") drawObject(c, o, 1); });
+  expObjs.forEach(o => { if (o.kind !== "zone") drawObject(c, o, 1); });
 
-  const used = TYPES.filter(t => objects.some(o => o.kind === "sym" && o.type === t.id));
-  const zones = zoneCounts();
+  const used = TYPES.filter(t => expObjs.some(o => o.kind === "sym" && o.type === t.id));
+  const zones = zoneCounts(expObjs);
   const zoneKeys = Object.keys(zones).filter(z => z !== "(no zone)").sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
   if (!used.length) return out;
   if (activeTool !== "test") return out;   /* C4: non-test export = plan only, no legend strip */
@@ -14516,7 +14639,7 @@ function renderExportCanvasInner() {
   let x = lh * 0.7;
   const cy = out.height + 4 + lh / 2;
   if (!testExport) used.forEach(t => {
-    const n = objects.filter(o => o.kind === "sym" && o.type === t.id).length;
+    const n = expObjs.filter(o => o.kind === "sym" && o.type === t.id).length;
     const iconSize = lh * 0.55;
     const saveLabels = labelsOn; labelsOn = false;
     drawObject(sc, { kind:"sym", type:t.id, x:x, y:cy, size:iconSize, rot:0 }, 1);
@@ -30358,7 +30481,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v187";
+const FS_BUILD = "aa-v188";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
