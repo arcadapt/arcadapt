@@ -190,8 +190,9 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      W121-1, measured in Pass 121, and why each part is a 44px-high <label>
      rather than a 16px checkbox with words next to it. W124-1 (eleven 16x16
      checkboxes) is still unanswered and this does not add a twelfth. */
-  #vwLabelParts { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-                  padding:6px 10px; background:#2a2e34; border-bottom:1px solid #333; }
+  /* [202-E] inside #bottombar now - no band of its own, no border, it shares
+     the bar's row and wraps with it */
+  #vwLabelParts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:0; }
   #vwLabelParts .lp {
     display:inline-flex; align-items:center; gap:7px; min-height:44px;
     padding:4px 12px 4px 10px; border-radius:9px; background:#262a30;
@@ -211,9 +212,15 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      share the rest equally - 274/3 = 91.3px each against a widest part of 84 -
      so one line is arithmetic, not luck. 44px min-height untouched: W121-1,
      the label is the tap target. Above 720 nothing moves; it fitted at 57px. */
+  /* [202-E] in the bottom bar the row takes a full line of its own on a phone
+     and the three parts share it - the [197-C] arithmetic, kept. The comment
+     sits ABOVE the block: test_p197b W12 anchors on the block's first line. */
   @media (max-width:720px) {
-    #vwLabelParts { gap:8px; }
-    #vwLabelParts .lphint { flex:0 0 100%; padding-left:0; }
+    #vwLabelParts { flex:0 0 100%; gap:6px; }
+    /* the "Label shows:" caption is dropped on a phone: in the bottom bar it
+       would be a whole extra line of plan height, and Zone / Loop / Device
+       with tick boxes need no caption. Above 720 it stays inline. */
+    #vwLabelParts .lphint { flex:0 0 100%; padding-left:0; display:none; }
     #vwLabelParts .lp { flex:1 1 0; min-width:0; justify-content:center;
                         gap:6px; padding:4px 6px; }
   }
@@ -751,7 +758,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.180 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.181 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -883,7 +890,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.180 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.181 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -941,12 +948,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn bigur" id="btnFocus" title="Focus — hide all bars and maximise the plan">&#x26F6;</button>
   </div>
   <div id="palette"></div>
-  <!-- PASS 197 [197-A] W176-B - the parts of a device label, under the tile
-       they belong to. A SIBLING of #palette rather than a child, because
-       #palette is a horizontal scroller and "check boxes down the bottom" is a
-       second row, not more things in the strip. Hidden on every tab but Views,
-       and on Views only while Device labels is on. -->
-  <div id="vwLabelParts" style="display:none"></div>
+  <!-- PASS 202 [202-E] W180-M - the Zone / Loop / Device row ([197-A]) used to
+       sit here, under the strip, and cost the plan its height. It is in
+       #bottombar now: "the checkboxes when device labels is selected, should
+       be down the bottom, where I said all that real estate is". -->
 
   <div id="focusBar">
     <button class="btn" id="focusExit" title="Exit focus">&#x26F6; Exit</button>
@@ -1037,6 +1042,9 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="znShow" checked> show</label>
       <span id="znNote" style="color:#777">drag to draw a zone &mdash; devices inside get its number automatically</span>
     </div>
+    <!-- PASS 202 [202-E] W180-M - the parts of a device label, in the bottom
+         band. Same rule as before: Views tab, Device labels on; empty otherwise. -->
+    <div id="vwLabelParts" style="display:none"></div>
     <button class="btn info" id="btnDetails" disabled title="Zone / loop / device details">&#9432; Details</button>
     <button class="btn" id="btnRotate" disabled style="display:none" title="Rotate 90&deg;">&#10227;</button>
     <button class="btn" id="btnFlipH" disabled style="display:none" title="Flip horizontal">&#8644;</button>
@@ -2268,6 +2276,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <input type="checkbox" id="exportTrim" style="width:18px;height:18px">
       <span>Trim the blank space around the drawing</span>
     </label>
+    <!-- PASS 202 [202-B] W180-L - "I don't mind being offered on export with a
+         checkbox there about turning on labels". Pre-set to the screen's Device
+         labels state when the window opens; an override for THIS export only. -->
+    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-left:14px">
+      <input type="checkbox" id="exportLabelsOn" style="width:18px;height:18px">
+      <span>Device labels on the export</span>
+    </label>
   </div>
   <div class="hint">PNG for quick sharing, PDF for Bluebeam. Both are flattened &mdash; for an editable copy use <b>Save</b>.<br>On iPad/iPhone, saving opens the share sheet: choose Save to Files, AirDrop, or send it to someone.</div>
 </div>
@@ -2497,10 +2512,10 @@ const MODIFY_TOOLS = [
   { id:"m_half",    label:"Halftone",         icon:"◑",  btn:"btnHalf" },
   { id:"m_multi",   label:"Multi",            icon:"✛",  btn:"btnMulti" },
   { id:"m_same",    label:"Select same",      icon:"▦",  btn:"btnSame" },
-  /* PASS 201 [201-A] W160-A / S-4 - two ways in, because he asked for both.
-     No `btn`: there is no hidden topbar button to proxy, same as m_align. */
-  { id:"m_hide",    label:"Hide (EH)",       icon:"◌" },
-  { id:"m_hidetype", label:"Hide this type (HC)", icon:"⊘" },
+  /* PASS 202 [202-A] W180-A - the Hide tiles [201-A] put here moved to the
+     Views tab: "should be in the view tab not tools, next to show hidden".
+     modifyAction("m_hide") / ("m_hidetype") still exist and are what the
+     Views tiles and the EH / HC hotkeys call. */
   { id:"m_group",   label:"Group (GP)",       icon:"⧉",  btn:"btnGroup" },
   { id:"m_ungroup", label:"Ungroup (UG)",     icon:"⬚",  btn:"btnUngroup" },
   { id:"m_pin",     label:"Pin / Unpin",      icon:"📌", btn:"btnPin" },
@@ -4152,7 +4167,9 @@ function drawSym(c, o, scale) {
   }
 
   // Views-tab screen tags: QR-linked / photo dot (never on exports)
-  if (!exportPaint && (viewQrTag || viewPhotoDot) && t.glyph !== "campin") {
+  /* PASS 202 [202-B] W180-L - the `!exportPaint &&` gate is gone: the QR tag
+     and the photo dot export exactly as they show on screen. */
+  if ((viewQrTag || viewPhotoDot) && t.glyph !== "campin") {
     const dv = symDims(o);
     if (viewQrTag && o.qid) {
       const qfs = Math.max(8 * scale, oPx * scale * 0.3);
@@ -7211,6 +7228,19 @@ function viewsToggleDefs() {
     /* PASS 201 [201-A] S-4 - "a show hidden items button too", his words, and
        his wording beats Revit's "Reveal Hidden Elements". This tile is the ONLY
        way back to something hidden, so it is not optional furniture. */
+    /* PASS 202 [202-A/C/D] W180-A, W180-C, W180-D - Hide lives HERE now, and it
+       is one tile that reads Hide or Unhide off the selection the way btnPin
+       reads Pin / Unpin (updateSelButtons). `act` marks an ACTION tile: no
+       on/off, a live label, disabled with nothing selected. With Show hidden
+       on, tap a ghost and the tile already says Unhide - "hit hide this type
+       again to unhide them, thats not right" is what this answers. */
+    { id:"vw_hide", icon:"◌", act:"m_hide",
+      label:() => (selection.length && selection.every(fsIsHidden)) ? "Unhide (EH)" : "Hide (EH)",
+      can:() => selection.length > 0 },
+    { id:"vw_hidetype", icon:"⊘", act:"m_hidetype",
+      label:() => { const s = selection.filter(o => o.kind === "sym"); const ht = fsHiddenTypes();
+                    return (s.length && s.every(o => ht[o.type] === true)) ? "Unhide type (HC)" : "Hide type (HC)"; },
+      can:() => selection.some(o => o.kind === "sym") },
     { id:"vw_showhidden", icon:"\u{1F441}", label:"Show hidden", get:() => viewShowHidden, set:v => fsSetShowHidden(v) },
   ];
 }
@@ -7232,7 +7262,10 @@ function buildViewsPanel() {
      PDF. [197-B] rewrote this same note for the same reason. Rendered at
      120px the longer note ran ten lines and doubled the strip's height;
      170px holds it to the tile height. */
-  note.textContent = "Screen only, except Device labels (also on the export). Hidden items stay off the export too; Show hidden reveals them on screen only.";
+  /* PASS 202 [202-B] W180-L - third rewrite of this note, and the simplest:
+     there is one rule now. "the export should always look like whats on
+     screen." The only exception is reveal mode, and it is named. */
+  note.textContent = "What you see is what exports. Every tile here applies to the exported plan too; Show hidden is on screen only. The Export window has its own Device labels switch.";
   paletteEl.appendChild(note);
   /* PASS 34 — BUG NUMBER ONE, and the only one the brief's diagnosis would
      have caught. This is a SECOND tile render path and it never attached the
@@ -7241,20 +7274,32 @@ function buildViewsPanel() {
   orderEntries(viewsToggleDefs().map(tg => ({ t:{ id:tg.id }, tg })), "views")
     .map(e => e.tg).forEach(tg => {
     const d = document.createElement("div");
-    d.className = "pal" + (tg.get() ? " active" : "");
     d.id = "pal-" + tg.id;
-    d.title = "Show or hide: " + tg.label;
     d.innerHTML = '<div class="sym">' + tg.icon + '</div>';
     const lbl = document.createElement("div");
     lbl.className = "lbl";
-    lbl.textContent = tg.label;
     d.appendChild(lbl);
     const cnt = document.createElement("div");
     cnt.className = "cnt";
-    cnt.textContent = tg.get() ? "on" : "off";
     d.appendChild(cnt);
     d.style.touchAction = "pan-x";
-    d.onclick = () => { const sl = paletteEl.scrollLeft; tg.set(!tg.get()); buildPalette(); paletteEl.scrollLeft = sl; draw(); };
+    if (tg.act) {
+      /* [202-D] an ACTION tile in the Views strip: label and enabled state
+         come from the selection, refreshed by fsRefreshViewActs() on every
+         selection change (updateSelButtons -> refreshModifyTiles). */
+      d.className = "pal";
+      d.title = "Hide or unhide what is selected";
+      lbl.textContent = tg.label();
+      cnt.textContent = "";
+      d.classList.toggle("pdis", !tg.can());
+      d.onclick = () => { if (!tg.can()) { fsWsSay("Select something first (use Select or Multi)"); return; } modifyAction(tg.act); fsRefreshViewActs(); };
+    } else {
+      d.className = "pal" + (tg.get() ? " active" : "");
+      d.title = "Show or hide: " + tg.label;
+      lbl.textContent = tg.label;
+      cnt.textContent = tg.get() ? "on" : "off";
+      d.onclick = () => { const sl = paletteEl.scrollLeft; tg.set(!tg.get()); buildPalette(); paletteEl.scrollLeft = sl; draw(); };
+    }
     /* NO FAVOURITE on a Views tile. toggleFav("vw_labels") would push it into
        favIds, entriesForTab("fav") maps unknown ids to null and filters them
        out, and the tile would silently disappear from the Views tab with no
@@ -7443,7 +7488,22 @@ function modifyAction(id) {
   b.onclick();
   refreshModifyTiles();
 }
+/* PASS 202 [202-D] - the two Views action tiles re-read the selection. Called
+   from refreshModifyTiles, which updateSelButtons already calls on every
+   selection change, so Hide -> Unhide flips the moment a ghost is tapped. */
+function fsRefreshViewActs() {
+  if (typeof viewsToggleDefs !== "function") return;
+  viewsToggleDefs().forEach(tg => {
+    if (!tg.act) return;
+    const el = document.getElementById("pal-" + tg.id);
+    if (!el) return;
+    const lbl = el.querySelector(".lbl");
+    if (lbl) lbl.textContent = tg.label();
+    el.classList.toggle("pdis", !tg.can());
+  });
+}
 function refreshModifyTiles() {
+  fsRefreshViewActs();
   MODIFY_TOOLS.forEach(mt => {
     const el = document.getElementById("pal-" + mt.id);
     if (!el) return;
@@ -7452,10 +7512,6 @@ function refreshModifyTiles() {
       el.classList.toggle("pdis", !!b.disabled);
     } else if (mt.id === "m_align") {
       el.classList.toggle("pdis", selection.length < 2);
-    } else if (mt.id === "m_hide") {
-      el.classList.toggle("pdis", !selection.length);
-    } else if (mt.id === "m_hidetype") {
-      el.classList.toggle("pdis", !selection.some(o => o.kind === "sym"));
     }
     if (mt.id === "m_trim") el.classList.toggle("active", activeTool === "trim");
     if (mt.id === "m_cropreg") el.classList.toggle("active", activeTool === "cropreg");   /* [P-9] */
@@ -8473,7 +8529,11 @@ function viewHidden(o) {
      During an export, reveal mode is ignored: a ghost is a working aid
      and has no business in a client PDF. */
   if (fsIsHidden(o)) return exportPaint ? true : !viewShowHidden;
-  if (exportPaint) return false;
+  /* PASS 202 [202-B] W180-L - `if (exportPaint) return false;` is GONE. His
+     ruling, 12 Sep: "the export should always look like whats on screen".
+     Markups and photo pins now leave the export when their tile is off, the
+     same as device labels ([197-B]) and Hide ([201-A]). exportPaint's one
+     remaining job is the line above: a reveal-mode ghost never prints. */
   if (!viewMarkups && MARKUP_KINDS[o.kind]) return true;
   if (!viewPins && o.kind === "sym" && o.type === "campin") return true;
   return false;
@@ -14596,9 +14656,16 @@ window.addEventListener("keydown", e => {
 });
 
 /* ================= Export ================= */
+/* PASS 202 [202-B] W180-L - null means "follow the screen"; a boolean is the
+   Export window's Device labels box after he has touched it. Reset to null
+   every time the window opens, so an override cannot outlive the export it
+   was set for. */
+let fsExportLabels = null;
 function renderExportCanvas() {
-  exportPaint = true;   // Views toggles are screen aids - exports always show everything
-  try { return renderExportCanvasInner(); } finally { exportPaint = false; }
+  exportPaint = true;   // one reader left: a reveal-mode ghost never prints (viewHidden)
+  const saveLabels = labelsOn;
+  if (fsExportLabels !== null) labelsOn = fsExportLabels;
+  try { return renderExportCanvasInner(); } finally { exportPaint = false; labelsOn = saveLabels; }
 }
 function renderExportCanvasInner() {
   const out = document.createElement("canvas");
@@ -14615,7 +14682,11 @@ function renderExportCanvasInner() {
      and the zone rows: a plan that draws ten detectors and prints a legend
      saying twelve is the ghost coming back as a number. Reveal mode is NOT
      consulted - a ghost is a working aid, not something a client sees. */
-  const expObjs = objects.filter(o => !fsIsHidden(o));
+  /* PASS 202 [202-B] W180-L - viewHidden, not fsIsHidden: the export now asks
+     the same question the screen asks. With exportPaint set, viewHidden says
+     hidden for a hidden item (ghost or not), for a markup with Markups off, and
+     for a photo pin with Photo pins off. R-181 was this loop never asking. */
+  const expObjs = objects.filter(o => !viewHidden(o));
   expObjs.forEach(o => { if (o.kind === "zone") drawObject(c, o, 1); });
   expObjs.forEach(o => { if (o.kind !== "zone") drawObject(c, o, 1); });
 
@@ -14956,6 +15027,9 @@ function fsExpScopeRender() {
 document.getElementById("btnExport").onclick = () => {
   if (!img) { alert("Load a block plan first."); return; }
   lastExportCut = null;   /* [161-C] a new export starts on the whole sheet */
+  /* [202-B] the labels box starts where the screen is, and follows it until touched */
+  fsExportLabels = null;
+  { const lb = document.getElementById("exportLabelsOn"); if (lb) lb.checked = !!labelsOn; }
   buildExportTestOpts();
   refreshExportPreview();
   fsExpScopeRender();
@@ -15002,6 +15076,7 @@ document.getElementById("exportRegion").onclick = async () => {
   fsExpScopeRender();   /* [168-C] a live cut hides the level list and says one page */
 };
 document.getElementById("exportTrim").onchange = () => { lastExportCut = null; refreshExportPreview(); fsExpScopeRender(); };
+document.getElementById("exportLabelsOn").onchange = () => { fsExportLabels = document.getElementById("exportLabelsOn").checked; lastExportCut = null; refreshExportPreview(); fsExpScopeRender(); };
 document.getElementById("exportClose").onclick = () => exportPanel.classList.remove("show");
 
 /* ================= Boot ================= */
@@ -30481,7 +30556,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v188";
+const FS_BUILD = "aa-v189";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
