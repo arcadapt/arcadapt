@@ -209,7 +209,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   }
   #vwLabelParts .lp.on { color:#e8f6fa; }
   #vwLabelParts .lp input { width:18px; height:18px; margin:0; flex:0 0 auto; }
-  #vwLabelParts .lphint { font-size:11px; color:#8b949e; padding-left:2px; }
+  /* [204-C] W182-D - the .lphint caption is gone: "get rid of that note next
+     to device labels not needed". The rule goes with it. */
   /* PASS 197 [197-C] R-177 - IT WRAPPED 2+1 ON EVERY PHONE AND THE NUMBERS
      SAID IT WAS FINE. measure-p197b.py: the four items need 364.8px; the strip
      is 290 at 360, 320 at 390 and 360 at 430 - short at all three, so Device
@@ -225,10 +226,6 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      sits ABOVE the block: test_p197b W12 anchors on the block's first line. */
   @media (max-width:720px) {
     #vwLabelParts { flex:0 0 100%; gap:6px; }
-    /* the "Label shows:" caption is dropped on a phone: in the bottom bar it
-       would be a whole extra line of plan height, and Zone / Loop / Device
-       with tick boxes need no caption. Above 720 it stays inline. */
-    #vwLabelParts .lphint { flex:0 0 100%; padding-left:0; display:none; }
     #vwLabelParts .lp { flex:1 1 0; min-width:0; justify-content:center;
                         gap:6px; padding:4px 6px; }
   }
@@ -766,7 +763,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.182 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.183 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -898,7 +895,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.182 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.183 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2782,9 +2779,16 @@ function symSizeFor(typeId) {
    or 2134 height, so his "get them from default revit ones" was answered NO
    for everything except as a cross-check on the double.
 
-   THE SINGLE STAYS AT 820 ON PURPOSE - store rooms, risers and switch rooms
-   are 820, and 820 is what the cited source calls the Australian standard.
-   920 is a flagged walk box with both numbers, not a decision taken here.
+   THE SINGLE WENT TO 920 ON 12 SEP 2026 - W182-A, his answer to that flagged
+   walk box, one word: "920". It stood at 820 until then because store rooms,
+   risers and switch rooms are 820 and 820 is what the cited source calls the
+   Australian standard; he chose consistency with the 920 leaves in the double
+   instead. BOTH NUMBERS WERE ALWAYS REAL - this is a preference, not a
+   correction, and it is one line to put back.
+   NOTHING ALREADY DRAWN MOVED. A symbol is born carrying its own millimetres
+   at placement and the drawing code reads the object, not this table; the
+   table only decides what the NEXT one comes in at. test_p204 A3 asserts that
+   in both directions, the same way Pass 198 did.
 
    Full working and every source: claude/W174-D-DIMENSION-RESEARCH.md
 */
@@ -2819,7 +2823,7 @@ function symSizeFor(typeId) {
    he has to catch. */
 const FS_SYM_MM = {
   /* --- Building: real extent on a plan, so drawn at real size (Pass 125) -- */
-  door:    { mm: 820,  mult: 1.0,  draw: "real",   src: "leaf width" },
+  door:    { mm: 920,  mult: 1.0,  draw: "real",   src: "leaf width, his ruling 12 Sep" },
   dbldoor: { mm: 1840, mult: 1.8,  draw: "real",   src: "two 920 leaves, AS 1428.1 850 clear" },
   sldoor:  { mm: 1800, mult: 1.8,  draw: "real",   src: "2-panel AU slider" },
   rldoor:  { mm: 2400, mult: 1.8,  draw: "real",   src: "single roller" },
@@ -3808,7 +3812,15 @@ function drawSym(c, o, scale) {
   } else if (t.glyph === "stair") {
     /* [199-A] x stays on `s`, y and every stroke weight on `ty` - [193-A]'s
        split, and the stair is now a glyph that carries a real width. */
-    c.strokeStyle = col; c.lineWidth = Math.max(1, ty * 0.055); c.lineCap = "butt";
+    /* PASS 204 [204-B] W182-C - `s`, NOT `ty`, AND THE STAIR IS THE ONLY GLYPH
+       THIS CHANGES. Reece, on being told a narrowed stair draws with a lighter
+       pen: "No" - and, unasked, "And doesn't get heavier with wider either".
+       FS_WID_GLYPHS is {stair:1}, so the stair is the only glyph whose width
+       can be dragged at all; on sldoor/rldoor/window/opening `ty` only moves
+       when the LENGTH is stretched and [193-A] is right there and is LEFT
+       ALONE. symPx() reads o.mm, the length, so `s` cannot be moved by the
+       width grip - which is what makes it the constant he asked for. */
+    c.strokeStyle = col; c.lineWidth = Math.max(1, s * 0.055); c.lineCap = "butt";
     c.strokeRect(-s * 0.9, -ty * 0.5, s * 1.8, ty);
     c.beginPath();
     /* [199-A] THE TREAD PITCH IS A REAL GOING, AND NEITHER AXIS WOULD DO.
@@ -3843,7 +3855,8 @@ function drawSym(c, o, scale) {
       c.moveTo(xx, -ty * 0.5); c.lineTo(xx, ty * 0.5);
     }
     c.stroke();
-    c.lineWidth = Math.max(1.2, ty * 0.08); c.lineCap = "round";
+    /* [204-B] the direction arrow, off `s` for the same reason. */
+    c.lineWidth = Math.max(1.2, s * 0.08); c.lineCap = "round";
     c.beginPath(); c.moveTo(-s * 0.78, 0); c.lineTo(s * 0.68, 0); c.stroke();
     c.beginPath();
     c.moveTo(s * 0.68, 0); c.lineTo(s * 0.48, -ty * 0.14);
@@ -7336,10 +7349,9 @@ function fsLabelPartsRow() {
   row.innerHTML = "";
   if (activeTab !== "views" || !labelsOn) { row.style.display = "none"; return; }
   row.style.display = "flex";
-  const hint = document.createElement("span");
-  hint.className = "lphint";
-  hint.textContent = "Label shows:";
-  row.appendChild(hint);
+  /* [204-C] W182-D - no caption. The three ticks say Zone / Loop / Device on
+     their own faces and they only appear on the Views tab with Device labels
+     on, so the row had nothing left to explain. */
   [["zone", "Zone"], ["loop", "Loop"], ["dev", "Device"]].forEach(function (p) {
     const k = p[0];
     const lab = document.createElement("label");
@@ -14603,7 +14615,19 @@ window.addEventListener("keydown", e => {
   else if ((e.ctrlKey || e.metaKey) && k === "x") { if (selection.length) { e.preventDefault(); copySelection(); btnDel.onclick(); } }
   else if ((e.ctrlKey || e.metaKey) && k === "v") { if (clipboardObjs.length) { e.preventDefault(); pasteClipboard(); } }
   else if ((e.ctrlKey || e.metaKey) && k === "s") { e.preventDefault(); saveProject(); }
-  else if (e.key === "Delete" || e.key === "Backspace") { if (selection.length) { e.preventDefault(); btnDel.onclick(); } }
+  /* PASS 204 [204-D] R-163 - DELETE IS WORKSPACE-ONLY NOW, CTRL+Z IS NOT.
+     His ruling, 12 Sep 2026. This listener is on `window`, so before this the
+     Delete key with a stale selection removed an object from a plan he was not
+     looking at - found while building the nudge ([178-B]), never reported.
+     Same guard the nudge and Tab ([180-C]) already use. The Ctrl+Z / Y / D / C
+     / X / V branches above are DELIBERATELY left reaching the plan: "Ctrl+Z
+     arguably SHOULD work from anywhere, Delete arguably should not", and he
+     took that recommendation as written. */
+  else if (e.key === "Delete" || e.key === "Backspace") {
+    const regD = document.getElementById("fsReg");
+    if (regD && regD.style.display !== "none") return;
+    if (selection.length) { e.preventDefault(); btnDel.onclick(); }
+  }
   /* [91-C3] ALREADY BUILT before this pass - only re-pointed at the shared
      constant so Esc and the toggle cannot drift apart. Probed anyway: an
      unprobed shipped behaviour is where rule #0c says the next loss hides. */
@@ -30567,7 +30591,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v190";
+const FS_BUILD = "aa-v191";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
