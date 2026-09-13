@@ -769,7 +769,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.190 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.191 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -901,7 +901,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.190 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.191 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2037,16 +2037,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="fsSetVer"></b></span>
       <button class="btn" id="fsSetUpd">&#8635; Check for updates</button>
     </div>
-    <!-- PASS 108 [W107-1] - env(safe-area-inset-*) is ALWAYS 0 in a desktop
-         browser, which is how a bottom-bar regression got through five gates,
-         11,639 checks and three deterministic rebuilds in Pass 105. This is the
-         only way to read what his phone actually does. Deliberately plain text:
-         he can photograph it. -->
-    <div style="margin-bottom:12px">
-      <div style="font-size:13.5px;margin-bottom:4px">This screen</div>
-      <div id="fsSetScreen" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.65;color:var(--fs-sub2);background:var(--fs-tile);border:1px solid var(--fs-border);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word">&mdash;</div>
-      <div style="font-size:11.5px;color:var(--fs-faint);margin-top:5px">If the app ever looks wrong at the top or bottom of your screen, send me a photo of this.</div>
-    </div>
+    <!-- PASS 212 [212-B] - the W107-1 "This screen" readout left this cog (Reece, 13 Sep). fsScreenReadout() still exists and guards on its element. -->
     <div style="border-top:1px solid #3a4047;padding-top:12px">
       <button class="btn" id="fsSetWipe" style="color:#ff6b5e">&#128465; Clear this device's cached data</button>
       <div style="font-size:11.5px;color:#888;margin-top:5px">Removes the cached register, backups, saved plans, planner data, PA recordings, library files and preferences from THIS device only. Register and plan files saved on disk / OneDrive are untouched &mdash; reload your register file afterwards.</div>
@@ -27198,64 +27189,13 @@ function fsRenderTab() {
      survey renders on Overview instead - under the hub, whose Important
      information card already reads the same s.equipment for the panel details
      and the battery chip. Moved, not rewritten, and not deleted. */
-  if (fsTab === "overview" && fsTabAllowed("equip")) {
-    html += '<div class="fscard" style="padding:20px;margin-top:14px">';
-    html += '<div style="display:flex;align-items:center;margin-bottom:8px"><h3 style="font-size:16px;font-weight:700;flex:1">Site equipment</h3><a id="fsEquipEditBtn" class="fsTap44L" style="color:var(--fs-accent);font-weight:700;cursor:pointer">' + (fsEquipEdit ? 'Save' : 'Edit') + '</a></div>';
-    /* Access difficulty lives HERE, on the place, not on the defect - that
-       detector above the stairwell is awkward every single time. */
-    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:#15181b;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:10px">' +
+  if (fsTab === "overview") {
+    /* PASS 212 [212-C] - the Site equipment survey card is gone (his third ask).
+       Access difficulty was never about equipment - it lives on the place, so
+       the one line keeps a slim card of its own. s.equipment is untouched. */
+    html += '<div class="fscard" style="padding:12px 20px;margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:12.5px;color:var(--fs-sub);flex:1;min-width:150px">Getting to the equipment here is normally&hellip;</span>' +
       fsAccessSelect("fsSiteAccess", fsAccessOf(s)) + '</div>';
-    let shown = 0;
-    if (fsEquipEdit) html += '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:6px">Tick what the site has — ticked items show on the Overview. Details and photos are optional.</div>';
-    fsEquipFields().forEach(k => {
-      const en = (s.equipment || {})[k] || {};   /* PASS 149 [149-H] - fsRenderTab does not ensure it; Overview renders for every site */
-      if (fsEquipEdit) {
-        html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
-          '<input type="checkbox" class="fsEquipOn" data-key="' + fsEsc(k) + '"' + (en.on ? ' checked' : '') + ' style="width:19px;height:19px;accent-color:var(--fs-accent);flex:0 0 auto">' +
-          '<div style="flex:1;font-weight:700;font-size:14px">' + k + '</div>' +
-          '<button class="fsbtn fsEquipPhoto" data-key="' + fsEsc(k) + '" style="padding:6px 9px">&#128247;</button>' +
-          (en.photo ? '<button class="fsbtn fsEquipPhotoDel" data-key="' + fsEsc(k) + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' +
-          (/batter/i.test(k) ? '<div style="display:flex;gap:8px;align-items:center;margin:2px 0 4px 28px;font-size:12.5px;color:var(--fs-sub2)">Last replaced <input type="date" class="fsEqBattD" data-key="' + fsEsc(k) + '" value="' + fsEsc(en.d || "") + '" style="border:1px solid var(--fs-border);border-radius:6px;padding:4px;background:var(--fs-card);color:var(--fs-text)"></div>' : '') +
-          (fsEquipItemFields().includes(k) ? fsEqItemsEditHtml(k, en) : '') +
-          '<textarea class="fsinput fsEquipField" data-key="' + fsEsc(k) + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
-          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
-      } else if (en.on || en.v || en.photo || (en.items || []).length) {
-        shown++;
-        const its = (en.items || []).filter(x => x && (x.t || x.q));
-        /* [60-4] chip extracted to fsBattChipHtml — ONE arithmetic, two
-           surfaces (this tab + the hub). Behaviour identical, pinned D4. */
-        const battChip = /batter/i.test(k) ? fsBattChipHtml(en) : "";
-        html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
-          '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + k + battChip + '</div>' +
-          (its.length ? '<div style="font-size:13.5px;font-weight:600;margin-top:3px">' + its.map(x => fsEsc((x.q ? x.q + " \u00d7 " : "") + (x.t || ""))).join("<br>") + '</div>' : '') +
-          (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
-          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
-      }
-    });
-    // custom rows (Reece: own headings/items)
-    (s.equipCustom || []).forEach((en, i) => {
-      if (fsEquipEdit) {
-        html += '<div style="display:flex;align-items:center;gap:9px;border-top:1px solid var(--fs-border);padding:9px 0 2px">' +
-          '<input type="checkbox" class="fsEqCustOn" data-i="' + i + '"' + (en.on ? ' checked' : '') + ' style="width:19px;height:19px;accent-color:var(--fs-accent);flex:0 0 auto">' +
-          '<div style="flex:1;font-weight:700;font-size:14px">' + fsEsc(en.name) + ' <a class="fsEqCustDel" data-i="' + i + '" style="color:#c62828;cursor:pointer;font-size:12px;font-weight:400">remove row</a></div>' +
-          '<button class="fsbtn fsEqCustPhoto" data-i="' + i + '" style="padding:6px 9px">&#128247;</button>' +
-          (en.photo ? '<button class="fsbtn fsEqCustPhotoDel" data-i="' + i + '" style="padding:6px 9px;color:#c62828">&#128465;</button>' : '') +
-          '</div>' +
-          '<textarea class="fsinput fsEqCustField" data-i="' + i + '" rows="1" placeholder="Details (optional)" style="margin:4px 0 6px">' + fsEsc(en.v || "") + '</textarea>' +
-          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:150px;max-height:100px;border-radius:8px;margin-bottom:6px;cursor:pointer" title="Tap to view full size">' : '');
-      } else if (en.on || en.v || en.photo) {
-        shown++;
-        html += '<div style="border-top:1px solid var(--fs-border);padding:11px 0">' +
-          '<div style="font-weight:700;font-size:14.5px"><span style="color:#1b8a3f">&#10003;</span> ' + fsEsc(en.name) + '</div>' +
-          (en.v ? '<div style="font-size:13.5px;color:var(--fs-sub);white-space:pre-wrap;margin-top:3px">' + fsEsc(en.v) + '</div>' : '') +
-          (en.photo ? '<img src="' + fsPhotoSrc(en.photo) + '" class="fsPhotoView" style="max-width:170px;max-height:120px;border-radius:8px;margin-top:6px;cursor:pointer" title="Tap to view full size">' : '') + '</div>';
-      }
-    });
-    if (fsEquipEdit) html += '<div style="margin-top:12px"><button class="fsbtn" id="fsEqCustAdd">&#65291; Add your own item</button></div>';
-    if (!fsEquipEdit && !shown) html += '<div style="color:var(--fs-faint);font-size:13.5px">No equipment recorded — tap Edit to add panel, extinguisher, battery details and photos. Empty fields stay hidden.</div>';
-    html += '</div>';
   }
 
   if (fsTab === "assets") {
@@ -27839,77 +27779,12 @@ function fsRenderTab() {
     });
   }
 
-  if (fsTab === "overview" && fsTabAllowed("equip")) {   /* PASS 149 [149-B] - the survey moved to Overview; its wiring follows it */
+  if (fsTab === "overview") {   /* PASS 212 [212-C] - only the access line is wired now */
     const acc = document.getElementById("fsSiteAccess");
     if (acc) acc.onchange = () => {
       s.accessDefault = acc.value === "normal" ? "" : acc.value;
       fsMarkDirty();
     };
-    document.getElementById("fsEquipEditBtn").onclick = () => {
-      if (fsEquipEdit) {
-        fsSaveEquipDraft();
-        fsMarkDirty();
-      }
-      fsEquipEdit = !fsEquipEdit;
-      fsRenderTab();
-      document.getElementById("fsEquipEditBtn").onclick && 0;
-      fsRenderSite();
-    };
-    document.querySelectorAll(".fsEqItAdd").forEach(b => {
-      b.onclick = () => { fsSaveEquipDraft(); fsMarkDirty(); fsRenderTab(); };
-    });
-    document.querySelectorAll(".fsEqItDel").forEach(b => {
-      b.onclick = () => {
-        fsSaveEquipDraft();
-        const en = fsSite.equipment[b.dataset.key];
-        if (en && en.items) en.items.splice(+b.dataset.i, 1);
-        fsMarkDirty();
-        fsRenderTab();
-      };
-    });
-    document.querySelectorAll(".fsEquipPhoto").forEach(b => {
-      b.onclick = () => { fsSaveEquipDraft(); fsPhotoTarget = { kind:"equip", key:b.dataset.key }; document.getElementById("fsPhotoInput").click(); };
-    });
-    document.querySelectorAll(".fsEquipPhotoDel").forEach(b => {
-      b.onclick = () => {
-        fsSaveEquipDraft();
-        delete fsSite.equipment[b.dataset.key].photo;
-        fsMarkDirty();
-        fsRenderTab();
-      };
-    });
-    const eqAdd = document.getElementById("fsEqCustAdd");
-    if (eqAdd) eqAdd.onclick = () => {
-      const nm = prompt("Name for the new item (e.g. Diesel pump, Aspirating system):");
-      if (!nm || !nm.trim()) return;
-      fsSaveEquipDraft();
-      fsSite.equipCustom = fsSite.equipCustom || [];
-      fsSite.equipCustom.push({ name: nm.trim(), v: "", on: true });
-      fsMarkDirty();
-      fsRenderTab();
-    };
-    document.querySelectorAll(".fsEqCustDel").forEach(b => {
-      b.onclick = () => {
-        const en = (fsSite.equipCustom || [])[+b.dataset.i];
-        if (!en || !confirm('Remove "' + en.name + '" and its contents?')) return;
-        fsSaveEquipDraft();
-        fsSite.equipCustom.splice(+b.dataset.i, 1);
-        fsMarkDirty();
-        fsRenderTab();
-      };
-    });
-    document.querySelectorAll(".fsEqCustPhoto").forEach(b => {
-      b.onclick = () => { fsSaveEquipDraft(); fsPhotoTarget = { kind:"equipCustom", i:+b.dataset.i }; document.getElementById("fsPhotoInput").click(); };
-    });
-    document.querySelectorAll(".fsEqCustPhotoDel").forEach(b => {
-      b.onclick = () => {
-        fsSaveEquipDraft();
-        const en = (fsSite.equipCustom || [])[+b.dataset.i];
-        if (en) delete en.photo;
-        fsMarkDirty();
-        fsRenderTab();
-      };
-    });
   }
   if (fsTab === "files" || fsTab === "photos") {
     /* PASS 94 [P-2] — fsFilesAdd is gone: one Add file / photo button.
@@ -30792,7 +30667,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v198";
+const FS_BUILD = "aa-v199";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -33659,6 +33534,24 @@ function fsModalXInstall() {
 }
 document.addEventListener("DOMContentLoaded", fsModalXInstall);
 if (document.readyState !== "loading") fsModalXInstall();
+/* PASS 212 [212-A] - Reece, 13 Sep: "In office, features doesn't have a
+   closing X ... Features, Users, the business/tax details." The installer
+   above runs ONCE; Features rebuilds its modalbox on every open, Users creates
+   its modal on first open, others re-render - and the X is gone. Re-run it
+   whenever a modal appears or its box is rebuilt. One frame of debounce. */
+(function () {
+  if (typeof MutationObserver !== "function") return;
+  let fsXQueued = false;
+  const fsXKick = function () {
+    if (fsXQueued) return;
+    fsXQueued = true;
+    requestAnimationFrame(function () { fsXQueued = false; try { fsModalXInstall(); } catch (e) {} });
+  };
+  const fsXStart = function () {
+    try { new MutationObserver(fsXKick).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+  };
+  if (document.body) fsXStart(); else document.addEventListener("DOMContentLoaded", fsXStart);
+})();
 
 (async () => {
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
@@ -36648,7 +36541,7 @@ function fsBldGroups() {
        inspection work should not meet a QR scanner and a defect pipeline on
        day one and conclude the app is not for it. TWO LEVELS ONLY: the same
        fsBldExport flattening the Money comment warns about applies here. */
-    ["Site features", "site", [["equipment", "Site equipment register"],
+    ["Site features", "site", [["equipment", "Asset register"],
                                ["defects", "Defects"],
                                ["qr", "QR tags & scanning"]]],
     ["Workspace tools", "wsTools", (typeof TOOLS_TAB !== "undefined" ? TOOLS_TAB : []).map(t => [t.id, t.label])],

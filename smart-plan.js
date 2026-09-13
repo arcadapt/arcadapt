@@ -1,6 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
    (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
-   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics), then tests/patch-p211.py (the box snaps to the symbol; sticky step nav). The engine functions are byte-identical to V0.184.
+   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics), then tests/patch-p211.py (the box snaps to the symbol; sticky step nav), then tests/patch-p212.py (light mode). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -1918,27 +1918,27 @@
 #${MODAL_ID} .spBody{min-height:0;flex:1;display:grid;grid-template-columns:minmax(340px,1.1fr) minmax(330px,.9fr);gap:0}
 #${MODAL_ID} .spPane{min-height:0;overflow:auto;padding:12px} #${MODAL_ID} .spPane+ .spPane{border-left:1px solid var(--fs-border,#3a4047)}
 #${MODAL_ID} .spStats{display:grid;grid-template-columns:repeat(5,minmax(72px,1fr));gap:8px;margin-bottom:10px}
-#${MODAL_ID} .spStat{padding:9px;border-radius:10px;background:var(--fs-bg2,#292e34);border:1px solid var(--fs-border,#3a4047)}
+#${MODAL_ID} .spStat{padding:9px;border-radius:10px;background:var(--fs-tile,#292e34);border:1px solid var(--fs-border,#3a4047)}  /* [212-D] --fs-bg2 never existed */
 #${MODAL_ID} .spStat strong{display:block;font-size:18px} #${MODAL_ID} .spStat span{font-size:10px;color:var(--fs-sub,#9aa2aa)}
-#${MODAL_ID} .spRow{display:grid;grid-template-columns:32px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;align-items:center;padding:7px 4px;border-bottom:1px solid rgba(128,128,128,.18)}
-#${MODAL_ID} .spRow input,#${MODAL_ID} .spRow select{min-width:0;width:100%;min-height:38px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px}
-#${MODAL_ID} .spRow .spIssue{grid-column:2/-1;font-size:10px;color:#ffb3a7;line-height:1.35}
+#${MODAL_ID} .spRow{display:grid;grid-template-columns:44px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;align-items:center;padding:7px 4px;border-bottom:1px solid rgba(128,128,128,.18)}
+#${MODAL_ID} .spRow input,#${MODAL_ID} .spRow select{min-width:0;width:100%;min-height:38px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-field,#15181c);color:var(--fs-fieldText,inherit);padding:6px}
+#${MODAL_ID} .spRow .spIssue{grid-column:2/-1;font-size:10px;color:var(--fs-danger,#ffb3a7);line-height:1.35}
 #${MODAL_ID} .spRow.spRowFocus{outline:2px solid #e040fb;outline-offset:-2px;border-radius:6px}
 #${MODAL_ID} .spRow{cursor:pointer}
-#${MODAL_ID} .spZoneBox{margin:8px 0 12px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-bg2,#292e34)}
+#${MODAL_ID} .spZoneBox{margin:8px 0 12px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
 #${MODAL_ID} .spZoneRow{display:grid;grid-template-columns:minmax(90px,1fr) 92px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.14)}
 #${MODAL_ID} .spZoneRow:last-child{border-bottom:0}
-#${MODAL_ID} .spBadge{font-size:10px;border:1px solid #59626c;border-radius:999px;padding:3px 7px;white-space:nowrap}.spBadge.ok{border-color:#2d8b57;color:#71d69c}.spBadge.rev{border-color:#b88926;color:#ffd36e}.spBadge.bad{border-color:#a94141;color:#ff9999}
+#${MODAL_ID} .spBadge{font-size:10px;border:1px solid var(--fs-border,#59626c);border-radius:999px;padding:3px 7px;white-space:nowrap;color:var(--fs-sub,#9aa2aa)}.spBadge.ok{border-color:#2d8b57;color:#71d69c} html:not(.fsdark) #${MODAL_ID} .spBadge.ok{color:#1f7a45}.spBadge.rev{border-color:#b88926;color:#ffd36e} html:not(.fsdark) #${MODAL_ID} .spBadge.rev{color:#8a5a00}.spBadge.bad{border-color:#a94141;color:#ff9999} html:not(.fsdark) #${MODAL_ID} .spBadge.bad{color:#b3261e}
 #${MODAL_ID} canvas{width:100%;height:auto;display:block;background:#fff;border-radius:10px;border:1px solid var(--fs-border,#3a4047)}
 #${MODAL_ID} .spActions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0} #${MODAL_ID} .spHint{font-size:11px;line-height:1.45;color:var(--fs-sub,#9aa2aa)}
 #${MODAL_ID} .spFoot{padding:10px 14px;border-top:1px solid var(--fs-border,#3a4047);display:flex;align-items:center;gap:8px;background:var(--fs-bg,#15181c)}
 #${MODAL_ID} button{min-height:44px}.spPrimary{background:#ff5a3c!important;border-color:#ff5a3c!important;color:white!important;font-weight:700}.spDanger{border-color:#a94141!important;color:#ff9999!important}
-#${MODAL_ID} .spDetect{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-bg2,#292e34)}
+#${MODAL_ID} .spDetect{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
 #${MODAL_ID} .spDetectGrid{display:grid;grid-template-columns:minmax(120px,1.2fr) minmax(120px,1fr) 76px 82px auto;gap:6px;align-items:center}
-#${MODAL_ID} .spRecon{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-bg2,#292e34)}
+#${MODAL_ID} .spRecon{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
 #${MODAL_ID} .spReconGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;margin-top:7px}
 #${MODAL_ID} .spReconCell{padding:7px;border:1px solid rgba(128,128,128,.2);border-radius:8px}.spReconCell strong{display:block;font-size:16px}
-#${MODAL_ID} .spZoneWork{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-bg2,#292e34)}
+#${MODAL_ID} .spZoneWork{margin:8px 0 10px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
 #${MODAL_ID} .spZoneGrid{display:grid;grid-template-columns:70px 78px 78px auto;gap:6px;align-items:center;margin-top:7px}
 #${MODAL_ID} .spZoneGrid input{min-height:38px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px;min-width:0;width:100%}
 #${MODAL_ID} .spSourceRegion{display:grid;grid-template-columns:1fr 92px;gap:7px;align-items:center;padding:4px 0;border-top:1px solid rgba(128,128,128,.14)}
@@ -1958,13 +1958,16 @@
 #${MODAL_ID} details{margin:8px 0;border:1px solid var(--fs-border,#3a4047);border-radius:10px;padding:6px 10px}
 #${MODAL_ID} details summary{cursor:pointer;font-size:12.5px;color:var(--fs-sub,#9aa2aa);min-height:36px;display:flex;align-items:center}
 #${MODAL_ID} .spField{display:grid;grid-template-columns:minmax(90px,1fr) minmax(120px,1.3fr);gap:8px;align-items:center;margin:6px 0;font-size:12.5px}
-#${MODAL_ID} .spField select,#${MODAL_ID} .spField input{min-height:40px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px;min-width:0;width:100%}
+#${MODAL_ID} .spField select,#${MODAL_ID} .spField input{min-height:40px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-field,#15181c);color:var(--fs-fieldText,inherit);padding:6px;min-width:0;width:100%}
 #${MODAL_ID} .spDone{padding:9px 11px;border-radius:10px;background:rgba(0,166,90,.14);border:1px solid #2d8b57;font-size:13px;margin:8px 0}
 #${MODAL_ID} .spWarn{padding:9px 11px;border-radius:10px;background:rgba(255,179,0,.12);border:1px solid #b88926;font-size:13px;margin:8px 0}
 #${MODAL_ID} .spNav{display:flex;gap:8px;margin-top:12px;position:sticky;bottom:-12px;padding:10px 0 12px;background:var(--fs-card,#20242a);border-top:1px solid var(--fs-border,#3a4047)}  /* [211-C] never scroll to the bottom for Back */
 #${MODAL_ID} .spNav button{flex:1 1 auto}
 #${MODAL_ID} .spCaption{font-size:12px;line-height:1.4;color:var(--fs-sub,#9aa2aa);margin:6px 0 0}
 #${MODAL_ID} .spCaption.on{color:#ffd36e}
+html:not(.fsdark) #${MODAL_ID} .spCaption.on{color:#8a5a00}
+html:not(.fsdark) #${MODAL_ID} .spDone{border-color:#1f7a45}
+html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 #${MODAL_ID} .spPvHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 #${MODAL_ID} .spPvBar{display:flex;align-items:center;gap:4px}
 #${MODAL_ID} .spPvBar button{min-height:40px;min-width:44px;padding:0 10px;font-size:16px}
@@ -1973,9 +1976,9 @@
 #${MODAL_ID} .spHead b{white-space:nowrap}
 #${MODAL_ID} details summary::before{content:'\\25B8  ';color:var(--fs-sub,#9aa2aa)}
 #${MODAL_ID} details[open] summary::before{content:'\\25BE  '}
-#${MODAL_ID} .spColHead{display:grid;grid-template-columns:32px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;font-size:10px;color:var(--fs-sub,#9aa2aa);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.04em}
-@media(max-width:820px){#${MODAL_ID} .spHead{flex-wrap:wrap}#${MODAL_ID} .spStep{flex:1 1 100%;order:9;text-align:left;border:0;padding:2px 0 0}#${MODAL_ID} .spColHead{grid-template-columns:28px 1fr 58px 58px 58px}#${MODAL_ID} .spColHead span:last-child{display:none}}
-@media(max-width:820px){#${MODAL_ID} .spBody{display:block;overflow:auto}#${MODAL_ID} .spPane{overflow:visible}#${MODAL_ID} .spPane+ .spPane{border-left:0;border-top:1px solid var(--fs-border,#3a4047)}#${MODAL_ID} .spFoot{flex-wrap:wrap;row-gap:6px}#${MODAL_ID} .spFoot [data-sp="foot"]{flex:1 1 100%}#${MODAL_ID} .spFoot [data-sp="bar"]{flex:1 1 100%;width:auto!important}#${MODAL_ID} .spFoot .spGrow{display:none}#${MODAL_ID} .spFoot button{flex:1 1 auto}#${MODAL_ID} .spStats{grid-template-columns:repeat(3,1fr)}#${MODAL_ID} .spRow{grid-template-columns:28px 1fr 58px 58px 58px}.spRow .spDecision{grid-column:2/-1}#${MODAL_ID} .spDetectGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spDetectGrid button{grid-column:1/-1}#${MODAL_ID} .spZoneGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spZoneGrid button{grid-column:1/-1}}
+#${MODAL_ID} .spColHead{display:grid;grid-template-columns:44px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;font-size:10px;color:var(--fs-sub,#9aa2aa);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.04em}
+@media(max-width:820px){#${MODAL_ID} .spHead{flex-wrap:wrap}#${MODAL_ID} .spStep{flex:1 1 100%;order:9;text-align:left;border:0;padding:2px 0 0}#${MODAL_ID} .spColHead{grid-template-columns:40px 1fr 58px 58px 58px}#${MODAL_ID} .spColHead span:last-child{display:none}}
+@media(max-width:820px){#${MODAL_ID} .spBody{display:block;overflow:auto}#${MODAL_ID} .spPane{overflow:visible}#${MODAL_ID} .spPane+ .spPane{border-left:0;border-top:1px solid var(--fs-border,#3a4047)}#${MODAL_ID} .spFoot{flex-wrap:wrap;row-gap:6px}#${MODAL_ID} .spFoot [data-sp="foot"]{flex:1 1 100%}#${MODAL_ID} .spFoot [data-sp="bar"]{flex:1 1 100%;width:auto!important}#${MODAL_ID} .spFoot .spGrow{display:none}#${MODAL_ID} .spFoot button{flex:1 1 auto}#${MODAL_ID} .spStats{grid-template-columns:repeat(3,1fr)}#${MODAL_ID} .spRow{grid-template-columns:40px 1fr 58px 58px 58px}.spRow .spDecision{grid-column:2/-1}#${MODAL_ID} .spDetectGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spDetectGrid button{grid-column:1/-1}#${MODAL_ID} .spZoneGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spZoneGrid button{grid-column:1/-1}}
 `;
     document.head.appendChild(s);
   }
