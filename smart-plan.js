@@ -1,6 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
    (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
-   then tests/patch-p206.py (the guided-flow UI, Pass 206). The engine functions are byte-identical to V0.184.
+   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -1733,6 +1733,11 @@
 #${MODAL_ID} .spNav button{flex:1 1 auto}
 #${MODAL_ID} .spCaption{font-size:12px;line-height:1.4;color:var(--fs-sub,#9aa2aa);margin:6px 0 0}
 #${MODAL_ID} .spCaption.on{color:#ffd36e}
+#${MODAL_ID} .spPvHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+#${MODAL_ID} .spPvBar{display:flex;align-items:center;gap:4px}
+#${MODAL_ID} .spPvBar button{min-height:40px;min-width:44px;padding:0 10px;font-size:16px}
+#${MODAL_ID} .spPvPct{font-size:11px;color:var(--fs-sub,#9aa2aa);min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+#${MODAL_ID} canvas{touch-action:none;cursor:grab}
 #${MODAL_ID} .spHead b{white-space:nowrap}
 #${MODAL_ID} details summary::before{content:'\\25B8  ';color:var(--fs-sub,#9aa2aa)}
 #${MODAL_ID} details[open] summary::before{content:'\\25BE  '}
@@ -1837,7 +1842,7 @@
   function spCaptionHtml(){
     const picking=!!(session&&session.templatePick&&session.templatePick.active);
     const pairing=!!(session&&session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source);
-    const txt=picking?'Drag a tight box around ONE detector here.':(pairing?'Now tap the matching point on THIS plan.':(session&&session.candidates.length?'Green = found. Amber = needs a look. Blue box = the one you showed.':'The plan on screen.'));
+    const txt=picking?'Drag a tight box around ONE detector here. Pinch or scroll to zoom first; two fingers pan.':(pairing?'Now tap the matching point on THIS plan.':(session&&session.candidates.length?'Green = found. Amber = needs a look. Blue box = the one you showed.':'The plan on screen. Pinch or scroll to zoom, drag to pan.'));
     return '<div class="spCaption'+((picking||pairing)?' on':'')+'" data-sp="caption">'+escapeHtml(txt)+'</div>';
   }
   function spStepHead(){
@@ -1867,6 +1872,86 @@
     ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);try{ctx.drawImage(live,ox,oy,sw*scale,sh*scale);}catch(_){}
   }
 
+
+  /* PASS 208 [208-A] W208-A - ZOOM AND PAN. Reece, V0.185 walk b2: "I need to be
+     able to zoom and pan on the plan to the right I'm too far zoomed out to drag
+     a box accurately." One view per preview canvas, composed onto the fit
+     geometry so every draw / hit line below keeps its (g.ox + x * g.scale) shape.
+     k = 1 is fit-all; pinch or wheel zooms about the pointer; one finger pans -
+     unless the step is a DRAW step (the detector box, a hatch patch), where one
+     finger draws and two fingers still pinch. Taps stay taps. */
+  const PV_MIN_K=1, PV_MAX_K=12;
+  const pvMain={k:1,tx:0,ty:0}, pvZone={k:1,tx:0,ty:0};
+  function pvReset(v){v.k=1;v.tx=0;v.ty=0;}
+  function pvGeometry(cv,view,sw,sh){
+    const s0=Math.min(cv.width/sw,cv.height/sh),ox0=(cv.width-sw*s0)/2,oy0=(cv.height-sh*s0)/2;
+    return {sw,sh,scale:s0*view.k,ox:ox0*view.k+view.tx,oy:oy0*view.k+view.ty,fit:s0};
+  }
+  function pvClamp(cv,view,sw,sh){
+    view.k=Math.max(PV_MIN_K,Math.min(PV_MAX_K,view.k));
+    if(view.k===1){view.tx=0;view.ty=0;return;}
+    const g=pvGeometry(cv,view,sw,sh),w=g.sw*g.scale,h=g.sh*g.scale;
+    /* keep at least a quarter of the plan on the canvas in each axis */
+    const minX=cv.width*0.25-w,maxX=cv.width*0.75,minY=cv.height*0.25-h,maxY=cv.height*0.75;
+    const ox=Math.max(minX,Math.min(maxX,g.ox)),oy=Math.max(minY,Math.min(maxY,g.oy));
+    view.tx+=ox-g.ox;view.ty+=oy-g.oy;
+  }
+  function pvZoomAt(cv,view,sw,sh,cx,cy,factor){
+    const k0=view.k,k1=Math.max(PV_MIN_K,Math.min(PV_MAX_K,k0*factor));if(k1===k0)return;
+    /* keep the plan point under (cx,cy) fixed */
+    const g=pvGeometry(cv,view,sw,sh),px=(cx-g.ox)/g.scale,py=(cy-g.oy)/g.scale;
+    view.k=k1;const g1=pvGeometry(cv,view,sw,sh);
+    view.tx+=cx-(g1.ox+px*g1.scale);view.ty+=cy-(g1.oy+py*g1.scale);
+    pvClamp(cv,view,sw,sh);
+  }
+  function pvToolbarHtml(key){
+    return '<div class="spPvBar" data-pv="'+key+'"><button type="button" class="btn" data-pv-act="out" title="Zoom out">−</button><button type="button" class="btn" data-pv-act="fit" title="Fit the whole plan">Fit</button><button type="button" class="btn" data-pv-act="in" title="Zoom in">+</button><span class="spPvPct" data-pv-pct></span></div>';
+  }
+  /* pointer plumbing for one canvas. opts: {view,sw,sh,drawMode():bool,
+     onDrawStart(c),onDrawMove(c),onDrawEnd(c),onTap(c),redraw()} - c is canvas px. */
+  function pvAttach(cv,bar,opts){
+    const view=opts.view,pointers=new Map();let pinch=null,pan=null,drawing=false,tapStart=null;
+    const cpos=e=>{const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};};
+    const pct=()=>{const el=bar&&bar.querySelector('[data-pv-pct]');if(el)el.textContent=Math.round(view.k*100)+'%';};
+    const redraw=()=>{pvClamp(cv,view,opts.sw,opts.sh);pct();opts.redraw();};
+    if(bar){bar.querySelector('[data-pv-act="in"]').onclick=()=>{pvZoomAt(cv,view,opts.sw,opts.sh,cv.width/2,cv.height/2,1.5);redraw();};
+      bar.querySelector('[data-pv-act="out"]').onclick=()=>{pvZoomAt(cv,view,opts.sw,opts.sh,cv.width/2,cv.height/2,1/1.5);redraw();};
+      bar.querySelector('[data-pv-act="fit"]').onclick=()=>{pvReset(view);redraw();};pct();}
+    cv.style.touchAction='none';
+    cv.onwheel=e=>{e.preventDefault();const c=cpos(e);pvZoomAt(cv,view,opts.sw,opts.sh,c.x,c.y,e.deltaY<0?1.2:1/1.2);redraw();};
+    cv.onpointerdown=e=>{
+      const c=cpos(e);pointers.set(e.pointerId,c);try{cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);}catch(_){}
+      if(pointers.size===2){
+        /* second finger: whatever one finger was doing becomes a pinch */
+        if(drawing){drawing=false;opts.onDrawCancel&&opts.onDrawCancel();}
+        pan=null;tapStart=null;const [a,b]=[...pointers.values()];
+        pinch={d:Math.hypot(a.x-b.x,a.y-b.y),mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},k:view.k,tx:view.tx,ty:view.ty};return;
+      }
+      if(pointers.size>2)return;
+      tapStart={x:c.x,y:c.y,t:Date.now()};
+      if(opts.drawMode&&opts.drawMode()){drawing=true;opts.onDrawStart(c);}
+      else pan={x:c.x,y:c.y,tx:view.tx,ty:view.ty};
+    };
+    cv.onpointermove=e=>{
+      if(!pointers.has(e.pointerId))return;const c=cpos(e);pointers.set(e.pointerId,c);
+      if(pinch&&pointers.size>=2){const [a,b]=[...pointers.values()],d=Math.hypot(a.x-b.x,a.y-b.y),mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+        view.k=pinch.k;view.tx=pinch.tx;view.ty=pinch.ty;pvZoomAt(cv,view,opts.sw,opts.sh,pinch.mid.x,pinch.mid.y,d/(pinch.d||1));view.tx+=mid.x-pinch.mid.x;view.ty+=mid.y-pinch.mid.y;redraw();return;}
+      if(drawing){opts.onDrawMove(c);return;}
+      if(pan){view.tx=pan.tx+(c.x-pan.x);view.ty=pan.ty+(c.y-pan.y);redraw();}
+    };
+    const up=e=>{
+      const had=pointers.has(e.pointerId);const c=had?cpos(e):null;pointers.delete(e.pointerId);
+      if(pinch){if(pointers.size<2){pinch=null;pan=null;}return;}
+      if(!had)return;
+      if(drawing){drawing=false;opts.onDrawEnd(c);return;}
+      const moved=tapStart&&Math.hypot(c.x-tapStart.x,c.y-tapStart.y)>6*(cv.width/cv.getBoundingClientRect().width);
+      pan=null;
+      if(tapStart&&!moved&&opts.onTap)opts.onTap(c);
+      tapStart=null;
+    };
+    cv.onpointerup=up;cv.onpointercancel=e=>{pointers.delete(e.pointerId);pinch=null;pan=null;if(drawing){drawing=false;opts.onDrawCancel&&opts.onDrawCancel();}};
+  }
+
   function livePlanImage() {
     try {
       if (typeof img !== 'undefined' && img && ((img.naturalWidth || img.width) > 0)) return img;
@@ -1875,29 +1960,50 @@
   }
 
   function preview() {
+    /* PASS 208 [208-A] - zoom and pan on both previews; see pvAttach above. */
     const right=ensureModal().querySelector('[data-sp="right"]');
     const hasZone=!!(session&&session.zoneSource);
-    right.innerHTML='<div style="font-weight:700;margin-bottom:8px">The plan</div><canvas data-sp="canvas" width="900" height="620"></canvas>'+spCaptionHtml()+''+(hasZone?'<div class="spSourceCanvas"><div style="font-weight:700;margin:10px 0 8px">The zone plan</div><canvas data-sp="zone-canvas" width="900" height="620"></canvas><div class="spCaption">Show hatching, draw zones and pick match points here. This sheet is never written into the plan or the register.</div></div>':'');
+    right.innerHTML='<div class="spPvHead"><div style="font-weight:700">The plan</div>'+pvToolbarHtml('main')+'</div><canvas data-sp="canvas" width="1400" height="965"></canvas>'+spCaptionHtml()+''+(hasZone?'<div class="spSourceCanvas"><div class="spPvHead"><div style="font-weight:700">The zone plan</div>'+pvToolbarHtml('zone')+'</div><canvas data-sp="zone-canvas" width="1400" height="965"></canvas><div class="spCaption">Show hatching, draw zones and pick match points here. Pinch or scroll to zoom, drag to pan. This sheet is never written into the plan or the register.</div></div>':'');
     const cv=right.querySelector('[data-sp="canvas"]'),ctx=cv.getContext('2d');const dims=currentDims();
-    const geometry=()=>{const sw=dims.w||cv.width,sh=dims.h||cv.height,scale=Math.min(cv.width/sw,cv.height/sh);return {sw,sh,scale,ox:(cv.width-sw*scale)/2,oy:(cv.height-sh*scale)/2};};
+    const geometry=()=>{const sw=dims.w||cv.width,sh=dims.h||cv.height;return pvGeometry(cv,pvMain,sw,sh);};
+    const LW=cv.width/900;   /* line weights were tuned on a 900-wide canvas */
     const drawAll=()=>{ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);const live=livePlanImage(),g=geometry();if(live){try{ctx.drawImage(live,g.ox,g.oy,g.sw*g.scale,g.sh*g.scale)}catch(_){}}
-      session.zones.forEach(zc=>{if(zc.decision==='rejected')return;const z=zc.obj,pts=z.pts||[];if(pts.length<3)return;ctx.save();ctx.strokeStyle=zc.decision==='accepted'?'#7e57c2':'#ffb300';ctx.lineWidth=2;ctx.beginPath();pts.forEach((p,i)=>{const x=g.ox+p.x*g.scale,y=g.oy+p.y*g.scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke();ctx.restore();});
-      session.candidates.forEach(c=>{if(c.decision==='rejected')return;const x=g.ox+c.obj.x*g.scale,y=g.oy+c.obj.y*g.scale;ctx.save();ctx.strokeStyle=c.meta&&c.meta.suspectStub?'#ff7043':(c.decision==='review'?'#ffb300':'#00a65a');ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.stroke();if(c.meta&&Array.isArray(c.meta.bbox)){const b=c.meta.bbox;ctx.globalAlpha=.7;ctx.strokeRect(g.ox+b[0]*g.scale,g.oy+b[1]*g.scale,b[2]*g.scale,b[3]*g.scale);}ctx.restore();});
-      (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{ctx.save();ctx.fillStyle='#e040fb';ctx.strokeStyle='#fff';ctx.lineWidth=1;const x=g.ox+p.target.x*g.scale,y=g.oy+p.target.y*g.scale;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#e040fb';ctx.font='bold 12px sans-serif';ctx.fillText(`T${i+1}`,x+8,y-7);ctx.restore();});
-      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}const tb=session.taughtBox;if(tb&&!(p&&p.start)){ctx.save();ctx.strokeStyle='#1e88e5';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeRect(g.ox+tb[0]*g.scale,g.oy+tb[1]*g.scale,tb[2]*g.scale,tb[3]*g.scale);ctx.restore();}};
+      session.zones.forEach(zc=>{if(zc.decision==='rejected')return;const z=zc.obj,pts=z.pts||[];if(pts.length<3)return;ctx.save();ctx.strokeStyle=zc.decision==='accepted'?'#7e57c2':'#ffb300';ctx.lineWidth=2*LW;ctx.beginPath();pts.forEach((p,i)=>{const x=g.ox+p.x*g.scale,y=g.oy+p.y*g.scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke();ctx.restore();});
+      session.candidates.forEach(c=>{if(c.decision==='rejected')return;const x=g.ox+c.obj.x*g.scale,y=g.oy+c.obj.y*g.scale;ctx.save();ctx.strokeStyle=c.meta&&c.meta.suspectStub?'#ff7043':(c.decision==='review'?'#ffb300':'#00a65a');ctx.lineWidth=2*LW;ctx.beginPath();ctx.arc(x,y,7*LW,0,Math.PI*2);ctx.stroke();if(c.meta&&Array.isArray(c.meta.bbox)){const b=c.meta.bbox;ctx.globalAlpha=.7;ctx.strokeRect(g.ox+b[0]*g.scale,g.oy+b[1]*g.scale,b[2]*g.scale,b[3]*g.scale);}ctx.restore();});
+      (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{ctx.save();ctx.fillStyle='#e040fb';ctx.strokeStyle='#fff';ctx.lineWidth=1*LW;const x=g.ox+p.target.x*g.scale,y=g.oy+p.target.y*g.scale;ctx.beginPath();ctx.arc(x,y,6*LW,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#e040fb';ctx.font=`bold ${Math.round(12*LW)}px sans-serif`;ctx.fillText(`T${i+1}`,x+8*LW,y-7*LW);ctx.restore();});
+      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}const tb=session.taughtBox;if(tb&&!(p&&p.start)){ctx.save();ctx.strokeStyle='#1e88e5';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(g.ox+tb[0]*g.scale,g.oy+tb[1]*g.scale,tb[2]*g.scale,tb[3]*g.scale);ctx.restore();}};
     drawAll();
-    const mainPos=e=>{const r=cv.getBoundingClientRect(),sx=cv.width/r.width,sy=cv.height/r.height,g=geometry();return {canvas:{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy},plan:{x:((e.clientX-r.left)*sx-g.ox)/g.scale,y:((e.clientY-r.top)*sy-g.oy)/g.scale}};};
-    if(session.templatePick&&session.templatePick.active){cv.style.cursor='crosshair';cv.onpointerdown=e=>{const p=mainPos(e).canvas;cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);session.templatePick.start=p;session.templatePick.end=p;drawAll();};cv.onpointermove=e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;drawAll();};cv.onpointerup=async e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){render();alert('Drag a box around the detector \u2014 that was a tap.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=3;render();};
-    }else if(session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source){cv.style.cursor='crosshair';cv.onclick=e=>{const p=mainPos(e).plan;session.zoneAlign.pairs.push({source:session.zoneAlign.pending.source,target:p});session.zoneAlign.pending=null;updateZoneAlignment();render();};}
-    if(hasZone){const zv=right.querySelector('[data-sp="zone-canvas"]'),zctx=zv.getContext('2d'),zs=session.zoneSource,zw=zs.width,zh=zs.height,zscale=Math.min(zv.width/zw,zv.height/zh),zox=(zv.width-zw*zscale)/2,zoy=(zv.height-zh*zscale)/2;zctx.fillStyle='#fff';zctx.fillRect(0,0,zv.width,zv.height);zctx.drawImage(zs.canvas,zox,zoy,zw*zscale,zh*zscale);
-      session.zoneRegions.forEach(r=>{if(r.decision==='rejected')return;zctx.save();zctx.strokeStyle=r.decision==='accepted'?'#00a65a':'#ffb300';zctx.lineWidth=2;zctx.beginPath();r.pts.forEach((p,i)=>{const x=zox+p.x*zscale,y=zoy+p.y*zscale;i?zctx.lineTo(x,y):zctx.moveTo(x,y)});zctx.closePath();zctx.stroke();zctx.restore();});
-      (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{zctx.save();zctx.fillStyle='#e040fb';const x=zox+p.source.x*zscale,y=zoy+p.source.y*zscale;zctx.beginPath();zctx.arc(x,y,6,0,Math.PI*2);zctx.fill();zctx.font='bold 12px sans-serif';zctx.fillText(`S${i+1}`,x+8,y-7);zctx.restore();});
-      if(session.zoneTool&&session.zoneTool.mode==='sample'&&session.zoneTool.start&&session.zoneTool.end){const a=session.zoneTool.start,b=session.zoneTool.end;zctx.save();zctx.strokeStyle='#40c4ff';zctx.setLineDash([6,4]);zctx.lineWidth=2;zctx.strokeRect(zox+Math.min(a.x,b.x)*zscale,zoy+Math.min(a.y,b.y)*zscale,Math.abs(a.x-b.x)*zscale,Math.abs(a.y-b.y)*zscale);zctx.restore();}
-      if(session.zoneTool&&session.zoneTool.mode==='polygon'&&session.zoneTool.points.length){zctx.save();zctx.strokeStyle='#40c4ff';zctx.lineWidth=2;zctx.beginPath();session.zoneTool.points.forEach((p,i)=>{const x=zox+p.x*zscale,y=zoy+p.y*zscale;i?zctx.lineTo(x,y):zctx.moveTo(x,y)});zctx.stroke();zctx.restore();}
-      const zpos=e=>{const r=zv.getBoundingClientRect(),x=(e.clientX-r.left)*zv.width/r.width,y=(e.clientY-r.top)*zv.height/r.height;return{x:(x-zox)/zscale,y:(y-zoy)/zscale};};
-      if(session.zoneTool&&session.zoneTool.mode==='sample'){zv.style.cursor='crosshair';zv.onpointerdown=e=>{const p=zpos(e);zv.setPointerCapture&&zv.setPointerCapture(e.pointerId);session.zoneTool.start=p;session.zoneTool.end=p;};zv.onpointermove=e=>{if(!session.zoneTool||!session.zoneTool.start)return;session.zoneTool.end=zpos(e);};zv.onpointerup=e=>{const t=session.zoneTool;if(!t||!t.start)return;t.end=zpos(e);const b=[Math.min(t.start.x,t.end.x),Math.min(t.start.y,t.end.y),Math.abs(t.start.x-t.end.x),Math.abs(t.start.y-t.end.y)];session.zoneTool=null;try{teachZoneHatch(t.zone,b,{window:t.window,threshold:t.threshold});}catch(err){alert(err.message||String(err));render();}};
-      }else if(session.zoneTool&&session.zoneTool.mode==='polygon'){zv.style.cursor='crosshair';zv.onclick=e=>{session.zoneTool.points.push(zpos(e));render();};
-      }else if(session.zoneAlign&&session.zoneAlign.pending&&!session.zoneAlign.pending.source){zv.style.cursor='crosshair';zv.onclick=e=>{session.zoneAlign.pending.source=zpos(e);session.zoneStatus=`Source point picked. Now click the matching point on the Workspace preview.`;render();};}
+    const toPlan=c=>{const g=geometry();return {x:(c.x-g.ox)/g.scale,y:(c.y-g.oy)/g.scale};};
+    const picking=()=>!!(session&&session.templatePick&&session.templatePick.active);
+    cv.style.cursor=picking()?'crosshair':((session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source)?'crosshair':'grab');
+    pvAttach(cv,right.querySelector('.spPvBar[data-pv="main"]'),{view:pvMain,sw:dims.w||cv.width,sh:dims.h||cv.height,redraw:drawAll,
+      drawMode:picking,
+      onDrawStart:c=>{session.templatePick.start=c;session.templatePick.end=c;drawAll();},
+      onDrawMove:c=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;drawAll();},
+      onDrawCancel:()=>{if(session&&session.templatePick){session.templatePick.start=null;session.templatePick.end=null;drawAll();}},
+      onDrawEnd:c=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){session.templatePick={active:true,type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,start:null,end:null};render();alert('Drag a box around the detector — that was a tap. Zoom in first if it is small.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=3;render();},
+      onTap:c=>{if(session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source){const p=toPlan(c);session.zoneAlign.pairs.push({source:session.zoneAlign.pending.source,target:p});session.zoneAlign.pending=null;updateZoneAlignment();render();}}
+    });
+    if(hasZone){const zv=right.querySelector('[data-sp="zone-canvas"]'),zctx=zv.getContext('2d'),zs=session.zoneSource,zw=zs.width,zh=zs.height;const ZLW=zv.width/900;
+      const zg=()=>pvGeometry(zv,pvZone,zw,zh);
+      const zdraw=()=>{const g=zg(),zscale=g.scale,zox=g.ox,zoy=g.oy;zctx.fillStyle='#fff';zctx.fillRect(0,0,zv.width,zv.height);zctx.drawImage(zs.canvas,zox,zoy,zw*zscale,zh*zscale);
+        session.zoneRegions.forEach(r=>{if(r.decision==='rejected')return;zctx.save();zctx.strokeStyle=r.decision==='accepted'?'#00a65a':'#ffb300';zctx.lineWidth=2*ZLW;zctx.beginPath();r.pts.forEach((p,i)=>{const x=zox+p.x*zscale,y=zoy+p.y*zscale;i?zctx.lineTo(x,y):zctx.moveTo(x,y)});zctx.closePath();zctx.stroke();zctx.restore();});
+        (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{zctx.save();zctx.fillStyle='#e040fb';const x=zox+p.source.x*zscale,y=zoy+p.source.y*zscale;zctx.beginPath();zctx.arc(x,y,6*ZLW,0,Math.PI*2);zctx.fill();zctx.font=`bold ${Math.round(12*ZLW)}px sans-serif`;zctx.fillText(`S${i+1}`,x+8*ZLW,y-7*ZLW);zctx.restore();});
+        if(session.zoneTool&&session.zoneTool.mode==='sample'&&session.zoneTool.start&&session.zoneTool.end){const a=session.zoneTool.start,b=session.zoneTool.end;zctx.save();zctx.strokeStyle='#40c4ff';zctx.setLineDash([6*ZLW,4*ZLW]);zctx.lineWidth=2*ZLW;zctx.strokeRect(zox+Math.min(a.x,b.x)*zscale,zoy+Math.min(a.y,b.y)*zscale,Math.abs(a.x-b.x)*zscale,Math.abs(a.y-b.y)*zscale);zctx.restore();}
+        if(session.zoneTool&&session.zoneTool.mode==='polygon'&&session.zoneTool.points.length){zctx.save();zctx.strokeStyle='#40c4ff';zctx.lineWidth=2*ZLW;zctx.beginPath();session.zoneTool.points.forEach((p,i)=>{const x=zox+p.x*zscale,y=zoy+p.y*zscale;i?zctx.lineTo(x,y):zctx.moveTo(x,y)});zctx.stroke();zctx.restore();}};
+      zdraw();
+      const ztoPlan=c=>{const g=zg();return {x:(c.x-g.ox)/g.scale,y:(c.y-g.oy)/g.scale};};
+      const sampling=()=>!!(session&&session.zoneTool&&session.zoneTool.mode==='sample');
+      zv.style.cursor=(sampling()||(session.zoneTool&&session.zoneTool.mode==='polygon')||(session.zoneAlign&&session.zoneAlign.pending&&!session.zoneAlign.pending.source))?'crosshair':'grab';
+      pvAttach(zv,right.querySelector('.spPvBar[data-pv="zone"]'),{view:pvZone,sw:zw,sh:zh,redraw:zdraw,
+        drawMode:sampling,
+        onDrawStart:c=>{const p=ztoPlan(c);session.zoneTool.start=p;session.zoneTool.end=p;zdraw();},
+        onDrawMove:c=>{if(!session.zoneTool||!session.zoneTool.start)return;session.zoneTool.end=ztoPlan(c);zdraw();},
+        onDrawCancel:()=>{if(session&&session.zoneTool){session.zoneTool.start=null;session.zoneTool.end=null;zdraw();}},
+        onDrawEnd:c=>{const t=session.zoneTool;if(!t||!t.start)return;t.end=ztoPlan(c);const b=[Math.min(t.start.x,t.end.x),Math.min(t.start.y,t.end.y),Math.abs(t.start.x-t.end.x),Math.abs(t.start.y-t.end.y)];session.zoneTool=null;try{teachZoneHatch(t.zone,b,{window:t.window,threshold:t.threshold});}catch(err){alert(err.message||String(err));render();}},
+        onTap:c=>{if(session.zoneTool&&session.zoneTool.mode==='polygon'){session.zoneTool.points.push(ztoPlan(c));render();}
+          else if(session.zoneAlign&&session.zoneAlign.pending&&!session.zoneAlign.pending.source){session.zoneAlign.pending.source=ztoPlan(c);session.zoneStatus=`Source point picked. Now tap the matching point on the plan preview.`;render();}}
+      });
     }
   }
 
@@ -1907,7 +2013,7 @@
     const m=ensureModal();const left=m.querySelector('[data-sp="left"]'),foot=m.querySelector('[data-sp="foot"]'),commitBtn=m.querySelector('[data-sp="commit"]');
     if(ocrOk===null)probeOcr();
     if(!session){
-      uiStep=1;spStepHead();
+      uiStep=1;spStepHead();pvReset(pvMain);pvReset(pvZone);
       const b0=m.querySelector('[data-sp="bar"]'),c0=m.querySelector('[data-sp="cancel"]');if(b0)b0.style.display='none';if(c0)c0.style.display='none';
       const live=livePlanImage();
       left.innerHTML=`<div class="spScreen"><h3>Smart Plan reads the plan that is on screen.</h3><p>Current sheet: <b data-sp="sheet">${escapeHtml(spSheetName())}</b></p><p>It finds every detector on it, reads the printed numbers and lets you check the lot before anything is saved.</p><button class="btn spPrimary spBig" data-sp="use" ${live?'':'disabled'}>Use this plan</button><button class="btn spQuiet" data-sp="importplan">Import a different plan…</button><p class="spHint">PDF or photo — both work. Nothing is written to the register until you press Commit at the end.</p></div>`;
@@ -1927,7 +2033,7 @@
     let html='';
     if(uiStep===2){
       const picking=!!(session.templatePick&&session.templatePick.active);
-      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':'Draw the box on the plan'}</button>${picking?'<div class="spWarn">Drag on the plan preview: start at one corner of the detector, finish at the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
+      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':'Draw the box on the plan'}</button>${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
     }else if(uiStep===3){
       const t=session.teach;const done=session.findDone;
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
