@@ -1,5 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
-   (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script.
+   (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
+   then tests/patch-p206.py (the guided-flow UI, Pass 206). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -1713,6 +1714,30 @@
 #${MODAL_ID} .spDetectGrid select,#${MODAL_ID} .spDetectGrid input{min-height:38px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px;min-width:0}
 #${MODAL_ID} .spCheck{font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 #${MODAL_ID} .spSourceCanvas{margin-top:10px}
+#${MODAL_ID} .spStep{font-size:11px;color:var(--fs-sub,#9aa2aa);border:1px solid var(--fs-border,#3a4047);border-radius:999px;padding:4px 9px;white-space:nowrap}
+#${MODAL_ID} .spScreen h3{font-size:18px;line-height:1.25;margin:2px 0 8px}
+#${MODAL_ID} .spScreen p{font-size:13.5px;line-height:1.5;margin:0 0 10px;color:var(--fs-text,#e8e8e8)}
+#${MODAL_ID} .spBig{display:block;width:100%;min-height:52px;font-size:15px;margin:8px 0}
+#${MODAL_ID} .spQuiet{display:block;width:100%;min-height:44px;margin:6px 0}
+#${MODAL_ID} .spPic{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px}
+#${MODAL_ID} .spPic figure{margin:0;background:#fff;border-radius:10px;border:1px solid var(--fs-border,#3a4047);padding:6px}
+#${MODAL_ID} .spPic svg{width:100%;height:auto;display:block}
+#${MODAL_ID} .spPic figcaption{font-size:11px;color:#333;text-align:center;padding-top:4px}
+#${MODAL_ID} details{margin:8px 0;border:1px solid var(--fs-border,#3a4047);border-radius:10px;padding:6px 10px}
+#${MODAL_ID} details summary{cursor:pointer;font-size:12.5px;color:var(--fs-sub,#9aa2aa);min-height:36px;display:flex;align-items:center}
+#${MODAL_ID} .spField{display:grid;grid-template-columns:minmax(90px,1fr) minmax(120px,1.3fr);gap:8px;align-items:center;margin:6px 0;font-size:12.5px}
+#${MODAL_ID} .spField select,#${MODAL_ID} .spField input{min-height:40px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px;min-width:0;width:100%}
+#${MODAL_ID} .spDone{padding:9px 11px;border-radius:10px;background:rgba(0,166,90,.14);border:1px solid #2d8b57;font-size:13px;margin:8px 0}
+#${MODAL_ID} .spWarn{padding:9px 11px;border-radius:10px;background:rgba(255,179,0,.12);border:1px solid #b88926;font-size:13px;margin:8px 0}
+#${MODAL_ID} .spNav{display:flex;gap:8px;margin-top:12px}
+#${MODAL_ID} .spNav button{flex:1 1 auto}
+#${MODAL_ID} .spCaption{font-size:12px;line-height:1.4;color:var(--fs-sub,#9aa2aa);margin:6px 0 0}
+#${MODAL_ID} .spCaption.on{color:#ffd36e}
+#${MODAL_ID} .spHead b{white-space:nowrap}
+#${MODAL_ID} details summary::before{content:'\\25B8  ';color:var(--fs-sub,#9aa2aa)}
+#${MODAL_ID} details[open] summary::before{content:'\\25BE  '}
+#${MODAL_ID} .spColHead{display:grid;grid-template-columns:32px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;font-size:10px;color:var(--fs-sub,#9aa2aa);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.04em}
+@media(max-width:820px){#${MODAL_ID} .spHead{flex-wrap:wrap}#${MODAL_ID} .spStep{flex:1 1 100%;order:9;text-align:left;border:0;padding:2px 0 0}#${MODAL_ID} .spColHead{grid-template-columns:28px 1fr 58px 58px 58px}#${MODAL_ID} .spColHead span:last-child{display:none}}
 @media(max-width:820px){#${MODAL_ID} .spBody{display:block;overflow:auto}#${MODAL_ID} .spPane{overflow:visible}#${MODAL_ID} .spPane+ .spPane{border-left:0;border-top:1px solid var(--fs-border,#3a4047)}#${MODAL_ID} .spFoot{flex-wrap:wrap;row-gap:6px}#${MODAL_ID} .spFoot [data-sp="foot"]{flex:1 1 100%}#${MODAL_ID} .spFoot [data-sp="bar"]{flex:1 1 100%;width:auto!important}#${MODAL_ID} .spFoot .spGrow{display:none}#${MODAL_ID} .spFoot button{flex:1 1 auto}#${MODAL_ID} .spStats{grid-template-columns:repeat(3,1fr)}#${MODAL_ID} .spRow{grid-template-columns:28px 1fr 58px 58px 58px}.spRow .spDecision{grid-column:2/-1}#${MODAL_ID} .spDetectGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spDetectGrid button{grid-column:1/-1}#${MODAL_ID} .spZoneGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spZoneGrid button{grid-column:1/-1}}
 `;
     document.head.appendChild(s);
@@ -1723,24 +1748,18 @@
     let m=document.getElementById(MODAL_ID); if(m) return m;
     m=document.createElement('div'); m.id=MODAL_ID;
     m.innerHTML=`<div class="spShell">
-      <div class="spHead"><b>Smart Plan</b><span class="spBadge" title="Smart Plan engine ${VERSION}">beta</span><span class="spGrow"></span><button class="btn" data-sp="close">Close</button></div>
+      <div class="spHead"><b>Smart Plan</b><span class="spBadge" title="Smart Plan engine ${VERSION}">beta</span><span class="spStep" data-sp="stepno"></span><span class="spGrow"></span><button class="btn" data-sp="close">Close</button></div>
       <div class="spBody"><div class="spPane" data-sp="left"></div><div class="spPane" data-sp="right"></div></div>
       <div class="spFoot"><span class="spHint" data-sp="foot">Candidates stay temporary until Commit.</span><progress data-sp="bar" max="100" value="0" style="display:none;width:120px;height:10px"></progress><span class="spGrow"></span><button class="btn spDanger" data-sp="cancel" style="display:none">Cancel</button><button class="btn spDanger" data-sp="discard">Discard</button><button class="btn spPrimary" data-sp="commit">Commit to Workspace</button></div>
-      <input type="file" id="${FILE_ID}" accept="application/json,.json" style="display:none"><input type="file" id="${SCHEDULE_FILE_ID}" accept=".csv,.tsv,.txt,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none"><input type="file" id="${ZONE_SOURCE_FILE_ID}" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.pdf,application/pdf" style="display:none">
+      <input type="file" id="${SCHEDULE_FILE_ID}" accept=".csv,.tsv,.txt,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none"><input type="file" id="${ZONE_SOURCE_FILE_ID}" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.pdf,application/pdf" style="display:none">
     </div>`;
     document.body.appendChild(m);
     m.querySelector('[data-sp="close"]').onclick=()=>{ m.style.display='none'; };
     m.querySelector('[data-sp="cancel"]').onclick=()=>{ cancelActiveOperation(); };
-    m.querySelector('[data-sp="discard"]').onclick=()=>{ if(!session||confirm('Discard this uncommitted Smart Plan review?')) discard(); };
+    m.querySelector('[data-sp="discard"]').onclick=()=>{ if(!session||confirm('Discard this uncommitted Smart Plan review?')) {discard();uiStep=1;} };
     m.querySelector('[data-sp="commit"]').onclick=()=>{
       try { const r=commit(); alert(`Smart Plan committed ${r.devices} device(s)${r.zones?` and ${r.zones} zone region(s)`:''}.`); }
       catch(e){ alert(e.message||String(e)); }
-    };
-    m.querySelector(`#${FILE_ID}`).onchange=async e=>{
-      const f=e.target.files&&e.target.files[0]; if(!f)return;
-      try { const data=JSON.parse(await f.text()); stage(normalisePayload(data,f.name)); }
-      catch(err){ alert(err.message||String(err)); }
-      e.target.value='';
     };
     m.querySelector(`#${SCHEDULE_FILE_ID}`).onchange=async e=>{
       const f=e.target.files&&e.target.files[0];if(!f)return;
@@ -1755,6 +1774,99 @@
     return m;
   }
 
+
+  /* PASS 206 [206-B] - THE GUIDED FLOW. Reece, V0.184 walk: "I do not think this
+     tool is easy to use... we need to make it easy, user friendly." Each step is
+     one screen, one main action, one line of plain words. The engine API
+     underneath (start, detectTemplate, recognisePrintedIdentities,
+     importScheduleFile, the zone workbench, commit) is untouched; these
+     screens only call it. `uiStep` lives outside the session because step 1
+     has no session yet. */
+  let uiStep=1;
+  let ocrOk=null;
+  const SP_STEPS=['Start','Show one detector','Find and read','Panel schedule','Zone plan','Review','Commit'];
+  const SP_PICTURE=`<div class="spPic"><figure><svg viewBox="0 0 150 90" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="142" height="78" fill="none" stroke="#bbb" stroke-width="1"/><path d="M4 46 H60 M60 6 V84 M100 46 H146" stroke="#ccc" stroke-width="1" fill="none"/><rect x="22" y="26" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M24 28 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="70" y="24" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M72 26 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="118" y="30" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M120 32 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="46" y="66" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M48 68 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="96" y="68" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M98 70 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="19" y="23" width="15" height="15" fill="none" stroke="#1e88e5" stroke-width="1.6" stroke-dasharray="3 2"/></svg><figcaption>1 &middot; you draw a box around ONE</figcaption></figure><figure><svg viewBox="0 0 150 90" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="142" height="78" fill="none" stroke="#bbb" stroke-width="1"/><path d="M4 46 H60 M60 6 V84 M100 46 H146" stroke="#ccc" stroke-width="1" fill="none"/><rect x="22" y="26" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M24 28 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="26.5" cy="30.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="70" y="24" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M72 26 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="74.5" cy="28.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="118" y="30" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M120 32 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="122.5" cy="34.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="46" y="66" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M48 68 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="50.5" cy="70.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="96" y="68" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M98 70 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="100.5" cy="72.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/></svg><figcaption>2 &middot; Smart Plan finds the rest</figcaption></figure></div>`;
+  /* [206-C] the app BRAND, not the OCR probe: EverDue is the register app and
+     does not expose the Workspace as a product feature. */
+  function appIsEverDue(){
+    try{if(typeof FS_MS_DIR!=='undefined')return String(FS_MS_DIR).trim().toLowerCase()==='everdue';}catch(_){}
+    try{const m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m&&/everdue/i.test(m.content||''))return true;}catch(_){}
+    return /everdue/i.test(document.title||'');
+  }
+  function probeOcr(){
+    if(ocrOk!==null)return;
+    if(typeof fsOcrProbe!=='function'){ocrOk=false;return;}
+    try{fsOcrProbe().then(ok=>{ocrOk=!!ok;render();}).catch(()=>{ocrOk=false;render();});}catch(_){ocrOk=false;}
+  }
+  function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
+  function spDiscardGuarded(){
+    if(!session)return true;
+    if(session.candidates.length&&!session.committed&&!confirm('Discard this uncommitted Smart Plan review?'))return false;
+    discard();uiStep=1;return true;
+  }
+  function spClose(){const m=document.getElementById(MODAL_ID);if(m)m.style.display='none';}
+  function spSheetName(){
+    let site='';try{site=field(typeof fsSite!=='undefined'&&fsSite&&(fsSite.name||fsSite.siteName));}catch(_){}
+    return (site?site+' — ':'')+candidateLevelName();
+  }
+  /* Step 1's "Import a different plan..." fires Arc's own Import-sheet door
+     (the importsheet tile -> #btnOpenProj -> #projInput -> openAnyFile), which
+     already takes a PDF or a photo. The modal steps aside while Arc's picker
+     and crop screens run (they sit below it in z-order), and comes back to
+     step 1 when the sheet has changed - or when the picker was dismissed. */
+  function importPlanThenReturn(){
+    const btn=document.getElementById('btnOpenProj'),inp=document.getElementById('projInput');
+    if(!btn||typeof btn.onclick!=='function'){alert('The Import sheet tool is not available here.');return;}
+    const live=livePlanImage(),before=live?live.src:'';const t0=Date.now();let changed=false,focused=false,idleSince=0;
+    spClose();
+    const onChange=()=>{changed=true;};if(inp)inp.addEventListener('change',onChange);
+    const onFocus=()=>{focused=true;};window.addEventListener('focus',onFocus);
+    const shown=el=>{try{return !!(el&&(el.classList.contains('show')||(el.style.display&&el.style.display!=='none'))&&el.getBoundingClientRect().width>0);}catch(_){return false;}};
+    const busy=()=>shown(document.getElementById('fsRgnModal'))||shown(document.getElementById('photoModal'));
+    let iv=0;
+    const back=()=>{clearInterval(iv);if(inp)inp.removeEventListener('change',onChange);window.removeEventListener('focus',onFocus);uiStep=1;if(hostReady()&&workspaceOnScreen()){ensureModal().style.display='block';render();}};
+    iv=setInterval(()=>{
+      const now=livePlanImage(),src=now?now.src:'',t=Date.now();
+      if(src!==before){back();return;}                                   /* the sheet changed: back to step 1, naming it */
+      if(!changed&&focused&&t-t0>1500){back();return;}                   /* the file picker was dismissed */
+      if(changed&&t-t0>1500){if(busy())idleSince=0;else{if(!idleSince)idleSince=t;else if(t-idleSince>1500)back();}}   /* Arc's crop / photo screens closed without a new sheet */
+      if(t-t0>600000)back();
+    },300);
+    try{btn.onclick();}catch(e){back();alert(e.message||String(e));}
+  }
+  function spCaptionHtml(){
+    const picking=!!(session&&session.templatePick&&session.templatePick.active);
+    const pairing=!!(session&&session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source);
+    const txt=picking?'Drag a tight box around ONE detector here.':(pairing?'Now tap the matching point on THIS plan.':(session&&session.candidates.length?'Green = found. Amber = needs a look. Blue box = the one you showed.':'The plan on screen.'));
+    return '<div class="spCaption'+((picking||pairing)?' on':'')+'" data-sp="caption">'+escapeHtml(txt)+'</div>';
+  }
+  function spStepHead(){
+    const m=ensureModal(),el=m.querySelector('[data-sp="stepno"]');
+    if(el)el.textContent=`Step ${uiStep} of ${SP_STEPS.length} · ${SP_STEPS[uiStep-1]}`;
+  }
+  function spNav(left,opts){
+    opts=opts||{};
+    const nav=document.createElement('div');nav.className='spNav';
+    const back=document.createElement('button');back.className='btn';back.setAttribute('data-sp','back');back.textContent=uiStep===1?'Close':'Back';
+    back.onclick=()=>{
+      if(uiStep===1){if(spDiscardGuarded())spClose();return;}
+      if(uiStep===2){if(spDiscardGuarded()){ensureModal().style.display='block';render();}return;}
+      spGo(uiStep-1);
+    };
+    nav.appendChild(back);
+    if(opts.next){const nx=document.createElement('button');nx.className='btn'+(opts.nextPrimary?' spPrimary':'');nx.setAttribute('data-sp','next');nx.textContent=opts.next;nx.disabled=!!opts.nextDisabled;nx.onclick=()=>spGo(uiStep+1);nav.appendChild(nx);}
+    left.appendChild(nav);
+  }
+  function previewNoSession(){
+    const right=ensureModal().querySelector('[data-sp="right"]');
+    const live=livePlanImage();
+    if(!live){right.innerHTML='<div class="spHint">No plan is on screen yet. Use <b>Import a different plan…</b> to bring one in.</div>';return;}
+    right.innerHTML='<div style="font-weight:700;margin-bottom:8px">This is the plan Smart Plan will read</div><canvas data-sp="canvas" width="900" height="620"></canvas>';
+    const cv=right.querySelector('canvas'),ctx=cv.getContext('2d'),dims=currentDims();
+    const sw=dims.w||cv.width,sh=dims.h||cv.height,scale=Math.min(cv.width/sw,cv.height/sh),ox=(cv.width-sw*scale)/2,oy=(cv.height-sh*scale)/2;
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);try{ctx.drawImage(live,ox,oy,sw*scale,sh*scale);}catch(_){}
+  }
+
   function livePlanImage() {
     try {
       if (typeof img !== 'undefined' && img && ((img.naturalWidth || img.width) > 0)) return img;
@@ -1765,17 +1877,17 @@
   function preview() {
     const right=ensureModal().querySelector('[data-sp="right"]');
     const hasZone=!!(session&&session.zoneSource);
-    right.innerHTML='<div style="font-weight:700;margin-bottom:8px">Candidate preview</div><canvas data-sp="canvas" width="900" height="620"></canvas><div class="spHint" style="margin-top:8px">Preview draws from Arc already-decoded Workspace image. Teach Template: drag a tight box around one complete symbol. Alignment target points are picked here after the matching source point.</div>'+(hasZone?'<div class="spSourceCanvas"><div style="font-weight:700;margin:10px 0 8px">Zone-plan source</div><canvas data-sp="zone-canvas" width="900" height="620"></canvas><div class="spHint" style="margin-top:6px">Hatch teaching and source alignment points stay local to Smart Plan. The source image is downsampled to ≤2.5 MP and is never written into the Workspace or register.</div></div>':'');
+    right.innerHTML='<div style="font-weight:700;margin-bottom:8px">The plan</div><canvas data-sp="canvas" width="900" height="620"></canvas>'+spCaptionHtml()+''+(hasZone?'<div class="spSourceCanvas"><div style="font-weight:700;margin:10px 0 8px">The zone plan</div><canvas data-sp="zone-canvas" width="900" height="620"></canvas><div class="spCaption">Show hatching, draw zones and pick match points here. This sheet is never written into the plan or the register.</div></div>':'');
     const cv=right.querySelector('[data-sp="canvas"]'),ctx=cv.getContext('2d');const dims=currentDims();
     const geometry=()=>{const sw=dims.w||cv.width,sh=dims.h||cv.height,scale=Math.min(cv.width/sw,cv.height/sh);return {sw,sh,scale,ox:(cv.width-sw*scale)/2,oy:(cv.height-sh*scale)/2};};
     const drawAll=()=>{ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);const live=livePlanImage(),g=geometry();if(live){try{ctx.drawImage(live,g.ox,g.oy,g.sw*g.scale,g.sh*g.scale)}catch(_){}}
       session.zones.forEach(zc=>{if(zc.decision==='rejected')return;const z=zc.obj,pts=z.pts||[];if(pts.length<3)return;ctx.save();ctx.strokeStyle=zc.decision==='accepted'?'#7e57c2':'#ffb300';ctx.lineWidth=2;ctx.beginPath();pts.forEach((p,i)=>{const x=g.ox+p.x*g.scale,y=g.oy+p.y*g.scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke();ctx.restore();});
       session.candidates.forEach(c=>{if(c.decision==='rejected')return;const x=g.ox+c.obj.x*g.scale,y=g.oy+c.obj.y*g.scale;ctx.save();ctx.strokeStyle=c.meta&&c.meta.suspectStub?'#ff7043':(c.decision==='review'?'#ffb300':'#00a65a');ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.stroke();if(c.meta&&Array.isArray(c.meta.bbox)){const b=c.meta.bbox;ctx.globalAlpha=.7;ctx.strokeRect(g.ox+b[0]*g.scale,g.oy+b[1]*g.scale,b[2]*g.scale,b[3]*g.scale);}ctx.restore();});
       (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{ctx.save();ctx.fillStyle='#e040fb';ctx.strokeStyle='#fff';ctx.lineWidth=1;const x=g.ox+p.target.x*g.scale,y=g.oy+p.target.y*g.scale;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#e040fb';ctx.font='bold 12px sans-serif';ctx.fillText(`T${i+1}`,x+8,y-7);ctx.restore();});
-      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}};
+      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}const tb=session.taughtBox;if(tb&&!(p&&p.start)){ctx.save();ctx.strokeStyle='#1e88e5';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeRect(g.ox+tb[0]*g.scale,g.oy+tb[1]*g.scale,tb[2]*g.scale,tb[3]*g.scale);ctx.restore();}};
     drawAll();
     const mainPos=e=>{const r=cv.getBoundingClientRect(),sx=cv.width/r.width,sy=cv.height/r.height,g=geometry();return {canvas:{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy},plan:{x:((e.clientX-r.left)*sx-g.ox)/g.scale,y:((e.clientY-r.top)*sy-g.oy)/g.scale}};};
-    if(session.templatePick&&session.templatePick.active){cv.style.cursor='crosshair';cv.onpointerdown=e=>{const p=mainPos(e).canvas;cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);session.templatePick.start=p;session.templatePick.end=p;drawAll();};cv.onpointermove=e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;drawAll();};cv.onpointerup=async e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];render();try{await detectTemplate({type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox});}catch(err){if(session){session.detectBusy=false;session.detectStatus='';render();}alert(err.message||String(err));}};
+    if(session.templatePick&&session.templatePick.active){cv.style.cursor='crosshair';cv.onpointerdown=e=>{const p=mainPos(e).canvas;cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);session.templatePick.start=p;session.templatePick.end=p;drawAll();};cv.onpointermove=e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;drawAll();};cv.onpointerup=async e=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=mainPos(e).canvas;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){render();alert('Drag a box around the detector \u2014 that was a tap.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=3;render();};
     }else if(session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source){cv.style.cursor='crosshair';cv.onclick=e=>{const p=mainPos(e).plan;session.zoneAlign.pairs.push({source:session.zoneAlign.pending.source,target:p});session.zoneAlign.pending=null;updateZoneAlignment();render();};}
     if(hasZone){const zv=right.querySelector('[data-sp="zone-canvas"]'),zctx=zv.getContext('2d'),zs=session.zoneSource,zw=zs.width,zh=zs.height,zscale=Math.min(zv.width/zw,zv.height/zh),zox=(zv.width-zw*zscale)/2,zoy=(zv.height-zh*zscale)/2;zctx.fillStyle='#fff';zctx.fillRect(0,0,zv.width,zv.height);zctx.drawImage(zs.canvas,zox,zoy,zw*zscale,zh*zscale);
       session.zoneRegions.forEach(r=>{if(r.decision==='rejected')return;zctx.save();zctx.strokeStyle=r.decision==='accepted'?'#00a65a':'#ffb300';zctx.lineWidth=2;zctx.beginPath();r.pts.forEach((p,i)=>{const x=zox+p.x*zscale,y=zoy+p.y*zscale;i?zctx.lineTo(x,y):zctx.moveTo(x,y)});zctx.closePath();zctx.stroke();zctx.restore();});
@@ -1791,42 +1903,114 @@
 
   function render() {
     /* PASS 205 [205-B] - render() draws; only open() shows. A finishing OCR used to re-open the modal after Close. */
+    /* PASS 206 [206-B] - one step per screen. See uiStep above. */
     const m=ensureModal();const left=m.querySelector('[data-sp="left"]'),foot=m.querySelector('[data-sp="foot"]'),commitBtn=m.querySelector('[data-sp="commit"]');
+    if(ocrOk===null)probeOcr();
     if(!session){
+      uiStep=1;spStepHead();
       const b0=m.querySelector('[data-sp="bar"]'),c0=m.querySelector('[data-sp="cancel"]');if(b0)b0.style.display='none';if(c0)c0.style.display='none';
-      left.innerHTML=`<h3 style="margin-bottom:8px">Build a candidate plan, then review it before Arc saves anything</h3><p class="spHint">Teach one symbol and Smart Plan finds the rest, reads the printed addresses, checks them against the panel schedule and brings zones across from a zone plan. Everything stays a proposal until you press Commit.</p><div class="spActions"><button class="btn spPrimary" data-sp="start">Start from current plan</button><button class="btn" data-sp="import">Import candidate JSON</button></div><div class="spHint"><b>Safety rule:</b> candidates live only in Smart Plan memory. Detection, OCR and review do not add anything to <code>objects</code>, <code>levels</code>, <code>fsSite.plan</code> or the Asset Register until Commit.</div>`;
-      left.querySelector('[data-sp="start"]').onclick=()=>{try{start();}catch(e){alert(e.message||String(e));}};left.querySelector('[data-sp="import"]').onclick=()=>m.querySelector(`#${FILE_ID}`).click();m.querySelector('[data-sp="right"]').innerHTML='<div class="spHint">Start from the current Workspace, teach one symbol from the plan, review the detected candidates, then read printed IDs locally. Nothing is committed automatically.</div>';commitBtn.disabled=true;foot.textContent='No candidate session is active.';return;
+      const live=livePlanImage();
+      left.innerHTML=`<div class="spScreen"><h3>Smart Plan reads the plan that is on screen.</h3><p>Current sheet: <b data-sp="sheet">${escapeHtml(spSheetName())}</b></p><p>It finds every detector on it, reads the printed numbers and lets you check the lot before anything is saved.</p><button class="btn spPrimary spBig" data-sp="use" ${live?'':'disabled'}>Use this plan</button><button class="btn spQuiet" data-sp="importplan">Import a different plan…</button><p class="spHint">PDF or photo — both work. Nothing is written to the register until you press Commit at the end.</p></div>`;
+      left.querySelector('[data-sp="use"]').onclick=()=>{try{uiStep=2;start({name:candidateLevelName()});}catch(e){uiStep=1;alert(e.message||String(e));}};
+      left.querySelector('[data-sp="importplan"]').onclick=()=>importPlanThenReturn();
+      spNav(left);
+      previewNoSession();commitBtn.disabled=true;foot.textContent='Nothing has been started yet.';foot.title='';const d0=m.querySelector('[data-sp="discard"]');if(d0)d0.style.display='none';return;
     }
-    refreshIssues();const s=summary();let types=[];try{types=Object.keys(TYPE_MAP||{})}catch(_){types=['smoke','thermal']};const typeOptions=types.filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(arcTypeLabel(t))}</option>`).join('');
-    left.innerHTML=`<div class="spStats"><div class="spStat"><strong>${s.total}</strong><span>candidates</span></div><div class="spStat"><strong>${s.accepted}</strong><span>accepted</span></div><div class="spStat"><strong>${s.review}</strong><span>review</span></div><div class="spStat"><strong>${s.rejected}</strong><span>rejected</span></div><div class="spStat"><strong>${s.numbered}</strong><span>numbered</span></div></div>
-      <div class="spDetect"><div style="font-weight:700;margin-bottom:5px">Teach a symbol</div><div class="spDetectGrid"><select data-sp="dtype">${typeOptions}</select><select data-sp="signal"><option value="auto">Signal: Auto</option><option value="red">Signal: Red ink</option><option value="ink">Signal: Dark/colour ink</option></select><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"><label class="spCheck"><input data-sp="mirrors" type="checkbox"> Mirrors</label><button class="btn spPrimary" data-sp="teach">Teach template</button></div><div class="spHint">Drag a tight rectangle around one complete example on the preview. Photo scales: 0.95/1.0/1.05/1.15; the unsafe 0.85 pass stays removed. Possible one-sided leader stubs are sent to Review, never auto-deleted.</div></div>
-      <div class="spRecon"><div style="font-weight:700">Panel schedule & reconciliation</div><div class="spHint">Import the panel/device schedule before committing. Exact loop + device is the primary identity; a unique device number may match only when loop is blank. Schedule rows never bypass Review.</div><div class="spActions"><button class="btn" data-sp="schedule">Import schedule</button><button class="btn" data-sp="reconcile">Reconcile again</button></div><div data-sp="recon"></div></div>
-      <div class="spZoneWork"><div style="font-weight:700">Separate zone plan transfer</div><div class="spHint">Load a photographed/image/PDF zone plan locally, teach each coloured hatch or draw a source polygon, keep the real region(s), then pick ≥3 matching source/Workspace points. A similarity fit must pass the RMSE gate before zones enter Review.</div><div class="spActions"><button class="btn" data-sp="zone-source">Load zone plan</button><button class="btn" data-sp="zone-detect">Find hatch regions</button><button class="btn" data-sp="zone-pair">Add alignment pair</button><button class="btn" data-sp="zone-transfer">Transfer kept zones</button></div><div class="spZoneGrid"><input data-sp="zone-no" placeholder="Zone" maxlength="5"><input data-sp="zone-window" type="number" min="5" step="2" placeholder="Window"><input data-sp="zone-threshold" type="number" min="0.001" max="0.2" step="0.001" placeholder="Density: Auto"><button class="btn" data-sp="zone-sample">Teach hatch sample</button><button class="btn" data-sp="zone-poly">Draw polygon</button><button class="btn" data-sp="zone-finish">Finish polygon</button><button class="btn" data-sp="zone-undo-pair">Undo pair</button></div><div data-sp="zone-work-status"></div><div data-sp="zone-regions"></div></div>
-      <div class="spActions"><button class="btn" data-sp="import">Replace candidates</button><button class="btn" data-sp="ocr">Read printed IDs</button><button class="btn" data-sp="safe">Accept all without issues</button><button class="btn" data-sp="review">Show review only</button><button class="btn" data-sp="all">Show all</button></div><div data-sp="zones"></div><div data-sp="rows"></div>`;
-    left.querySelector('[data-sp="import"]').onclick=()=>m.querySelector(`#${FILE_ID}`).click();
-    left.querySelector('[data-sp="schedule"]').onclick=()=>m.querySelector(`#${SCHEDULE_FILE_ID}`).click();
-    left.querySelector('[data-sp="reconcile"]').onclick=()=>{try{reconcileSchedule(true);render();}catch(e){alert(e.message||String(e));}};
-    left.querySelector('[data-sp="reconcile"]').disabled=!session.schedule.length;
-    left.querySelector('[data-sp="zone-source"]').onclick=()=>m.querySelector(`#${ZONE_SOURCE_FILE_ID}`).click();
-    left.querySelector('[data-sp="zone-detect"]').onclick=()=>{try{detectZoneSourceRegions();}catch(e){alert(e.message||String(e));}};
-    left.querySelector('[data-sp="zone-pair"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}session.zoneAlign.pending={source:null};session.zoneTool=null;session.zoneStatus='Click a source reference point on the zone plan, then the same point on the Workspace preview.';render();};
-    left.querySelector('[data-sp="zone-transfer"]').onclick=()=>{try{transferZoneRegions();}catch(e){alert(e.message||String(e));}};
-    left.querySelector('[data-sp="zone-sample"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}const z=normaliseScheduleZone(left.querySelector('[data-sp="zone-no"]').value),w=Number(left.querySelector('[data-sp="zone-window"]').value),rawT=field(left.querySelector('[data-sp="zone-threshold"]').value),t=rawT?Number(rawT):null;if(!z){alert('Enter a zone number first.');return;}session.zoneTool={mode:'sample',zone:z,window:Number.isFinite(w)&&w>0?w:null,threshold:Number.isFinite(t)&&t>0?t:null,start:null,end:null};session.zoneAlign.pending=null;session.zoneStatus=`Drag a box across several hatch strokes for Zone ${z} on the source preview.`;render();};
-    left.querySelector('[data-sp="zone-poly"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}const z=normaliseScheduleZone(left.querySelector('[data-sp="zone-no"]').value);if(!z){alert('Enter a zone number first.');return;}session.zoneTool={mode:'polygon',zone:z,points:[]};session.zoneAlign.pending=null;session.zoneStatus=`Click the corners of Zone ${z} on the source plan, then press Finish polygon.`;render();};
-    left.querySelector('[data-sp="zone-finish"]').onclick=()=>{try{if(!session.zoneTool||session.zoneTool.mode!=='polygon')throw new Error('Start Draw polygon first.');const t=session.zoneTool;session.zoneTool=null;addManualZoneRegion(t.zone,t.points);session.zoneStatus=`Manual Zone ${t.zone} polygon added for review.`;render();}catch(e){alert(e.message||String(e));}};
-    left.querySelector('[data-sp="zone-undo-pair"]').onclick=()=>{if(session.zoneAlign.pairs.length)session.zoneAlign.pairs.pop();session.zoneAlign.pending=null;updateZoneAlignment();render();};
-    const zoneWin=left.querySelector('[data-sp="zone-window"]');if(zoneWin&&!zoneWin.value&&session.zoneSource)zoneWin.value=odd(Math.max(9,ZONE_BASE_WINDOW_ORIGINAL_PX*(session.zoneSource.scale||1)));
-    left.querySelector('[data-sp="teach"]').onclick=()=>{const type=left.querySelector('[data-sp="dtype"]').value,signal=left.querySelector('[data-sp="signal"]').value,threshold=Number(left.querySelector('[data-sp="threshold"]').value)||DETECT_DEFAULT_THRESHOLD,includeMirrors=left.querySelector('[data-sp="mirrors"]').checked;session.templatePick={active:true,type,signal,threshold,includeMirrors,start:null,end:null};render();};
-    left.querySelector('[data-sp="ocr"]').onclick=async()=>{try{await recognisePrintedIdentities();}catch(e){if(session){session.ocrBusy=false;session.ocrStatus='';render();}alert(e.message||String(e));}};left.querySelector('[data-sp="ocr"]').disabled=session.ocrBusy||session.detectBusy||session.committed||!session.candidates.length;
-    left.querySelector('[data-sp="teach"]').disabled=session.detectBusy||session.ocrBusy||session.committed;
-    /* PASS 205 [205-D] - same probe as Arc's own scan button: no ./ocr/, no OCR. EverDue never ships it. */
-    (function(){const ob=left.querySelector('[data-sp="ocr"]');if(!ob)return;ob.disabled=session.detectBusy||session.ocrBusy||session.committed;
-      if(typeof fsOcrProbe==='function'){fsOcrProbe().then(ok=>{if(!ok){const b2=left.querySelector('[data-sp="ocr"]');if(b2){b2.disabled=true;b2.title='This app does not include the label reader';}}}).catch(()=>{});}})();
-    left.querySelector('[data-sp="safe"]').onclick=()=>{session.candidates.forEach(c=>{if(!c.issues.length)c.decision='accepted'});render();};left.querySelector('[data-sp="review"]').onclick=()=>renderRows(true);left.querySelector('[data-sp="all"]').onclick=()=>renderRows(false);
-    renderReconciliation();renderZoneWorkbench();renderZones();renderRows(false);preview();const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length,hiddenAccepted=session.candidates.some(c=>c.decision==='accepted'&&hiddenTypesNow().has(field(c.obj.type)));commitBtn.disabled=session.committed||session.ocrBusy||session.detectBusy||!s.accepted||!!blockers||!!s.zoneReview||hiddenAccepted;
+    /* a programmatic stage() with candidates (the harness door that stays) lands on Review */
+    if(!session.uiFlow&&!session.uiSeen&&session.candidates.length){session.uiSeen=true;uiStep=6;}
+    if(session.committed)uiStep=7;
+    spStepHead();{const d1=m.querySelector('[data-sp="discard"]');if(d1)d1.style.display='';}
+    refreshIssues();const s=summary();let types=[];try{types=Object.keys(TYPE_MAP||{})}catch(_){types=['smoke','thermal']};
+    const teach=session.teach||{};
+    const typeOptions=types.filter(Boolean).map(t=>`<option value="${escapeHtml(t)}"${teach.type===t?' selected':''}>${escapeHtml(arcTypeLabel(t))}</option>`).join('');
+    const busy=!!(session.detectBusy||session.ocrBusy);
+    let html='';
+    if(uiStep===2){
+      const picking=!!(session.templatePick&&session.templatePick.active);
+      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':'Draw the box on the plan'}</button>${picking?'<div class="spWarn">Drag on the plan preview: start at one corner of the detector, finish at the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
+    }else if(uiStep===3){
+      const t=session.teach;const done=session.findDone;
+      const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
+      const reader=ocrOk===false?'<div class="spWarn" data-sp="noocr">This app does not include the label reader — the numbers are typed in at Review.</div>':'';
+      const btnLabel=ocrOk===false?'Find the rest':'Find the rest and read their numbers';
+      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> detector${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}.${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
+    }else if(uiStep===4){
+      html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
+    }else if(uiStep===5){
+      const z=session.zoneSource;
+      html=`<div class="spScreen"><h3>Zone plan <span class="spHint">(optional)</span></h3><p>Zones drawn on a separate sheet? Load it and Smart Plan carries the zones across onto this plan.</p><button class="btn ${z?'':'spPrimary'} spBig" data-sp="zone-source">${z?'Load a different zone plan…':'Load the zone plan…'}</button>${z?`<div class="spZoneWork"><div class="spHint" style="margin-bottom:6px">1 · Tell Smart Plan what each zone looks like — type the zone number, then either show it a patch of that zone's hatching or draw the zone by hand.</div><div class="spZoneGrid"><input data-sp="zone-no" placeholder="Zone" maxlength="5" inputmode="numeric"><input data-sp="zone-window" type="number" min="5" step="2" placeholder="Window"><input data-sp="zone-threshold" type="number" min="0.001" max="0.2" step="0.001" placeholder="Density: Auto"><button class="btn" data-sp="zone-sample">Show a patch of hatching</button><button class="btn" data-sp="zone-poly">Draw the zone by hand</button><button class="btn" data-sp="zone-finish">Finish the drawn zone</button><button class="btn" data-sp="zone-detect">Find the coloured zones</button></div><div class="spHint" style="margin:10px 0 6px">2 · Match three points that appear on BOTH plans (a corner, a door, a column) so the zones land in the right place.</div><div class="spActions"><button class="btn" data-sp="zone-pair">Match a point on both plans</button><button class="btn" data-sp="zone-undo-pair">Undo last match</button></div><div class="spHint" style="margin:10px 0 6px">3 · Bring the kept zones across. They arrive at Review.</div><button class="btn spPrimary spBig" data-sp="zone-transfer">Bring the zones across</button><div data-sp="zone-work-status"></div><div data-sp="zone-regions"></div></div>`:''}<div data-sp="zones"></div></div>`;
+    }else if(uiStep===6){
+      html=`<div class="spScreen"><h3>Review</h3><p>Every row is a detector Smart Plan found. Fix a number, change a type, or reject a row. Rows with a flag need a look.</p><div class="spStats"><div class="spStat"><strong>${s.total}</strong><span>found</span></div><div class="spStat"><strong>${s.accepted}</strong><span>accepted</span></div><div class="spStat"><strong>${s.review}</strong><span>to check</span></div><div class="spStat"><strong>${s.rejected}</strong><span>rejected</span></div><div class="spStat"><strong>${s.numbered}</strong><span>numbered</span></div></div><div class="spActions"><button class="btn" data-sp="safe">Accept all without issues</button><button class="btn" data-sp="review">Show flagged only</button><button class="btn" data-sp="all">Show all</button>${ocrOk===false?'':'<button class="btn" data-sp="ocr">Read printed numbers</button>'}</div><div data-sp="zones"></div><div class="spColHead"><span></span><span>Type</span><span>Zone</span><span>Loop</span><span>Device</span><span>Decision</span></div><div data-sp="rows"></div></div>`;
+    }else{
+      const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length;
+      html=`<div class="spScreen"><h3>Commit</h3>${session.committed?`<div class="spDone">Committed. ${s.total} candidate(s) were reviewed. You can close Smart Plan.</div>`:`<p><b>${s.accepted}</b> detector${s.accepted===1?'':'s'}${s.zoneAccepted?` and <b>${s.zoneAccepted}</b> zone${s.zoneAccepted===1?'':'s'}`:''} will be added to the plan.${s.review?` <b>${s.review}</b> still at Review will be left out.`:''}${s.rejected?` ${s.rejected} rejected.`:''}</p>${blockers?`<div class="spWarn">${blockers} accepted row${blockers===1?' has':'s have'} a blocking issue — go Back to Review and fix or reject ${blockers===1?'it':'them'}.</div>`:''}${s.zoneReview?`<div class="spWarn">${s.zoneReview} zone${s.zoneReview===1?' is':'s are'} still at Review — accept or reject ${s.zoneReview===1?'it':'them'} on the Zone plan step.</div>`:''}<p>Nothing has been written yet. Commit adds them in one step — one Undo takes the lot back out.</p><button class="btn spPrimary spBig" data-sp="commitbig">Commit to Workspace</button>`}</div>`;
+    }
+    left.innerHTML=html;
+    /* ---- wiring, by step ---- */
+    const q=sel=>left.querySelector(sel);
+    if(uiStep===2){
+      const dt=q('[data-sp="dtype"]');if(dt&&teach.type)dt.value=teach.type;
+      q('[data-sp="teach"]').onclick=()=>{const type=dt.value,signal=(q('[data-sp="signal"]')||{}).value||'auto',threshold=Number((q('[data-sp="threshold"]')||{}).value)||DETECT_DEFAULT_THRESHOLD,includeMirrors=!!(q('[data-sp="mirrors"]')||{}).checked;session.templatePick={active:true,type,signal,threshold,includeMirrors,start:null,end:null};render();try{if(window.innerWidth<=820){const rp=m.querySelector('[data-sp="right"]');if(rp&&rp.scrollIntoView)rp.scrollIntoView({behavior:'smooth',block:'start'});}}catch(_){}};
+      const sg=q('[data-sp="signal"]');if(sg&&teach.signal)sg.value=teach.signal;const th=q('[data-sp="threshold"]');if(th&&teach.threshold)th.value=teach.threshold;const mr=q('[data-sp="mirrors"]');if(mr)mr.checked=!!teach.includeMirrors;
+      spNav(left,{next:'Next: Find and read',nextDisabled:!session.teach});
+    }else if(uiStep===3){
+      q('[data-sp="findread"]').onclick=async()=>{
+        const t=session.teach;if(!t)return;session.uiFlow=true;session.findDone=null;
+        try{
+          const r=await detectTemplate({type:t.type,signal:t.signal,threshold:t.threshold,includeMirrors:t.includeMirrors,bbox:t.bbox});
+          if(!session||r===null)return;                       /* cancelled: nothing was added */
+          const kept=r&&r.summary?r.summary.kept:0;let read=null;
+          if(ocrOk!==false&&session.candidates.some(c=>c.decision!=='rejected')){
+            const o=await recognisePrintedIdentities();
+            if(!session)return;
+            if(o===null){session.findDone={kept,read:null};render();return;}
+            read=o&&o.summary?(o.summary.applied||0):0;
+          }
+          if(session){session.findDone={kept,read};render();}
+        }catch(e){if(session){session.detectBusy=false;session.ocrBusy=false;session.detectStatus='';session.ocrStatus='';render();}alert(e.message||String(e));}
+      };
+      q('[data-sp="another"]').onclick=()=>spGo(2);
+      spNav(left,{next:session.findDone?'Next: Panel schedule':'Skip to Review',nextPrimary:!!session.findDone,nextDisabled:busy});
+      if(!session.findDone){const nx=left.querySelector('[data-sp="next"]');if(nx)nx.onclick=()=>spGo(6);}
+    }else if(uiStep===4){
+      q('[data-sp="schedule"]').onclick=()=>m.querySelector(`#${SCHEDULE_FILE_ID}`).click();
+      const rc=q('[data-sp="reconcile"]');if(rc)rc.onclick=()=>{try{reconcileSchedule(true);render();}catch(e){alert(e.message||String(e));}};
+      renderReconciliation();
+      spNav(left,{next:session.schedule.length?'Next: Zone plan':'Skip',nextPrimary:!!session.schedule.length});
+    }else if(uiStep===5){
+      q('[data-sp="zone-source"]').onclick=()=>m.querySelector(`#${ZONE_SOURCE_FILE_ID}`).click();
+      if(session.zoneSource){
+        q('[data-sp="zone-detect"]').onclick=()=>{try{detectZoneSourceRegions();}catch(e){alert(e.message||String(e));}};
+        q('[data-sp="zone-pair"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}session.zoneAlign.pending={source:null};session.zoneTool=null;session.zoneStatus='Tap a reference point on the zone plan, then the same point on the plan preview.';render();};
+        q('[data-sp="zone-transfer"]').onclick=()=>{try{transferZoneRegions();}catch(e){alert(e.message||String(e));}};
+        q('[data-sp="zone-sample"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}const z=normaliseScheduleZone(q('[data-sp="zone-no"]').value),w=Number(q('[data-sp="zone-window"]').value),rawT=field(q('[data-sp="zone-threshold"]').value),t=rawT?Number(rawT):null;if(!z){alert('Enter a zone number first.');return;}session.zoneTool={mode:'sample',zone:z,window:Number.isFinite(w)&&w>0?w:null,threshold:Number.isFinite(t)&&t>0?t:null,start:null,end:null};session.zoneAlign.pending=null;session.zoneStatus=`Drag a box across several hatch strokes for Zone ${z} on the zone plan.`;render();};
+        q('[data-sp="zone-poly"]').onclick=()=>{if(!session.zoneSource){alert('Load a separate zone plan first.');return;}const z=normaliseScheduleZone(q('[data-sp="zone-no"]').value);if(!z){alert('Enter a zone number first.');return;}session.zoneTool={mode:'polygon',zone:z,points:[]};session.zoneAlign.pending=null;session.zoneStatus=`Tap the corners of Zone ${z} on the zone plan, then press Finish the drawn zone.`;render();};
+        q('[data-sp="zone-finish"]').onclick=()=>{try{if(!session.zoneTool||session.zoneTool.mode!=='polygon')throw new Error('Start Draw the zone by hand first.');const t=session.zoneTool;session.zoneTool=null;addManualZoneRegion(t.zone,t.points);session.zoneStatus=`Manual Zone ${t.zone} polygon added for review.`;render();}catch(e){alert(e.message||String(e));}};
+        q('[data-sp="zone-undo-pair"]').onclick=()=>{if(session.zoneAlign.pairs.length)session.zoneAlign.pairs.pop();session.zoneAlign.pending=null;updateZoneAlignment();render();};
+        const zoneWin=q('[data-sp="zone-window"]');if(zoneWin&&!zoneWin.value&&session.zoneSource)zoneWin.value=odd(Math.max(9,ZONE_BASE_WINDOW_ORIGINAL_PX*(session.zoneSource.scale||1)));
+        renderZoneWorkbench();
+      }
+      renderZones();
+      spNav(left,{next:session.zoneSource?'Next: Review':'Skip',nextPrimary:!!session.zoneSource});
+    }else if(uiStep===6){
+      q('[data-sp="safe"]').onclick=()=>{session.candidates.forEach(c=>{if(!c.issues.length)c.decision='accepted'});render();};q('[data-sp="review"]').onclick=()=>renderRows(true);q('[data-sp="all"]').onclick=()=>renderRows(false);
+      const ob=q('[data-sp="ocr"]');
+      if(ob){ob.onclick=async()=>{try{await recognisePrintedIdentities();}catch(e){if(session){session.ocrBusy=false;session.ocrStatus='';render();}alert(e.message||String(e));}};ob.disabled=session.ocrBusy||session.detectBusy||session.committed||!session.candidates.length;
+        /* PASS 205 [205-D] - same probe as Arc's own scan button: no ./ocr/, no OCR. EverDue never ships it. */
+        if(typeof fsOcrProbe==='function'){fsOcrProbe().then(ok=>{if(!ok){const b2=left.querySelector('[data-sp="ocr"]');if(b2){b2.disabled=true;b2.title='This app does not include the label reader';}}}).catch(()=>{});}}
+      renderZones();renderRows(false);
+      spNav(left,{next:'Next: Commit',nextPrimary:true,nextDisabled:busy});
+    }else{
+      const cb=q('[data-sp="commitbig"]');if(cb)cb.onclick=()=>commitBtn.click();
+      spNav(left);
+    }
+    preview();const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length,hiddenAccepted=session.candidates.some(c=>c.decision==='accepted'&&hiddenTypesNow().has(field(c.obj.type)));commitBtn.disabled=session.committed||session.ocrBusy||session.detectBusy||!s.accepted||!!blockers||!!s.zoneReview||hiddenAccepted;
+    const cbig=q('[data-sp="commitbig"]');if(cbig)cbig.disabled=commitBtn.disabled;
     const rec=s.reconciliation?` • reconcile M ${s.reconciliation.MATCH||0} / X ${s.reconciliation.MISMATCH||0} / registered ${s.reconciliation.ALREADY_IN_REGISTER||0} / missing ${s.reconciliation.MISSING_ON_PLAN||0} / plan-only ${s.reconciliation.PLAN_ONLY||0}`:'';
     const ocr=s.ocr?` • OCR ${s.ocr.applied||0}/${s.total} applied, +${(s.ocr.offsetRecovered||0)+(s.ocr.quadrantRecovered||0)} retry, cap ${s.ocr.capPx||60}px`:'';const det=s.detection?` • detect ${s.detection.kept||0} kept / ${s.detection.stubFlags||0} stub flags / ${(s.detection.workPixels/1e6).toFixed(1)} MP`:'';const zf=s.zoneSource&&s.zoneSource.rmse!=null?` • zone fit ${Number(s.zoneSource.rmse).toFixed(1)}px`:'';
-    foot.textContent=session.committed?`Committed. ${s.total} candidate(s) were reviewed.`:(session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):`Temporary only • zones ${s.zoneAccepted}/${s.zones} accepted${s.zoneReview?` (${s.zoneReview} review)`:''} • ${s.errors} blocking issue(s) • ${s.warnings} review flag(s)${det}${ocr}${zf}${rec}`));
+    /* [206-B] the footer says it in plain words; the numbers a developer wants are the tooltip */
+    foot.title=`zones ${s.zoneAccepted}/${s.zones} accepted${s.zoneReview?` (${s.zoneReview} review)`:''} • ${s.errors} blocking issue(s) • ${s.warnings} review flag(s)${det}${ocr}${zf}${rec}`;
+    foot.textContent=session.committed?`Committed. ${s.total} candidate(s) were reviewed.`:(session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):`Candidates stay temporary until Commit. ${s.total} found · ${s.accepted} accepted · ${s.review} to check${s.rejected?` · ${s.rejected} rejected`:''}${s.zones?` · ${s.zoneAccepted}/${s.zones} zones`:''}${s.errors?` · ${s.errors} blocking`:''}`));
     /* [205-A] progress + Cancel only while something runs; Discard is held until it stops. */
     const spBusy=!!(session.detectBusy||session.ocrBusy),spBar=m.querySelector('[data-sp="bar"]'),spCancel=m.querySelector('[data-sp="cancel"]'),spDiscard=m.querySelector('[data-sp="discard"]');
     if(spBar){spBar.style.display=spBusy&&session.progress&&session.progress.total?'inline-block':'none';if(session.progress&&session.progress.total)spBar.value=Math.round(100*session.progress.done/session.progress.total);}
@@ -1836,7 +2020,7 @@
 
   function renderReconciliation(){
     if(!session)return;const m=ensureModal(),box=m.querySelector('[data-sp="recon"]');if(!box)return;
-    if(!session.schedule.length){box.innerHTML='<div class="spHint">No schedule loaded. CSV/TSV/TXT/JSON are supported directly; XLSX uses Arc\'s existing annuals parser when available.</div>';return;}
+    if(!session.schedule.length){box.innerHTML='<div class="spHint">No device list loaded yet.</div>';return;}
     const r=session.scheduleReport||reconcileSchedule(false),q=r.summary;
     box.innerHTML=`<div class="spReconGrid"><div class="spReconCell"><strong>${q.MATCH}</strong><span class="spHint">MATCH</span></div><div class="spReconCell"><strong>${q.MISMATCH}</strong><span class="spHint">MISMATCH</span></div><div class="spReconCell"><strong>${q.ALREADY_IN_REGISTER||0}</strong><span class="spHint">ALREADY IN REGISTER</span></div><div class="spReconCell"><strong>${q.MISSING_ON_PLAN}</strong><span class="spHint">MISSING ON PLAN</span></div><div class="spReconCell"><strong>${q.PLAN_ONLY}</strong><span class="spHint">PLAN ONLY</span></div></div><div class="spHint" style="margin-top:7px">${escapeHtml(session.scheduleSource||'schedule')} • ${q.totalSchedule} schedule row(s) • ${q.totalPlan} non-rejected plan candidate(s)</div>`;
     if(r.mismatch.length){const lines=r.mismatch.slice(0,6).map(x=>`${x.row.loop?`L${x.row.loop}.D`:''}${x.row.dev}: ${x.reasons.join(', ')}`);box.innerHTML+=`<div class="spHint" style="color:#ffb3a7;margin-top:6px">Review: ${escapeHtml(lines.join(' · '))}${r.mismatch.length>6?' …':''}</div>`;}
@@ -1893,21 +2077,25 @@
       const bar=document.getElementById('topbar');if(!bar)return false;const r=bar.getBoundingClientRect();return r.width>0&&r.height>0;}catch(_){return false;}
   }
   function open() {
+    /* PASS 206 [206-C] - W206-C, his words: "EverDue doesn't have the workspace so it can't have the smart plan?" Hidden there entirely. */
+    if(appIsEverDue()){alert('Smart Plan is part of the Arc Adapt Workspace.');return;}
     if(!hostReady()||!workspaceOnScreen()){alert('Open a Workspace before starting Smart Plan.');return;}
     ensureModal().style.display='block'; render();
   }
 
   function installButton() {
-    if(document.getElementById(BTN_ID))return;
-    const bar=document.getElementById('topbar'); if(!bar)return;
-    const b=document.createElement('button');b.className='btn';b.id=BTN_ID;b.title='Smart Plan — build a reviewed asset plan from drawings and schedules';b.textContent='Smart Plan';b.onclick=open;
-    const anchor=document.getElementById('fsTestBtn'); if(anchor&&anchor.parentNode===bar)anchor.insertAdjacentElement('afterend',b);else bar.appendChild(b);
+    /* PASS 206 [206-A] - W206-A: "it should go into Tools". The top-bar button
+       is gone; the tile is in index.html's TOOLS_TAB (id "smartplan") and calls
+       open(). Only the Back hook is installed here now. In EverDue [206-C]
+       there is no tile and open() refuses; the hook is harmless and stays. */
+    const stale=document.getElementById(BTN_ID);if(stale&&stale.parentNode)stale.parentNode.removeChild(stale);
+    /* the ./ocr/ probe waits for the first open(): a HEAD at boot is a 404 on every EverDue load (test_p188 Z0) */
     /* PASS 205 [205-C] - Back to the register ends the session. Candidates are
        staged against the level that was open; nothing of theirs may survive into
        the register shell, and the modal must not sit over it. Capture phase so
        it runs before Arc's own handler tears the workspace down. */
     const back=document.getElementById('fsBack');
-    if(back&&!back.__spHooked){back.__spHooked=true;back.addEventListener('click',()=>{try{cancelActiveOperation();}catch(_){}if(session)discard();const mm=document.getElementById(MODAL_ID);if(mm)mm.style.display='none';},true);}
+    if(back&&!back.__spHooked){back.__spHooked=true;back.addEventListener('click',()=>{try{cancelActiveOperation();}catch(_){}if(session)discard();uiStep=1;const mm=document.getElementById(MODAL_ID);if(mm)mm.style.display='none';},true);}
   }
 
   function maxCanvasPx(){try{return typeof FS_MAX_CANVAS_PX!=='undefined'?FS_MAX_CANVAS_PX:MAX_CANVAS_FALLBACK}catch(_){return MAX_CANVAS_FALLBACK}}

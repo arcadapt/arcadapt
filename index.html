@@ -764,7 +764,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.184 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.185 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -896,7 +896,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.184 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.185 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1995,7 +1995,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="fsResFade"> Colour-code the client list by due dates</label>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <span style="flex:1;font-size:13.5px">Open sites in maps with</span>
-      <select id="fsMapsApp" style="background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px">
+      <select id="fsMapsApp" style="background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px 30px 7px 9px;width:auto;flex:0 0 auto;max-width:56%">
         <option value="auto">Device default</option>
         <option value="google">Google Maps</option>
         <option value="waze">Waze</option>
@@ -2499,7 +2499,13 @@ const TOOLS_TAB = [
      Importing a PDF page was the one entry point that was not a tool. */
   { id:"fitall",      label:"Fit all",      icon:"⤡" },
   { id:"sitenotes",   label:"Site notes",   icon:"📝" },
-  { id:"importsheet", label:"Import sheet", icon:"📄" }
+  { id:"importsheet", label:"Import sheet", icon:"📄" },
+  /* PASS 206 [206-A] W206-A - Smart Plan left the top bar for the Tools tab.
+     Reece: "it should go into Tools, but perhaps make its tab stand out - I'll
+     send you something for inspiration." The inspiration has not arrived, so
+     this is the plain tile style on purpose (walk sheet box). Gated like every
+     other tile with fsModOn("wsTools.smartplan"). */
+  { id:"smartplan", label:"Smart Plan", icon:"\u2728", full:"Smart Plan reads the plan on screen: show it one detector, it finds the rest, reads the numbers and lets you check them before anything is saved" }
 ];
 const MARKUP_TOOLS = [
   { id:"pen",     label:"Pen",         icon:"✏️" },
@@ -7437,6 +7443,7 @@ function buildPalette() {
       if (t.id === "fitall") { document.getElementById("btnFit").onclick(); return; }
       if (t.id === "sitenotes") { document.getElementById("btnNotes").onclick(); return; }
       if (t.id === "importsheet") { document.getElementById("btnOpenProj").onclick(); return; }
+      if (t.id === "smartplan") { if (window.ArcSmartPlan) ArcSmartPlan.open(); else alert("Smart Plan is still loading \u2014 try again in a moment."); return; }
       if (t.id !== "hatch" && MODIFY_TOOLS.some(m => m.id === t.id)) { modifyAction(t.id); return; }
       fsToolToggle(t.id);      /* [91-C2] press again to put it down */
     };
@@ -26001,7 +26008,7 @@ function fsTodayOpenSite(e) {
 }
 function fsTodayHtml(d) {
   const hr = new Date().getHours();
-  const who = (typeof fsWho === "function" && fsWho()) ? ", " + fsEsc(fsWho().split(" ")[0]) : "";
+  const who = (typeof fsGreetName === "function" && fsGreetName()) ? ", " + fsEsc(fsGreetName()) : "";   /* PASS 206 [206-D] R-184 - only a Settings / sign-in name greets */
   const greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
   const stops = d.stops;
   const planOn = typeof fsModOn !== "function" || fsModOn("planner");
@@ -28670,9 +28677,8 @@ function fsTestedWho() {
   if (who) return who;
   const t = prompt("Your name — it goes on the record, so the site history says who marked it tested.");
   if (t === null) return null;
-  const v = t.trim();
+  const v = fsNameSet(t);   /* PASS 206 [206-D] R-184 - the one seam; refused = not recorded */
   if (!v) return null;
-  try { localStorage.setItem("fs-user", v); } catch (e2) {}
   return v;
 }
 /* PASS 99 [P99-1] - THE TECHNICIAN'S DATE IS HIS DATE, NOT UTC'S.
@@ -28952,7 +28958,7 @@ function fsHistModalSave() {
   const tech = document.getElementById("fsHmTech").value.trim();
   const obs = document.getElementById("fsHmObs").value.trim();
   if (!date) { alert("Pick the date the test was done."); return; }
-  if (tech) try { localStorage.setItem("fs-user", tech); } catch (e2) {}
+  if (tech) fsNameSet(tech, { quiet: true });   /* PASS 206 [206-D] R-184 - the record keeps what was typed; the DEVICE name only takes a real name */
   s2.history = s2.history || [];
   if (fsHistTarget) {
     const rec = fsHistTarget, oldMode = rec.mode, oldDate = (rec.finished || "").slice(0, 10);
@@ -29095,10 +29101,10 @@ document.getElementById("fsDemoBtn").onclick = () => {
 document.getElementById("fsExportReg").onclick = async () => {
   if (!fsRegister) return;
   let who = fsWho();   /* PASS 100 [W97-14] - the signed-in seam, not raw localStorage */
-  if (!who) {
-    who = window.prompt("Your name (stamped on saves):", "") || "";
-    try { localStorage.setItem("fs-user", who); } catch (e) {}
-  }
+  /* PASS 206 [206-D] R-184 - no window prompt: its one-line box read as "name this file" and
+     the answer became the greeting. fsNameAsk says what the name is for and
+     goes through the seam. */
+  if (!who) who = await fsNameAsk();
   fsRegister.updated = new Date().toISOString().slice(0, 10);
   fsRegister.savedBy = who;
   fsActLog("Register saved", "file");
@@ -29467,7 +29473,7 @@ function fsRenderTest() {
     box.innerHTML = html;
     document.querySelectorAll(".fsModePick").forEach(b => b.onclick = () => {
       const tech = document.getElementById("fsTechName").value.trim();
-      if (tech) try { localStorage.setItem("fs-user", tech); } catch (e) {}
+      if (tech) fsNameSet(tech, { quiet: true });   /* PASS 206 [206-D] R-184 */
       fsSession = { mode: b.dataset.mode, started: new Date().toISOString(), tech: tech, results: {}, obs: "" };
       fsSaveSession();
       fsRenderTest();
@@ -30592,7 +30598,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v192";
+const FS_BUILD = "aa-v193";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -34359,6 +34365,73 @@ function fsWho() {
   try { return (sessionStorage.getItem("fs-user") || localStorage.getItem("fs-user") || "").trim(); }
   catch (e) { return ""; }
 }
+/* PASS 206 [206-D] R-184 - "GOOD AFTERNOON, DOWNLOADED". The Today greeting
+   read the first word of fs-user, and fs-user was written unvalidated by four
+   paths: the mark-tested prompt, the history modal's tech field, the register
+   export's stamped-on-saves prompt, and the test-session Done-by field. The three apps share ONE ORIGIN (arcadapt.github.io), so a value typed
+   in EverDue lands in Arc Adapt's greeting. His device held "downloaded everdue
+   copy" - a phrase that appears nowhere in the code and that he says he never
+   typed; the export prompt reads like "name this file" and that is the likeliest
+   door. So: ONE seam every fs-user write goes through, a name test in front of
+   it, and the greeting only from a name that was set through Settings or
+   sign-in (those carry an fs-auth record; a one-off prompt never does). */
+function fsNameLooksReal(v) {
+  v = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  if (!v || v.length > 40) return false;
+  if (/[\\\/:*?"<>|@#=]/.test(v)) return false;                                  /* file-ish or an address */
+  if (/\.(json|fsbundle|pdf|zip|csv|xlsx|txt|png|jpe?g)\b/i.test(v)) return false;
+  if (/\b(copy|copies|download|downloaded|downloads|export|exported|backup|register|everdue|arc adapt|arcadapt|arc command|file|untitled|test|demo|sample)\b/i.test(v)) return false;
+  if (/\d{3,}/.test(v)) return false;
+  if (v.split(" ").length > 3) return false;
+  return true;
+}
+function fsNameSet(v, opts) {
+  opts = opts || {};
+  const name = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  if (!fsNameLooksReal(name)) {
+    if (!opts.quiet && name) alert("That does not look like a name.\n\nIt goes on the record as who did the work — just your name, e.g. R. Smith.");
+    return "";
+  }
+  try { localStorage.setItem("fs-user", name); } catch (e) {}
+  return name;
+}
+/* The greeting's name: only one that Settings or sign-in set (fsAuthSet writes
+   the fs-auth record beside it). A prompt-set name is a stamp, not an identity. */
+function fsGreetName() {
+  try {
+    const who = fsWho(); if (!who) return "";
+    const a = fsAuthRec(); if (!a || String(a.name || "").toLowerCase() !== who.toLowerCase()) return "";
+    if (!fsNameLooksReal(who)) return "";
+    return who.split(" ")[0];
+  } catch (e) { return ""; }
+}
+/* A small modal for the register save - NOT a window prompt, whose one-line box
+   read as "name this file". Resolves to the validated name, or "" on Skip. */
+function fsNameAsk() {
+  return new Promise(resolve => {
+    const d = document.createElement("div");
+    d.className = "modal show"; d.style.zIndex = "230";
+    d.innerHTML = '<div class="modalbox" style="max-width:380px;text-align:left"><h3 style="margin-bottom:6px">Who is saving this register?</h3>' +
+      '<p style="font-size:13px;color:#bbb;margin-bottom:10px">Your name is stamped <b>inside</b> the register as &ldquo;saved by&rdquo;. It is <b>not</b> the file name &mdash; the file is named for you.</p>' +
+      '<input type="text" id="fsNameAskIn" autocomplete="off" placeholder="e.g. R. Smith" style="margin-bottom:10px">' +
+      '<div class="row"><button class="btn" id="fsNameAskSkip">Skip</button><button class="btn primary" id="fsNameAskOk">Save with my name</button></div></div>';
+    document.body.appendChild(d);
+    const inp = d.querySelector("#fsNameAskIn");
+    const done = v => { d.remove(); resolve(v); };
+    d.querySelector("#fsNameAskSkip").onclick = () => done("");
+    d.querySelector("#fsNameAskOk").onclick = () => { const n = fsNameSet(inp.value); if (n) done(n); };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") d.querySelector("#fsNameAskOk").onclick(); });
+    setTimeout(() => { try { inp.focus(); } catch (e) {} }, 30);
+  });
+}
+/* Boot: a stored fs-user with NO auth record behind it and no chance of being a
+   name is the R-184 residue itself. Drop it once so the greeting is clean today. */
+(function () {
+  try {   /* through fsWho(): test_p100 A3 keeps the app to ONE direct read of fs-user */
+    const u = fsWho();
+    if (u && !fsAuthRec() && !fsNameLooksReal(u)) { localStorage.removeItem("fs-user"); sessionStorage.removeItem("fs-user"); }
+  } catch (e) {}
+})();
 /* The auth record is what separates "signed in" from "typed a name". It is
    written only after a password is verified, and it names WHO it is for. */
 function fsAuthRec() {
