@@ -252,6 +252,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .pal canvas { width:34px; height:34px; }
   .pal .sym { width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px; }
   .pal .lbl { font-size:9px; color:#aaa; white-space:nowrap; }
+  /* PASS 207 [207-A] W206-D - the Smart Plan tile: near-black ground, teal glow. */
+  .pal.palHero { background:radial-gradient(circle at 50% 42%, #0f3a44 0%, #071a20 55%, #05090c 100%); border-color:#1a5560; box-shadow:0 0 0 1px rgba(56,214,214,.18), 0 0 14px rgba(40,200,200,.22); }
+  .pal.palHero .lbl { color:#7fe6e6; font-weight:700; letter-spacing:.02em; }
+  .pal.palHero.active { border-color:#6ff2ee; background:radial-gradient(circle at 50% 42%, #145661 0%, #0a2a33 55%, #05090c 100%); }
+  .pal.palHero:hover { box-shadow:0 0 0 1px rgba(56,214,214,.35), 0 0 20px rgba(40,200,200,.35); }
   .pal .cnt { font-size:11px; font-weight:700; color:#ffb3a3; min-height:13px; }
 
   #stage { flex:1; position:relative; overflow:hidden; background:#101214; }
@@ -764,7 +769,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.185 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.186 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -896,7 +901,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.185 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.186 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1069,6 +1074,15 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          show when selecting items should be showing on the other side of the
          delete button". Same rule: Views tab, Device labels on; empty otherwise.
          Anything W180-G adds for the selection goes here too. -->
+    <!-- PASS 207 [207-C] W180-G - "this is currently unused space I think we could
+         utilise to have some quick options, for example... check boxes down there,
+         one could be Hide". The strip READS the selection and APPLIES to all of it
+         through the same handlers the Modify tiles use. >= 1180 only, selection only. -->
+    <div id="selQuick" style="display:none;align-items:center;gap:12px;font-size:12px;color:#aaa;margin-left:6px">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;min-height:40px" title="Hide or unhide everything selected (EH)"><input type="checkbox" id="sqHide" style="width:22px;height:22px;margin:0"> Hidden</label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;min-height:40px" title="Pin or unpin everything selected"><input type="checkbox" id="sqPin" style="width:22px;height:22px;margin:0"> Pinned</label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;min-height:40px" title="Fade or unfade everything selected"><input type="checkbox" id="sqHalf" style="width:22px;height:22px;margin:0"> Halftone</label>
+    </div>
     <div id="vwLabelParts" style="display:none"></div>
     <span class="spacer"></span>
     <span id="status">No plan loaded</span>
@@ -6412,6 +6426,7 @@ const btnFlipV = document.getElementById("btnFlipV");
 
 function updateSelButtons() {
   const any = selection.length > 0;
+  fsSelQuickSync(any);   /* PASS 207 [207-C] W180-G */
   /* PASS 68 [68ws-5] — LOCK GEOMETRY, NOT USEFULNESS (Bluebeam's rule). Every
      control that moves, reshapes, recolours or destroys goes dead. Duplicate,
      Copy, Paste and Details stay live, and no render or export path is touched
@@ -6782,6 +6797,46 @@ sizeSlider.addEventListener("input", () => {
 const paletteEl = document.getElementById("palette");
 const tabsEl = document.getElementById("sideTabs");
 
+/* PASS 207 [207-A] W206-D - the Smart Plan icon, from refs/smart-plan-tile-
+   inspiration-2026-09-13.png. A wireframe sphere (three latitude ellipses, four
+   longitude ellipses, a bright equator) inside a soft ring of particles, on
+   the tile's own dark ground. Drawn at 2x for the retina iPad. */
+function fsDrawSmartPlanTile(canvasEl) {
+  const dpr = 2, S = 34;
+  canvasEl.width = S * dpr; canvasEl.height = S * dpr;
+  const c = canvasEl.getContext("2d");
+  c.scale(dpr, dpr);
+  const cx = 17, cy = 17;
+  /* the particle ring */
+  c.save();
+  const g = c.createRadialGradient(cx, cy, 9, cx, cy, 17);
+  g.addColorStop(0, "rgba(40,200,200,0)"); g.addColorStop(.55, "rgba(40,200,200,.28)"); g.addColorStop(1, "rgba(40,200,200,0)");
+  c.fillStyle = g; c.beginPath(); c.arc(cx, cy, 17, 0, Math.PI * 2); c.fill();
+  let seed = 7;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let i = 0; i < 70; i++) {
+    const a = rnd() * Math.PI * 2, r = 12.5 + rnd() * 4;
+    c.fillStyle = "rgba(" + (90 + Math.round(rnd() * 80)) + ",230,225," + (0.35 + rnd() * 0.5).toFixed(2) + ")";
+    c.beginPath(); c.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 0.6 + rnd() * 0.8, 0, Math.PI * 2); c.fill();
+  }
+  c.restore();
+  /* the sphere */
+  const R = 9.5;
+  c.save();
+  c.strokeStyle = "rgba(190,250,245,.95)"; c.lineWidth = 0.9;
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
+  c.strokeStyle = "rgba(140,235,230,.7)"; c.lineWidth = 0.6;
+  [0.36, 0.72].forEach(k => {
+    const ry = R * k, rx = Math.sqrt(R * R - ry * ry);
+    c.beginPath(); c.ellipse(cx, cy - ry, rx, rx * 0.28, 0, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.ellipse(cx, cy + ry, rx, rx * 0.28, 0, 0, Math.PI * 2); c.stroke();
+  });
+  c.strokeStyle = "rgba(190,250,245,.9)"; c.lineWidth = 0.8;
+  c.beginPath(); c.ellipse(cx, cy, R, R * 0.3, 0, 0, Math.PI * 2); c.stroke();
+  c.strokeStyle = "rgba(140,235,230,.65)"; c.lineWidth = 0.6;
+  [0.25, 0.6, 1].forEach(k => { c.beginPath(); c.ellipse(cx, cy, R * k, R, 0, 0, Math.PI * 2); c.stroke(); });
+  c.restore();
+}
 function drawPalIcon(canvasEl, typeId) {
   const c = canvasEl.getContext("2d");
   const dpr = 2;
@@ -7410,7 +7465,15 @@ function buildPalette() {
        so its title survives boot) — and the field screen does not grow by a
        pixel. `full` is the whole first sentence, per symbol, in TYPES. */
     d.title = (t.full ? t.full + ". " : "") + "Press & hold to add/remove from Favourites";
-    if (en.kind === "tool") {
+    if (en.kind === "tool" && t.id === "smartplan" && typeof fsDrawSmartPlanTile === "function") {
+      /* PASS 207 [207-A] W206-D - his inspiration: a teal wireframe sphere in a
+         glowing particle ring on near-black. Drawn, not an image. Same .pal box,
+         same label, same gestures - only the icon and the ground change. */
+      d.classList.add("palHero");
+      const hc = document.createElement("canvas");
+      d.appendChild(hc);
+      fsDrawSmartPlanTile(hc);
+    } else if (en.kind === "tool") {
       d.innerHTML = '<div class="sym">' + t.icon + '</div>';
     } else {
       const ic = document.createElement("canvas");
@@ -7533,6 +7596,53 @@ function fsRefreshViewActs() {
     el.classList.toggle("pdis", !tg.can());
   });
 }
+/* PASS 207 [207-B] W180-F - Reece, 12 Sep: "when you select something on revit,
+   whatever it is, it automatically takes you to modify menu. we should adopt
+   this for efficiency." Revit's Modify | <Category> contextual tab.
+
+   THE RULE FOR THE CASE THE NOTE WARNED ABOUT: only a pick made WITH THE SELECT
+   TOOL jumps (tap on an object, or a marquee that caught something). A symbol
+   you just placed selects itself ([196-A] W176-A) and that path never calls
+   this - so dropping eleven detectors down a corridor from the Fire tab stays
+   on the Fire tab. Text / zone / hatch tools picking their own kind stay put
+   too. Tapping empty plan with the Select tool (nothing kept) goes back to the
+   tab you came from, the way Revit's contextual tab closes on deselect. */
+let fsTabBeforeModify = null;
+function fsSelJumpModify() {
+  if (!selection.length || activeTab === "modify") return;
+  fsTabBeforeModify = activeTab;
+  activeTab = "modify";
+  buildPalette();
+}
+function fsSelReturnTab() {
+  if (activeTab !== "modify" || !fsTabBeforeModify || selection.length) return;
+  activeTab = fsTabBeforeModify; fsTabBeforeModify = null;
+  buildPalette();
+}
+/* PASS 207 [207-C] W180-G - the quick-options strip. Each box shows the state of
+   the WHOLE selection (checked = every selected item has it) and a change goes
+   through the existing handler, so pin/hide/halftone keep their guards, their
+   undo step and their wording. */
+function fsSelQuickSync(any) {
+  const w = document.getElementById("selQuick"); if (!w) return;
+  const show = any && window.innerWidth >= 1180;
+  w.style.display = show ? "flex" : "none";
+  if (!show) return;
+  const lockd = fsWsSelLocked();
+  const h = document.getElementById("sqHide"), p = document.getElementById("sqPin"), f = document.getElementById("sqHalf");
+  h.checked = selection.every(fsIsHidden);
+  p.checked = selection.every(fsWsPinned);
+  f.checked = selection.every(o => !!o.half);
+  f.disabled = lockd;
+}
+(function () {
+  const h = document.getElementById("sqHide"), p = document.getElementById("sqPin"), f = document.getElementById("sqHalf");
+  if (!h) return;
+  h.onchange = () => { modifyAction("m_hide"); };
+  p.onchange = () => { btnPin.onclick(); };
+  f.onchange = () => { document.getElementById("btnHalf").onclick(); updateSelButtons(); };
+  window.addEventListener("resize", () => { try { fsSelQuickSync(selection.length > 0); } catch (e) {} });
+})();
 function refreshModifyTiles() {
   fsRefreshViewActs();
   MODIFY_TOOLS.forEach(mt => {
@@ -11796,6 +11906,7 @@ cv.addEventListener("pointerdown", e => {
       moveStartImg = ip;
       moveRebased = false;   /* PASS 68 [68ws-3] — per gesture, not per session */
       moveOrig = selection.map(o => JSON.stringify(o));
+      fsSelJumpModify();   /* PASS 207 [207-B] W180-F */
       draw();
     } else {
       dragMode = "marquee";
@@ -12285,8 +12396,9 @@ function endPointer(e) {
       if (gids.size) hits = objects.filter(o => hits.includes(o) || (o.grp && gids.has(o.grp)));
       if (marqueeAdd) setSelection([...selection, ...hits.filter(h => !selection.includes(h))]);
       else setSelection(hits);
+      fsSelJumpModify();   /* PASS 207 [207-B] W180-F */
     } else {
-      if (!marqueeAdd) clearSelection();
+      if (!marqueeAdd) { clearSelection(); fsSelReturnTab(); }   /* PASS 207 [207-B] - empty tap goes back to the tab you came from */
     }
     marquee = null; dragMode = null; marqueeAdd = false;
     draw();
@@ -12496,7 +12608,89 @@ cv.addEventListener("wheel", e => {
   zoomAt(p.x, p.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
 }, { passive:false });
 
-cv.addEventListener("contextmenu", e => e.preventDefault());
+/* PASS 207 [207-D] W180-H - Reece, 12 Sep: "adopt revit's right click button and
+   introduce it into arc if using on pc." Mouse users only (hover + fine
+   pointer); a touch long-press keeps the [C4] swallow above and never sees
+   this. Right-clicking an unselected object selects it first, as Revit does.
+   Every item proxies an existing button or modifyAction - nothing new can
+   happen from here that could not happen from the Modify tab. */
+const fsCtxMenuEl = document.createElement("div");
+fsCtxMenuEl.id = "fsCtxMenu";
+fsCtxMenuEl.style.cssText = "position:fixed;z-index:180;display:none;min-width:200px;background:#1d2126;color:#e8e8e8;border:1px solid #444;border-radius:10px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:13.5px";
+document.body.appendChild(fsCtxMenuEl);
+function fsCtxHide() { fsCtxMenuEl.style.display = "none"; fsCtxMenuEl.innerHTML = ""; }
+function fsCtxMouse() { try { return window.matchMedia("(hover:hover) and (pointer:fine)").matches; } catch (e) { return false; } }
+function fsCtxItems() {
+  const any = selection.length > 0, lockd = any && fsWsSelLocked();
+  const syms = selection.some(o => o.kind === "sym");
+  const allHidden = any && selection.every(fsIsHidden);
+  const allPinned = any && selection.every(fsWsPinned);
+  const ht = typeof fsHiddenTypes === "function" ? fsHiddenTypes() : {};
+  const s2 = selection.filter(o => o.kind === "sym");
+  const typeHidden = s2.length && s2.every(o => ht[o.type] === true);
+  if (!any) return [
+    { label:"Paste", key:"Ctrl+V", dis:!clipboardObjs.length || !img, run:() => pasteClipboard() },
+    { label:"Fit all", run:() => fitView() }
+  ];
+  return [
+    { label:"Details", dis:btnDetails.disabled, run:() => btnDetails.onclick() },
+    { sep:true },
+    { label:allHidden ? "Unhide" : "Hide", key:"EH", run:() => modifyAction("m_hide") },
+    { label:typeHidden ? "Unhide type" : "Hide type", key:"HC", dis:!syms, run:() => modifyAction("m_hidetype") },
+    { label:allPinned ? "Unpin" : "Pin", run:() => btnPin.onclick() },
+    { label:"Halftone", dis:lockd, run:() => document.getElementById("btnHalf").onclick() },
+    { sep:true },
+    { label:"Rotate 90°", key:"RO", dis:lockd, run:() => btnRotate.onclick() },
+    { label:"Flip horizontal", dis:lockd, run:() => btnFlipH.onclick() },
+    { label:"Flip vertical", dis:lockd, run:() => btnFlipV.onclick() },
+    { sep:true },
+    { label:"Duplicate", key:"Ctrl+D", run:() => btnDup.onclick() },
+    { label:selection.some(o => o.grp) ? "Ungroup" : "Group", key:selection.some(o => o.grp) ? "UG" : "GP", dis:!(selection.some(o => o.grp) || selection.length >= 2), run:() => document.getElementById(selection.some(o => o.grp) ? "btnUngroup" : "btnGroup").onclick() },
+    { label:"Select same", dis:document.getElementById("btnSame").disabled, run:() => document.getElementById("btnSame").onclick() },
+    { sep:true },
+    { label:"Copy", key:"Ctrl+C", run:() => copySelection() },
+    { label:"Cut", key:"Ctrl+X", dis:lockd, run:() => document.getElementById("btnCut").onclick() },
+    { label:"Delete", key:"Del", dis:lockd, danger:true, run:() => btnDel.onclick() }
+  ];
+}
+function fsCtxOpen(e) {
+  fsCtxHide();
+  const p = localXY(e);
+  const hit = hitObject(p.x, p.y);
+  if (hit && !selection.includes(hit)) {
+    const members = hit.grp ? objects.filter(o => o.grp === hit.grp) : [hit];
+    setSelection(members); fsSelJumpModify(); draw();
+  } else if (!hit && selection.length) {
+    /* right-click on empty plan with a selection: keep the selection - the menu is about it */
+  }
+  const items = fsCtxItems();
+  items.forEach(it => {
+    if (it.sep) { const s = document.createElement("div"); s.style.cssText = "height:1px;background:#3a3f46;margin:4px 2px"; fsCtxMenuEl.appendChild(s); return; }
+    const b = document.createElement("button");
+    b.type = "button";
+    b.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;text-align:left;background:none;border:0;color:" + (it.danger ? "#ff8a80" : "inherit") + ";padding:8px 10px;border-radius:7px;font:inherit;cursor:pointer;min-height:36px";
+    b.innerHTML = "<span>" + it.label + "</span>" + (it.key ? '<span style="color:#7d878e;font-size:11.5px">' + it.key + "</span>" : "");
+    b.disabled = !!it.dis;
+    if (it.dis) { b.style.opacity = ".4"; b.style.cursor = "default"; }
+    b.onmouseenter = () => { if (!it.dis) b.style.background = "#2c3239"; };
+    b.onmouseleave = () => { b.style.background = "none"; };
+    b.onclick = ev => { ev.stopPropagation(); fsCtxHide(); try { it.run(); } catch (err) {} try { draw(); } catch (err) {} };
+    fsCtxMenuEl.appendChild(b);
+  });
+  fsCtxMenuEl.style.display = "block";
+  const r = fsCtxMenuEl.getBoundingClientRect();
+  const x = Math.min(e.clientX, window.innerWidth - r.width - 6), y = Math.min(e.clientY, window.innerHeight - r.height - 6);
+  fsCtxMenuEl.style.left = Math.max(4, x) + "px"; fsCtxMenuEl.style.top = Math.max(4, y) + "px";
+}
+cv.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  if (!fsCtxMouse() || !img) return;
+  fsCtxOpen(e);
+});
+document.addEventListener("pointerdown", e => { if (fsCtxMenuEl.style.display !== "none" && !fsCtxMenuEl.contains(e.target)) fsCtxHide(); }, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && fsCtxMenuEl.style.display !== "none") { fsCtxHide(); e.stopPropagation(); } }, true);
+window.addEventListener("blur", fsCtxHide);
+cv.addEventListener("wheel", fsCtxHide, { passive:true });
 
 cv.addEventListener("dblclick", () => {
   if (selection.length !== 1) return;
@@ -30598,7 +30792,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v193";
+const FS_BUILD = "aa-v194";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
