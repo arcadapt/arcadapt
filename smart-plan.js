@@ -1,6 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
    (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
-   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews). The engine functions are byte-identical to V0.184.
+   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -37,6 +37,17 @@
   const OCR_LANG = './ocr';
   const OCR_CROP_MAX_PX = 1500000;
   const OCR_RETRY_DIRECTIONS = Object.freeze([{name:'up',dx:0,dy:-1},{name:'down',dx:0,dy:1},{name:'right',dx:1,dy:0},{name:'left',dx:-1,dy:0}]);
+  /* PASS 209 [209-G3] - BARE-NUMBER SHEETS. Some drawings print only the device
+     number beside the symbol (58, not L01.D58), 7 px tall at the sheet's own
+     resolution. Four tight strips around the symbol, Lanczos 6x, one line,
+     digits only; a read must agree across two scales. */
+  const OCR_STRIP_UPSCALES = [5, 7], OCR_STRIP_UPSCALE = 6, OCR_STRIP_SINGLE_MIN_CONF = 85, OCR_STRIP_NARROW_CUT = 0.2, OCR_STRIP_ADOPT_RATIO = 0.15, OCR_STYLE_PROBE_N = 6;
+  const OCR_STRIPS = Object.freeze([
+    {name:'left', x:-1.45, y:-0.5, w:1.0, h:1.0},
+    {name:'up',   x:-0.65, y:-1.35, w:1.3, h:0.9},
+    {name:'right',x: 0.45, y:-0.5, w:1.0, h:1.0},
+    {name:'down', x:-0.65, y: 0.45, w:1.3, h:0.9}
+  ]);
   const OCR_QUADRANT_W = 230;
   const OCR_QUADRANT_H = 130;
   const OCR_QUADRANT_OFFSET_X = 55;
@@ -48,6 +59,9 @@
     {name:'below-right',dx:OCR_QUADRANT_OFFSET_X,dy:OCR_QUADRANT_OFFSET_Y}
   ]);
   const DETECT_WORK_MAX_PX = 4000000;
+  /* PASS 209 [209-G1/G2] - see patch-p209.py. Local-mean ink; interior look-alike gate. */
+  const INK_LOCAL_RADIUS = 24, INK_LOCAL_DROP = 45, INK_ABS_MAX = 200;
+  const DETECT_INTERIOR_TRIM = 0.22, DETECT_INTERIOR_NCC_MIN = 0.62, DETECT_INTERIOR_NCC_SURE = 0.8, DETECT_INTERIOR_INK_MIN = 0.35, DETECT_INTERIOR_INK_LIKE = 1.3, DETECT_INTERIOR_INK_MAX = 2.0;
   const DETECT_DEFAULT_THRESHOLD = 0.50;
   const DETECT_SCALES = [0.95, 1.0, 1.05, 1.15];
   const DETECT_ROTATIONS = [0, 90, 180, 270];
@@ -285,6 +299,8 @@
       detectorSignal:field(m0.detectorSignal),
       bbox:Array.isArray(m0.bbox) ? m0.bbox.map(Number) : null,
       rotation:m0.rotation == null ? null : Number(m0.rotation),
+      interiorNcc:m0.interiorNcc == null ? null : Number(m0.interiorNcc),
+      interiorInk:m0.interiorInk == null ? null : Number(m0.interiorInk),
       mirrored:m0.mirrored === true,
       scale:m0.scale == null ? null : Number(m0.scale),
       closedContourScore:m0.closedContourScore == null ? null : Number(m0.closedContourScore),
@@ -1075,8 +1091,20 @@
     ctx.drawImage(live,0,0,iw,ih,0,0,w,h);
     const data=ctx.getImageData(0,0,w,h).data;
     const mask=new Uint8Array(w*h);
-    for(let i=0,j=0;i<data.length;i+=4,j++){
-      mask[j]=signal==='red'?(rgbaIsRed(data[i],data[i+1],data[i+2])?1:0):(rgbaIsInk(data[i],data[i+1],data[i+2])?1:0);
+    const lum=new Uint8Array(w*h);
+    for(let i=0,j=0;i<data.length;i+=4,j++)lum[j]=(0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2])|0;
+    if(signal==='red'){for(let i=0,j=0;i<data.length;i+=4,j++)mask[j]=rgbaIsRed(data[i],data[i+1],data[i+2])?1:0;}
+    else{
+      /* [209-G1] INK IS DARK AGAINST ITS OWN SURROUNDINGS. A zone fill (yellow,
+         blue, green hatch) is light, but a fixed cut-off called it ink and the
+         mask became a solid block. Local mean over a window ~3 symbol widths. */
+      const st=w+1,I=new Float64Array((w+1)*(h+1));
+      for(let y=0;y<h;y++){let row=0;const o=(y+1)*st,pv=y*st,b=y*w;for(let x=0;x<w;x++){row+=lum[b+x];I[o+x+1]=I[pv+x+1]+row;}}
+      const R=INK_LOCAL_RADIUS;
+      for(let y=0;y<h;y++){const y0=Math.max(0,y-R),y1=Math.min(h,y+R+1);
+        for(let x=0;x<w;x++){const x0=Math.max(0,x-R),x1=Math.min(w,x+R+1);
+          const mean=(I[y1*st+x1]-I[y0*st+x1]-I[y1*st+x0]+I[y0*st+x0])/((y1-y0)*(x1-x0));
+          const l=lum[y*w+x];mask[y*w+x]=(l<INK_ABS_MAX&&l<mean-INK_LOCAL_DROP)?1:0;}}
     }
     /* One inexpensive speck clean. It is intentionally weaker than Python's
        OpenCV opening so thin legitimate detector strokes survive on photos. */
@@ -1097,7 +1125,7 @@
     /* Drop the RGBA canvas immediately; detection retains only 1 byte/pixel +
        summed-area table, not a second full-resolution plan bitmap. */
     cv.width=1;cv.height=1;
-    const out={signal,w,h,iw,ih,scaleX:w/iw,scaleY:h/ih,mask,integral,stride,workPixels:w*h};
+    const out={signal,w,h,iw,ih,scaleX:w/iw,scaleY:h/ih,mask,lum,integral,stride,workPixels:w*h};
     session.featureCache[key]=out;return out;
   }
 
@@ -1190,6 +1218,39 @@
 
   function iouBox(a,b){const x0=Math.max(a.x,b.x),y0=Math.max(a.y,b.y),x1=Math.min(a.x+a.w,b.x+b.w),y1=Math.min(a.y+a.h,b.y+b.h),inter=Math.max(0,x1-x0)*Math.max(0,y1-y0),u=a.w*a.h+b.w*b.h-inter;return u>0?inter/u:0;}
 
+  /* [209-G2] INTERIOR LOOK-ALIKE GATE. At 15 px a square-with-squiggle (smoke)
+     and a square-with-dot (thermal) share the same outline and the same ink
+     count, so binary overlap cannot tell them apart. The grey interior can:
+     normalised cross-correlation of the inner part of the box (the outline
+     trimmed off) against the taught symbol, best of the 8 rotations/mirrors,
+     plus the interior ink ratio (a solid flag is not a dot). */
+  function lumPatch(f,x,y,w,h,ow,oh){
+    const out=new Float32Array(ow*oh);
+    for(let j=0;j<oh;j++){const sy=clamp(Math.round(y+(j+0.5)*h/oh-0.5),0,f.h-1);
+      for(let i=0;i<ow;i++){const sx=clamp(Math.round(x+(i+0.5)*w/ow-0.5),0,f.w-1);out[j*ow+i]=f.lum[sy*f.w+sx];}}
+    return out;
+  }
+  function nccOf(a,b){let ma=0,mb=0;const n=a.length;for(let i=0;i<n;i++){ma+=a[i];mb+=b[i];}ma/=n;mb/=n;let sab=0,saa=0,sbb=0;for(let i=0;i<n;i++){const da=a[i]-ma,db=b[i]-mb;sab+=da*db;saa+=da*da;sbb+=db*db;}const d=Math.sqrt(saa*sbb);return d>1e-6?sab/d:0;}
+  function patchVariants(p,w,h){
+    const out=[];const get=(i,j)=>p[j*w+i];
+    for(const mirror of [false,true])for(const rot of [0,1,2,3]){
+      const rw=(rot%2)?h:w,rh=(rot%2)?w:h,q=new Float32Array(w*h);
+      for(let j=0;j<rh;j++)for(let i=0;i<rw;i++){let u=i,v=j;if(rot===1){u=j;v=rh-1-i;}else if(rot===2){u=rw-1-i;v=rh-1-j;}else if(rot===3){u=rw-1-j;v=i;}
+        if(mirror)u=w-1-u;q[j*rw+i]=get(clamp(u,0,w-1),clamp(v,0,h-1));}
+      out.push({p:q,w:rw,h:rh});
+    }
+    return out;
+  }
+  function interiorNcc(f,tplVariants,d){
+    let best=-1;
+    for(const t of tplVariants){
+      const mx=Math.round(t.w*DETECT_INTERIOR_TRIM),my=Math.round(t.h*DETECT_INTERIOR_TRIM),iw=t.w-2*mx,ih=t.h-2*my;if(iw<3||ih<3)continue;
+      const inner=new Float32Array(iw*ih);for(let j=0;j<ih;j++)for(let i=0;i<iw;i++)inner[j*iw+i]=t.p[(j+my)*t.w+i+mx];
+      const cand=lumPatch(f,d.x+d.w*DETECT_INTERIOR_TRIM,d.y+d.h*DETECT_INTERIOR_TRIM,d.w*(1-2*DETECT_INTERIOR_TRIM),d.h*(1-2*DETECT_INTERIOR_TRIM),iw,ih);
+      const v=nccOf(inner,cand);if(v>best)best=v;
+    }
+    return best;
+  }
   function nmsDetections(list,templateRefW,templateRefH){
     const keep=[];const ref=Math.min(templateRefW,templateRefH)*DETECT_NMS_CENTRE_FACTOR;
     list.slice().sort((a,b)=>b.score-a.score).forEach(c=>{
@@ -1240,7 +1301,7 @@
       for(const scale of DETECT_SCALES){
         const scaled=scaleMask(base,scale);
         for(const mirror of mirrors)for(const rotation of DETECT_ROTATIONS){
-          pass++;spThrowIfCancelled();session.detectStatus=`Detecting symbols \u2014 pass ${pass} / ${totalPass}`;session.progress={done:pass-1,total:totalPass};render();
+          pass++;spThrowIfCancelled();session.detectStatus=`Detecting symbols \u2014 pass ${pass} / ${totalPass}`;session.progress={done:pass-1,total:totalPass,phase:0,phases:1};spTick();
           const t=transformMask(scaled,rotation,mirror);if(t.ink<6||t.w>=f.w||t.h>=f.h)continue;
           const stride=Math.max(2,Math.round(Math.min(t.w,t.h)/10));
           const seeds=[];const coarseGate=Math.max(0.34,threshold-0.14);
@@ -1268,7 +1329,11 @@
           await new Promise(r=>setTimeout(r,0));
         }
       }
-      const dedup=nmsDetections(raw,base.w,base.h).slice(0,DETECT_MAX_RESULTS);
+      /* [209-G2] the inside of every survivor is checked against the taught inside */
+      const tplVariants=patchVariants(lumPatch(f,wb.x,wb.y,wb.w,wb.h,wb.w,wb.h),wb.w,wb.h);
+      const tplInnerInk=Math.max(1,rectSum(f,wb.x+wb.w*DETECT_INTERIOR_TRIM,wb.y+wb.h*DETECT_INTERIOR_TRIM,wb.w*(1-2*DETECT_INTERIOR_TRIM),wb.h*(1-2*DETECT_INTERIOR_TRIM)));
+      const dedup=nmsDetections(raw,base.w,base.h).map(d=>{d.interior=interiorNcc(f,tplVariants,d);d.interiorInk=rectSum(f,d.x+d.w*DETECT_INTERIOR_TRIM,d.y+d.h*DETECT_INTERIOR_TRIM,d.w*(1-2*DETECT_INTERIOR_TRIM),d.h*(1-2*DETECT_INTERIOR_TRIM))/tplInnerInk;return d;})
+        .filter(d=>d.interiorInk>=DETECT_INTERIOR_INK_MIN&&d.interiorInk<=DETECT_INTERIOR_INK_MAX&&(d.interior>=DETECT_INTERIOR_NCC_SURE||(d.interior>=DETECT_INTERIOR_NCC_MIN&&d.interiorInk<=DETECT_INTERIOR_INK_LIKE))).slice(0,DETECT_MAX_RESULTS);
       const runId=`template-${Date.now().toString(36)}`;const created=[];
       for(let i=0;i<dedup.length;i++){
         const d=dedup[i],cs=contourStats(f,d.x,d.y,d.w,d.h),hole=closedContourStats(f,d.x,d.y,d.w,d.h);
@@ -1280,7 +1345,7 @@
         const suspect=taughtClosed&&d.score>=0.55&&comparableSides<=1&&hole.enclosedRatio<0.01;
         const sx=f.iw/f.w,sy=f.ih/f.h;
         const box=[d.x*sx,d.y*sy,d.w*sx,d.h*sy],cx=box[0]+box[2]/2,cy=box[1]+box[3]/2;
-        const c=normaliseDetection({id:`${runId}-${i+1}`,obj:{kind:'sym',type,x:cx,y:cy,zone:'',loop:'',dev:'',info:''},meta:{source:'template',confidence:d.score,requiresDeviceNumber:true,suspectStub:suspect,detectorRun:runId,detectorSignal:signal,bbox:box,rotation:d.rotation,mirrored:d.mirrored,scale:d.scale,closedContourScore:cs.score,closedContourSides:comparableSides}},i);
+        const c=normaliseDetection({id:`${runId}-${i+1}`,obj:{kind:'sym',type,x:cx,y:cy,zone:'',loop:'',dev:'',info:''},meta:{source:'template',confidence:d.score,requiresDeviceNumber:true,suspectStub:suspect,detectorRun:runId,detectorSignal:signal,bbox:box,rotation:d.rotation,mirrored:d.mirrored,scale:d.scale,closedContourScore:cs.score,closedContourSides:comparableSides,interiorNcc:d.interior,interiorInk:d.interiorInk}},i);
         created.push(c);
       }
       if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
@@ -1576,12 +1641,107 @@
     labels.forEach(l=>{l.observedNear=candidate.id;l.phase=phase;l.offsetX=dx;l.offsetY=dy;l.upscale=upscale;rawLabels.push(l);});
   }
 
+  /* [209-G3] Lanczos-3 resample of a grey tile. The canvas's own bilinear
+     upscale reads 2/8 of these 7 px digits; Lanczos + a min/max stretch reads
+     7/8 (measured on the sheet that first showed the problem). Tiles are tiny. */
+  function lanczosGrey(src,sw,sh,dw,dh){
+    const A=3,kern=x=>{if(x===0)return 1;if(x<=-A||x>=A)return 0;const px=Math.PI*x;return A*Math.sin(px)*Math.sin(px/A)/(px*px);};
+    const tmp=new Float32Array(dw*sh),out=new Float32Array(dw*dh),rx=sw/dw,ry=sh/dh;
+    for(let x=0;x<dw;x++){const cx=(x+0.5)*rx-0.5,x0=Math.max(0,Math.floor(cx-A+1)),x1=Math.min(sw-1,Math.floor(cx+A));const ws=[];let wsum=0;
+      for(let i=x0;i<=x1;i++){const k=kern(i-cx);ws.push(k);wsum+=k;}
+      for(let y=0;y<sh;y++){let v=0;for(let i=x0,j=0;i<=x1;i++,j++)v+=src[y*sw+i]*ws[j];tmp[y*dw+x]=wsum?v/wsum:0;}}
+    for(let y=0;y<dh;y++){const cy=(y+0.5)*ry-0.5,y0=Math.max(0,Math.floor(cy-A+1)),y1=Math.min(sh-1,Math.floor(cy+A));const ws=[];let wsum=0;
+      for(let i=y0;i<=y1;i++){const k=kern(i-cy);ws.push(k);wsum+=k;}
+      for(let x=0;x<dw;x++){let v=0;for(let i=y0,j=0;i<=y1;i++,j++)v+=tmp[i*dw+x]*ws[j];out[y*dw+x]=wsum?v/wsum:0;}}
+    return out;
+  }
+  function cropStripCanvas(x0,y0,w,h,upscale){
+    const live=livePlanImage(); if(!live) throw new Error('No decoded Workspace plan is available.');
+    const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
+    const sx=clamp(Math.floor(x0),0,iw-1),sy=clamp(Math.floor(y0),0,ih-1),sw=Math.max(1,Math.min(iw-sx,Math.ceil(w))),sh=Math.max(1,Math.min(ih-sy,Math.ceil(h)));
+    const pad=20,cw=Math.round(sw*upscale),ch=Math.round(sh*upscale);
+    const src=document.createElement('canvas');src.width=sw;src.height=sh;
+    const sctx=src.getContext('2d',{willReadFrequently:true});sctx.drawImage(live,sx,sy,sw,sh,0,0,sw,sh);
+    const d=sctx.getImageData(0,0,sw,sh).data,grey=new Float32Array(sw*sh);
+    for(let i=0,j=0;i<d.length;i+=4,j++)grey[j]=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];
+    const big=lanczosGrey(grey,sw,sh,cw,ch);let lo=255,hi=0;
+    for(let i=0;i<big.length;i++){const v=big[i];if(v<lo)lo=v;if(v>hi)hi=v;}
+    const span=Math.max(1,hi-lo);
+    const cv=document.createElement('canvas');cv.width=cw+2*pad;cv.height=ch+2*pad;
+    const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+    const im=ctx.createImageData(cw,ch),o=im.data;
+    for(let i=0,j=0;i<big.length;i++,j+=4){const v=clamp(Math.round((big[i]-lo)*255/span),0,255);o[j]=o[j+1]=o[j+2]=v;o[j+3]=255;}
+    ctx.putImageData(im,pad,pad);
+    return cv;
+  }
+  async function runOcrStripPass(worker,candidates,indexes,rawLabels){
+    if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:'7',preserve_interword_spaces:'1',tessedit_char_whitelist:'0123456789'});
+    let crops=0,reads=0,readCandidates=0;
+    try{
+      for(let n=0;n<indexes.length;n++){
+        const i=indexes[n],c=candidates[i];spThrowIfCancelled();
+        session.ocrStatus=`Reading numbers — ${n+1} / ${indexes.length}`;session.progress={done:n,total:indexes.length,phase:0,phases:1};spTick();
+        const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox:[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
+        const cx=b[0]+b[2]/2,cy=b[1]+b[3]/2,w=Math.max(6,b[2]),h=Math.max(6,b[3]);
+        const seen=[];
+        for(const st of OCR_STRIPS){
+          spThrowIfCancelled();
+          const rx=cx+st.x*w,ry=cy+st.y*h,rw=st.w*w,rh=st.h*h;
+          /* TWO SCALES MUST AGREE. tesseract's own confidence is 0 on many correct
+             reads of these tiles and 90 on some wrong ones; a read that survives a
+             change of scale is the honest signal (measured: 0 wrong agreed reads). */
+          let text=null,conf=0;
+          const looks=OCR_STRIP_UPSCALES.map(up=>[rx,ry,rw,rh,up]);
+          const cut=OCR_STRIP_NARROW_CUT;
+          /* the wire enters the label from the SYMBOL side, so the third look trims
+             the near edge; a 3-digit read that starts with 1 and changes is a wire */
+          if(st.name==='left')looks.push([rx,ry,rw*(1-cut),rh,OCR_STRIP_UPSCALE,'near']);
+          else if(st.name==='right')looks.push([rx+rw*cut,ry,rw*(1-cut),rh,OCR_STRIP_UPSCALE,'near']);
+          else if(st.name==='up')looks.push([rx,ry,rw,rh*(1-cut),OCR_STRIP_UPSCALE,'near']);
+          else looks.push([rx,ry+rh*cut,rw,rh*(1-cut),OCR_STRIP_UPSCALE,'near']);
+          for(const [lx,ly,lw,lh,up,kind] of looks){
+            const cv=cropStripCanvas(lx,ly,lw,lh,up);crops++;
+            const result=await worker.recognize(cv,{},{text:true});
+            const t=String(result&&result.data&&result.data.text||'').replace(/\s+/g,'');
+            const cf=Number(result&&result.data&&result.data.confidence)||0;
+            if(kind==='near'){
+              if(text!==null&&text[0]==='1'&&text.length===3&&t!==text)text=null;  /* 139 -> 39: the 1 was the wire */
+              break;
+            }
+            if(!/^\d{1,3}$/.test(t)){text=null;break;}
+            if(text===null){text=t;conf=cf;}else if(t!==text){text=null;break;}else conf=Math.min(conf,cf);
+          }
+          if(text===null)continue;
+          if(text[0]==='0')continue;  /* a leading 0 is a clipped longer number */
+          /* a lone "1" is a wall line or a wire far more often than device 1 */
+          if(text.length<2&&(conf<OCR_STRIP_SINGLE_MIN_CONF||text==='1'))continue;
+          const dev=String(parseInt(text,10));
+          seen.push({dir:st.name,dev,confidence:conf});
+          rawLabels.push({loop:'',dev,raw:text,text,confidence:conf,bbox:[rx,ry,rw,rh],votes:1,variant:'strip',psm:'7',phase:'strip',observedNear:c.id,offsetX:0,offsetY:0,upscale:OCR_STRIP_UPSCALE});
+          reads++;
+        }
+        c.meta.stripReads=seen;
+        const distinct=[...new Set(seen.map(k=>k.dev))];
+        if(distinct.length>1){
+          /* two different numbers printed within reach: never guess, never let a
+             neighbour inherit one of them - the row goes to Review with both shown */
+          for(let k=rawLabels.length-1;k>=0;k--)if(rawLabels[k].observedNear===c.id&&rawLabels[k].phase==='strip')rawLabels.splice(k,1);
+          c.meta.stripConflict=distinct;
+        } else delete c.meta.stripConflict;
+        if(seen.length)readCandidates++;
+      }
+    }finally{
+      if(worker.setParameters) await worker.setParameters({tessedit_char_whitelist:''});
+    }
+    return {candidates:indexes.length,crops,reads,readCandidates,upscale:OCR_STRIP_UPSCALE};
+  }
+
   async function runOcrCandidatePass(worker,candidates,indexes,opts,rawLabels,phase,offsets,upscale){
     let cropReads=0,labelReads=0;
     for(let n=0;n<indexes.length;n++){
       const i=indexes[n],c=candidates[i],x=Number(c.obj.x),y=Number(c.obj.y);
       spThrowIfCancelled();
-      session.ocrStatus=`Reading labels \u2014 ${n+1} / ${indexes.length}${phase==='center'?' (first pass)':phase==='offset'?' (retry)':phase==='quadrant'?' (wide retry)':''}`;session.progress={done:n,total:indexes.length};render();
+      session.ocrStatus=`Reading labels \u2014 ${n+1} / ${indexes.length} \u00b7 ${phase==='center'?'first pass':phase==='offset'?'second pass':phase==='quadrant'?'wide pass':phase}`;session.progress={done:n,total:indexes.length,phase:phase==='center'?0:phase==='offset'?1:2,phases:3};spTick();
       for(const [dx,dy] of offsets){
         spThrowIfCancelled();
         const passOpts=Object.assign({},opts,{upscale});
@@ -1597,7 +1757,7 @@
     if(!hostUnchanged(session.hostSnapshot))throw new Error('The Workspace changed while Smart Plan was open. Analyse again before OCR.');
     const live=livePlanImage();if(!live)throw new Error('No decoded Workspace plan is available for OCR.');
     if(session.ocrBusy)throw new Error('Smart Plan OCR is already running.');
-    const opts=Object.assign({mode:'loop-device',radiusX:145,radiusY:85,retryOffset:30,upscale:2,maxAssignmentPx:OCR_ASSIGN_MAX_PX,redVariant:true,fallbackPsm11:true,quadrantRetry:true},options||{});
+    const opts=Object.assign({mode:'auto',radiusX:145,radiusY:85,retryOffset:30,upscale:2,maxAssignmentPx:OCR_ASSIGN_MAX_PX,redVariant:true,fallbackPsm11:true,quadrantRetry:true},options||{});
     opts.maxAssignmentPx=Math.min(60,Math.max(1,Number(opts.maxAssignmentPx)||OCR_ASSIGN_MAX_PX)); /* AA2 hard ceiling */
     opts.retryOffset=Math.max(0,Number(opts.retryOffset)||0);
     const baseUpscale=Math.max(1,Number(opts.upscale)||2);
@@ -1613,19 +1773,44 @@
          crops at the SAME 2x raster, raw pixels and PSM 6; no 4x upscaling. */
       const all=candidates.map((_,i)=>i);
       const phases={};
+      let numbersOnly=false,centerAssigned0=0,afterOffset0=0;
+      if(opts.mode==='auto'){
+        /* WHICH KIND OF SHEET? A few wide L01.D40-style reads first: a strip
+           would read "43" out of "L01.D43" and the loop would be lost. */
+        const step=Math.max(1,Math.floor(all.length/OCR_STYLE_PROBE_N)),probe=all.filter((_,i)=>i%step===0).slice(0,OCR_STYLE_PROBE_N);
+        session.ocrStatus='Checking how this sheet labels its detectors…';session.progress=null;spTick();
+        phases.probe=await runOcrCandidatePass(worker,candidates,probe,opts,rawLabels,'center',[[0,0]],baseUpscale);
+        if(rawLabels.some(l=>l.loop)){opts.mode='loop-device';phases.strip={candidates:0,crops:0,reads:0,readCandidates:0,adopted:false,skipped:'loop-device labels found'};}
+        else{rawLabels.length=0;opts.mode='dev-only-try';}
+      }
+      if(opts.mode==='dev-only'||opts.mode==='dev-only-try'){
+        const forced=opts.mode==='dev-only';
+        phases.strip=await runOcrStripPass(worker,candidates,all,rawLabels);
+        numbersOnly=forced||phases.strip.readCandidates>=Math.max(1,Math.ceil(candidates.length*OCR_STRIP_ADOPT_RATIO));
+        if(!numbersOnly){rawLabels.length=0;candidates.forEach(c=>{delete c.meta.stripReads;delete c.meta.stripConflict;});}
+        opts.mode=numbersOnly?'dev-only':'loop-device';
+        phases.strip.adopted=numbersOnly;
+      }
+      if(numbersOnly){
+        /* the strips are the whole read on a bare-number sheet: every symbol got
+           four tight looks already; the wide loop-device passes would only add noise */
+        const zero={candidates:0,crops:0,reads:0,upscale:baseUpscale};
+        phases.center=zero;phases.offset=Object.assign({},zero);
+        phases.quadrant=Object.assign({},zero,{width:OCR_QUADRANT_W,height:OCR_QUADRANT_H,psm:'6',raw:true});
+      } else {
       phases.center=await runOcrCandidatePass(worker,candidates,all,opts,rawLabels,'center',[[0,0]],baseUpscale);
-      let pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
-      const centerAssigned=pool.assigned.usedCandidates.size;
+      let pool0=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
+      centerAssigned0=pool0.assigned.usedCandidates.size;
 
-      let unread=unreadCandidateIndexes(pool,candidates);
+      let unread=unreadCandidateIndexes(pool0,candidates);
       if(unread.length&&opts.retryOffset>0){
         const o=opts.retryOffset,offsets=OCR_RETRY_DIRECTIONS.map(d=>[d.dx*o,d.dy*o]);
         phases.offset=await runOcrCandidatePass(worker,candidates,unread,opts,rawLabels,'offset',offsets,baseUpscale);
-        pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
+        pool0=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
       } else phases.offset={candidates:0,crops:0,reads:0,upscale:baseUpscale};
-      const afterOffset=pool.assigned.usedCandidates.size;
+      afterOffset0=pool0.assigned.usedCandidates.size;
 
-      unread=unreadCandidateIndexes(pool,candidates);
+      unread=unreadCandidateIndexes(pool0,candidates);
       if(unread.length&&opts.quadrantRetry!==false){
         const quadrantOpts=Object.assign({},opts,{
           radiusX:OCR_QUADRANT_W/2,
@@ -1638,12 +1823,15 @@
         const offsets=OCR_QUADRANTS.map(q=>[q.dx,q.dy]);
         phases.quadrant=await runOcrCandidatePass(worker,candidates,unread,quadrantOpts,rawLabels,'quadrant',offsets,baseUpscale);
         phases.quadrant.width=OCR_QUADRANT_W;phases.quadrant.height=OCR_QUADRANT_H;phases.quadrant.psm='6';phases.quadrant.raw=true;
-        pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
       } else phases.quadrant={candidates:0,crops:0,reads:0,upscale:baseUpscale,width:OCR_QUADRANT_W,height:OCR_QUADRANT_H,psm:'6',raw:true};
+      }
+      let pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
+      const centerAssigned=numbersOnly?pool.assigned.usedCandidates.size:centerAssigned0;const afterOffset=numbersOnly?centerAssigned:afterOffset0;
 
       const labels=pool.labels,assigned=pool.assigned,consistency=pool.consistency;
       let applied=0,withheld=0,mismatch=0;
       candidates.forEach(c=>{if(c.meta.devSource==='ocr'){c.obj.dev='';c.meta.devSource='';}if(c.meta.loopSource==='ocr'){c.obj.loop='';c.meta.loopSource='';}c.meta.ocrIssue='';c.meta.ocrDistance=null;c.meta.ocrConfidence=null;});
+      candidates.forEach(c=>{if(numbersOnly&&Array.isArray(c.meta.stripConflict)&&c.meta.stripConflict.length>1){c.meta.ocrIssue=`Two numbers are printed next to it: ${c.meta.stripConflict.join(' and ')}. Pick one.`;c.decision='review';withheld++;}});
       assigned.assignments.forEach(a=>{
         const c=a.candidate,lab=a.label;c.meta.ocrDistance=Math.round(a.distance*10)/10;c.meta.ocrConfidence=lab.confidence;
         if(a.withheld){withheld++;c.meta.ocrIssue=a.withheld;c.decision='review';return;}
@@ -1693,6 +1881,8 @@
 #${MODAL_ID} .spRow{display:grid;grid-template-columns:32px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;align-items:center;padding:7px 4px;border-bottom:1px solid rgba(128,128,128,.18)}
 #${MODAL_ID} .spRow input,#${MODAL_ID} .spRow select{min-width:0;width:100%;min-height:38px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px}
 #${MODAL_ID} .spRow .spIssue{grid-column:2/-1;font-size:10px;color:#ffb3a7;line-height:1.35}
+#${MODAL_ID} .spRow.spRowFocus{outline:2px solid #e040fb;outline-offset:-2px;border-radius:6px}
+#${MODAL_ID} .spRow{cursor:pointer}
 #${MODAL_ID} .spZoneBox{margin:8px 0 12px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-bg2,#292e34)}
 #${MODAL_ID} .spZoneRow{display:grid;grid-template-columns:minmax(90px,1fr) 92px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.14)}
 #${MODAL_ID} .spZoneRow:last-child{border-bottom:0}
@@ -1804,6 +1994,17 @@
     try{fsOcrProbe().then(ok=>{ocrOk=!!ok;render();}).catch(()=>{ocrOk=false;render();});}catch(_){ocrOk=false;}
   }
   function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
+  /* PASS 209 [209-A] - a progress tick touches the status line, the bar and the
+     footer. It never rebuilds the panes: the full render() tore the plan canvas
+     down on every tick, and a finger on the just-rebuilt canvas measured 0x0. */
+  function spBarValue(p){if(!p||!p.total)return 0;const f=p.phases>1?(Number(p.phase)||0)/p.phases+(p.done/p.total)/p.phases:p.done/p.total;return Math.round(100*Math.max(0,Math.min(1,f)));}
+  function spTick(){
+    const m=document.getElementById(MODAL_ID);if(!m||!session)return;
+    const text=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
+    const st=m.querySelector('[data-sp="status"]');if(st)st.textContent=text;
+    const foot=m.querySelector('[data-sp="foot"]');if(foot&&text)foot.textContent=text;
+    const bar=m.querySelector('[data-sp="bar"]');if(bar){const on=!!(session.progress&&session.progress.total);bar.style.display=on?'inline-block':'none';if(on)bar.value=spBarValue(session.progress);}
+  }
   function spDiscardGuarded(){
     if(!session)return true;
     if(session.candidates.length&&!session.committed&&!confirm('Discard this uncommitted Smart Plan review?'))return false;
@@ -1882,12 +2083,14 @@
      finger draws and two fingers still pinch. Taps stay taps. */
   const PV_MIN_K=1, PV_MAX_K=12;
   const pvMain={k:1,tx:0,ty:0}, pvZone={k:1,tx:0,ty:0};
+  let spCenterMain=null;  /* [209-F] set by preview(); centres the plan on a candidate */
   function pvReset(v){v.k=1;v.tx=0;v.ty=0;}
   function pvGeometry(cv,view,sw,sh){
     const s0=Math.min(cv.width/sw,cv.height/sh),ox0=(cv.width-sw*s0)/2,oy0=(cv.height-sh*s0)/2;
     return {sw,sh,scale:s0*view.k,ox:ox0*view.k+view.tx,oy:oy0*view.k+view.ty,fit:s0};
   }
   function pvClamp(cv,view,sw,sh){
+    if(!(Number.isFinite(view.k)&&Number.isFinite(view.tx)&&Number.isFinite(view.ty))){pvReset(view);return;}  /* [209-B] NaN never sticks */
     view.k=Math.max(PV_MIN_K,Math.min(PV_MAX_K,view.k));
     if(view.k===1){view.tx=0;view.ty=0;return;}
     const g=pvGeometry(cv,view,sw,sh),w=g.sw*g.scale,h=g.sh*g.scale;
@@ -1911,16 +2114,17 @@
      onDrawStart(c),onDrawMove(c),onDrawEnd(c),onTap(c),redraw()} - c is canvas px. */
   function pvAttach(cv,bar,opts){
     const view=opts.view,pointers=new Map();let pinch=null,pan=null,drawing=false,tapStart=null;
-    const cpos=e=>{const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};};
+    /* [209-B] a canvas mid-relayout measures 0x0: that event is ignored, never divided by */
+    const cpos=e=>{const r=cv.getBoundingClientRect();if(!(r.width>0&&r.height>0))return null;const p={x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};return (Number.isFinite(p.x)&&Number.isFinite(p.y))?p:null;};
     const pct=()=>{const el=bar&&bar.querySelector('[data-pv-pct]');if(el)el.textContent=Math.round(view.k*100)+'%';};
     const redraw=()=>{pvClamp(cv,view,opts.sw,opts.sh);pct();opts.redraw();};
     if(bar){bar.querySelector('[data-pv-act="in"]').onclick=()=>{pvZoomAt(cv,view,opts.sw,opts.sh,cv.width/2,cv.height/2,1.5);redraw();};
       bar.querySelector('[data-pv-act="out"]').onclick=()=>{pvZoomAt(cv,view,opts.sw,opts.sh,cv.width/2,cv.height/2,1/1.5);redraw();};
       bar.querySelector('[data-pv-act="fit"]').onclick=()=>{pvReset(view);redraw();};pct();}
     cv.style.touchAction='none';
-    cv.onwheel=e=>{e.preventDefault();const c=cpos(e);pvZoomAt(cv,view,opts.sw,opts.sh,c.x,c.y,e.deltaY<0?1.2:1/1.2);redraw();};
+    cv.onwheel=e=>{e.preventDefault();const c=cpos(e);if(!c)return;pvZoomAt(cv,view,opts.sw,opts.sh,c.x,c.y,e.deltaY<0?1.2:1/1.2);redraw();};
     cv.onpointerdown=e=>{
-      const c=cpos(e);pointers.set(e.pointerId,c);try{cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);}catch(_){}
+      const c=cpos(e);if(!c)return;pointers.set(e.pointerId,c);try{cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);}catch(_){}
       if(pointers.size===2){
         /* second finger: whatever one finger was doing becomes a pinch */
         if(drawing){drawing=false;opts.onDrawCancel&&opts.onDrawCancel();}
@@ -1930,10 +2134,11 @@
       if(pointers.size>2)return;
       tapStart={x:c.x,y:c.y,t:Date.now()};
       if(opts.drawMode&&opts.drawMode()){drawing=true;opts.onDrawStart(c);}
+      else if(opts.grab&&opts.grab(c)){drawing=true;}  /* [209-E] a corner handle */
       else pan={x:c.x,y:c.y,tx:view.tx,ty:view.ty};
     };
     cv.onpointermove=e=>{
-      if(!pointers.has(e.pointerId))return;const c=cpos(e);pointers.set(e.pointerId,c);
+      if(!pointers.has(e.pointerId))return;const c=cpos(e);if(!c)return;pointers.set(e.pointerId,c);
       if(pinch&&pointers.size>=2){const [a,b]=[...pointers.values()],d=Math.hypot(a.x-b.x,a.y-b.y),mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
         view.k=pinch.k;view.tx=pinch.tx;view.ty=pinch.ty;pvZoomAt(cv,view,opts.sw,opts.sh,pinch.mid.x,pinch.mid.y,d/(pinch.d||1));view.tx+=mid.x-pinch.mid.x;view.ty+=mid.y-pinch.mid.y;redraw();return;}
       if(drawing){opts.onDrawMove(c);return;}
@@ -1943,8 +2148,8 @@
       const had=pointers.has(e.pointerId);const c=had?cpos(e):null;pointers.delete(e.pointerId);
       if(pinch){if(pointers.size<2){pinch=null;pan=null;}return;}
       if(!had)return;
-      if(drawing){drawing=false;opts.onDrawEnd(c);return;}
-      const moved=tapStart&&Math.hypot(c.x-tapStart.x,c.y-tapStart.y)>6*(cv.width/cv.getBoundingClientRect().width);
+      if(drawing){drawing=false;if(c)opts.onDrawEnd(c);else if(opts.onDrawCancel)opts.onDrawCancel();return;}
+      const moved=!c||(tapStart&&Math.hypot(c.x-tapStart.x,c.y-tapStart.y)>6*(cv.width/Math.max(1,cv.getBoundingClientRect().width)));
       pan=null;
       if(tapStart&&!moved&&opts.onTap)opts.onTap(c);
       tapStart=null;
@@ -1971,17 +2176,25 @@
       session.zones.forEach(zc=>{if(zc.decision==='rejected')return;const z=zc.obj,pts=z.pts||[];if(pts.length<3)return;ctx.save();ctx.strokeStyle=zc.decision==='accepted'?'#7e57c2':'#ffb300';ctx.lineWidth=2*LW;ctx.beginPath();pts.forEach((p,i)=>{const x=g.ox+p.x*g.scale,y=g.oy+p.y*g.scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke();ctx.restore();});
       session.candidates.forEach(c=>{if(c.decision==='rejected')return;const x=g.ox+c.obj.x*g.scale,y=g.oy+c.obj.y*g.scale;ctx.save();ctx.strokeStyle=c.meta&&c.meta.suspectStub?'#ff7043':(c.decision==='review'?'#ffb300':'#00a65a');ctx.lineWidth=2*LW;ctx.beginPath();ctx.arc(x,y,7*LW,0,Math.PI*2);ctx.stroke();if(c.meta&&Array.isArray(c.meta.bbox)){const b=c.meta.bbox;ctx.globalAlpha=.7;ctx.strokeRect(g.ox+b[0]*g.scale,g.oy+b[1]*g.scale,b[2]*g.scale,b[3]*g.scale);}ctx.restore();});
       (session.zoneAlign&&session.zoneAlign.pairs||[]).forEach((p,i)=>{ctx.save();ctx.fillStyle='#e040fb';ctx.strokeStyle='#fff';ctx.lineWidth=1*LW;const x=g.ox+p.target.x*g.scale,y=g.oy+p.target.y*g.scale;ctx.beginPath();ctx.arc(x,y,6*LW,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#e040fb';ctx.font=`bold ${Math.round(12*LW)}px sans-serif`;ctx.fillText(`T${i+1}`,x+8*LW,y-7*LW);ctx.restore();});
-      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}const tb=session.taughtBox;if(tb&&!(p&&p.start)){ctx.save();ctx.strokeStyle='#1e88e5';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(g.ox+tb[0]*g.scale,g.oy+tb[1]*g.scale,tb[2]*g.scale,tb[3]*g.scale);ctx.restore();}};
+      const p=session.templatePick;if(p&&p.start&&p.end){ctx.save();ctx.strokeStyle='#40c4ff';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(Math.min(p.start.x,p.end.x),Math.min(p.start.y,p.end.y),Math.abs(p.end.x-p.start.x),Math.abs(p.end.y-p.start.y));ctx.restore();}const tb=session.taughtBox;if(tb&&!(p&&p.start)){ctx.save();ctx.strokeStyle='#1e88e5';ctx.setLineDash([6*LW,4*LW]);ctx.lineWidth=2*LW;ctx.strokeRect(g.ox+tb[0]*g.scale,g.oy+tb[1]*g.scale,tb[2]*g.scale,tb[3]*g.scale);ctx.restore();
+        if(uiStep===2&&!(session.templatePick&&session.templatePick.active)){/* [209-E] handles */ctx.save();ctx.fillStyle='#1e88e5';ctx.strokeStyle='#fff';ctx.lineWidth=1.5*LW;const R=6*LW;[[tb[0],tb[1]],[tb[0]+tb[2],tb[1]],[tb[0],tb[1]+tb[3]],[tb[0]+tb[2],tb[1]+tb[3]]].forEach(([x,y])=>{ctx.beginPath();ctx.arc(g.ox+x*g.scale,g.oy+y*g.scale,R,0,Math.PI*2);ctx.fill();ctx.stroke();});ctx.restore();}}
+      if(session.focusId){/* [209-F] the row he tapped */const fc=session.candidates.find(c=>c.id===session.focusId);if(fc){const x=g.ox+fc.obj.x*g.scale,y=g.oy+fc.obj.y*g.scale;ctx.save();ctx.strokeStyle='#e040fb';ctx.lineWidth=3*LW;ctx.beginPath();ctx.arc(x,y,14*LW,0,Math.PI*2);ctx.stroke();ctx.restore();}}};
     drawAll();
     const toPlan=c=>{const g=geometry();return {x:(c.x-g.ox)/g.scale,y:(c.y-g.oy)/g.scale};};
     const picking=()=>!!(session&&session.templatePick&&session.templatePick.active);
+    /* [209-E] corner handles on the drawn box (step 2, not while drawing) */
+    const handleCorners=()=>{const tb=session.taughtBox;if(!tb||uiStep!==2||picking())return null;const g=geometry();const x0=g.ox+tb[0]*g.scale,y0=g.oy+tb[1]*g.scale,x1=g.ox+(tb[0]+tb[2])*g.scale,y1=g.oy+(tb[1]+tb[3])*g.scale;return [{k:'nw',x:x0,y:y0},{k:'ne',x:x1,y:y0},{k:'sw',x:x0,y:y1},{k:'se',x:x1,y:y1}];};
+    const grabHandle=c=>{const hs=handleCorners();if(!hs)return false;const r=12*(cv.width/Math.max(1,cv.getBoundingClientRect().width));let h=null,best=r+1;hs.forEach(k=>{const d=Math.hypot(k.x-c.x,k.y-c.y);if(d<=r&&d<best){best=d;h=k;}});if(!h)return false;session.boxDrag={corner:h.k,box:session.taughtBox.slice()};return true;};
+    const moveHandle=c=>{const d=session.boxDrag;if(!d)return;const g=geometry(),p=toPlan(c),b=d.box;let x0=b[0],y0=b[1],x1=b[0]+b[2],y1=b[1]+b[3];if(d.corner==='nw'){x0=p.x;y0=p.y;}else if(d.corner==='ne'){x1=p.x;y0=p.y;}else if(d.corner==='sw'){x0=p.x;y1=p.y;}else{x1=p.x;y1=p.y;}const nb=[clamp(Math.min(x0,x1),0,g.sw),clamp(Math.min(y0,y1),0,g.sh),0,0];nb[2]=clamp(Math.max(x0,x1),0,g.sw)-nb[0];nb[3]=clamp(Math.max(y0,y1),0,g.sh)-nb[1];session.taughtBox=nb;drawAll();};
+    const finishHandle=()=>{const d=session.boxDrag;if(!d)return;session.boxDrag=null;const nb=session.taughtBox;if(nb[2]<6||nb[3]<6){session.taughtBox=d.box;drawAll();return;}if(session.teach)session.teach.bbox=nb.slice();session.findDone=null;drawAll();};
+    spCenterMain=(x,y)=>{const sw=dims.w||cv.width,sh=dims.h||cv.height;pvMain.k=Math.max(pvMain.k,4);const g0=pvGeometry(cv,{k:pvMain.k,tx:0,ty:0},sw,sh);pvMain.tx=cv.width/2-(g0.ox+x*g0.scale);pvMain.ty=cv.height/2-(g0.oy+y*g0.scale);pvClamp(cv,pvMain,sw,sh);const b=right.querySelector('.spPvBar[data-pv="main"] [data-pv-pct]');if(b)b.textContent=Math.round(pvMain.k*100)+'%';drawAll();};
     cv.style.cursor=picking()?'crosshair':((session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source)?'crosshair':'grab');
     pvAttach(cv,right.querySelector('.spPvBar[data-pv="main"]'),{view:pvMain,sw:dims.w||cv.width,sh:dims.h||cv.height,redraw:drawAll,
-      drawMode:picking,
+      drawMode:picking,grab:grabHandle,
       onDrawStart:c=>{session.templatePick.start=c;session.templatePick.end=c;drawAll();},
-      onDrawMove:c=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;drawAll();},
-      onDrawCancel:()=>{if(session&&session.templatePick){session.templatePick.start=null;session.templatePick.end=null;drawAll();}},
-      onDrawEnd:c=>{if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){session.templatePick={active:true,type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,start:null,end:null};render();alert('Drag a box around the detector — that was a tap. Zoom in first if it is small.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=3;render();},
+      onDrawMove:c=>{if(session.boxDrag){moveHandle(c);return;}if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;drawAll();},
+      onDrawCancel:()=>{if(session&&session.boxDrag){session.taughtBox=session.boxDrag.box;session.boxDrag=null;drawAll();return;}if(session&&session.templatePick){session.templatePick.start=null;session.templatePick.end=null;drawAll();}},
+      onDrawEnd:c=>{if(session.boxDrag){finishHandle();return;}if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){session.templatePick={active:true,type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,start:null,end:null};render();alert('Drag a box around the detector — that was a tap. Zoom in first if it is small.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=3;render();},
       onTap:c=>{if(session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source){const p=toPlan(c);session.zoneAlign.pairs.push({source:session.zoneAlign.pending.source,target:p});session.zoneAlign.pending=null;updateZoneAlignment();render();}}
     });
     if(hasZone){const zv=right.querySelector('[data-sp="zone-canvas"]'),zctx=zv.getContext('2d'),zs=session.zoneSource,zw=zs.width,zh=zs.height;const ZLW=zv.width/900;
@@ -2033,7 +2246,7 @@
     let html='';
     if(uiStep===2){
       const picking=!!(session.templatePick&&session.templatePick.active);
-      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':'Draw the box on the plan'}</button>${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
+      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':(session.teach?'Draw the box again':'Draw the box on the plan')}</button>${(session.teach&&!picking)?'<div class="spDone">Box drawn. Drag a corner on the plan to adjust it, or draw it again.</div>':''}${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
     }else if(uiStep===3){
       const t=session.teach;const done=session.findDone;
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
@@ -2046,10 +2259,10 @@
       const z=session.zoneSource;
       html=`<div class="spScreen"><h3>Zone plan <span class="spHint">(optional)</span></h3><p>Zones drawn on a separate sheet? Load it and Smart Plan carries the zones across onto this plan.</p><button class="btn ${z?'':'spPrimary'} spBig" data-sp="zone-source">${z?'Load a different zone plan…':'Load the zone plan…'}</button>${z?`<div class="spZoneWork"><div class="spHint" style="margin-bottom:6px">1 · Tell Smart Plan what each zone looks like — type the zone number, then either show it a patch of that zone's hatching or draw the zone by hand.</div><div class="spZoneGrid"><input data-sp="zone-no" placeholder="Zone" maxlength="5" inputmode="numeric"><input data-sp="zone-window" type="number" min="5" step="2" placeholder="Window"><input data-sp="zone-threshold" type="number" min="0.001" max="0.2" step="0.001" placeholder="Density: Auto"><button class="btn" data-sp="zone-sample">Show a patch of hatching</button><button class="btn" data-sp="zone-poly">Draw the zone by hand</button><button class="btn" data-sp="zone-finish">Finish the drawn zone</button><button class="btn" data-sp="zone-detect">Find the coloured zones</button></div><div class="spHint" style="margin:10px 0 6px">2 · Match three points that appear on BOTH plans (a corner, a door, a column) so the zones land in the right place.</div><div class="spActions"><button class="btn" data-sp="zone-pair">Match a point on both plans</button><button class="btn" data-sp="zone-undo-pair">Undo last match</button></div><div class="spHint" style="margin:10px 0 6px">3 · Bring the kept zones across. They arrive at Review.</div><button class="btn spPrimary spBig" data-sp="zone-transfer">Bring the zones across</button><div data-sp="zone-work-status"></div><div data-sp="zone-regions"></div></div>`:''}<div data-sp="zones"></div></div>`;
     }else if(uiStep===6){
-      html=`<div class="spScreen"><h3>Review</h3><p>Every row is a detector Smart Plan found. Fix a number, change a type, or reject a row. Rows with a flag need a look.</p><div class="spStats"><div class="spStat"><strong>${s.total}</strong><span>found</span></div><div class="spStat"><strong>${s.accepted}</strong><span>accepted</span></div><div class="spStat"><strong>${s.review}</strong><span>to check</span></div><div class="spStat"><strong>${s.rejected}</strong><span>rejected</span></div><div class="spStat"><strong>${s.numbered}</strong><span>numbered</span></div></div><div class="spActions"><button class="btn" data-sp="safe">Accept all without issues</button><button class="btn" data-sp="review">Show flagged only</button><button class="btn" data-sp="all">Show all</button>${ocrOk===false?'':'<button class="btn" data-sp="ocr">Read printed numbers</button>'}</div><div data-sp="zones"></div><div class="spColHead"><span></span><span>Type</span><span>Zone</span><span>Loop</span><span>Device</span><span>Decision</span></div><div data-sp="rows"></div></div>`;
+      html=`<div class="spScreen"><h3>Review</h3><p>Every row is a detector Smart Plan found. Fix a number, change a type, or reject a row. Rows with a flag need a look.</p><div class="spStats"><div class="spStat"><strong>${s.total}</strong><span>found</span></div><div class="spStat"><strong>${s.accepted}</strong><span>accepted</span></div><div class="spStat"><strong>${s.review}</strong><span>to check</span></div><div class="spStat"><strong>${s.rejected}</strong><span>rejected</span></div><div class="spStat"><strong>${s.numbered}</strong><span>numbered</span></div></div><div class="spActions">${(()=>{const n=session.candidates.filter(c=>c.decision!=='rejected'&&!c.issues.length).length;return `<button class="btn" data-sp="safe" ${n?'':'disabled'}>${n?`Accept the ${n} without issues`:'Nothing to accept yet'}</button>${n?'':'<span class="spHint" data-sp="safe-why">Every row still has an issue - most need a number. Read them, or tap a row and type it.</span>'}`;})()}<button class="btn" data-sp="review">Show flagged only</button><button class="btn" data-sp="all">Show all</button>${ocrOk===false?'':'<button class="btn" data-sp="ocr">Read printed numbers</button>'}</div><div data-sp="zones"></div><div class="spColHead"><span></span><span>Type</span><span>Zone</span><span>Loop</span><span>Device</span><span>Decision</span></div><div data-sp="rows"></div></div>`;
     }else{
       const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length;
-      html=`<div class="spScreen"><h3>Commit</h3>${session.committed?`<div class="spDone">Committed. ${s.total} candidate(s) were reviewed. You can close Smart Plan.</div>`:`<p><b>${s.accepted}</b> detector${s.accepted===1?'':'s'}${s.zoneAccepted?` and <b>${s.zoneAccepted}</b> zone${s.zoneAccepted===1?'':'s'}`:''} will be added to the plan.${s.review?` <b>${s.review}</b> still at Review will be left out.`:''}${s.rejected?` ${s.rejected} rejected.`:''}</p>${blockers?`<div class="spWarn">${blockers} accepted row${blockers===1?' has':'s have'} a blocking issue — go Back to Review and fix or reject ${blockers===1?'it':'them'}.</div>`:''}${s.zoneReview?`<div class="spWarn">${s.zoneReview} zone${s.zoneReview===1?' is':'s are'} still at Review — accept or reject ${s.zoneReview===1?'it':'them'} on the Zone plan step.</div>`:''}<p>Nothing has been written yet. Commit adds them in one step — one Undo takes the lot back out.</p><button class="btn spPrimary spBig" data-sp="commitbig">Commit to Workspace</button>`}</div>`;
+      html=`<div class="spScreen"><h3>Commit</h3>${session.committed?`<div class="spDone">Committed. ${s.total} candidate(s) were reviewed. The devices are on the plan - Close Smart Plan, or start another plan.</div>`:`<p><b>${s.accepted}</b> detector${s.accepted===1?'':'s'}${s.zoneAccepted?` and <b>${s.zoneAccepted}</b> zone${s.zoneAccepted===1?'':'s'}`:''} will be added to the plan.${s.review?` <b>${s.review}</b> still at Review will be left out.`:''}${s.rejected?` ${s.rejected} rejected.`:''}</p>${blockers?`<div class="spWarn">${blockers} accepted row${blockers===1?' has':'s have'} a blocking issue — go Back to Review and fix or reject ${blockers===1?'it':'them'}.</div>`:''}${s.zoneReview?`<div class="spWarn">${s.zoneReview} zone${s.zoneReview===1?' is':'s are'} still at Review — accept or reject ${s.zoneReview===1?'it':'them'} on the Zone plan step.</div>`:''}<p>Nothing has been written yet. Commit adds them in one step — one Undo takes the lot back out.</p><button class="btn spPrimary spBig" data-sp="commitbig">Commit to Workspace</button>`}</div>`;
     }
     left.innerHTML=html;
     /* ---- wiring, by step ---- */
@@ -2108,7 +2321,13 @@
       spNav(left,{next:'Next: Commit',nextPrimary:true,nextDisabled:busy});
     }else{
       const cb=q('[data-sp="commitbig"]');if(cb)cb.onclick=()=>commitBtn.click();
-      spNav(left);
+      if(session.committed){
+        /* [209-C] Back was dead here (render() forces step 7 once committed). */
+        const nav=document.createElement('div');nav.className='spNav';
+        const cl=document.createElement('button');cl.className='btn';cl.setAttribute('data-sp','closedone');cl.textContent='Close Smart Plan';cl.onclick=()=>{discard();uiStep=1;spClose();};
+        const ag=document.createElement('button');ag.className='btn spPrimary';ag.setAttribute('data-sp','again');ag.textContent='Start another plan';ag.onclick=()=>{discard();uiStep=1;ensureModal().style.display='block';render();};
+        nav.appendChild(cl);nav.appendChild(ag);left.appendChild(nav);
+      } else spNav(left);
     }
     preview();const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length,hiddenAccepted=session.candidates.some(c=>c.decision==='accepted'&&hiddenTypesNow().has(field(c.obj.type)));commitBtn.disabled=session.committed||session.ocrBusy||session.detectBusy||!s.accepted||!!blockers||!!s.zoneReview||hiddenAccepted;
     const cbig=q('[data-sp="commitbig"]');if(cbig)cbig.disabled=commitBtn.disabled;
@@ -2119,7 +2338,7 @@
     foot.textContent=session.committed?`Committed. ${s.total} candidate(s) were reviewed.`:(session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):`Candidates stay temporary until Commit. ${s.total} found · ${s.accepted} accepted · ${s.review} to check${s.rejected?` · ${s.rejected} rejected`:''}${s.zones?` · ${s.zoneAccepted}/${s.zones} zones`:''}${s.errors?` · ${s.errors} blocking`:''}`));
     /* [205-A] progress + Cancel only while something runs; Discard is held until it stops. */
     const spBusy=!!(session.detectBusy||session.ocrBusy),spBar=m.querySelector('[data-sp="bar"]'),spCancel=m.querySelector('[data-sp="cancel"]'),spDiscard=m.querySelector('[data-sp="discard"]');
-    if(spBar){spBar.style.display=spBusy&&session.progress&&session.progress.total?'inline-block':'none';if(session.progress&&session.progress.total)spBar.value=Math.round(100*session.progress.done/session.progress.total);}
+    if(spBar){spBar.style.display=spBusy&&session.progress&&session.progress.total?'inline-block':'none';if(session.progress&&session.progress.total)spBar.value=spBarValue(session.progress);}
     if(spCancel){spCancel.style.display=spBusy?'inline-block':'none';spCancel.disabled=!!session.cancelRequested;}
     if(spDiscard)spDiscard.disabled=spBusy;
   }
@@ -2167,6 +2386,8 @@
       typeSel.innerHTML=types.filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(arcTypeLabel(t))}</option>`).join(''); typeSel.value=c.obj.type;
       ['zone','loop','dev'].forEach(k=>row.querySelector(`[data-k="${k}"]`).value=field(c.obj[k])); row.querySelector('[data-k="decision"]').value=c.decision;
       row.querySelector('.spIssue').textContent=c.issues.map(x=>x.text).join(' · ');
+      if(session.focusId===c.id)row.classList.add('spRowFocus');
+      row.onclick=e=>{const tag=e.target&&e.target.tagName;if(/^(INPUT|SELECT|OPTION|BUTTON)$/.test(tag||''))return;session.focusId=c.id;box.querySelectorAll('.spRowFocus').forEach(r=>r.classList.remove('spRowFocus'));row.classList.add('spRowFocus');if(spCenterMain)spCenterMain(Number(c.obj.x),Number(c.obj.y));};
       row.onchange=e=>{const k=e.target&&e.target.dataset&&e.target.dataset.k;if(!k)return;if(k==='decision')c.decision=e.target.value;else{c.obj[k]=field(e.target.value);if(c.meta)c.meta[`${k}Source`]='user';}refreshIssues();render();};
       box.appendChild(row);
     });
@@ -2206,7 +2427,7 @@
 
   function maxCanvasPx(){try{return typeof FS_MAX_CANVAS_PX!=='undefined'?FS_MAX_CANVAS_PX:MAX_CANVAS_FALLBACK}catch(_){return MAX_CANVAS_FALLBACK}}
 
-  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings};
+  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
