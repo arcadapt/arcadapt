@@ -1,6 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
    (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
-   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics). The engine functions are byte-identical to V0.184.
+   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics), then tests/patch-p211.py (the box snaps to the symbol; sticky step nav). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -1260,6 +1260,47 @@
     });return keep;
   }
 
+  /* PASS 211 [211-A] - THE BOX SNAPS TO THE SYMBOL. A drawn box that also
+     encloses the printed number makes a template with the number baked in and
+     puts every reading strip past the label (his Merriwa run: 74 found, 2
+     reads). The longest ink run per column / per row finds the square's sides:
+     digits are ~half a symbol tall, a wire crossing the box is 1-2 px the
+     other way, and a wire ATTACHED to the symbol does not widen anything. */
+  const TIGHTEN_MARGIN_PX = 1, TIGHTEN_MIN_SIDE = 6, TIGHTEN_RUN_FRACTION = 0.6, TIGHTEN_RUN_MAX = 2.2;
+  function tightenWorkBox(f,wb){
+    const W=wb.w,H=wb.h;if(W<4||H<4)return null;
+    /* longest ink RUN per column and per row: the square's sides are runs the
+       size of the symbol; a digit's strokes are ~half that; a wire crossing
+       the box is a 1-2 px run the other way - so wires and digits drop out */
+    const colRun=new Int32Array(W),rowRun=new Int32Array(H);
+    for(let x=0;x<W;x++){let run=0,best=0;for(let y=0;y<H;y++){if(f.mask[(wb.y+y)*f.w+wb.x+x]){run++;if(run>best)best=run;}else run=0;}colRun[x]=best;}
+    for(let y=0;y<H;y++){let run=0,best=0;for(let x=0;x<W;x++){if(f.mask[(wb.y+y)*f.w+wb.x+x]){run++;if(run>best)best=run;}else run=0;}rowRun[y]=best;}
+    let M=0,N=0;for(let x=0;x<W;x++)if(colRun[x]>M)M=colRun[x];for(let y=0;y<H;y++)if(rowRun[y]>N)N=rowRun[y];
+    /* the symbol size is the SMALLER of the two longest runs: a wire crossing the
+       box makes one long run in one direction only, and is then too long to
+       count as a side (> 2.2x the symbol) */
+    const S=Math.min(M,N);if(S<TIGHTEN_MIN_SIDE)return null;
+    const lo=TIGHTEN_RUN_FRACTION*S,hi=TIGHTEN_RUN_MAX*S;
+    let x0=-1,x1=-1,y0=-1,y1=-1;
+    for(let x=0;x<W;x++)if(colRun[x]>=lo&&colRun[x]<=hi){if(x0<0)x0=x;x1=x;}
+    for(let y=0;y<H;y++)if(rowRun[y]>=lo&&rowRun[y]<=hi){if(y0<0)y0=y;y1=y;}
+    if(x0<0||y0<0)return null;
+    x0=Math.max(0,x0-TIGHTEN_MARGIN_PX);y0=Math.max(0,y0-TIGHTEN_MARGIN_PX);x1=Math.min(W-1,x1+TIGHTEN_MARGIN_PX);y1=Math.min(H-1,y1+TIGHTEN_MARGIN_PX);
+    const nw=x1-x0+1,nh=y1-y0+1;
+    if(nw<TIGHTEN_MIN_SIDE||nh<TIGHTEN_MIN_SIDE)return null;
+    if(nw>3*S||nh>3*S)return null;   /* not a symbol-shaped outline - leave his box alone */
+    if(nw>=W-1&&nh>=H-1)return null;   /* already tight */
+    return {x:wb.x+x0,y:wb.y+y0,w:nw,h:nh};
+  }
+  function tightenTemplateBox(bbox,signal){
+    if(!session)throw new Error('Start Smart Plan first.');
+    signal=field(signal||'auto').toLowerCase();if(!['auto','red','ink'].includes(signal))signal='auto';
+    if(signal==='auto')signal=autoSignalForBBox(bbox);
+    const f=makeFeature(signal),wb=workBBox(f,bbox),t=tightenWorkBox(f,wb);
+    if(!t)return {bbox:wb.original.slice(),tightened:false};
+    const out=[t.x/f.scaleX,t.y/f.scaleY,t.w/f.scaleX,t.h/f.scaleY];
+    return {bbox:out,tightened:true};
+  }
   function autoSignalForBBox(bbox){
     const red=makeFeature('red'),b=workBBox(red,bbox),area=Math.max(1,b.w*b.h),ink=rectSum(red,b.x,b.y,b.w,b.h);
     /* A true coloured detector sample generally contains much more red than a
@@ -1293,7 +1334,8 @@
     session.detectBusy=true;session.detectStatus='Preparing local template detector…';render();
     const started=performance.now?performance.now():Date.now();
     try{
-      const f=makeFeature(signal),wb=workBBox(f,bbox),base=cropMask(f,wb);
+      const f=makeFeature(signal);let wb=workBBox(f,bbox);{const tt=tightenWorkBox(f,wb);if(tt){const o=[tt.x/f.scaleX,tt.y/f.scaleY,tt.w/f.scaleX,tt.h/f.scaleY];wb={x:tt.x,y:tt.y,w:tt.w,h:tt.h,original:o,tightened:true};}}  /* [211-A] */
+      const base=cropMask(f,wb);
       if(base.ink<8)throw new Error(`The taught rectangle contains too little ${signal==='red'?'red ':' '}symbol ink. Draw tightly around one complete symbol.`);
       const taught=contourStats(f,wb.x,wb.y,wb.w,wb.h),taughtHole=closedContourStats(f,wb.x,wb.y,wb.w,wb.h),taughtClosed=taught.sides>=3||taughtHole.enclosedRatio>=0.035;
       const raw=[];const mirrors=includeMirrors?[false,true]:[false];
@@ -1351,7 +1393,7 @@
       if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
       session.candidates.push(...created);refreshIssues();
       const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
-      session.detectReport={summary:{type,signal,threshold,raw:raw.length,kept:created.length,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+      session.detectReport={summary:{type,signal,threshold,raw:raw.length,kept:created.length,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
       session.detectStatus='';return clone(session.detectReport);
     } catch(e){
       /* [205-A] a cancelled detection adds NOTHING: candidates are only pushed after the last pass. */
@@ -1919,7 +1961,7 @@
 #${MODAL_ID} .spField select,#${MODAL_ID} .spField input{min-height:40px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-bg,#15181c);color:inherit;padding:6px;min-width:0;width:100%}
 #${MODAL_ID} .spDone{padding:9px 11px;border-radius:10px;background:rgba(0,166,90,.14);border:1px solid #2d8b57;font-size:13px;margin:8px 0}
 #${MODAL_ID} .spWarn{padding:9px 11px;border-radius:10px;background:rgba(255,179,0,.12);border:1px solid #b88926;font-size:13px;margin:8px 0}
-#${MODAL_ID} .spNav{display:flex;gap:8px;margin-top:12px}
+#${MODAL_ID} .spNav{display:flex;gap:8px;margin-top:12px;position:sticky;bottom:-12px;padding:10px 0 12px;background:var(--fs-card,#20242a);border-top:1px solid var(--fs-border,#3a4047)}  /* [211-C] never scroll to the bottom for Back */
 #${MODAL_ID} .spNav button{flex:1 1 auto}
 #${MODAL_ID} .spCaption{font-size:12px;line-height:1.4;color:var(--fs-sub,#9aa2aa);margin:6px 0 0}
 #${MODAL_ID} .spCaption.on{color:#ffd36e}
@@ -2203,7 +2245,7 @@
       onDrawStart:c=>{session.templatePick.start=c;session.templatePick.end=c;drawAll();},
       onDrawMove:c=>{if(session.boxDrag){moveHandle(c);return;}if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;drawAll();},
       onDrawCancel:()=>{if(session&&session.boxDrag){session.taughtBox=session.boxDrag.box;session.boxDrag=null;drawAll();return;}if(session&&session.templatePick){session.templatePick.start=null;session.templatePick.end=null;drawAll();}},
-      onDrawEnd:c=>{if(session.boxDrag){finishHandle();return;}if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){session.templatePick={active:true,type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,start:null,end:null};render();alert('Drag a box around the detector — that was a tap. Zoom in first if it is small.');return;}session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.findDone=null;uiStep=2;render();}  /* [210-A] stay here: handles first, Next when he is happy */,
+      onDrawEnd:c=>{if(session.boxDrag){finishHandle();return;}if(!session.templatePick||!session.templatePick.start)return;session.templatePick.end=c;const p=clone(session.templatePick),g=geometry();session.templatePick=null;const x0=(Math.min(p.start.x,p.end.x)-g.ox)/g.scale,y0=(Math.min(p.start.y,p.end.y)-g.oy)/g.scale,x1=(Math.max(p.start.x,p.end.x)-g.ox)/g.scale,y1=(Math.max(p.start.y,p.end.y)-g.oy)/g.scale,bbox=[clamp(x0,0,g.sw),clamp(y0,0,g.sh),clamp(x1,0,g.sw)-clamp(x0,0,g.sw),clamp(y1,0,g.sh)-clamp(y0,0,g.sh)];/* [206-B] the box is RECORDED here; step 3's one button runs detect + read. A box under 6 px is a tap, not a box. */if(bbox[2]<6||bbox[3]<6){session.templatePick={active:true,type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,start:null,end:null};render();alert('Drag a box around the detector — that was a tap. Zoom in first if it is small.');return;}let snapped=false;try{const tb=tightenTemplateBox(bbox,p.signal);if(tb.tightened){bbox.splice(0,4,...tb.bbox);snapped=true;}}catch(_){}  /* [211-B] */session.teach={type:p.type,signal:p.signal,threshold:p.threshold,includeMirrors:p.includeMirrors,bbox};session.taughtBox=bbox;session.boxSnapped=snapped;session.findDone=null;uiStep=2;render();}  /* [210-A] stay here: handles first, Next when he is happy */,
       onTap:c=>{if(session.zoneAlign&&session.zoneAlign.pending&&session.zoneAlign.pending.source){const p=toPlan(c);session.zoneAlign.pairs.push({source:session.zoneAlign.pending.source,target:p});session.zoneAlign.pending=null;updateZoneAlignment();render();}}
     });
     if(hasZone){const zv=right.querySelector('[data-sp="zone-canvas"]'),zctx=zv.getContext('2d'),zs=session.zoneSource,zw=zs.width,zh=zs.height;const ZLW=zv.width/900;
@@ -2255,7 +2297,7 @@
     let html='';
     if(uiStep===2){
       const picking=!!(session.templatePick&&session.templatePick.active);
-      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':(session.teach?'Draw the box again':'Draw the box on the plan')}</button>${(session.teach&&!picking)?'<div class="spDone">Box drawn. Drag a corner on the plan to adjust it, draw it again, or press Next.</div>':''}${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
+      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':(session.teach?'Draw the box again':'Draw the box on the plan')}</button>${(session.teach&&!picking)?`<div class="spDone">${session.boxSnapped?'Box snapped to the symbol - the printed number stays outside it, where the reader looks. ':'Box drawn. '}Drag a corner on the plan to adjust it, draw it again, or press Next.</div>`:''}${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
     }else if(uiStep===3){
       const t=session.teach;const done=session.findDone;
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
@@ -2436,7 +2478,7 @@
 
   function maxCanvasPx(){try{return typeof FS_MAX_CANVAS_PX!=='undefined'?FS_MAX_CANVAS_PX:MAX_CANVAS_FALLBACK}catch(_){return MAX_CANVAS_FALLBACK}}
 
-  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
