@@ -137,7 +137,7 @@ button, .btn, .fsbtn, .fsbtnP, [role="button"], label { -webkit-user-select: non
    page background below it (measured off his 28 Aug screenshot: bar 63.8px,
    then 47.9px of #1a1d21). It was a hardcoded near-black, so it also stayed
    near-black under the LIGHT theme - unreported, and fixed here too. */
-body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--fs-card); color:#e8e8e8; }
+body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--fs-card); color:var(--fs-text); }
 /* PASS 108 [W107-1] - the inset probe fsScreenReadout() measures. Its padding
    is declared HERE, in the stylesheet, and not inline, for a reason a mutation
    run had to teach: env() resolves to 0 in every desktop browser, so reading
@@ -153,11 +153,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
           env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); }
   #app { display:flex; flex-direction:column; height:100%; }
 
-  #topbar { display:flex; align-items:center; gap:6px; padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px; background:#23272d; border-bottom:1px solid #333; flex-wrap:wrap; }
-  #topbar .title { font-weight:700; font-size:13px; color:#ff5a3c; margin-right:4px; white-space:nowrap; }
-  .btn { border:1px solid #444; background:#2e333a; color:#e8e8e8; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer; touch-action:manipulation; user-select:none; text-decoration:none; display:inline-block; }
+  #topbar { display:flex; align-items:center; gap:6px; padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px; background:var(--fs-card); border-bottom:1px solid var(--fs-border); flex-wrap:wrap; }
+  #topbar .title { font-weight:700; font-size:13px; color:var(--fs-primary); margin-right:4px; white-space:nowrap; }
+  .btn { border:1px solid var(--fs-border); background:var(--fs-raised); color:var(--fs-text); border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer; touch-action:manipulation; user-select:none; text-decoration:none; display:inline-block; }
   .btn:active { background:#3a414a; }
-  .btn.primary { background:#ff5a3c; border-color:#ff5a3c; color:#fff; font-weight:600; }
+  .btn.primary { background:var(--fs-primary); border-color:var(--fs-primary); color:var(--fs-onPrimary); font-weight:600; }
   .btn.primary:active { background:#e04b30; }
   .btn.toggled { background:#3a5f3a; border-color:#5a8f5a; }
   .btn:disabled { opacity:.35; cursor:default; }
@@ -175,22 +175,22 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   input[type=file] { display:none; }
 
   #midRow { display:flex; flex:1; min-height:0; }
-  #sideTabs { width:56px; background:#23272d; border-right:1px solid #333; overflow-y:auto; display:flex; flex-direction:column; gap:3px; padding:5px 3px; flex:0 0 auto; }
+  #sideTabs { width:56px; background:var(--fs-card); border-right:1px solid var(--fs-border); overflow-y:auto; display:flex; flex-direction:column; gap:3px; padding:5px 3px; flex:0 0 auto; }
   #centerCol { flex:1; display:flex; flex-direction:column; min-width:0; }
-  #toolrow { display:flex; align-items:stretch; gap:6px; padding:6px 10px 0 10px; background:#23272d; }
-  .modebtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:2px solid transparent; background:#2e333a; border-radius:10px; padding:4px 10px; cursor:pointer; user-select:none; touch-action:manipulation; font-size:17px; min-width:52px; }
+  #toolrow { display:flex; align-items:stretch; gap:6px; padding:6px 10px 0 10px; background:var(--fs-card); }
+  .modebtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:2px solid transparent; background:var(--fs-raised); border-radius:10px; padding:4px 10px; cursor:pointer; user-select:none; touch-action:manipulation; font-size:17px; min-width:52px; }
   .modebtn .lbl { font-size:9px; color:#aaa; }
-  .modebtn.active { border-color:#ff5a3c; background:#3a2b27; }
+  .modebtn.active { border-color:var(--fs-primary); background:var(--fs-primarySoft); }
   /* PASS 34 — touch-action was `manipulation`, which lets the browser own the
      vertical pan and steal the pointer mid-drag. The palette solved this long
      ago with touch-action:none plus a manual scroll in pointermove; the tab
      strip now does the same thing, so #sideTabs still scrolls by touch. */
-  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 2px; font-size:9px; color:#aaa; background:#262a30; border:1px solid #333; border-radius:9px; cursor:pointer; user-select:none; touch-action:none; text-align:center; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 2px; font-size:9px; color:#aaa; background:var(--fs-raised); border:1px solid var(--fs-border); border-radius:9px; cursor:pointer; user-select:none; touch-action:none; text-align:center; }
   .tab.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
   .tab .ti { font-size:19px; line-height:1; }
-  .tab.active { color:#fff; background:#3a2b27; border-color:#ff5a3c; font-weight:600; }
+  .tab.active { color:#fff; background:var(--fs-primarySoft); border-color:var(--fs-primary); font-weight:600; }
 
-  #palette { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#31363d; border-bottom:1px solid #333; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:74px; }
+  #palette { display:flex; align-items:center; gap:6px; padding:6px 10px; background:var(--fs-raised); border-bottom:1px solid var(--fs-border); overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:74px; }
   /* PASS 197 [197-A] W176-B. THE LABEL IS THE TAP TARGET, NOT THE BOX -
      W121-1, measured in Pass 121, and why each part is a 44px-high <label>
      rather than a 16px checkbox with words next to it. W124-1 (eleven 16x16
@@ -230,7 +230,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     #vwLabelParts .lp { flex:1 1 0; min-width:0; justify-content:center;
                         gap:6px; padding:4px 6px; }
   }
-  .pal { display:flex; flex-direction:column; align-items:center; gap:2px; border:2px solid transparent; background:#262a30; border-radius:10px; padding:5px 8px; cursor:pointer; min-width:58px; user-select:none; touch-action:none; flex:0 0 auto; }
+  .pal { display:flex; flex-direction:column; align-items:center; gap:2px; border:2px solid transparent; background:var(--fs-raised); border-radius:10px; padding:5px 8px; cursor:pointer; min-width:58px; user-select:none; touch-action:none; flex:0 0 auto; }
   .pal.lift { border-color:#00e5ff; box-shadow:0 4px 14px rgba(0,0,0,.6); z-index:5; position:relative; opacity:.92; }
   /* PASS 36 — THE 1.5 s FAVOURITE ARM HAD NO FEEDBACK ON AN iPAD AT ALL.
      Its only signal was navigator.vibrate(40), and iOS Safari implements no
@@ -248,7 +248,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     transform:scale(1.08);
   }
   .pal.favarm .lbl { color:#ffc400; }
-  .pal.active { border-color:#ff5a3c; background:#3a2b27; }
+  .pal.active { border-color:var(--fs-primary); background:var(--fs-primarySoft); }
   .pal canvas { width:34px; height:34px; }
   .pal .sym { width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px; }
   .pal .lbl { font-size:9px; color:#aaa; white-space:nowrap; }
@@ -265,14 +265,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   #dropHint .big { font-size:17px; color:#ccc; }
   #dropHint.hidden { display:none; }
 
-  #bottombar { display:flex; align-items:center; gap:8px; padding:7px 10px; background:#23272d; border-top:1px solid #333; flex-wrap:wrap; }
+  #bottombar { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--fs-card); border-top:1px solid var(--fs-border); flex-wrap:wrap; }
   #sizeWrap { display:flex; align-items:center; gap:5px; font-size:12px; color:#aaa; }
   #sizeWrap input { width:90px; }
   /* PASS 141 [141-C] W128-3 - the millimetre half of the pair. The id
      beats #sizeWrap input AND the global input[type=text], both of
      which would otherwise make this box 90px or full width. */
-  #sizeWrap #sizeMm { width:62px; text-align:right; background:#2e333a;
-    border:1px solid #444; border-radius:5px; color:#e8e8e8;
+  #sizeWrap #sizeMm { width:62px; text-align:right; background:var(--fs-raised);
+    border:1px solid var(--fs-border); border-radius:5px; color:var(--fs-text);
     padding:3px 6px; font-size:12px; font-variant-numeric:tabular-nums; }
   #sizeWrap #sizeMm:disabled { color:#7d868c; text-align:center; }
   /* PASS 158 [158-F] - "the actual handle that moves back and forward could
@@ -290,7 +290,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     background:#d8dee4; border:1px solid #6b737c; }
   #swatches { display:flex; align-items:center; gap:5px; }
   .swatch { width:22px; height:22px; border-radius:50%; border:2px solid #555; cursor:pointer; flex:0 0 auto; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  .swatch.active { border-color:#fff; box-shadow:0 0 0 2px #ff5a3c; }
+  .swatch.active { border-color:#fff; box-shadow:0 0 0 2px var(--fs-primary); }
   /* PASS 85 [85-1] - R-13. The markup row is the workspace's swatch row and
      wants to LOOK identical, but the plan's 22px circles sit in a toolbar you
      hit with a stylus or a mouse. These are hit with a thumb, in a modal, on a
@@ -314,7 +314,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 
   .modal { position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index:60; padding:16px; }
   .modal.show { display:flex; }
-  .modalbox { background:#262a30; border:1px solid #444; border-radius:12px; padding:18px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto; }
+  .modalbox { background:var(--fs-raised); border:1px solid var(--fs-border); border-radius:12px; padding:18px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto; }
   .modalbox h3 { font-size:15px; margin-bottom:12px; color:#ff8a70; }
   /* PASS 157 [157-A] - W142-4, and the same shape #detailsModal already uses:
      THE ROW THAT DECIDES WHETHER THE MARKUP IS KEPT DOES NOT GET TO BE PUSHED
@@ -324,7 +324,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      picture. THE PHOTO PANE IS NOT SHRUNK to make room - 151-A made it
      deliberately large and taking that back would reopen a settled item. */
   #fsAnnModal #fsAnnFootRow { position:sticky; bottom:0; z-index:3;
-    background:#262a30; border-top:1px solid #3a3f46;
+    background:var(--fs-raised); border-top:1px solid var(--fs-border);
     margin-top:8px; padding:10px 0 2px; }
   .modalbox label { display:block; font-size:12px; color:#aaa; margin:8px 0 3px; }
   /* PASS 146 [146-A] - "things do not line up, boxes are way too large".
@@ -334,8 +334,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .modalbox input[type=text], .modalbox input[type=month], .modalbox input[type=date],
   .modalbox input[type=number], .modalbox input[type=tel], .modalbox input[type=email],
   .modalbox select, .modalbox textarea {
-    width:100%; box-sizing:border-box; height:38px; background:#1a1d21;
-    border:1px solid #444; border-radius:6px; color:#e8e8e8;
+    width:100%; box-sizing:border-box; height:38px; background:var(--fs-field);
+    border:1px solid var(--fs-border); border-radius:6px; color:var(--fs-text);
     padding:0 9px; font-size:14px; font-family:inherit; line-height:normal;
   }
   .modalbox textarea { height:auto; min-height:72px; padding:8px 9px; line-height:1.45; resize:vertical; }
@@ -361,11 +361,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      only because it says the intent out loud - mutant M11 proves which
      of the two is load-bearing. */
   #detPanes { flex:1 1 auto; overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
-  #detailsModal #detFooter { flex:0 0 auto; margin-top:12px; border-top:1px solid #333; padding-top:12px; }
+  #detailsModal #detFooter { flex:0 0 auto; margin-top:12px; border-top:1px solid var(--fs-border); padding-top:12px; }
   /* The close X reserves its corner - see 146-H for why it moves. */
   #detailsModal #detailsTitle { padding-right:42px; }
   .modalbox table { width:100%; border-collapse:collapse; font-size:12px; }
-  .modalbox th, .modalbox td { border:1px solid #444; padding:5px 8px; text-align:left; }
+  .modalbox th, .modalbox td { border:1px solid var(--fs-border); padding:5px 8px; text-align:left; }
   .modalbox th { color:#ff8a70; }
 
   #exportPanel { position:fixed; inset:0; background:rgba(0,0,0,.82); display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:50; padding:16px; }
@@ -385,14 +385,15 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   .modebtn.testmode.active .dot { display:inline-block; }
   #testCounter { position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:44; display:none; background:rgba(23,52,32,.95); border:1px solid #2e7d32; border-radius:0 0 10px 10px; color:#7ddb8f; font-weight:800; font-size:14.5px; padding:7px 16px; }
   .btn.levels { background:#2b3a55; border-color:#48639c; }
-  #btnMulti.active { border-color:#ff5a3c; background:#3a2b27; }
+  html:not(.fsdark) .btn.levels { background:var(--fs-primarySoft); border-color:var(--fs-primary); }  /* [214-B] the navy Levels button has a light twin */
+  #btnMulti.active { border-color:var(--fs-primary); background:var(--fs-primarySoft); }
   .pal.pdis { opacity:.32; }
   .swatch.lift { transform:scale(1.18); box-shadow:0 4px 14px rgba(0,0,0,.55); z-index:5; }
   .swatch.temp { border-style:dashed; }
   body.focusmode #topbar, body.focusmode #sideTabs, body.focusmode #palette,
   body.focusmode #toolrow, body.focusmode #bottombar { display:none !important; }
   #focusBar { display:none; position:fixed; top:8px; left:8px; z-index:46; gap:5px; align-items:center;
-    background:rgba(22,26,30,.9); border:1px solid #444; border-radius:12px; padding:5px 6px; }
+    background:rgba(22,26,30,.9); border:1px solid var(--fs-border); border-radius:12px; padding:5px 6px; }
   body.focusmode #focusBar { display:flex; }
   #focusBar .modebtn { padding:3px 8px; min-width:44px; font-size:15px; }
   #focusBar .btn { padding:6px 9px; }
@@ -419,8 +420,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   #btnSetScale .sslbl { display:none; }
   #btnSetScale { padding:6px 9px; }
   body.chesthide #sideTabs, body.chesthide #palette { display:none; }
-  #chestHandle { position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:30; width:22px; height:56px; display:flex; align-items:center; justify-content:center; background:rgba(35,39,45,.9); border:1px solid #444; border-left:none; border-radius:0 10px 10px 0; color:#bbb; font-size:16px; cursor:pointer; user-select:none; touch-action:manipulation; }
-  #chestHandle:active { background:#3a2b27; }
+  #chestHandle { position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:30; width:22px; height:56px; display:flex; align-items:center; justify-content:center; background:rgba(35,39,45,.9); border:1px solid var(--fs-border); border-left:none; border-radius:0 10px 10px 0; color:#bbb; font-size:16px; cursor:pointer; user-select:none; touch-action:manipulation; }
+  #chestHandle:active { background:var(--fs-primarySoft); }
   body.focusmode #chestHandle { display:none !important; }
 </style>
 <style>
@@ -459,9 +460,9 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      both apps. Tokenising that red is L2's pass, not this one.
      --fs-palette IS P-12's agreed probe marker, declared as real CSS so
      it cannot be satisfied by a comment - the R-15 failure, twice paid. */
-  :root { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff; color-scheme: light; }
-  :root.fsdark { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; color-scheme: dark; }
-  #fsReg { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff;
+  :root { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-primary:#1d5fd1; --fs-primaryD:#164ba8; --fs-primarySoft:#dbe6fb; --fs-onPrimary:#ffffff; --fs-raised:#e4eaf0; --fs-warnBg:#fff4d6; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff; color-scheme: light; }
+  :root.fsdark { --fs-bg:#15181c; --fs-primary:#ff5a3c; --fs-primaryD:#e04a2e; --fs-primarySoft:#3a2b27; --fs-onPrimary:#ffffff; --fs-raised:#2e333a; --fs-warnBg:#2b2718; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; color-scheme: dark; }
+  #fsReg { --fs-bg:#e2e8ed; --fs-palette:FS_LIGHT_V2; --fs-primary:#1d5fd1; --fs-primaryD:#164ba8; --fs-primarySoft:#dbe6fb; --fs-onPrimary:#ffffff; --fs-raised:#e4eaf0; --fs-warnBg:#fff4d6; --fs-card:#ffffff; --fs-text:#152229; --fs-sub:#495b63; --fs-sub2:#52636c; --fs-faint:#5d6970; --fs-border:#b9c5ce; --fs-accent:#0c5060; --fs-accentD:#083c47; --fs-field:#ffffff; --fs-fieldText:#152229; --fs-tile:#d4dce4; --fs-danger:#b3261e; --fs-dangerBg:rgba(179,38,30,.10); --fs-onAccent:#ffffff;
     position:fixed; inset:0; background:var(--fs-bg); color:var(--fs-text);
     /* PASS 105 [P-11] — the other half of viewport-fit:cover. #fsReg is
        inset:0 so it now covers the status-bar band as well, and its own
@@ -475,7 +476,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
      band in his V0.118 screenshot. The head script puts .fsdark on <html>
      before any paint; this selector lets #fsReg follow it until its own
      class arrives a moment later. A COPIED PALETTE WOULD DRIFT AT L4. */
-  #fsReg.fsdark, html.fsdark #fsReg { --fs-bg:#15181c; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; }
+  #fsReg.fsdark, html.fsdark #fsReg { --fs-bg:#15181c; --fs-primary:#ff5a3c; --fs-primaryD:#e04a2e; --fs-primarySoft:#3a2b27; --fs-onPrimary:#ffffff; --fs-raised:#2e333a; --fs-warnBg:#2b2718; --fs-card:#23272d; --fs-text:#e8e8e8; --fs-sub:#aab6bc; --fs-sub2:#8b979d; --fs-faint:#6d787e; --fs-border:#3a3f46; --fs-accent:#2596ab; --fs-accentD:#1b7487; --fs-field:#1a1d21; --fs-fieldText:#e8e8e8; --fs-tile:#22262b; --fs-danger:#e57373; --fs-dangerBg:rgba(198,40,40,.15); --fs-onAccent:#08191d; }
   #fsReg { color-scheme: light; }
   #fsReg.fsdark, html.fsdark #fsReg { color-scheme: dark; }
   #fsReg input[type=date] { background:var(--fs-card); color:var(--fs-text); }
@@ -739,7 +740,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   .fsNavItem.on { color:var(--fs-accent); }
   .fsBizIn { width:100%; box-sizing:border-box; padding:9px; border-radius:8px;
-    border:1px solid #4a5057; background:#1a1d21; color:#eee; font-size:14px;
+    border:1px solid var(--fs-border); background:var(--fs-field); color:var(--fs-text); font-size:14px;
     margin-bottom:7px; }
   /* PASS 107 [W105-4] - the spacer exists to clear #fsNavBar, so it tracks the
      bar. Left on the full inset it would just move the dead space into the scroll. */
@@ -769,7 +770,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.192 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.193 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -901,7 +902,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.192 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.193 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -919,7 +920,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="btnLabels" style="display:none" title="Show or hide symbol labels">&#127991; Labels</button>
     <button class="btn" id="btnZones" style="display:none" title="Zone counts (moved to the Tools tab)">Zones</button><!-- migrated to Tools tab "Zone counts" tile, 23 Jul pass; id+handler kept -->
     <button class="btn" id="btnNotes" style="display:none" title="Site notes">&#128221; Notes</button><!-- PASS 50 [50-3]: moved to the Tools tab "Site notes" tile; id+handler kept -->
-    <select id="levelSel" style="display:none;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px"></select>
+    <select id="levelSel" style="display:none;background:var(--fs-raised);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:8px;padding:7px"></select>
     <button class="btn levels" id="btnLevels" title="Building levels — add or switch floors">&#127970; Levels</button>
     <span class="spacer"></span>
     <!-- PASS 156 [156-B] - W132-2, "just make it slightly larger and put it next to export/report". The spacer already split this row into plan tools and "do something with this plan"; the cog was the only bare glyph, stranded in the first group while behaving like the second. Glyph, not a word: he said "just". -->
@@ -989,10 +990,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   </div>
 
   <div id="bottombar">
-    <div id="sizeWrap">Size <input type="range" id="sizeSlider" min="-60" max="150" value="48"><span id="sizePx" style="color:#e8e8e8;font-variant-numeric:tabular-nums">&#8212;</span><span aria-hidden="true">=</span><input type="text" id="sizeMm" inputmode="decimal" autocomplete="off" aria-label="Size in millimetres" placeholder="no scale" disabled><span>mm</span></div>
+    <div id="sizeWrap">Size <input type="range" id="sizeSlider" min="-60" max="150" value="48"><span id="sizePx" style="color:var(--fs-text);font-variant-numeric:tabular-nums">&#8212;</span><span aria-hidden="true">=</span><input type="text" id="sizeMm" inputmode="decimal" autocomplete="off" aria-label="Size in millimetres" placeholder="no scale" disabled><span>mm</span></div>
     <div id="swatches"></div>
     <div id="styleWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Line
-      <select id="lineStyleSel" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="lineStyleSel" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
       </select>
       <label style="display:flex;align-items:center;gap:4px;margin-left:6px" title="After drawing, switch to Select with the new shape selected"><input type="checkbox" id="selAfterOn" style="width:16px;height:16px"> then select</label>
@@ -1000,7 +1001,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="chainWrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:#aaa">
       <label id="wsChainLab" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Each new line starts where the last one ended"><input type="checkbox" id="wsChainOn" style="width:16px;height:16px"> Chain</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Hold each line to the nearest angle step - 15&deg; at normal zoom, finer as you zoom in (90/45/30/15/5/1&deg;). On a keyboard, Shift holds lines to 0, 45 or 90&deg; instead."><input type="checkbox" id="wsAngleOn" style="width:16px;height:16px"> Angle</label>
-      <button id="wsChainFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
+      <button id="wsChainFin" style="display:none;background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish run</button>
     </div>
     <!-- PASS 97 [P-9] - "Have a little tick box down the bottom like the line
          tool and other tools have, one can be copy and one can be cut."
@@ -1013,10 +1014,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="opacity:.45">|</span>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Drag a box around it"><input type="checkbox" id="wsCropBox" checked style="width:16px;height:16px"> Box</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="Tap corner by corner, then tap the first point again to close"><input type="checkbox" id="wsCropOutline" style="width:16px;height:16px"> Outline</label>
-      <button id="wsCropFin" style="display:none;background:#1a1d21;color:#e8e8e8;border:1px solid #666;border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish outline</button>
+      <button id="wsCropFin" style="display:none;background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px 14px;min-height:40px;font-size:13px">Finish outline</button>
     </div>
     <div id="testWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Testing year
-      <select id="testYear" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="testYear" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option>2026</option><option>2027</option><option>2028</option><option>2029</option>
       </select>
       <label style="display:flex;align-items:center;gap:4px;margin-left:6px"><input type="checkbox" id="testCounterOn" checked style="width:16px;height:16px"> counter</label>
@@ -1024,30 +1025,30 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div id="alphaWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Opacity <input type="range" id="alphaSlider" min="10" max="100" value="40" style="width:80px"></div>
     <div id="endWrap" style="display:none;align-items:center;gap:4px;font-size:12px;color:#aaa">Ends
-      <select id="endStartSel" title="Start end type" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="endStartSel" title="Start end type" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option value="none">&mdash;</option><option value="arrow">&#9666; arrow</option><option value="dot">&#9679; dot</option><option value="slash">&#8725; slash</option>
       </select>
-      <select id="endEndSel" title="End end type" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="endEndSel" title="End end type" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option value="none">&mdash;</option><option value="arrow">arrow &#9656;</option><option value="dot">&#9679; dot</option><option value="slash">&#8725; slash</option>
       </select>
     </div>
     <div id="hatchWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#aaa">Hatch
-      <select id="hatchStyleSel" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="hatchStyleSel" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option value="diag">&#9698; Diagonal</option><option value="cross">&#9707; Cross</option><option value="solid">&#9632; Solid</option><option value="dots">&#10247; Dots</option><option value="none">None (fill off)</option>
       </select>
       Outline
-      <select id="hatchOutlineSel" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px">
+      <select id="hatchOutlineSel" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
         <option value="solid">&#9644; Solid</option><option value="dashed">&#9476; Dashed</option><option value="dotted">&#8943; Dotted</option><option value="none">None</option>
       </select>
-      <input type="color" id="hatchOutlineCol" title="Outline colour" style="width:30px;height:26px;padding:0;border:1px solid #444;border-radius:6px;background:#1a1d21">
+      <input type="color" id="hatchOutlineCol" title="Outline colour" style="width:30px;height:26px;padding:0;border:1px solid var(--fs-border);border-radius:6px;background:var(--fs-field)">
     </div>
     <div id="measureWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#aaa">
       <span id="measureNote">No scale &mdash; drag a line along a known distance to set it</span>
       <button class="btn" id="measureClearScale" style="display:none">Clear scale</button>
     </div>
     <div id="zoneWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:#aaa;flex-wrap:wrap">Zone
-      <input type="text" id="znNum" autocomplete="off" style="width:40px;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px" placeholder="1">
-      <input type="text" id="znName" autocomplete="off" style="width:104px;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px" placeholder="name (optional)">
+      <input type="text" id="znNum" autocomplete="off" style="width:40px;background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px" placeholder="1">
+      <input type="text" id="znName" autocomplete="off" style="width:104px;background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px" placeholder="name (optional)">
       <button class="btn" id="znApply" disabled title="Apply number / name / current pen colour to the selected zone">Apply</button>
       <button class="btn" id="znRezone" title="Re-check every device on this level against the zone shapes (manually-set zones are left alone)">&#8635; Re-zone items</button>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="znShow" checked> show</label>
@@ -1174,11 +1175,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          both defaulting to 60 degC with Rate of rise ticked. -->
     <div id="thWrap" style="display:none">
       <label>Thermal type</label>
-      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fs-text);margin-bottom:6px">
         <label title="Trips on a fast rise in temperature rather than at an exact figure — most thermal detectors are this type" class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px;flex:1"><input type="checkbox" class="dTh" id="dThRor" value="ror" style="width:18px;height:18px">Rate of rise</label>
         <input type="text" id="dThRorV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fs-text)">
         <label title="Trips once the temperature reaches the set figure, no matter how slowly it climbs" class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px;flex:1"><input type="checkbox" class="dTh" id="dThFix" value="fixed" style="width:18px;height:18px">Fixed</label>
         <input type="text" id="dThFixV" inputmode="numeric" autocomplete="off" style="width:74px;margin:0"><span>&deg;C</span>
       </div>
@@ -1192,7 +1193,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div id="bgcWrap" style="display:none">
       <label>Colour</label>
-      <div style="display:flex;gap:13px;font-size:14px;color:#e8e8e8;flex-wrap:wrap">
+      <div style="display:flex;gap:13px;font-size:14px;color:var(--fs-text);flex-wrap:wrap">
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#d81e05" style="width:18px;height:18px">Red</label>
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#1b8a3f" style="width:18px;height:18px">Green</label>
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dBgc" value="#ffffff" style="width:18px;height:18px">White</label>
@@ -1201,7 +1202,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div id="xtWrap" style="display:none">
       <label>Type (sets the band colour)</label>
-      <select id="dXtype" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px">
+      <select id="dXtype" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px">
         <option value="">&mdash; not set (plain red)</option>
         <option value="water">Water &mdash; plain red, no band</option>
         <option value="vl">Vaporising Liquid &mdash; yellow band</option>
@@ -1250,7 +1251,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div id="msWrap" style="display:none">
       <label>Coverage</label>
-      <select id="dMsCov" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px">
+      <select id="dMsCov" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px">
         <option value="360">360&deg; &mdash; all-round</option>
         <option value="180">180&deg; &mdash; half</option>
       </select>
@@ -1261,7 +1262,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          existing save path are all untouched. -->
     <div id="ctWrap" style="display:none;margin-top:12px">
       <label>Change item type &mdash; keeps ID, zone/loop/device no., test history, QR link and photo</label>
-      <select id="dChgType" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px"></select>
+      <select id="dChgType" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px"></select>
     </div>
     <!-- PASS 27b item 4 — renamed from "Other info". Keeps its full width: a
          description may go here, and it is the one free-text box on the sheet.
@@ -1297,13 +1298,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          are one job done standing at the device, so they are one block.
          The 2026-2029 CHECKBOX ROW IS KEPT. Reece: "easy to see and use, only
          takes up one row." Do not turn it into a select or a year picker. -->
-    <div id="dTestWrap" style="margin-top:16px;border-top:1px solid #333;padding-top:10px">
+    <div id="dTestWrap" style="margin-top:16px;border-top:1px solid var(--fs-border);padding-top:10px">
       <div style="font-size:12px;letter-spacing:.09em;color:#9aa7ad;font-weight:700;margin-bottom:6px">TESTING</div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#e8e8e8">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fs-text)">
         <input type="checkbox" id="dFailed" style="width:18px;height:18px"> Failed
       </label>
       <label>Year tested</label>
-      <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:#e8e8e8">
+      <div id="dYears" style="display:flex;gap:14px;font-size:14px;color:var(--fs-text)">
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2026" style="width:18px;height:18px">2026</label>
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2027" style="width:18px;height:18px">2027</label>
         <label class="fsTick" style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" class="dYear" value="2028" style="width:18px;height:18px">2028</label>
@@ -1399,14 +1400,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   <div class="modalbox">
     <h3 id="textModalTitle">Text</h3>
     <label>Text (Enter = new line)</label>
-    <textarea id="tText" rows="3" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;font-family:inherit"></textarea>
+    <textarea id="tText" rows="3" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px;font-family:inherit"></textarea>
     <div id="tFmtRow" style="display:flex;gap:6px;margin-top:10px">
       <button class="btn" id="tBold" style="font-weight:800" title="Bold the selected text">B</button>
       <button class="btn" id="tItalic" style="font-style:italic" title="Italicise the selected text">I</button>
       <button class="btn" id="tUnder" style="text-decoration:underline" title="Underline the selected text">U</button>
       <button class="btn" id="tStrike" style="text-decoration:line-through" title="Strike through the selected text">S</button>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:#e8e8e8">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--fs-text)">
       <input type="checkbox" id="tBg" style="width:18px;height:18px"> Border box (white background)
     </label>
     <div class="row">
@@ -1419,7 +1420,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="notesModal">
   <div class="modalbox">
     <h3>Site notes</h3>
-    <textarea id="notesText" style="width:100%;height:180px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;font-family:inherit"></textarea>
+    <textarea id="notesText" style="width:100%;height:180px;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px;font-family:inherit"></textarea>
     <div class="row">
       <button class="btn" id="notesCancel">Cancel</button>
       <button class="btn primary" id="notesSave">Save</button>
@@ -1547,7 +1548,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
         <input type="range" id="fsAnnSize" min="1" max="8" step="1" value="3" style="width:104px">
       </label>
       <label id="fsAnnStyleWrap" style="display:flex;align-items:center;gap:6px">Line
-        <select id="fsAnnStyle" style="background:#1a1d21;color:#e8e8e8;border:1px solid #4a5057;border-radius:6px;padding:6px">
+        <select id="fsAnnStyle" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px">
           <option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option>
         </select>
       </label>
@@ -1601,7 +1602,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="fsDfNote" style="font-size:12px;margin-bottom:6px"></div>
 
     <label>What kind of defect <span style="color:#c62828">*</span></label>
-    <select id="fsDfType" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:9px;font-size:14px"></select>
+    <select id="fsDfType" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:9px;font-size:14px"></select>
     <div id="fsDfTypeOtherWrap" style="display:none;margin-top:6px">
       <input type="text" id="fsDfTypeOther" autocomplete="off" placeholder="Describe the kind of defect">
     </div>
@@ -1679,7 +1680,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <button class="btn" id="annBasePick">Choose template&hellip;</button>
     </div>
     <div style="font-weight:700;font-size:13px;color:#7ddb8f;margin:6px 0 4px">2 &middot; Site name</div>
-    <input type="text" id="annSite" placeholder="e.g. Demo Hospital" style="width:100%;box-sizing:border-box;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px;margin-bottom:8px">
+    <input type="text" id="annSite" placeholder="e.g. Demo Hospital" style="width:100%;box-sizing:border-box;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px;margin-bottom:8px">
     <div style="font-weight:700;font-size:13px;color:#7ddb8f;margin:6px 0 4px">3 &middot; Panel report</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <span id="annSrcName" style="flex:1;font-size:13px;color:#999">No file loaded</span>
@@ -1709,11 +1710,11 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <label class="fsTick" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:44px;font-size:13px;color:#aaa;margin:2px 0 6px"><input type="checkbox" id="timerBadgeOn" checked style="width:18px;height:18px"> Show mini timer on screen</label>
     <div id="timerIdle">
       <label style="text-align:left">Circuit / name (rides on the alert — blank = "Timer")</label>
-      <input type="text" id="timerName" placeholder="e.g. L2 East" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
+      <input type="text" id="timerName" placeholder="e.g. L2 East" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:16px;text-align:center">
       <label style="text-align:left;margin-top:8px;display:block">Countdown minutes (emergency light test = 90)</label>
-      <input type="text" id="timerMins" inputmode="numeric" value="90" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
+      <input type="text" id="timerMins" inputmode="numeric" value="90" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:16px;text-align:center">
       <label style="text-align:left;margin-top:8px;display:block">Warn me before the end (minutes, blank = off)</label>
-      <input type="text" id="timerWarnMins" inputmode="numeric" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:16px;text-align:center">
+      <input type="text" id="timerWarnMins" inputmode="numeric" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:16px;text-align:center">
       <div class="row" style="justify-content:center">
         <button class="btn" id="timerStartDown" style="background:#1b8a3f;border:2px solid #ffffff;outline:1px solid #1b8a3f;color:#fff;font-weight:800;font-size:14px;letter-spacing:.4px;padding:11px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:9px">
         <svg width="26" height="30" viewBox="0 0 10 12" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="1.6" r="1.25" fill="#fff" stroke="none"/><path d="M5.6 3.4 L4.4 6.4 M5.4 4.2 L7.6 5.2 M5 3.9 L3 3 M4.4 6.4 L6.2 7.8 L6.6 10.6 M4.4 6.4 L2.6 8 L1 7.4"/></svg>
@@ -1743,7 +1744,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <p id="fsRgnHint" style="font-size:13px;color:#aaa;margin:4px 0 8px">Drag a box around the building you want &mdash; edges don't need to be exact, the white margin is trimmed off automatically.</p>
     <div id="fsRgnWrap" style="position:relative;display:inline-block;max-width:100%">
-      <canvas id="fsRgnCanvas" style="max-width:100%;max-height:58vh;height:auto;border:1px solid #444;touch-action:none;cursor:crosshair;background:#fff"></canvas>
+      <canvas id="fsRgnCanvas" style="max-width:100%;max-height:58vh;height:auto;border:1px solid var(--fs-border);touch-action:none;cursor:crosshair;background:#fff"></canvas>
       <div id="fsRgnBox" style="display:none;position:absolute;border:2px dashed #ff9800;background:rgba(255,152,0,.15);pointer-events:none"></div>
     </div>
     <div class="row" style="justify-content:center">
@@ -1899,8 +1900,8 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
            122px satisfies both with 13px to spare. flex:0 0 auto so it can
            never collapse the way it did before, and maxlength=8 is his cap
            stated literally. -->
-      <input type="text" id="fsScaleVal" inputmode="decimal" autocomplete="off" placeholder="6000" maxlength="8" style="flex:0 0 auto;width:122px;box-sizing:border-box;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;height:44px;padding:11px 10px;font-size:17px">
-      <select id="fsScaleUnit" style="width:auto;flex:0 0 auto;background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;height:44px;padding:11px 10px;font-size:15px">
+      <input type="text" id="fsScaleVal" inputmode="decimal" autocomplete="off" placeholder="6000" maxlength="8" style="flex:0 0 auto;width:122px;box-sizing:border-box;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);height:44px;padding:11px 10px;font-size:17px">
+      <select id="fsScaleUnit" style="width:auto;flex:0 0 auto;background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;height:44px;padding:11px 10px;font-size:15px">
         <option value="mm">mm</option>
         <option value="cm">cm</option>
         <option value="m">m</option>
@@ -1922,7 +1923,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          not the widget; there is still only one preference mechanism. -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:110px">Dimension units</span>
-      <select id="wsSetUnits" style="background:#1a1d21;color:#e8e8e8;border:1px solid #444;border-radius:6px;padding:6px;font-size:12.5px">
+      <select id="wsSetUnits" style="background:var(--fs-field);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:6px;padding:6px;font-size:12.5px">
         <option value="mm">Millimetres (mm)</option>
         <option value="cm">Centimetres (cm)</option>
         <option value="m">Metres (m)</option>
@@ -2009,7 +2010,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="fsResFade"> Colour-code the client list by due dates</label>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <span style="flex:1;font-size:13.5px">Open sites in maps with</span>
-      <select id="fsMapsApp" style="background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:7px 30px 7px 9px;width:auto;flex:0 0 auto;max-width:56%">
+      <select id="fsMapsApp" style="background:var(--fs-raised);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:8px;padding:7px 30px 7px 9px;width:auto;flex:0 0 auto;max-width:56%">
         <option value="auto">Device default</option>
         <option value="google">Google Maps</option>
         <option value="waze">Waze</option>
@@ -2017,7 +2018,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     </div>
     <div style="margin-bottom:12px">
       <div style="font-size:13.5px;margin-bottom:5px">Your name (stamped on saves, tests and defects)</div>
-      <input id="fsSetName" autocomplete="off" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px" placeholder="e.g. R. Smith">
+      <input id="fsSetName" autocomplete="off" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:14px" placeholder="e.g. R. Smith">
     </div>
     <div id="fsSetSigned" style="display:none;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <span style="flex:1;font-size:13.5px;min-width:140px">Signed in as <b id="fsSetSignedWho"></b> <span id="fsSetSignedRole" style="color:#93a4ab;font-size:12px"></span></span>
@@ -2078,13 +2079,13 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">Tax codes are yours, not ours &mdash; nothing is filled in for you. A code is a name your accounting system knows, such as GST_ON_INCOME. Rates are stored as whole basis points, so ten per cent is stored as 1000 and can never become a rounding error.</div>
       <div id="fsBizTaxList" style="margin-bottom:8px"></div>
       <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input id="fsBizNewCode" autocomplete="off" placeholder="Code, e.g. GST_ON_INCOME" style="flex:2;min-width:0;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px">
-        <input id="fsBizNewPct" autocomplete="off" inputmode="decimal" placeholder="%" style="flex:0 0 62px;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px">
+        <input id="fsBizNewCode" autocomplete="off" placeholder="Code, e.g. GST_ON_INCOME" style="flex:2;min-width:0;padding:8px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:13px">
+        <input id="fsBizNewPct" autocomplete="off" inputmode="decimal" placeholder="%" style="flex:0 0 62px;padding:8px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:13px">
         <button class="btn" id="fsBizAddTax" title="Add this tax code to the table">Add</button>
       </div>
       <div id="fsBizTaxErr" style="display:none;font-size:11.5px;color:#ff8a7a;margin-bottom:6px"></div>
       <div style="margin:10px 0 4px;font-size:13px">Code used on new documents</div>
-      <select id="fsBizCode" style="width:100%;box-sizing:border-box;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:8px;margin-bottom:8px"></select>
+      <select id="fsBizCode" style="width:100%;box-sizing:border-box;background:var(--fs-raised);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:8px;padding:8px;margin-bottom:8px"></select>
       <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:4px;cursor:pointer"><input type="checkbox" id="fsBizIncl"> Prices are entered INCLUDING GST</label>
       <div style="font-size:11.5px;color:#8fa0a8;margin-bottom:8px">Printed in words on every document, because it is the most misread number on one.</div>
     </div>
@@ -2098,17 +2099,17 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
          practice. The disclaimer is not decoration: this is a default, not
          advice, and the app should say which it is. -->
     <div style="margin-bottom:4px;font-size:13px">Terms printed on every quote</div>
-    <textarea id="fsBizQTerms" rows="7" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:13px;line-height:1.45;resize:vertical"></textarea>
+    <textarea id="fsBizQTerms" rows="7" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:13px;line-height:1.45;resize:vertical"></textarea>
     <div style="font-size:11.5px;color:#8fa0a8;margin:5px 0 8px">One line each. Written from what Australian trade businesses commonly put on a quote &mdash; <b>a starting point, not legal advice</b>. Read it once and make it yours. The payment line and the Australian Consumer Law line are added automatically: the first so it always matches your invoice terms, the second because a term that tries to exclude those rights is void. Frozen when a quote is sent.</div>
 
     <div style="font-size:12.5px;font-weight:700;color:#cfd8dc;margin:14px 0 6px">Accounting package</div>
-    <select id="fsBizPkg" style="width:100%;box-sizing:border-box;background:#2e333a;color:#e8e8e8;border:1px solid #444;border-radius:8px;padding:8px;margin-bottom:8px">
+    <select id="fsBizPkg" style="width:100%;box-sizing:border-box;background:var(--fs-raised);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:8px;padding:8px;margin-bottom:8px">
       <option value="">None &mdash; this app keeps the payment records</option>
       <option value="xero">Xero</option>
       <option value="myob">MYOB</option>
     </select>
     <div style="margin-bottom:4px;font-size:13px">Switchover date</div>
-    <input id="fsBizSwitch" type="date" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">
+    <input id="fsBizSwitch" type="date" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:14px">
     <div style="font-size:11.5px;color:#8fa0a8;margin-top:5px">Payments recorded here BEFORE this date stay here, frozen as history &mdash; readable for ever, never edited again. Your accounting package owns everything from that day on. Nothing is migrated and nothing is duplicated, so there is no second copy to reconcile.</div>
 
     <div class="row" style="margin-top:16px;gap:8px"><button class="btn" id="fsBizSave">Save</button><button class="btn" id="fsBizClose">Close</button></div>
@@ -2141,7 +2142,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div id="battOut" style="margin-top:12px;padding:10px 12px;border:1px solid #2fae57;border-radius:8px;font-size:14px;color:#7ddb8f">Enter Iq and IA</div>
     <h3 style="margin:16px 0 2px;font-size:15px">Discharge test (AS 1851-2012 App F)</h3>
     <label>Installed battery capacity (Ah)</label><input type="text" inputmode="decimal" id="battAh" placeholder="e.g. 18">
-    <div id="battOut2" style="margin-top:8px;padding:10px 12px;border:1px solid #444;border-radius:8px;font-size:13.5px;color:#ccc">Enter the installed Ah</div>
+    <div id="battOut2" style="margin-top:8px;padding:10px 12px;border:1px solid var(--fs-border);border-radius:8px;font-size:13.5px;color:#ccc">Enter the installed Ah</div>
     <div class="row" style="margin-top:12px"><button class="btn" id="battClose">Close</button></div>
   </div>
 </div>
@@ -2149,7 +2150,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
   <div class="modalbox" style="max-width:430px;width:94vw;text-align:left">
     <h3 id="fsHmTitle" style="margin-bottom:4px">Add a test record</h3>
     <div id="fsHmNote" style="font-size:12.5px;color:#999;margin-bottom:8px">For tests done on paper or missed in the app &mdash; sets the cycle dates. No checklist answers are attached.</div>
-    <label>Test type</label><select id="fsHmMode" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:14px"></select>
+    <label>Test type</label><select id="fsHmMode" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:14px"></select>
     <label>Date done</label><input type="date" id="fsHmDate" style="max-width:180px">
     <label>Done by</label><input type="text" id="fsHmTech" autocomplete="off">
     <label>Observations / comments</label><textarea id="fsHmObs" rows="2"></textarea>
@@ -2187,7 +2188,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <h3 style="margin-bottom:4px">Share a copy of the register</h3>
     <div id="fsShareWhat" style="font-size:13.5px;color:#aaa;margin-bottom:13px"></div>
     <div id="fsShareCats" style="display:flex;flex-direction:column;gap:11px"></div>
-    <div id="fsShareAlways" style="font-size:12px;color:#8a8a8a;margin-top:13px;border-top:1px solid #333;padding-top:10px;line-height:1.55"></div>
+    <div id="fsShareAlways" style="font-size:12px;color:#8a8a8a;margin-top:13px;border-top:1px solid var(--fs-border);padding-top:10px;line-height:1.55"></div>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsShareCancel">Cancel</button><button class="btn primary" id="fsShareGo">Save share copy</button></div>
   </div>
 </div>
@@ -2208,7 +2209,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="margin-top:14px;font-size:12px;color:#aaa;text-align:left">
       Calibrate: enter the reading from your real meter while both are measuring
       <div style="display:flex;gap:6px;margin-top:4px">
-        <input type="text" id="calInput" inputmode="decimal" placeholder="e.g. 62.5" style="flex:1;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px">
+        <input type="text" id="calInput" inputmode="decimal" placeholder="e.g. 62.5" style="flex:1;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px">
         <button class="btn" id="calSet" title="Calibrate: store the difference between this app and your real sound meter. Every later reading is shifted by it.">Set</button>
       </div>
       <div id="calNote" style="margin-top:4px;color:#888"></div>
@@ -2246,7 +2247,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <!-- PASS 164 [164-A] - W148-C. Which levels this report covers. Hidden
          entirely when there is only one level, because a tick list of one is
          noise on the screen he sees most often. -->
-    <div id="fsRepScope" style="display:none;margin:0 0 10px;padding:8px 10px;border:1px solid #3a3f46;border-radius:8px;background:#22262b">
+    <div id="fsRepScope" style="display:none;margin:0 0 10px;padding:8px 10px;border:1px solid var(--fs-border);border-radius:8px;background:var(--fs-tile)">
       <div style="font-size:11px;color:#8fa2ab;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Include in this report</div>
       <div id="fsRepScopeRows" style="display:flex;flex-wrap:wrap;gap:4px 14px"></div>
     </div>
@@ -2268,7 +2269,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
        client. Hidden when there is one level, and hidden while a region cut is
        live, because "This part only" is a piece of the sheet in front of him
        and cannot mean anything across levels. -->
-  <div id="fsExpScope" style="display:none;margin:0 10px 8px;padding:8px 10px;border:1px solid #3a3f46;border-radius:8px;background:#22262b">
+  <div id="fsExpScope" style="display:none;margin:0 10px 8px;padding:8px 10px;border:1px solid var(--fs-border);border-radius:8px;background:var(--fs-tile)">
     <div style="font-size:11px;color:#8fa2ab;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Levels in the PDF</div>
     <div id="fsExpScopeRows" style="display:flex;flex-wrap:wrap;gap:4px 14px"></div>
     <div id="fsExpScopeNote" style="font-size:11.5px;color:#8fa2ab;margin-top:6px"></div>
@@ -2348,7 +2349,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <!-- PASS 26 item 14b: hidden until a photo has been read. An empty form
          under a camera button reads as "type these in", which is the exact
          misdirection this item is about. -->
-    <div id="ocrFields" style="display:none;margin-top:10px;font-size:14px;color:#e8e8e8">
+    <div id="ocrFields" style="display:none;margin-top:10px;font-size:14px;color:var(--fs-text)">
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Brand</span><input type="text" id="ocrBrand" autocomplete="off" style="flex:1;margin:0"></div>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="width:56px;color:#999">Model</span><input type="text" id="ocrModel" autocomplete="off" style="flex:1;margin:0"></div>
       <div style="display:flex;gap:6px;align-items:center"><span style="width:56px;color:#999">Serial</span><input type="text" id="ocrSerial" autocomplete="off" style="flex:1;margin:0"></div>
@@ -2360,7 +2361,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="findModal">
   <div class="modalbox" style="max-width:500px">
     <h3>Find device</h3>
-    <input type="text" id="findInput" placeholder="Search zone, loop, device no., type or info&hellip;" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:9px;font-size:14px">
+    <input type="text" id="findInput" placeholder="Search zone, loop, device no., type or info&hellip;" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:9px;font-size:14px">
     <div id="findResults" style="max-height:46vh;overflow:auto;margin-top:10px"></div>
     <div class="row"><button class="btn" id="findClose">Close</button></div>
   </div>
@@ -7742,7 +7743,7 @@ function renderFindResults(q) {
   out.slice(0, 60).forEach(en => {
     const o = en.o, t = TYPE_MAP[o.type];
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:9px;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:6px;cursor:pointer;background:#1f2328";
+    row.style.cssText = "display:flex;align-items:center;gap:9px;padding:7px;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--fs-field)";
     const ic = document.createElement("canvas");
     ic.style.cssText = "width:34px;height:34px;flex:0 0 auto";
     drawPalIcon(ic, o.type);
@@ -9876,11 +9877,11 @@ function askFileName(def, cb) {
   // iOS silently refused to open the share sheet -> "Save As does nothing")
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
-  d.innerHTML = '<div style="background:#23272d;color:#eee;border-radius:12px;padding:18px 18px 14px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.5)">' +
+  d.innerHTML = '<div style="background:var(--fs-card);color:var(--fs-text);border-radius:12px;padding:18px 18px 14px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.5)">' +
     '<div style="font-weight:700;margin-bottom:8px;font-size:15px">File name</div>' +
-    '<input id="askNmIn" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:15px">' +
+    '<input id="askNmIn" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:15px">' +
     '<div style="display:flex;gap:8px;margin-top:12px">' +
-    '<button id="askNmX" style="flex:1;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#2c3138;color:#ddd;font-size:14px">Cancel</button>' +
+    '<button id="askNmX" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-raised);color:#ddd;font-size:14px">Cancel</button>' +
     '<button id="askNmGo" style="flex:2;padding:10px;border-radius:8px;border:0;background:#0e7c8c;color:#fff;font-weight:700;font-size:14px">Save</button></div></div>';
   document.body.appendChild(d);
   const inp = d.querySelector("#askNmIn");
@@ -10191,7 +10192,7 @@ async function renderPlansList() {
   wrap.innerHTML = "";
   ix.forEach(en => {
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;cursor:pointer;background:" + (en.id === currentProjId ? "#31413a" : "#1f2328");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:7px;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:7px;cursor:pointer;background:" + (en.id === currentProjId ? "#31413a" : "#1f2328");
     const im = document.createElement("img");
     im.src = en.thumb || "";
     im.style.cssText = "width:64px;height:44px;object-fit:cover;border-radius:4px;background:#fff;flex:0 0 auto";
@@ -10394,10 +10395,10 @@ function renderLevelsList() {
   wrap.innerHTML = "";
   levels.forEach((lv, i) => {
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;gap:8px;align-items:center;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;background:" + (i === curLevel ? "#31413a" : "#1f2328");
+    row.style.cssText = "display:flex;gap:8px;align-items:center;padding:7px;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:7px;background:" + (i === curLevel ? "#31413a" : "#1f2328");
     const name = document.createElement("input");
     name.type = "text"; name.value = lv.name;
-    name.style.cssText = "flex:1;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:14px";
+    name.style.cssText = "flex:1;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px;font-size:14px";
     name.addEventListener("change", () => { lv.name = name.value.trim() || lv.name; refreshLevelSel(); scheduleAutosave(); });
     const open = document.createElement("button");
     open.className = "btn"; open.textContent = i === curLevel ? "Current" : "Open";
@@ -10631,7 +10632,7 @@ function timerRender() {
     const row = document.createElement("div");
     row.className = "timerRow";
     row.dataset.tid = t.id;
-    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:5px 0;padding:7px 9px;border:1px solid #3a3f45;border-radius:8px;background:#1a1d21";
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:5px 0;padding:7px 9px;border:1px solid var(--fs-border);border-radius:8px;background:var(--fs-field)";
     const nm = document.createElement("div");
     nm.className = "timerRowName";
     nm.style.cssText = "flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
@@ -11221,7 +11222,7 @@ function openPhotosGallery() {
     wrap.innerHTML = "";
     sitePhotos.forEach((ph, i) => {
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;gap:10px;align-items:center;padding:7px;border:1px solid #3a3f46;border-radius:8px;margin-bottom:7px;background:#1f2328";
+      row.style.cssText = "display:flex;gap:10px;align-items:center;padding:7px;border:1px solid var(--fs-border);border-radius:8px;margin-bottom:7px;background:var(--fs-field)";
       const im = document.createElement("img");
       im.src = ph.src;
       im.style.cssText = "width:86px;height:64px;object-fit:cover;border-radius:4px;flex:0 0 auto";
@@ -11229,7 +11230,7 @@ function openPhotosGallery() {
       mid.style.cssText = "flex:1;min-width:0";
       const note = document.createElement("input");
       note.type = "text"; note.value = ph.note || ""; note.placeholder = "note…";
-      note.style.cssText = "width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:6px;font-size:13px";
+      note.style.cssText = "width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:6px;font-size:13px";
       note.addEventListener("change", () => { ph.note = note.value; scheduleAutosave(); });
       const when = document.createElement("div");
       when.style.cssText = "font-size:11px;color:#888;margin-top:3px";
@@ -12607,7 +12608,7 @@ cv.addEventListener("wheel", e => {
    happen from here that could not happen from the Modify tab. */
 const fsCtxMenuEl = document.createElement("div");
 fsCtxMenuEl.id = "fsCtxMenu";
-fsCtxMenuEl.style.cssText = "position:fixed;z-index:180;display:none;min-width:200px;background:#1d2126;color:#e8e8e8;border:1px solid #444;border-radius:10px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:13.5px";
+fsCtxMenuEl.style.cssText = "position:fixed;z-index:180;display:none;min-width:200px;background:#1d2126;color:var(--fs-text);border:1px solid var(--fs-border);border-radius:10px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:13.5px";
 document.body.appendChild(fsCtxMenuEl);
 function fsCtxHide() { fsCtxMenuEl.style.display = "none"; fsCtxMenuEl.innerHTML = ""; }
 function fsCtxMouse() { try { return window.matchMedia("(hover:hover) and (pointer:fine)").matches; } catch (e) { return false; } }
@@ -13414,7 +13415,7 @@ function fsOcrRenderPick(lines) {
   }
   box.innerHTML = lines.map((L, i) =>
     '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">'
-    + '<div style="flex:1;font-size:13px;color:#e8e8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(L) + '</div>'
+    + '<div style="flex:1;font-size:13px;color:var(--fs-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(L) + '</div>'
     + '<button class="btn ocrAssign" data-i="' + i + '" data-f="brand" type="button" style="padding:2px 8px">B</button>'
     + '<button class="btn ocrAssign" data-i="' + i + '" data-f="model" type="button" style="padding:2px 8px">M</button>'
     + '<button class="btn ocrAssign" data-i="' + i + '" data-f="serial" type="button" style="padding:2px 8px">S</button>'
@@ -13685,8 +13686,8 @@ function openDetails() {
        other box. It keeps its own width because it holds a 3-5 digit
        number, not a sentence. */
     inp.style.cssText = "width:92px;height:38px;box-sizing:border-box;padding:0 9px;" +
-                        "border-radius:6px;border:1px solid #444;background:#1a1d21;" +
-                        "color:#e8e8e8;font-size:14px";
+                        "border-radius:6px;border:1px solid var(--fs-border);background:var(--fs-field);" +
+                        "color:var(--fs-text);font-size:14px";
     const cur = fsSymRealSize(o);
     inp.value = cur ? String(Math.round(cur * 1000) / 1000) : "";
     /* THE UNIT SITS BESIDE THE FIELD, ALWAYS. A number with nothing next to it
@@ -17194,16 +17195,16 @@ async function fsMsListRender() {
     fsEsc(String(f.lastModifiedDateTime || "").slice(0, 10)) +
     (f.parentReference && f.parentReference.path ? ' · ' + fsEsc(String(f.parentReference.path).replace(/^\/drive\/root:\/?/, "") || "OneDrive") : '') +
     '</div></div><button class="btn ' + cls + '" data-i="' + i + '">Open</button></div>';
-  let h = '<div style="border-top:1px solid #33383f;padding:8px 0">' +
+  let h = '<div style="border-top:1px solid var(--fs-border)83f;padding:8px 0">' +
     '<div style="font-size:11px;color:#7ddb8f;letter-spacing:.05em">CENTRAL REGISTER — ' + fsEsc(FS_MS_DIR + "/" + FS_MS_MAIN) + '</div>';
   h += central ? row(central, "fsMsOpenC", 0)
     : '<div style="font-size:12.5px;color:#999;margin-top:5px">Not created yet — press <b>Save register to OneDrive</b> and it appears here.</div>';
   h += '</div>';
   if (others.length) {
-    h += '<div style="border-top:1px solid #33383f;padding:8px 0 0"><div style="font-size:11px;color:#888;letter-spacing:.05em">ELSEWHERE IN YOUR ONEDRIVE — NEWEST FIRST</div>' +
+    h += '<div style="border-top:1px solid var(--fs-border)83f;padding:8px 0 0"><div style="font-size:11px;color:#888;letter-spacing:.05em">ELSEWHERE IN YOUR ONEDRIVE — NEWEST FIRST</div>' +
       others.map((f, i) => row(f, "fsMsOpen", i)).join("") + '</div>';
   }
-  if (nArch) h += '<div style="border-top:1px solid #33383f;padding:7px 0;font-size:11.5px;color:#777">' +
+  if (nArch) h += '<div style="border-top:1px solid var(--fs-border)83f;padding:7px 0;font-size:11.5px;color:#777">' +
     nArch + ' snapshot' + (nArch === 1 ? '' : 's') + ' in ' + fsEsc(FS_MS_DIR + "/" + FS_MS_ARCH) +
     ' — one a day, oldest pruned past ' + FS_MS_KEEP + '.</div>';
   el.innerHTML = h;
@@ -18965,7 +18966,7 @@ function fsPick(title, rows, opts) {
         '<h3 style="margin-bottom:6px"></h3>' +
         '<div class="fsPkNote" style="font-size:12px;color:#9aa7ae;margin:0 0 10px;display:none"></div>' +
         '<input type="text" class="fsPkFilter" placeholder="Type to filter…" autocomplete="off" spellcheck="false" style="margin-bottom:8px">' +
-        '<div class="fsPkList" style="flex:1;min-height:90px;overflow-y:auto;border:1px solid #444;border-radius:8px;background:#1a1d21;-webkit-overflow-scrolling:touch"></div>' +
+        '<div class="fsPkList" style="flex:1;min-height:90px;overflow-y:auto;border:1px solid var(--fs-border);border-radius:8px;background:var(--fs-field);-webkit-overflow-scrolling:touch"></div>' +
         '<div class="fsPkCount" style="font-size:11.5px;color:#8b979d;margin-top:7px"></div>' +
         '<div class="row">' +
           '<button class="btn fsPkCancel">Cancel</button>' +
@@ -18997,7 +18998,7 @@ function fsPick(title, rows, opts) {
             '<div class="fsPkRow" data-i="' + i + '" data-k="' + fsEsc(String(r.k == null ? i : r.k)) + '"' +
             (r.extra ? ' data-extra="1"' : '') +
             ' style="padding:11px 12px;min-height:44px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;' +
-            (i ? 'border-top:1px solid #33383f;' : '') +
+            (i ? 'border-top:1px solid var(--fs-border)83f;' : '') +
             (i === sel ? 'background:var(--fs-accent,#2596ab);color:#08191d;' : '') + '">' +
               '<span style="font-size:13.5px;font-weight:' + (i === sel ? '700' : '600') + '">' + fsEsc(r.label) + '</span>' +
               (r.sub ? '<span style="font-size:11.5px;opacity:.78;margin-top:2px">' + fsEsc(r.sub) + '</span>' : '') +
@@ -19157,11 +19158,11 @@ function fsAskPass(title, opts) {
         '<div class="fsApSub" style="font-size:12px;color:#9aa7ae;margin-bottom:10px;display:none"></div>' +
         '<div style="display:flex;gap:6px;margin-bottom:8px">' +
           '<input type="password" class="fsApPass" autocomplete="off" autocapitalize="off" spellcheck="false" ' +
-                 'placeholder="Password" style="flex:1;min-width:0;padding:11px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:15px">' +
+                 'placeholder="Password" style="flex:1;min-width:0;padding:11px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:15px">' +
           '<button type="button" class="btn fsApEye" title="Show or hide" style="padding:6px 10px">&#128065;</button>' +
         '</div>' +
         '<input type="password" class="fsApPass2" autocomplete="off" autocapitalize="off" spellcheck="false" ' +
-               'placeholder="Type it again" style="width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:15px;margin-bottom:8px;display:none">' +
+               'placeholder="Type it again" style="width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:15px;margin-bottom:8px;display:none">' +
         '<div class="fsApNote" style="font-size:11.5px;color:#8b979d;margin-bottom:8px;display:none"></div>' +
         '<div class="fsApMsg" style="min-height:17px;font-size:12.5px;color:#ff8a80;margin-bottom:8px"></div>' +
         '<div class="row" style="display:flex;gap:8px"><span style="flex:1"></span>' +
@@ -19729,7 +19730,7 @@ function fsChargeListRender() {
      its own banner, and the way in is a BUTTON inside it rather than the
      name of one somewhere else. */
   if (!fsVisitChargeOn()) {
-    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:12px 14px;margin-bottom:12px">' +
+    html += '<div style="background:var(--fs-warnBg);border:1px solid #b58900;border-radius:8px;padding:12px 14px;margin-bottom:12px">' +
       '<div style="font-size:14px;font-weight:700;color:#ffd873;margin-bottom:4px">Charging for visits is switched off</div>' +
       '<div style="font-size:12.5px;color:#e0d6b8;margin-bottom:9px">Nothing lands on this screen until it is on. Turn it on, set a price per visit type, and a charge line appears here every time a visit is completed.</div>' +
       '<button class="fsbtnP" id="fsScTurnOn">Set up visit charging &#8594;</button></div>';
@@ -19884,7 +19885,7 @@ function fsAccessList() {
   return (custom && custom.length) ? custom : FSMoney.ACCESS_LEVELS;
 }
 function fsAccessSelect(id, val, extra) {
-  return '<select id="' + id + '" ' + (extra || '') + ' style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:12.5px;min-height:44px">' +
+  return '<select id="' + id + '" ' + (extra || '') + ' style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 7px;font-size:12.5px;min-height:44px">' +
     fsAccessList().map(l => '<option value="' + fsEsc(l.k) + '"' + (l.k === (val || "normal") ? ' selected' : '') + '>' + fsEsc(l.label) + '</option>').join('') +
     '</select>';
 }
@@ -19961,7 +19962,7 @@ function fsLineTickWire(cls, rerender) {
 function fsMoneyIn(cls, id, cents) {
   return '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' +
     (FSMoney.isCents(cents) ? fsEsc(FSMoney.fromCents(cents)) : '') +
-    '" placeholder="Price" inputmode="decimal" style="width:84px;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:8px 7px;font-size:14px">';
+    '" placeholder="Price" inputmode="decimal" style="width:84px;text-align:right;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px 7px;font-size:14px">';
 }
 /* Read a money input back. Empty stays null - it is a real value here. */
 function fsMoneyOut(el) {
@@ -19982,7 +19983,7 @@ function fsBookRender() {
 
   /* Say honestly how much is still blank rather than implying the book is ready. */
   if (st.itemsBlank || st.ratesBlank) {
-    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:9px 12px;font-size:13px;color:#ffd873;margin-bottom:10px">' +
+    html += '<div style="background:var(--fs-warnBg);border:1px solid #b58900;border-radius:8px;padding:9px 12px;font-size:13px;color:#ffd873;margin-bottom:10px">' +
       'Prices are blank until someone who knows them fills them in. ' +
       st.itemsPriced + ' of ' + st.items + ' items priced' +
       (st.ratesBlank ? ' · ' + st.ratesPriced + ' of ' + st.rates + ' labour rates priced' : '') +
@@ -19997,7 +19998,7 @@ function fsBookRender() {
                 ["visits", "Visit charges"]];
   html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     tabs.map(t => '<a class="fsBookTab" data-t="' + t[0] + '" style="cursor:pointer;padding:6px 11px;border-radius:14px;font-size:13px;font-weight:700;' +
-      (fsBookTab === t[0] ? 'background:var(--fs-accent);color:#101214' : 'background:#1a1d21;color:var(--fs-sub)') + '">' + fsEsc(t[1]) + '</a>').join('') + '</div>';
+      (fsBookTab === t[0] ? 'background:var(--fs-accent);color:#101214' : 'background:var(--fs-field);color:var(--fs-sub)') + '">' + fsEsc(t[1]) + '</a>').join('') + '</div>';
 
   html += '<div class="fscard" style="padding:14px">';
 
@@ -20011,10 +20012,10 @@ function fsBookRender() {
     }
     b.items.forEach(it => {
       html += '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fs-border)">' +
-        '<span style="flex:1;min-width:0"><input type="text" class="fsBkName" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.name || "") + '" placeholder="Item name" style="width:100%;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:13px">' +
+        '<span style="flex:1;min-width:0"><input type="text" class="fsBkName" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.name || "") + '" placeholder="Item name" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 7px;font-size:13px">' +
         '<span style="display:flex;gap:6px;margin-top:4px">' +
-        '<input type="text" class="fsBkCode" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.code || "") + '" placeholder="Code" style="width:88px;background:#15181b;border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
-        '<input type="text" class="fsBkCat" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.category || "") + '" placeholder="Category" style="flex:1;background:#15181b;border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px"></span></span>' +
+        '<input type="text" class="fsBkCode" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.code || "") + '" placeholder="Code" style="width:88px;background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
+        '<input type="text" class="fsBkCat" data-id="' + fsEsc(it.id) + '" value="' + fsEsc(it.category || "") + '" placeholder="Category" style="flex:1;background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px"></span></span>' +
         '<span style="width:82px;text-align:right">' + fsMoneyIn("fsBkCost", it.id, it.costCents) + '</span>' +
         '<span style="width:82px;text-align:right">' + fsMoneyIn("fsBkPrice", it.id, it.unitPriceCents) + '</span>' +
         '<a class="fsBkDel" data-id="' + fsEsc(it.id) + '" style="width:26px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
@@ -20027,7 +20028,7 @@ function fsBookRender() {
     if (!b.labourRates.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:10px 0">No labour rates yet.</div>';
     b.labourRates.forEach(r => {
       html += '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fs-border)">' +
-        '<input type="text" class="fsBkRName" data-id="' + fsEsc(r.id) + '" value="' + fsEsc(r.name || "") + '" placeholder="e.g. Fire technician" style="flex:1;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:13px">' +
+        '<input type="text" class="fsBkRName" data-id="' + fsEsc(r.id) + '" value="' + fsEsc(r.name || "") + '" placeholder="e.g. Fire technician" style="flex:1;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 7px;font-size:13px">' +
         '<span style="font-size:12px;color:var(--fs-sub2)">$</span>' + fsMoneyIn("fsBkRate", r.id, r.rateCents) +
         '<span style="font-size:12px;color:var(--fs-sub2);width:32px">/hr</span>' +
         '<a class="fsBkRDel" data-id="' + fsEsc(r.id) + '" style="width:26px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
@@ -20039,16 +20040,16 @@ function fsBookRender() {
       '<button class="fsbtn" id="fsBookLoadTasks">&#128218; Load starter tasks</button>' +
       '<button class="fsbtnP" id="fsBookAddTask">&#65291; Add task</button></div>';
     if (!b.tasks.length) {
-      html += '<div style="background:#15181b;border:1px solid var(--fs-border);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--fs-sub)">' +
-        '<b style="color:#e8e8e8">Starting from scratch is the slow way.</b> Load a starter list for your trade and edit it — ' +
+      html += '<div style="background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--fs-sub)">' +
+        '<b style="color:var(--fs-text)">Starting from scratch is the slow way.</b> Load a starter list for your trade and edit it — ' +
         'rename anything worded differently to how you say it, change the times, delete what you would never quote. ' +
         'Nothing in a starter list is fixed.</div>';
     }
     if (!b.tasks.length) html += '<div style="color:var(--fs-faint);font-size:13.5px;padding:10px 0">No remedy tasks yet.</div>';
     b.tasks.forEach(t => {
       html += '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fs-border)">' +
-        '<input type="text" class="fsBkTName" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.name || "") + '" placeholder="e.g. Replace smoke detector" style="flex:1;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:13px">' +
-        '<input type="number" class="fsBkTMin" data-id="' + fsEsc(t.id) + '" value="' + (t.baseMinutes == null ? '' : t.baseMinutes) + '" placeholder="—" min="0" style="width:66px;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+        '<input type="text" class="fsBkTName" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.name || "") + '" placeholder="e.g. Replace smoke detector" style="flex:1;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 7px;font-size:13px">' +
+        '<input type="number" class="fsBkTMin" data-id="' + fsEsc(t.id) + '" value="' + (t.baseMinutes == null ? '' : t.baseMinutes) + '" placeholder="—" min="0" style="width:66px;text-align:right;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 6px;font-size:12.5px">' +
         '<span style="font-size:12px;color:var(--fs-sub2);width:52px">min</span>' +
         '<a class="fsBkTDel" data-id="' + fsEsc(t.id) + '" style="width:26px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>';
     });
@@ -20060,23 +20061,23 @@ function fsBookRender() {
       '<button class="fsbtn" id="fsBookLoadDT">&#128218; Load starter list</button>' +
       '<button class="fsbtnP" id="fsBookAddDT">&#65291; Add type</button></div>';
     if (!dts.length) {
-      html += '<div style="background:#15181b;border:1px solid var(--fs-border);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--fs-sub)">' +
-        '<b style="color:#e8e8e8">Nothing here yet.</b> Load the starter list and edit it. The class on each type is a <b>starting point</b> the technician confirms on the form, ' +
+      html += '<div style="background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--fs-sub)">' +
+        '<b style="color:var(--fs-text)">Nothing here yet.</b> Load the starter list and edit it. The class on each type is a <b>starting point</b> the technician confirms on the form, ' +
         'and the AS 1851 section — the clause in the Australian servicing standard this type falls under — is deliberately left blank: fill it in yourself rather than trusting a guess on a compliance record.</div>';
     }
     dts.forEach(t => {
       const c = fsDefCls(t.cls);
       html += '<div style="padding:8px 0;border-bottom:1px solid var(--fs-border)">' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        '<input type="text" class="fsDtName" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.name || "") + '" placeholder="Defect type" style="flex:1;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 7px;font-size:13px">' +
-        '<select class="fsDtCls" data-id="' + fsEsc(t.id) + '" style="background:#1a1d21;border:1px solid ' + (c ? c.col : "var(--fs-border)") + ';border-radius:6px;color:' + (c ? c.col : "var(--fs-sub)") + ';font-weight:700;padding:5px 6px;font-size:12px">' +
+        '<input type="text" class="fsDtName" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.name || "") + '" placeholder="Defect type" style="flex:1;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 7px;font-size:13px">' +
+        '<select class="fsDtCls" data-id="' + fsEsc(t.id) + '" style="background:var(--fs-field);border:1px solid ' + (c ? c.col : "var(--fs-border)") + ';border-radius:6px;color:' + (c ? c.col : "var(--fs-sub)") + ';font-weight:700;padding:5px 6px;font-size:12px">' +
           '<option value="">Not set</option>' +
           FS_DEF_CLASSES.map(x => '<option value="' + x.k + '"' + (x.k === t.cls ? ' selected' : '') + '>' + fsEsc(x.short) + '</option>').join('') +
         '</select>' +
         '<a class="fsDtDel" data-id="' + fsEsc(t.id) + '" style="width:24px;text-align:center;color:#c62828;cursor:pointer">&#10005;</a></div>' +
         '<div style="display:flex;gap:6px;margin-top:4px">' +
-        '<input type="text" class="fsDtAct" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.action || "") + '" placeholder="What needs doing about it" style="flex:1;background:#15181b;border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
-        '<input type="text" class="fsDtCl" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.clause || "") + '" placeholder="AS 1851 section" style="width:120px;background:#15181b;border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
+        '<input type="text" class="fsDtAct" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.action || "") + '" placeholder="What needs doing about it" style="flex:1;background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
+        '<input type="text" class="fsDtCl" data-id="' + fsEsc(t.id) + '" value="' + fsEsc(t.clause || "") + '" placeholder="AS 1851 section" style="width:120px;background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-sub);padding:3px 6px;font-size:11.5px">' +
         '</div></div>';
     });
   }
@@ -20088,7 +20089,7 @@ function fsBookRender() {
     fsAccessList().forEach((l, i) => {
       html += '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fs-border)">' +
         '<span style="flex:1;font-size:13px">' + fsEsc(l.label) + '</span>' +
-        '<input type="number" class="fsBkAcc" data-k="' + fsEsc(l.k) + '" value="' + l.pct + '" min="1" style="width:72px;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:' + (l.pct === 100 ? 'var(--fs-sub)' : '#ffd873') + ';padding:5px 6px;font-size:12.5px"' + (i === 0 ? ' disabled title="Normal access is the baseline"' : '') + '>' +
+        '<input type="number" class="fsBkAcc" data-k="' + fsEsc(l.k) + '" value="' + l.pct + '" min="1" style="width:72px;text-align:right;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:' + (l.pct === 100 ? 'var(--fs-sub)' : '#ffd873') + ';padding:5px 6px;font-size:12.5px"' + (i === 0 ? ' disabled title="Normal access is the baseline"' : '') + '>' +
         '<span style="font-size:12px;color:var(--fs-sub2);width:80px">% of base</span></div>';
     });
     html += '<div style="margin-top:10px"><a id="fsBkAccReset" style="color:var(--fs-accent);cursor:pointer;font-size:13px">Reset to defaults</a></div>';
@@ -20679,9 +20680,9 @@ function fsAnnToolSync() {
        since the day markup shipped - which is to say nothing in this modal has
        ever shown you what was selected. Found by rendering it and looking,
        #0d-3; E3 now reads the COMPUTED style, because the inline string was
-       there and correct the whole time. #ff5a3c is the same orange the selected
+       there and correct the whole time. var(--fs-primary) is the same orange the selected
        swatch already rings itself with, so the modal has ONE selection colour. */
-    b.style.outline = on ? "3px solid #ff5a3c" : "none";
+    b.style.outline = on ? "3px solid var(--fs-primary)" : "none";
     b.style.outlineOffset = on ? "1px" : "0";
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
@@ -21211,7 +21212,7 @@ function fsDefShowInWorkspace(d) {
   row.innerHTML = FS_DEF_CLASSES.map(c =>
     '<button type="button" class="fsDfCls" data-k="' + c.k + '" data-col="' + c.col + '" ' +
     'style="cursor:pointer;padding:7px 12px;border-radius:14px;border:1px solid ' + c.col + ';' +
-    'background:#1a1d21;color:var(--fs-sub);font-size:12.5px;font-weight:700">' + c.short + '</button>').join('');
+    'background:var(--fs-field);color:var(--fs-sub);font-size:12.5px;font-weight:700">' + c.short + '</button>').join('');
   row.querySelectorAll(".fsDfCls").forEach(b => b.onclick = () => fsDefFormCls(b.dataset.k));
 
   document.getElementById("fsDfType").onchange = e => {
@@ -22281,7 +22282,7 @@ function fsQuoteRender() {
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">' + fsTaxNote(q, tot) + '</div></div>';
 
   if (blockers.length && !locked) {
-    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
+    html += '<div style="background:var(--fs-warnBg);border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
       '<b>Before this can be sent</b><ul style="margin:6px 0 0 18px;padding:0">' +
       blockers.map(x => '<li style="margin-bottom:3px">' + fsEsc(x) + '</li>').join('') + '</ul></div>';
   }
@@ -22455,7 +22456,7 @@ function fsScratchRender(q) {
   const txt = (cls, id, val, ph, extra) =>
     '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' + fsEsc(val || "") +
     '" placeholder="' + fsEsc(ph) + '" ' + (extra || '') +
-    ' style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 8px;font-size:13px;width:100%">';
+    ' style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px 8px;font-size:13px;width:100%">';
 
   let html = '<div style="margin-bottom:12px"><a id="fsQBack" class="fsCrumb">&#8592; Quotes</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
@@ -22484,7 +22485,7 @@ function fsScratchRender(q) {
       '<div style="display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap">' +
         '<div style="flex:1;min-width:160px">' + txt("fsScDesc", l.id, l.description, "What the line is for") + '</div>' +
         '<div style="width:62px"><input type="text" class="fsScQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
-          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
+          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px 6px;font-size:13px"></div>' +
         '<div style="width:96px">' + fsMoneyIn("fsScPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
         /* PASS 80 [80-1] — the em-dash here is the SAME glyph W-16 was about,
            on a screen V0.76 never touched. Words, not a dash. */
@@ -23578,7 +23579,7 @@ function fsInvAdhocEdit(inv) {
   const blocked = whyAdhoc || whoBlock;
   const txt = function (cls, id, val, ph) {
     return '<input type="text" class="' + cls + '" data-id="' + fsEsc(id) + '" value="' + fsEsc(val || "") +
-      '" placeholder="' + fsEsc(ph) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 8px;font-size:13px;width:100%">';
+      '" placeholder="' + fsEsc(ph) + '" style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px 8px;font-size:13px;width:100%">';
   };
   let html = '<div style="margin-bottom:12px"><a id="fsInvBack" class="fsCrumb">&#8592; Invoices</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
@@ -23604,7 +23605,7 @@ function fsInvAdhocEdit(inv) {
       '<div style="display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap">' +
         '<div style="flex:1;min-width:160px">' + txt("fsInvDesc", l.id, l.description, "What the line is for") + '</div>' +
         '<div style="width:62px"><input type="text" class="fsInvQty" data-id="' + fsEsc(l.id) + '" value="' + fsEsc(String(l.qty == null ? 1 : l.qty)) +
-          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:7px 6px;font-size:13px"></div>' +
+          '" inputmode="decimal" placeholder="Qty" style="width:100%;text-align:right;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px 6px;font-size:13px"></div>' +
         '<div style="width:96px">' + fsMoneyIn("fsInvPrice", l.id, l.priced === false ? null : l.unitPriceCents) + '</div>' +
         /* PASS 76 [76-D2] — THE TICK. A priced line is a SECURED line, which is
            the word Reece used, and it now says so: a green tick beside the
@@ -23635,7 +23636,7 @@ function fsInvAdhocEdit(inv) {
            ' no price yet. An invoice cannot be issued until every line has one.</div>' : '') +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">' + fsTaxNote(inv, tot) + '</div></div>';
   if (blocked) {
-    html += '<div style="background:#2b2718;border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
+    html += '<div style="background:var(--fs-warnBg);border:1px solid #b58900;border-radius:8px;padding:10px 13px;margin-top:10px;font-size:13px;color:#ffd873">' +
       '<b>Before this can be issued</b><ul style="margin:6px 0 0 18px;padding:0">' +
       (whyAdhoc ? '<li style="margin-bottom:3px">' + fsEsc("It cannot be issued while " + whyAdhoc + ".") + '</li>' : '') +
       (whoBlock ? '<li style="margin-bottom:3px">' + fsEsc("Your business is not ready: " + whoBlock + ". Set it under Business & tax.") + '</li>' : '') +
@@ -24478,7 +24479,7 @@ function fsInvPayForm(inv) {
     '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Amount' +
     fsMoneyIn("fsInvPayAmt", inv.id, null) + '</label>' +
     '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Date' +
-    '<input type="date" id="fsInvPayDate" value="' + fsEsc(fsLocalIso().slice(0, 10)) + '" style="background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' + '</label>' +
+    '<input type="date" id="fsInvPayDate" value="' + fsEsc(fsLocalIso().slice(0, 10)) + '" style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 6px;font-size:12.5px">' + '</label>' +
     /* PASS 64 [64-2] — B3. A <select> needs no keyboard, so it cannot be a
        field you are unable to type into. The list is FIXED on purpose: the
        brief wants to report on method later and free text does not group. */
@@ -24490,13 +24491,13 @@ function fsInvPayForm(inv) {
        columns align. The select keeps its id, options, order and width, so
        fsInvPayMethodWire / fsInvPayMethodValue read exactly what they did. */
     '<label style="display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Method' +
-    '<select id="fsInvPayMethod" style="width:120px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '<select id="fsInvPayMethod" style="width:120px;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 6px;font-size:12.5px">' +
     ["", "Bank transfer", "Cash", "Card", "Cheque", "Other"].map(function (o) {
       return '<option value="' + fsEsc(o) + '">' + fsEsc(o || "Method") + '</option>';
     }).join("") +
     '</select></label>' +
     '<label id="fsInvPayOtherLab" style="display:none;flex-direction:column;gap:2px;font-size:10.5px;color:var(--fs-sub2)">Which?' +
-    '<input type="text" id="fsInvPayMethodOther" placeholder="Which?" style="width:96px;background:#1a1d21;border:1px solid var(--fs-border);border-radius:6px;color:#e8e8e8;padding:5px 6px;font-size:12.5px">' +
+    '<input type="text" id="fsInvPayMethodOther" placeholder="Which?" style="width:96px;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:5px 6px;font-size:12.5px">' +
     '</label>' +
     '<button class="fsbtnP" id="fsInvPayAdd">Add</button></div>' +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:6px">This records a payment you have received. It does not take one.</div></div>';
@@ -25428,7 +25429,7 @@ function fsPipeRender() {
   const fCounts = { all: all.length };
   FS_QSTATES.forEach(q => { fCounts[q.k] = all.filter(r => (r.d.quoteStatus || "") === q.k).length; });
   const chipF = (k, label, col) => '<a class="fsPipeF" data-k="' + fsEsc(k) + '" style="cursor:pointer;padding:5px 11px;border-radius:14px;font-size:12.5px;font-weight:700;' +
-    (fsPipeFilterK === k ? 'background:' + col + ';color:#101214' : 'background:#1a1d21;color:var(--fs-sub)') + '">' +
+    (fsPipeFilterK === k ? 'background:' + col + ';color:#101214' : 'background:var(--fs-field);color:var(--fs-sub)') + '">' +
     fsEsc(label) + ' ' + (fCounts[k] || 0) + '</a>';
   html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     chipF("all", "All open", "var(--fs-accent)") +
@@ -25456,13 +25457,13 @@ function fsPipeRender() {
         '</div></div>' +
       '<button class="fsPipeQuote fsbtn" data-i="' + i + '" style="flex:none;font-size:12px;padding:5px 9px">' +
         (fsPipeQuoteOf(r.d) ? 'Open quote' : 'Quote this') + '</button>' +
-      '<select class="fsPipeQs" data-i="' + i + '" style="background:#1a1d21;border:1px solid ' + qs.col + ';border-radius:6px;color:' + qs.col + ';font-weight:700;padding:5px 7px;font-size:12.5px;flex:none">' +
+      '<select class="fsPipeQs" data-i="' + i + '" style="background:var(--fs-field);border:1px solid ' + qs.col + ';border-radius:6px;color:' + qs.col + ';font-weight:700;padding:5px 7px;font-size:12.5px;flex:none">' +
         FS_QSTATES.map(q => '<option value="' + q.k + '"' + (q.k === qs.k ? ' selected' : '') + '>' + q.label + '</option>').join('') +
       '</select></div>';
   });
   html += '</div>';
-  html += '<div style="margin-top:10px;padding:10px 12px;background:#15181b;border:1px solid var(--fs-border);border-radius:8px;font-size:12px;color:var(--fs-sub)">' +
-    '<b style="color:#e8e8e8">What the status means right now.</b> Quotes are not built yet, so this is a <b>manual marker</b> — ' +
+  html += '<div style="margin-top:10px;padding:10px 12px;background:var(--fs-bg);border:1px solid var(--fs-border);border-radius:8px;font-size:12px;color:var(--fs-sub)">' +
+    '<b style="color:var(--fs-text)">What the status means right now.</b> Quotes are not built yet, so this is a <b>manual marker</b> — ' +
     'you set it to record that a quote was raised somewhere else, in your accounting system or by email. ' +
     'It is here so nothing rots unnoticed while the quote screen is being built. ' +
     'Changing it never moves a row off this screen unless you have picked a filter above.' +
@@ -26251,10 +26252,10 @@ function fsTodayHtml(d) {
       stops.forEach((r, i) => {
         const st = fsPlT2M(r.x.start);
         const en = (st != null && +r.x.mins) ? st + (+r.x.mins) : null;
-        const chip = r.x.done ? ["Done", "background:#22262b;color:var(--fs-sub)"]
+        const chip = r.x.done ? ["Done", "background:var(--fs-tile);color:var(--fs-sub)"]
           : (st != null && en != null && nowM >= st && nowM < en)
             ? ["Now", "background:rgba(37,150,171,.20);color:var(--fs-accent)"]
-            : ["Booked", "background:#22262b;color:var(--fs-sub)"];
+            : ["Booked", "background:var(--fs-tile);color:var(--fs-sub)"];
         const label = fsPlStopName(r.x, r.e);
         /* [76-C1] follows the viewed day: the cycles due in AUGUST are not the
            cycles due in September, and a stepped-to date in another month
@@ -26287,7 +26288,7 @@ function fsTodayHtml(d) {
         '<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">' +
         (r.n ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:var(--fs-dangerBg);color:var(--fs-danger);font-weight:700">' + r.n + ' overdue</span>' : '') +
         (r.w ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:rgba(181,137,0,.18);color:#b58900;font-weight:700">' + r.w + ' due soon</span>' : '') +
-        (r.b ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:#22262b;color:var(--fs-sub)">Booked today</span>' : '') +
+        (r.b ? '<span style="font-size:10.5px;border-radius:20px;padding:2px 8px;background:var(--fs-tile);color:var(--fs-sub)">Booked today</span>' : '') +
         '</div></div></div>';
     });
     h += '</div></div>';
@@ -26506,7 +26507,7 @@ function fsHubHtml(s) {
        control lives where it always did, in the workspace. */
     mh += '<div class="fscard fsHubCard" id="fsHubToday" style="padding:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="font-size:15px;font-weight:700">Today\'s work</h3>' +
-      '<span style="font-size:11.5px;border-radius:20px;padding:3px 10px;background:#22262b;color:var(--fs-sub)">Booked today</span></div>' +
+      '<span style="font-size:11.5px;border-radius:20px;padding:3px 10px;background:var(--fs-tile);color:var(--fs-sub)">Booked today</span></div>' +
       '<div style="font-size:14.5px;font-weight:600">' + fsEsc(today.title) + '</div>' +
       '<div style="display:flex;gap:20px;border-top:1px solid var(--fs-border);margin-top:10px;padding-top:10px">' +
       '<div><div style="color:var(--fs-sub2);font-size:11.5px">Booked</div><div style="font-weight:600;font-size:13px">' + fsEsc(today.start) +
@@ -26946,7 +26947,7 @@ function fsRenderSite() {
     html += '<div class="fsCyc">' +
       '<div style="font-size:10.5px;color:var(--fs-sub2);letter-spacing:.4px;text-transform:uppercase;align-self:center;white-space:nowrap;overflow:hidden">' + c.label + '</div>' +
       '<div style="font-size:12.5px;font-weight:700;color:' + (exCol || 'var(--fs-sub)') + ';white-space:nowrap;align-self:center">' + st.txt + '</div>' +
-      '<div class="fsCycBar" style="height:5px;border-radius:4px;background:#22262b;overflow:hidden;align-self:center;margin:0"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
+      '<div class="fsCycBar" style="height:5px;border-radius:4px;background:var(--fs-tile);overflow:hidden;align-self:center;margin:0"><i style="display:block;height:100%;border-radius:4px;width:' + pct + '%;background:' + (exCol || '#4b525b') + '"></i></div>' +
       /* PASS 190 [190-A] - the row gets a NAME so a check can find it, and
          nothing else. It deliberately does NOT wrap: see the note above. */
       '<div class="fsCycCtl" style="display:flex;align-items:center;gap:6px;min-width:0">' +
@@ -26962,7 +26963,7 @@ function fsRenderSite() {
   /* PASS 45 [45-4] — Ruling 6: an access EXCEPTION cannot be the fourth
      thing someone reads. Same warning treatment the test dialog uses. */
   const hubAcc = fsHubAccessEx(s);
-  if (hubAcc) html += '<div id="fsHubAccess" style="display:flex;gap:10px;align-items:center;background:#3a2320;border:1px solid #c62828;border-radius:10px;padding:10px 14px;margin-bottom:14px">' +
+  if (hubAcc) html += '<div id="fsHubAccess" style="display:flex;gap:10px;align-items:center;background:var(--fs-dangerBg);border:1px solid #c62828;border-radius:10px;padding:10px 14px;margin-bottom:14px">' +
     '<b style="color:#ff8a80;font-size:13px;flex:0 0 auto">&#9888; ' + fsEsc(hubAcc.label) + '</b>' +
     (hubAcc.text ? '<span style="color:#e8b4b0;font-size:13px">' + fsEsc(hubAcc.text) + '</span>' : '') + '</div>';
 
@@ -27189,14 +27190,9 @@ function fsRenderTab() {
      survey renders on Overview instead - under the hub, whose Important
      information card already reads the same s.equipment for the panel details
      and the battery chip. Moved, not rewritten, and not deleted. */
-  if (fsTab === "overview") {
-    /* PASS 212 [212-C] - the Site equipment survey card is gone (his third ask).
-       Access difficulty was never about equipment - it lives on the place, so
-       the one line keeps a slim card of its own. s.equipment is untouched. */
-    html += '<div class="fscard" style="padding:12px 20px;margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-      '<span style="font-size:12.5px;color:var(--fs-sub);flex:1;min-width:150px">Getting to the equipment here is normally&hellip;</span>' +
-      fsAccessSelect("fsSiteAccess", fsAccessOf(s)) + '</div>';
-  }
+  /* PASS 214 [214-A] - the access line went too ("No, get rid of it.... Any
+     panel data etc would go in asset register"). s.accessDefault is kept as
+     data; nothing on the site page edits it any more. */
 
   if (fsTab === "assets") {
     html += fsAssetRegisterHtml(s);   /* PASS 149 [149-C] */
@@ -27779,13 +27775,7 @@ function fsRenderTab() {
     });
   }
 
-  if (fsTab === "overview") {   /* PASS 212 [212-C] - only the access line is wired now */
-    const acc = document.getElementById("fsSiteAccess");
-    if (acc) acc.onchange = () => {
-      s.accessDefault = acc.value === "normal" ? "" : acc.value;
-      fsMarkDirty();
-    };
-  }
+  /* [214-A] nothing to wire on Overview */
   if (fsTab === "files" || fsTab === "photos") {
     /* PASS 94 [P-2] — fsFilesAdd is gone: one Add file / photo button.
        Images still take the photo pipeline — the routing lives in the
@@ -28233,7 +28223,7 @@ function fsDetQrRender(syms) {
   let h = '';
   h += '<label>QR tag</label>';
   if (it) {
-    h += '<div style="font-size:13px;color:#e8e8e8;margin:2px 0 8px">Linked to register tag <b>' + fsEsc(it.qid) + '</b>' +
+    h += '<div style="font-size:13px;color:var(--fs-text);margin:2px 0 8px">Linked to register tag <b>' + fsEsc(it.qid) + '</b>' +
          (it.barcode ? ' &middot; barcode ' + fsEsc(it.barcode) : '') + (it.photo ? ' &middot; QR photo attached' : '') + '</div>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="dQrEdit" type="button">&#9998; Edit tag</button><button class="btn" id="dQrUnlink" type="button">Unlink</button></div>';
   } else {
@@ -28241,7 +28231,7 @@ function fsDetQrRender(syms) {
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" id="dQrCreate" type="button">Create QR tag from this device</button>';
     const unplaced = items.filter(x => !fsQrItemPlaced(s, x.qid));
     if (unplaced.length) {
-      h += '<select id="dQrLinkSel" style="background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:13px"><option value="">Link existing tag&hellip;</option>';
+      h += '<select id="dQrLinkSel" style="background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:13px"><option value="">Link existing tag&hellip;</option>';
       unplaced.forEach(x => {
         const parts = [];
         if (x.zone) parts.push("Z" + x.zone);
@@ -28365,7 +28355,7 @@ function fsLookShow(r) {
   h += '<div style="font-size:14px;font-weight:700;margin:2px 0">' + (parts.length ? fsEsc(parts.join(" · ")) : "—") + '</div>';
   if (g("info")) h += '<div style="font-size:13px;color:#c9d2d7;margin:2px 0">' + fsEsc(g("info")) + '</div>';
   if (it && it.barcode) h += '<div style="font-size:12.5px;color:#8fa2ab;margin:2px 0">Barcode ' + fsEsc(it.barcode) + '</div>';
-  if (it && it.photo) h += '<img id="fsLookPh" src="' + fsPhotoSrc(it.photo) + '" style="max-width:130px;max-height:100px;border-radius:8px;border:1px solid #444;margin:6px 0;cursor:pointer" title="Tap to view">';
+  if (it && it.photo) h += '<img id="fsLookPh" src="' + fsPhotoSrc(it.photo) + '" style="max-width:130px;max-height:100px;border-radius:8px;border:1px solid var(--fs-border);margin:6px 0;cursor:pointer" title="Tap to view">';
   if (r.lvl) {
     if (FS_WS_APP) h += '<div style="margin-top:8px"><button class="btn primary" id="fsLookGo" type="button">&#128205; Show me where it is</button></div>';
     else h += '<div style="font-size:13px;color:#f2c200;margin-top:8px">&#128205; Placed on the plan (' + fsEsc(r.lvl.name) + ') — open this site in the Arc Adapt app to see it highlighted.</div>';
@@ -29509,7 +29499,7 @@ function fsZoneTableHtml(zones, targets) {
     ts[0] += v.s[0]; ts[1] += v.s[1]; tt[0] += v.t[0]; tt[1] += v.t[1];
     const needS = Math.ceil(v.s[1] * sp), needT = Math.ceil(v.t[1] * tp);
     const okS = v.s[1] === 0 || v.s[0] >= needS, okT = v.t[1] === 0 || v.t[0] >= needT;
-    html += '<tr style="border-top:1px solid #3a3f46"><td style="padding:4px 6px;font-weight:700">' + fsEsc(z) + '</td>' +
+    html += '<tr style="border-top:1px solid var(--fs-border)"><td style="padding:4px 6px;font-weight:700">' + fsEsc(z) + '</td>' +
       '<td style="padding:4px 6px;color:' + (v.s[1] === 0 ? '#777' : okS ? '#4caf50' : '#ffb300') + '">' + (v.s[1] === 0 ? '—' : v.s[0] + " / " + v.s[1] + " (need " + needS + ") " + (okS ? "✓" : "")) + '</td>' +
       '<td style="padding:4px 6px;color:' + (v.t[1] === 0 ? '#777' : okT ? '#4caf50' : '#ffb300') + '">' + (v.t[1] === 0 ? '—' : v.t[0] + " / " + v.t[1] + " (need " + needT + ") " + (okT ? "✓" : "")) + '</td></tr>';
   });
@@ -29530,7 +29520,7 @@ function fsRenderTest() {
   if (!fsSession) {
     const openDef = ((fsSite && fsSite.defects) || []).filter(d => !d.closed).length;
     let html = '<h3 style="margin-bottom:10px">Start test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>';
-    if (openDef) html += '<div style="background:#3a2320;border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
+    if (openDef) html += '<div style="background:var(--fs-dangerBg);border:1px solid #c62828;border-radius:8px;padding:8px 12px;font-size:13.5px;color:#ff8a80;margin-bottom:10px">&#9888; ' + openDef + ' open defect' + (openDef > 1 ? 's' : '') + ' carried forward — check the Defects tab on the site page.</div>';
     html += '<label>Done by</label><input type="text" id="fsTechName" autocomplete="off" value="' + fsEsc(fsWho() || "") + '">';   /* PASS 100 [W97-14] */
     html += '<label style="margin-top:10px">Test type</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px">';
     Object.entries((fsChecklists && fsChecklists.modes) || {}).filter(([m]) => typeof fsCycModeOn !== "function" || fsCycModeOn(m)).forEach(([m, md]) => {
@@ -29553,7 +29543,7 @@ function fsRenderTest() {
   }
 
   const def = fsChecklists.modes[fsSession.mode] || { label: fsSession.mode, sections: [] };
-  let html = '<div style="position:sticky;top:-2px;z-index:5;background:#262a30;padding:6px 0 8px;margin:-2px 0 4px;border-bottom:1px solid #3a3f46;display:flex;align-items:center;gap:8px">' +
+  let html = '<div style="position:sticky;top:-2px;z-index:5;background:var(--fs-raised);padding:6px 0 8px;margin:-2px 0 4px;border-bottom:1px solid var(--fs-border);display:flex;align-items:center;gap:8px">' +
     '<h3 style="margin:0;font-size:16px;flex:1;min-width:0">' + fsEsc(def.label) + ' test — ' + fsEsc(fsSiteCtx ? fsSiteCtx.siteName : "") + '</h3>' +
     '<button class="btn" id="fsTestCloseTop" type="button" style="padding:6px 10px" title="Close but keep the test running">Close</button>' +
     '<button class="btn danger" id="fsTestCancelTop" type="button" style="padding:6px 10px" title="Cancel and discard this test">Cancel</button></div>';
@@ -29564,7 +29554,7 @@ function fsRenderTest() {
     html += '<div style="font-weight:700;font-size:14px;margin-top:8px;color:#ffb74d">&#9888; Isolations — isolate before testing, restore before finishing</div>';
     isoL.forEach((ln, i) => {
       const st = fsSession.iso[i] || {};
-      html += '<div style="display:flex;gap:10px;align-items:center;border-bottom:1px solid #33383f;padding:6px 0;font-size:13.5px">' +
+      html += '<div style="display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--fs-border)83f;padding:6px 0;font-size:13.5px">' +
         '<div style="flex:1">' + fsEsc(ln) + '</div>' +
         '<label style="display:flex;gap:4px;align-items:center;color:#ffb74d;cursor:pointer"><input type="checkbox" class="fsIsoCk" data-i="' + i + '" data-w="iso"' + (st.iso ? ' checked' : '') + '> isolated</label>' +
         '<label style="display:flex;gap:4px;align-items:center;color:#7ddb8f;cursor:pointer"><input type="checkbox" class="fsIsoCk" data-i="' + i + '" data-w="res"' + (st.res ? ' checked' : '') + '> restored</label></div>';
@@ -29583,8 +29573,8 @@ function fsRenderTest() {
       const badC = r.rcis !== "" && r.mcis !== "" && !isNaN(+r.rcis) && !isNaN(+r.mcis) && (+r.mcis < +r.rcis);
       const badZ = r.rz !== "" && r.mz !== "" && !isNaN(+r.rz) && !isNaN(+r.mz) && +r.rz !== 0 && (Math.abs(+r.mz - +r.rz) / Math.abs(+r.rz) > 0.15);
       const inp = (f, ph, bad) => '<label style="font-size:10px;color:#888;display:block">' + ph +
-        '<input type="text" class="fsEwF" data-i="' + i + '" data-f="' + f + '" inputmode="decimal" value="' + fsEsc(r[f] || "") + '" style="width:100%;background:#1a1d21;border:1px solid ' + (bad ? '#c62828' : '#444') + ';border-radius:6px;color:' + (bad ? '#ff8a80' : '#e8e8e8') + ';padding:6px;font-size:13px;margin-top:1px"></label>';
-      html += '<div style="border:1px solid #3a3f46;border-radius:8px;padding:8px;margin:6px 0">' +
+        '<input type="text" class="fsEwF" data-i="' + i + '" data-f="' + f + '" inputmode="decimal" value="' + fsEsc(r[f] || "") + '" style="width:100%;background:var(--fs-field);border:1px solid ' + (bad ? '#c62828' : '#444') + ';border-radius:6px;color:' + (bad ? '#ff8a80' : '#e8e8e8') + ';padding:6px;font-size:13px;margin-top:1px"></label>';
+      html += '<div style="border:1px solid var(--fs-border);border-radius:8px;padding:8px;margin:6px 0">' +
         '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:flex-end">' +
         '<div style="flex:0 0 80px">' + inp("zone", "Amp zone", false) + '</div>' +
         '<div style="flex:1">' + inp("loc", "Location reference point", false) + '</div>' +
@@ -29603,15 +29593,15 @@ function fsRenderTest() {
     fsSession.spl.forEach((r, i) => {
       const bad = r.req !== "" && r.meas !== "" && !isNaN(+r.req) && !isNaN(+r.meas) && (+r.meas < +r.req);
       html += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center">' +
-        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="loc" placeholder="Location" value="' + fsEsc(r.loc || "") + '" style="flex:2;min-width:80px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">' +
-        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="req" placeholder="Req dBA" inputmode="decimal" value="' + fsEsc(r.req || "") + '" style="flex:0 0 76px;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">' +
-        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="meas" placeholder="Meas dBA" inputmode="decimal" value="' + fsEsc(r.meas || "") + '" style="flex:0 0 76px;background:#1a1d21;border:1px solid ' + (bad ? '#c62828' : '#444') + ';border-radius:6px;color:' + (bad ? '#ff8a80' : '#e8e8e8') + ';padding:7px;font-size:13px">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="loc" placeholder="Location" value="' + fsEsc(r.loc || "") + '" style="flex:2;min-width:80px;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px;font-size:13px">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="req" placeholder="Req dBA" inputmode="decimal" value="' + fsEsc(r.req || "") + '" style="flex:0 0 76px;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:7px;font-size:13px">' +
+        '<input type="text" class="fsSplF" data-i="' + i + '" data-f="meas" placeholder="Meas dBA" inputmode="decimal" value="' + fsEsc(r.meas || "") + '" style="flex:0 0 76px;background:var(--fs-field);border:1px solid ' + (bad ? '#c62828' : '#444') + ';border-radius:6px;color:' + (bad ? '#ff8a80' : '#e8e8e8') + ';padding:7px;font-size:13px">' +
         '<button class="btn fsSplDel" data-i="' + i + '" style="padding:6px 9px;color:#ff8a80">&#10005;</button></div>';
     });
     html += '<div style="display:flex;gap:8px;margin:6px 0 2px"><button class="btn" id="fsSplAdd" style="font-size:13px">+ Add row</button><button class="btn" id="fsSplImport" style="font-size:13px">Import from dBA symbols</button></div>';
   }
   if ((def.sections || []).some(sec => (sec.items || []).length)) {
-    html += '<div style="display:flex;gap:6px;align-items:center;margin-top:12px;border:1px solid #3a3f46;border-radius:8px;padding:7px 10px">' +
+    html += '<div style="display:flex;gap:6px;align-items:center;margin-top:12px;border:1px solid var(--fs-border);border-radius:8px;padding:7px 10px">' +
       '<div style="flex:1;font-size:12.5px;color:#999">Mark ALL unanswered items:</div>';
     [["P", "#1b8a3f"], ["F", "#c62828"], ["NA", "#666"]].forEach(([v, col]) => {
       html += '<button class="btn fsCkAll" data-r="' + v + '" style="padding:7px 11px;font-weight:800;min-width:40px;color:' + col + '">' + v + '</button>';
@@ -29622,7 +29612,7 @@ function fsRenderTest() {
     html += '<div style="font-weight:700;font-size:14px;margin:12px 0 4px;color:#7ddb8f">' + fsEsc(sec.title) + '</div>';
     (sec.items || []).forEach(it => {
       const r = fsSession.results[it.k] || {};
-      html += '<div style="border-top:1px solid #3a3f46;padding:8px 0 6px">';
+      html += '<div style="border-top:1px solid var(--fs-border);padding:8px 0 6px">';
       html += '<div style="display:flex;gap:10px;align-items:flex-start">';
       html += '<div style="flex:1;font-size:13px"><b style="color:#bbb">' + fsEsc(it.k) + '</b> &nbsp;' + fsEsc(it.t) + '</div>';
       html += '<div style="display:flex;gap:4px;flex:0 0 auto">';
@@ -29631,11 +29621,11 @@ function fsRenderTest() {
         html += '<button class="btn fsCk" data-k="' + fsEsc(it.k) + '" data-r="' + v + '" style="padding:7px 11px;font-weight:800;min-width:40px;' + (on ? 'background:' + col + ';border-color:' + col + ';color:#fff' : '') + '">' + v + '</button>';
       });
       html += '</div></div>';
-      if (r.r === "F") html += '<input type="text" class="fsCkNote" data-k="' + fsEsc(it.k) + '" placeholder="Defect note…" value="' + fsEsc(r.note || "") + '" style="width:100%;margin-top:6px;background:#1a1d21;border:1px solid #c62828;border-radius:6px;color:#e8e8e8;padding:7px;font-size:13px">';
+      if (r.r === "F") html += '<input type="text" class="fsCkNote" data-k="' + fsEsc(it.k) + '" placeholder="Defect note…" value="' + fsEsc(r.note || "") + '" style="width:100%;margin-top:6px;background:var(--fs-field);border:1px solid #c62828;border-radius:6px;color:var(--fs-text);padding:7px;font-size:13px">';
       html += '</div>';
     });
   });
-  html += '<label style="margin-top:12px">Observations / comments</label><textarea id="fsObs" rows="2" style="width:100%;background:#1a1d21;border:1px solid #444;border-radius:6px;color:#e8e8e8;padding:8px;font-size:13.5px">' + fsEsc(fsSession.obs || "") + '</textarea>';
+  html += '<label style="margin-top:12px">Observations / comments</label><textarea id="fsObs" rows="2" style="width:100%;background:var(--fs-field);border:1px solid var(--fs-border);border-radius:6px;color:var(--fs-text);padding:8px;font-size:13.5px">' + fsEsc(fsSession.obs || "") + '</textarea>';
   html += '<div class="row" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
   html += '<button class="btn" id="fsTestClose">Close (keep running)</button><span style="flex:1"></span>';
   html += '<button class="btn danger" id="fsTestCancel">Cancel test</button>';
@@ -29939,7 +29929,7 @@ async function fsLibRender() {
     const f = r.f, pdf = fsLibIsPdf(f);
     const meta = [fsLibSize(f), fsLibWhen(f)].filter(Boolean).join(" \u00b7 ") +
       (pdf ? "" : ' \u00b7 <span class="fsLibExt">Opens in another app</span>');
-    return '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid #33383f;padding:7px 0">' +
+    return '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--fs-border)83f;padding:7px 0">' +
       '<span style="flex:1;min-width:0">' +
       '<a class="fsLibOpen" data-i="' + r.i + '" style="color:#4fc3f7;cursor:pointer;font-size:13.5px">' + fsEsc(f.name) + '</a>' +
       '<br><span style="font-size:11px;color:#777">' + meta + '</span></span>' +
@@ -30306,9 +30296,9 @@ document.getElementById("fsVaultBtn").onclick = async () => {
   rows.sort((x, y2) => y2.t - x.t);
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
-  let inner = '<div style="background:#23272d;color:#eee;border-radius:12px;padding:18px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto"><div style="font-weight:700;margin-bottom:4px;font-size:15px">Workspace drawings autosaved on this device</div><div style="font-size:12px;color:#9aa;margin-bottom:10px">Every site workspace autosaves here as you draw. "Save as file" turns one into a plan file you can Open in any site workspace \u2014 use it to recover work that never made it into a register.</div>';
+  let inner = '<div style="background:var(--fs-card);color:var(--fs-text);border-radius:12px;padding:18px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto"><div style="font-weight:700;margin-bottom:4px;font-size:15px">Workspace drawings autosaved on this device</div><div style="font-size:12px;color:#9aa;margin-bottom:10px">Every site workspace autosaves here as you draw. "Save as file" turns one into a plan file you can Open in any site workspace \u2014 use it to recover work that never made it into a register.</div>';
   if (!rows.length) inner += '<div style="color:#888">No workspace autosaves on this device.</div>';
-  d.innerHTML = inner + '<div id="fsVaultList" style="display:flex;flex-direction:column;gap:8px"></div><div style="margin-top:12px;text-align:right"><button id="fsVaultX" style="padding:9px 14px;border-radius:8px;border:1px solid #4a5057;background:#2c3138;color:#ddd">Close</button></div></div>';
+  d.innerHTML = inner + '<div id="fsVaultList" style="display:flex;flex-direction:column;gap:8px"></div><div style="margin-top:12px;text-align:right"><button id="fsVaultX" style="padding:9px 14px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-raised);color:#ddd">Close</button></div></div>';
   document.body.appendChild(d);
   const list = d.querySelector("#fsVaultList");
   rows.forEach(r => {
@@ -30337,12 +30327,12 @@ document.getElementById("fsExpClientBtn").onclick = () => {
   document.getElementById("fsFileModal").classList.remove("show");
   const d = document.createElement("div");
   d.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
-  d.innerHTML = '<div style="background:#23272d;color:#eee;border-radius:12px;padding:18px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto">' +
+  d.innerHTML = '<div style="background:var(--fs-card);color:var(--fs-text);border-radius:12px;padding:18px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto">' +
     '<div style="font-weight:700;margin-bottom:4px;font-size:15px">Copy of one client</div>' +
     '<div style="font-size:12px;color:#9aa;margin-bottom:10px">Makes a smaller register file holding just that client (sites, plans, tests and photos included) plus the company profile and checklists. Handy when the full register gets big &mdash; colleagues on one contract only need their client.</div>' +
     '<div style="font-size:12px;color:#ffb74d;margin-bottom:10px;line-height:1.4">&#9888; This is a <b>dead-end copy</b>. Work done in it does <b>not</b> come back to the central register. Treat it as read-only, or you will end up with two versions that disagree.</div>' +
     '<div id="fsExpCList" style="display:flex;flex-direction:column;gap:8px"></div>' +
-    '<div style="margin-top:12px;text-align:right"><button id="fsExpCX" style="padding:9px 14px;border-radius:8px;border:1px solid #4a5057;background:#2c3138;color:#ddd">Cancel</button></div></div>';
+    '<div style="margin-top:12px;text-align:right"><button id="fsExpCX" style="padding:9px 14px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-raised);color:#ddd">Cancel</button></div></div>';
   document.body.appendChild(d);
   const list = d.querySelector("#fsExpCList");
   (fsRegister.clients || []).forEach(cl => {
@@ -30667,7 +30657,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v200";
+const FS_BUILD = "aa-v201";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -30742,7 +30732,7 @@ document.getElementById("fsActBtn").onclick = () => {
   let h = '<div class="modalbox" style="max-width:520px;width:94vw;max-height:80vh;overflow-y:auto;text-align:left"><h3 style="margin-bottom:4px">&#128203; Recent activity</h3>';
   h += '<div style="font-size:11.5px;color:#999;margin-bottom:10px">Last ' + list.length + ' recorded action' + (list.length > 1 ? 's' : '') + ' &mdash; kept inside the register file, so every device sees the same trail. Names are what each user picked on their device: traceability, not a security log.</div>';
   list.forEach(a => {
-    h += '<div style="border-bottom:1px solid #333a41;padding:7px 0;font-size:13px"><b>' + fsEsc(a.who || "Unknown") + '</b> &middot; ' + fsEsc(a.act || "") +
+    h += '<div style="border-bottom:1px solid var(--fs-border)a41;padding:7px 0;font-size:13px"><b>' + fsEsc(a.who || "Unknown") + '</b> &middot; ' + fsEsc(a.act || "") +
          (a.what ? ' <span style="color:#93a4ab">&mdash; ' + fsEsc(a.what) + '</span>' : '') +
          '<div style="font-size:11px;color:#888">' + fsEsc((a.t || "").slice(0, 16).replace("T", " ")) + '</div></div>';
   });
@@ -30818,7 +30808,7 @@ async function fsPaRender() {
   const box = document.getElementById("fsPaList");
   if (!list.length) { box.innerHTML = '<div style="font-size:13px;color:#777">Nothing here yet \u2014 record one, or add an audio file (e.g. one made with a voice generator).</div>'; return; }
   box.innerHTML = list.map((f, i) =>
-    '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid #33383f;padding:7px 0">' +
+    '<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--fs-border)83f;padding:7px 0">' +
     '<button class="btn fsPaPlay" data-i="' + i + '" style="padding:6px 12px;min-width:46px">' + (fsPaPlaying === i ? "&#9632;" : "&#9654;") + '</button>' +
     '<span style="flex:1;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fsEsc(f.name) + '</span>' +
     '<span style="font-size:11px;color:#777">' + Math.round((f.data || "").length * 0.75 / 1024) + ' KB</span>' +
@@ -31122,7 +31112,7 @@ function fsRenderBin() {
   let html = '<h3 style="margin-bottom:8px">Site recycle bin' + (fsSiteCtx ? ' — ' + fsEsc(fsSiteCtx.siteName) : '') + '</h3>';
   if (!bin.length) html += '<div style="color:#999;font-size:13.5px;margin-bottom:10px">Empty. Registered devices you Replace or Delete during an Annual / 5 Yearly test end up here and can be restored.</div>';
   bin.forEach(ent => {
-    html += '<div style="border-top:1px solid #3a3f46;padding:9px 0;display:flex;gap:10px;align-items:center">' +
+    html += '<div style="border-top:1px solid var(--fs-border);padding:9px 0;display:flex;gap:10px;align-items:center">' +
       '<div style="flex:1;font-size:13px"><b>' + fsEsc(fsAssetLabel(ent.obj)) + '</b>' +
       '<div style="font-size:12px;color:#999">' + fsEsc(ent.reason) + ' ' + fsEsc((ent.when || "").slice(0, 10)) + ' · ' + fsEsc(ent.level || "") + '</div></div>' +
       '<button class="btn fsBinRestore" data-id="' + fsEsc(ent.id) + '" style="color:#7ddb8f;font-weight:700">Restore</button>' +
@@ -31732,7 +31722,7 @@ function fsPlDurEdit(opts, cb) {
   d.innerHTML = '<div class="modalbox" style="max-width:380px">' +
     '<h3 style="margin-bottom:6px">' + fsEsc(o.title || "Time on site") + '</h3>' +
     (o.note ? '<div style="font-size:12.5px;color:var(--fs-sub2);margin-bottom:8px">' + fsEsc(o.note) + '</div>' : '') +
-    '<input id="fsPlDurIn" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:16px">' +
+    '<input id="fsPlDurIn" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:16px">' +
     '<div id="fsPlDurEcho" style="font-size:12.5px;color:var(--fs-sub2);margin-top:6px;min-height:17px"></div>' +
     '<div style="font-size:11.5px;color:var(--fs-faint);margin-top:4px">' + fsEsc(FS_DUR_HELP) + '</div>' +
     '<div style="display:flex;gap:8px;margin-top:12px">' +
@@ -33307,8 +33297,8 @@ function fsPlDayHtml(dk) {
 
          LINE 1 — the facts, times promoted to 15px/700. */
       '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:5px">' +
-      '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;font-size:15px;font-weight:700;color:#e8e8e8;text-decoration:underline;text-underline-offset:3px">' + fsEsc(x.start) + '</a>' +
-      '<span style="font-size:15px;font-weight:700;color:#e8e8e8">&rarr; ' + endT + '</span>' +
+      '<a class="fsPlTime" data-i="' + i + '" style="cursor:pointer;font-size:15px;font-weight:700;color:var(--fs-text);text-decoration:underline;text-underline-offset:3px">' + fsEsc(x.start) + '</a>' +
+      '<span style="font-size:15px;font-weight:700;color:var(--fs-text)">&rarr; ' + endT + '</span>' +
       '<span style="font-size:13px;font-weight:700;color:var(--fs-sub)">' + fsPlFmtMins(x.mins) + '</span>' +
       ((fsPlT2M(x.start) != null && fsPlT2M(x.start) < (fsPlT2M(fsPlLoadSettings().dayStart) || 420)) ? '<span style="font-size:12px;color:#b45f00;font-weight:700">outside set hours</span>' : '') +
       '</div>' +
@@ -33330,11 +33320,11 @@ function fsPlDayHtml(dk) {
 
          fsCtPrimary / fsCtTel and the dialable-only guard are untouched and
          still in use on the site card, the run sheet and the calendar line. */
-      '<a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap"' +
+      '<a class="fsPlMins" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:var(--fs-text);white-space:nowrap"' +
       (x.minsSet ? ' title="Time set by hand for this day only"' : '') + '>' + (x.minsSet ? '&#9998; ' : '') + 'Time</a>' +
-      '<a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">Move</a>' +
-      (x.adhoc ? '<a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">Rename</a>' : '') +
-      '<a class="fsPlGcal" href="' + fsEsc(fsPlGcalUrl(dk, x, e)) + '" target="_blank" rel="noopener" style="font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:#e8e8e8;white-space:nowrap">&#128197; Google</a>' +
+      '<a class="fsPlMove" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:var(--fs-text);white-space:nowrap">Move</a>' +
+      (x.adhoc ? '<a class="fsPlAdhRen" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:var(--fs-text);white-space:nowrap">Rename</a>' : '') +
+      '<a class="fsPlGcal" href="' + fsEsc(fsPlGcalUrl(dk, x, e)) + '" target="_blank" rel="noopener" style="font-size:12.5px;padding:6px 12px;border:1px solid var(--fs-border);border-radius:8px;color:var(--fs-text);white-space:nowrap">&#128197; Google</a>' +
       '<a class="fsPlDel" data-i="' + i + '" style="cursor:pointer;font-size:12.5px;padding:6px 12px;border:1px solid #c62828;border-radius:8px;color:#e5534b;white-space:nowrap">Remove</a>' +
       '</div></div>';
     prev = x;
@@ -33529,8 +33519,8 @@ function fsModalXInstall() {
     btn.style.cssText = (fsXFlex
         ? "position:absolute;top:12px;right:12px;margin:0;"
         : "position:sticky;top:-6px;float:right;margin:-8px -6px 0 10px;") +
-      "z-index:9;width:32px;height:32px;line-height:1;border-radius:8px;border:1px solid #4a5057;" +
-      "background:#2c3138;color:#cfd8dc;font-size:15px;cursor:pointer;flex:none";
+      "z-index:9;width:32px;height:32px;line-height:1;border-radius:8px;border:1px solid var(--fs-border);" +
+      "background:var(--fs-raised);color:#cfd8dc;font-size:15px;cursor:pointer;flex:none";
     btn.onclick = function (e) {
       e.stopPropagation();
       /* the modal's OWN close, so its cleanup still runs */
@@ -35603,7 +35593,7 @@ function fsAssetHistoryHtml(o) {
   if (!o) return '<div style="color:#8fa2ab;font-size:13px;padding:6px 0">' +
     'Select one item to see its history.</div>';
   const ev = fsAssetHistory(o, null, null);
-  let h = '<div style="font-size:15px;color:#e8e8e8;font-weight:600">Activity history</div>' +
+  let h = '<div style="font-size:15px;color:var(--fs-text);font-weight:600">Activity history</div>' +
     '<div style="font-size:12px;color:#8f979e;margin:2px 0 10px">' +
     (ev.length ? 'Most recent events for this device, newest first.'
                : 'Nothing recorded against this item yet.') + '</div>';
@@ -35627,7 +35617,7 @@ function fsAssetHistoryHtml(o) {
         '<span style="flex:0 0 74px;font-size:11.5px;color:#8f979e;line-height:1.35">' +
           fsEsc(w.d) + (w.t ? '<br>' + fsEsc(w.t) : '') + '</span>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;color:#e8e8e8;word-break:break-word">' +
+          '<div style="font-size:13px;color:var(--fs-text);word-break:break-word">' +
             fsEsc(e.text) +
             /* PASS 148 [148-F] - the pill said the same word as the line
                beside it once 148-B gave a dated tick the text "Tested".
@@ -35736,7 +35726,7 @@ function fsDefFixAsk(d, done) {
   wrap.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
   wrap.innerHTML =
     '<div class="modalbox" style="max-width:460px;width:100%">' +
-      '<div style="font-size:16px;font-weight:600;color:#e8e8e8;margin-bottom:4px">Mark as rectified</div>' +
+      '<div style="font-size:16px;font-weight:600;color:var(--fs-text);margin-bottom:4px">Mark as rectified</div>' +
       '<div style="font-size:12.5px;color:#8f979e;margin-bottom:12px;word-break:break-word">' + fsEsc(d.desc || "") + '</div>' +
       '<label style="display:block;font-size:11.5px;color:#8f979e;margin:0 0 3px">What was done</label>' +
       '<textarea id="fsFixText" placeholder="e.g. Cleaned chamber and replaced base. Fault cleared."></textarea>' +
@@ -35878,7 +35868,7 @@ function fsLoginShow(users) {
       if (!users.length) {
         h += '<div style="display:flex;gap:8px;margin-top:4px">'
            + '<input id="fsLgOther" placeholder="Someone else &mdash; type your name" autocomplete="off" '
-           + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #4a5057;background:#1a1d21;color:#eee;font-size:14px">'
+           + 'style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-field);color:var(--fs-text);font-size:14px">'
            + '<button class="btn" id="fsLgGo">OK</button></div>';
       } else {
         h += '<div style="font-size:12px;color:#7d8b92;margin-top:10px">'
@@ -35891,8 +35881,8 @@ function fsLoginShow(users) {
       if (picked.passHash) {
         h += '<input id="fsLgPass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Password" '
            + (lock ? 'disabled ' : '')
-           + 'style="width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #4a5057;'
-           + 'background:#12191c;color:#e8e8e8;font-size:15px;margin-bottom:10px">';
+           + 'style="width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid var(--fs-border);'
+           + 'background:var(--fs-field);color:var(--fs-text);font-size:15px;margin-bottom:10px">';
       } else if (fsUserNeedsPass(picked)) {
         h += '<div id="fsLgNeed" style="font-size:12.5px;color:#ffb74d;margin-bottom:10px">'
            + 'This role needs a password. You will set one now.</div>';
@@ -36044,15 +36034,15 @@ function fsUsersOpen() {
     h += '<div style="font-size:11.5px;color:#999;margin-bottom:10px">Who can use this profile and what they can do. <b>Admin</b> &mdash; everything, including managing users. <b>Office</b> &mdash; the Office screens: quotes and pricebook. <b>Field</b> &mdash; tests and defects on site. The list is saved into the company profile, so it travels with the register. A password stops casual name-borrowing on shared devices &mdash; it is NOT real account security; that comes with cloud accounts later.</div>';
     list.forEach((u, i) => {
       h += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;border-top:1px solid #3a4047;padding-top:6px">' +
-        '<input class="fsUsrName" data-i="' + i + '" value="' + fsEsc(u.name).replace(/"/g, "&quot;") + '" style="flex:1;min-width:120px;padding:7px;border-radius:7px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
-        '<select class="fsUsrRole" data-i="' + i + '" style="padding:7px;border-radius:7px;border:1px solid #444;background:#2e333a;color:#e8e8e8">' +
+        '<input class="fsUsrName" data-i="' + i + '" value="' + fsEsc(u.name).replace(/"/g, "&quot;") + '" style="flex:1;min-width:120px;padding:7px;border-radius:7px;border:1px solid var(--fs-border);background:var(--fs-raised);color:var(--fs-text)">' +
+        '<select class="fsUsrRole" data-i="' + i + '" style="padding:7px;border-radius:7px;border:1px solid var(--fs-border);background:var(--fs-raised);color:var(--fs-text)">' +
           ["admin", "office", "tech"].map(r => '<option value="' + r + '"' + (u.role === r ? " selected" : "") + '>' + FS_ROLE_LABEL[r] + '</option>').join("") + '</select>' +
         '<button class="btn fsUsrPass" data-i="' + i + '" style="padding:6px 9px;font-size:12px' + (fsUserNeedsPass(u) ? ';border-color:#b58900;color:#ffcf5c' : '') + '" title="' + (fsUserNeedsPass(u) ? "Required for this role" : "Sets or replaces this user\u2019s password") + '">' + (u.passHash ? (fsPassIsLegacy(u.passHash) ? "&#128273; Re-set" : "&#128273; Change") : (fsUserNeedsPass(u) ? "&#9888; Set password" : "Password&hellip;")) + '</button>' +
         (u.passHash ? '<button class="btn fsUsrPassX" data-i="' + i + '" style="padding:6px 8px;font-size:12px" title="Remove the password">&times;&#128273;</button>' : '') +
         '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" class="fsUsrOn" data-i="' + i + '"' + (u.status === "active" ? " checked" : "") + '>active</label>' +
         '<button class="btn fsUsrDel" data-i="' + i + '" style="padding:6px 9px;font-size:12px;color:#ff6b5e">Remove</button></div>';
     });
-    h += '<div style="display:flex;gap:8px;margin:10px 0"><input id="fsUsrNew" placeholder="Add a user &mdash; name" style="flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid #444;background:#2e333a;color:#e8e8e8"><button class="btn" id="fsUsrAdd">&#65291; Add</button></div>';
+    h += '<div style="display:flex;gap:8px;margin:10px 0"><input id="fsUsrNew" placeholder="Add a user &mdash; name" style="flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid var(--fs-border);background:var(--fs-raised);color:var(--fs-text)"><button class="btn" id="fsUsrAdd">&#65291; Add</button></div>';
     h += '<div class="row" style="margin-top:8px;display:flex;gap:8px"><span style="flex:1"></span><button class="btn" id="fsUsrCX">Cancel</button><button class="btn" id="fsUsrOK" style="background:#1b8a3f;border-color:#1b8a3f;color:#fff;font-weight:700">Save users</button></div></div>';
     d.innerHTML = h;
     const sync = () => {
@@ -36120,7 +36110,7 @@ function fsGateShow(kind, a, extra) {
   fsGateRemove();
   const g = document.createElement("div");
   g.id = "fsGate";
-  g.style.cssText = "position:fixed;inset:0;z-index:130;background:#101619;color:#e8e8e8;display:flex;align-items:center;justify-content:center;padding:20px";
+  g.style.cssText = "position:fixed;inset:0;z-index:130;background:#101619;color:var(--fs-text);display:flex;align-items:center;justify-content:center;padding:20px";
   /* V0.10: logo above name when there is a logo, and the name is no longer
      caption-sized. This is the only content on the screen and it is the one
      moment the client sees their own brand before their own data. */
@@ -36135,7 +36125,7 @@ function fsGateShow(kind, a, extra) {
   if (kind === "login") {
     inner += '<h2 style="font-size:21px;margin-bottom:4px">Unlock this app</h2>';
     inner += '<div style="font-size:12.5px;color:#93a4ab;margin-bottom:16px">Enter the password you were given. You only do this once on each device.</div>';
-    inner += '<input id="fsGatePass" type="password" placeholder="Password" style="width:100%;padding:12px;border-radius:9px;border:1px solid #2e3a40;background:#12191c;color:#e8e8e8;font-size:15px;margin-bottom:6px">';
+    inner += '<input id="fsGatePass" type="password" placeholder="Password" style="width:100%;padding:12px;border-radius:9px;border:1px solid #2e3a40;background:var(--fs-field);color:var(--fs-text);font-size:15px;margin-bottom:6px">';
     inner += '<div id="fsGateMsg" style="min-height:18px;font-size:12.5px;color:#ff8a80;margin-bottom:8px"></div>';
     inner += '<button id="fsGateGo" style="width:100%;padding:13px;border:none;border-radius:9px;background:#2596ab;color:#fff;font-size:15.5px;font-weight:700;cursor:pointer">Unlock</button>';
     if (a.expiry) inner += '<div style="font-size:12px;color:#93a4ab;margin-top:12px">' + (a.mode === "trial" ? "Trial" : "Access") + ' until ' + fsEsc(a.expiry) + '</div>';
