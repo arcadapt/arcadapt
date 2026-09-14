@@ -769,7 +769,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.191 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.192 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -901,7 +901,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.191 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.192 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -30667,7 +30667,7 @@ document.getElementById("fsBizAddTax").onclick = () => {
 };
 /* ===== end Business & tax UI =============================================== */
 /* Build stamp — MUST equal the CACHE name in sw.js. test_version.py enforces it. */
-const FS_BUILD = "aa-v199";
+const FS_BUILD = "aa-v200";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31066,20 +31066,28 @@ btnDel.onclick = () => {
   if (!locked.length) { fsOrigDel(); return; }
   const testRunning = fsSession && (fsSession.mode === "annual" || fsSession.mode === "fiveYearly");
   if (!testRunning) {
-    alert("🔒 Selection includes " + locked.length + " registered device" + (locked.length > 1 ? "s" : "") + " (has zone/loop/device no. or test history).\n\nRegistered assets can only be replaced or deleted during an Annual or 5 Yearly test session — tap ▶ Start test first. Unregistered markup deletes normally.");
+    /* PASS 213 [213-D] - THE OVERRIDE. "We need an override button on that
+       delete outside of annual test." An admin gets the dialog with Delete to
+       bin (the device goes to the site bin with its history and can be
+       restored); Replace stays a test-session action. Everyone else keeps the
+       stop, and now knows who can. */
+    if (typeof fsCan === "function" && fsCan("admin")) { fsAssetDialog(locked, { override: true }); return; }
+    alert("🔒 Selection includes " + locked.length + " registered device" + (locked.length > 1 ? "s" : "") + " (has zone/loop/device no. or test history).\n\nRegistered assets can only be replaced or deleted during an Annual or 5 Yearly test session — tap ▶ Start test first. An Admin can send them to the bin without a test running. Unregistered markup deletes normally.");
     return;
   }
   fsAssetDialog(locked);
 };
-function fsAssetDialog(locked) {
+function fsAssetDialog(locked, opts) {
+  const override = !!(opts && opts.override);   /* [213-D] admin, no test running */
   const box = document.getElementById("fsAssetBody");
   let html = '<h3 style="margin-bottom:8px">Registered device' + (locked.length > 1 ? 's' : '') + ' selected</h3>';
+  if (override) html += '<div style="font-size:13px;color:#e2b64a;margin-bottom:10px">No test session is running. As an Admin you can still send ' + (locked.length > 1 ? 'these' : 'this') + ' to the bin — the history goes with ' + (locked.length > 1 ? 'them' : 'it') + ' and can be restored from 🗑 Bin. Replace needs a test session.</div>';
   html += '<div style="font-size:13px;color:#bbb;margin-bottom:10px;max-height:130px;overflow-y:auto">' + locked.map(o => fsEsc(fsAssetLabel(o))).join('<br>') + '</div>';
   html += '<div style="font-size:13px;color:#999;margin-bottom:12px"><b>Replace</b> keeps position and Z/L/D details but starts a fresh device (no test ticks) — the old device goes to the site recycle bin with its history. <b>Delete</b> moves it to the recycle bin. Both can be restored from 🗑 Bin.</div>';
   html += '<div class="row" style="display:flex;gap:8px;flex-wrap:wrap">';
   html += '<button class="btn" id="fsAssetCancel">Cancel</button><span style="flex:1"></span>';
   html += '<button class="btn danger" id="fsAssetDelete">Delete to bin</button>';
-  html += '<button class="btn" id="fsAssetReplace" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">Replace (new device)</button></div>';
+  html += override ? '</div>' : '<button class="btn" id="fsAssetReplace" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">Replace (new device)</button></div>';
   box.innerHTML = html;
   document.getElementById("fsAssetModal").classList.add("show");
   const close = () => document.getElementById("fsAssetModal").classList.remove("show");
@@ -31090,6 +31098,7 @@ function fsAssetDialog(locked) {
     objects = objects.filter(o => !selection.includes(o));
     clearSelection(); draw(); fsMarkDirty(); fsBinBtnRefresh();
   };
+  if (override) return;   /* [213-D] no Replace button to wire */
   document.getElementById("fsAssetReplace").onclick = () => {
     close(); pushUndo();
     const reps = locked.map(o => {

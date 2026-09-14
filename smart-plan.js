@@ -1,6 +1,6 @@
 /* Arc Adapt - Smart Plan. BUILT BY tests/patch-p205.py FROM tests/smart-plan/engine-v1.6.2.js
    (sha256 81cc74b56aa4361cd2f8c574053a9c7a075c281ff6e4e532e6cadc5a5dd0f3f4) plus the Pass 205 integration edits listed in that script,
-   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics), then tests/patch-p211.py (the box snaps to the symbol; sticky step nav), then tests/patch-p212.py (light mode). The engine functions are byte-identical to V0.184.
+   then tests/patch-p206.py (the guided-flow UI, Pass 206), then tests/patch-p208.py (zoom + pan on the previews), then tests/patch-p209.py (local-mean ink, interior gate, bare-number reader, no-rebuild ticks, handles), then tests/patch-p210.py (handles at once, Accept all, Issues header, read diagnostics), then tests/patch-p211.py (the box snaps to the symbol; sticky step nav), then tests/patch-p212.py (light mode), then tests/patch-p213.py (closed-rectangle snap; the type sticks). The engine functions are byte-identical to V0.184.
    Do not hand-edit this file: change the engine or the patcher and rebuild. */
 /*
  * Arc Adapt Smart Plan — native integration shell
@@ -58,7 +58,7 @@
     {name:'below-left',dx:-OCR_QUADRANT_OFFSET_X,dy:OCR_QUADRANT_OFFSET_Y},
     {name:'below-right',dx:OCR_QUADRANT_OFFSET_X,dy:OCR_QUADRANT_OFFSET_Y}
   ]);
-  const DETECT_WORK_MAX_PX = 4000000;
+  const DETECT_WORK_MAX_PX = 6000000;   /* [213-E] a 2835x2004 sheet is matched at 1:1 */
   /* PASS 209 [209-G1/G2] - see patch-p209.py. Local-mean ink; interior look-alike gate. */
   const INK_LOCAL_RADIUS = 24, INK_LOCAL_DROP = 45, INK_ABS_MAX = 200;
   const DETECT_INTERIOR_TRIM = 0.22, DETECT_INTERIOR_NCC_MIN = 0.62, DETECT_INTERIOR_NCC_SURE = 0.8, DETECT_INTERIOR_INK_MIN = 0.35, DETECT_INTERIOR_INK_LIKE = 1.3, DETECT_INTERIOR_INK_MAX = 2.0;
@@ -1267,18 +1267,127 @@
      digits are ~half a symbol tall, a wire crossing the box is 1-2 px the
      other way, and a wire ATTACHED to the symbol does not widen anything. */
   const TIGHTEN_MARGIN_PX = 1, TIGHTEN_MIN_SIDE = 6, TIGHTEN_RUN_FRACTION = 0.6, TIGHTEN_RUN_MAX = 2.2;
+  const SNAP_MIN_SIDE = 6, SNAP_SIDE_FILL = 0.8, SNAP_BAND_MAX = 0.6, SNAP_INTERIOR_MAX = 0.45, SNAP_MIN_ASPECT = 0.5, SNAP_MAX_LINES = 120, SNAP_MAX_AREA = 90000, SNAP_UPSCALE_BELOW = 28;
+  /* PASS 213 [213-A] - FIND THE SQUARE, NOT THE TALLEST INK. On Merriwa the
+     bold printed number is nearly as tall as the symbol, so the Pass 211 run
+     rule (tightenByRuns, now the last resort) took the digits for sides and
+     kept the number in the box. A detector symbol is a CLOSED OUTLINE: a left
+     and a right column that are ink along the same top and bottom rows, and
+     those two rows ink across the two columns. Digits, letters and wires never
+     close a rectangle of that size; the biggest closed rectangle in the box is
+     the symbol. Each side has to be 80% ink (a JPEG-broken 1 px line still
+     counts; a wire attached to a side just makes it longer), the band just
+     INSIDE each side has to be mostly empty (an outline is hollow behind its
+     line; a bold digit is solid behind its edge), and the interior is at most
+     45% ink (an S or a dot, not a number).
+     The pixels come from the PLAN ITSELF at full size (x2 for a small symbol),
+     not the 0.84x detection frame the rest of the finder works on - at that
+     scale a 1 px side goes grey and gappy and the square fell apart. */
+  function findClosedRect(mask,W,H,inner,k){
+    k=k||1;
+    const n=(W+1)*(H+1),st=W+1,I=new Int32Array(n),IV=new Int32Array(n),IH=new Int32Array(n);
+    /* three summed-area tables: the mask; the mask OR the pixel below (so a
+       horizontal line counts once per column however thick it is); the mask
+       OR the pixel to the right (a vertical line, once per row) */
+    for(let y=0;y<H;y++){let row=0,rv=0,rh=0;const o=(y+1)*st,pv=y*st,b=y*W;
+      for(let x=0;x<W;x++){const m=mask[b+x];row+=m;rv+=(m||(y+1<H&&mask[b+W+x]))?1:0;rh+=(m||(x+1<W&&mask[b+x+1]))?1:0;
+        I[o+x+1]=I[pv+x+1]+row;IV[o+x+1]=IV[pv+x+1]+rv;IH[o+x+1]=IH[pv+x+1]+rh;}}
+    const S=(T,x0,y0,x1,y1)=>T[y1*st+x1]-T[y0*st+x1]-T[y1*st+x0]+T[y0*st+x0];   /* half-open */
+    const sum=(x0,y0,x1,y1)=>S(I,x0,y0,x1,y1);
+    const colInk=new Int32Array(W),rowInk=new Int32Array(H);
+    for(let x=0;x<W;x++)colInk[x]=sum(x,0,x+1,H);for(let y=0;y<H;y++)rowInk[y]=sum(0,y,W,y+1);
+    const cx=[],ry=[];for(let x=0;x<W;x++)if(colInk[x]>=SNAP_MIN_SIDE)cx.push(x);for(let y=0;y<H;y++)if(rowInk[y]>=SNAP_MIN_SIDE)ry.push(y);
+    if(cx.length>SNAP_MAX_LINES||ry.length>SNAP_MAX_LINES||cx.length<2||ry.length<2)return null;
+    /* a side is a line at that row/column (2 px tolerance), ink on >= 80% of its length */
+    const vside=(x,T,B)=>S(IH,x,T,x+1,B+1)/(B-T+1)>=SNAP_SIDE_FILL;
+    const hside=(y,L,R)=>S(IV,L,y,R+1,y+1)/(R-L+1)>=SNAP_SIDE_FILL;
+    /* the hollow band: the k px line 3k px inside each side must be mostly empty */
+    const bandV=(x,T,B)=>{const a=Math.max(0,Math.min(W-1,x)),b=Math.max(0,Math.min(W,x+k));return b>a?sum(a,T,b,B+1)/((B-T+1)*(b-a))<=SNAP_BAND_MAX:true;};
+    const bandH=(y,L,R)=>{const a=Math.max(0,Math.min(H-1,y)),b=Math.max(0,Math.min(H,y+k));return b>a?sum(L,a,R+1,b)/((R-L+1)*(b-a))<=SNAP_BAND_MAX:true;};
+    const hollow=(L,R,T,B)=>{const i=3*k;if(R-L<3*i||B-T<3*i)return false;return bandH(T+i,L+i,R-i)&&bandH(B-i-k+1,L+i,R-i)&&bandV(L+i,T+i,B-i)&&bandV(R-i-k+1,T+i,B-i)&&sum(L+i,T+i,R-i+1,B-i+1)/((R-L+1-2*i)*(B-T+1-2*i))<=SNAP_INTERIOR_MAX;};
+    let best=null,bestArea=0;
+    for(let i=0;i<cx.length;i++)for(let j=cx.length-1;j>i;j--){
+      const L=cx[i],R=cx[j],w=R-L+1;if(w<SNAP_MIN_SIDE)break;
+      if(inner&&((L+R)/2<inner.x||(L+R)/2>inner.x+inner.w))continue;
+      for(let a=0;a<ry.length;a++)for(let b=ry.length-1;b>a;b--){
+        const T=ry[a],B=ry[b],h=B-T+1;if(h<SNAP_MIN_SIDE)break;
+        const area=w*h;if(area<=bestArea)break;
+        const ar=w/h;if(ar<SNAP_MIN_ASPECT||ar>1/SNAP_MIN_ASPECT)continue;
+        if(inner&&((T+B)/2<inner.y||(T+B)/2>inner.y+inner.h))continue;
+        if(!hside(T,L,R)||!hside(B,L,R))continue;
+        if(!vside(L,T,B)||!vside(R,T,B))continue;
+        if(!hollow(L,R,T,B))continue;
+        best={L,R,T,B};bestArea=area;
+      }
+    }
+    return best;
+  }
+  function liveCropMask(bbox,signal){
+    const live=livePlanImage();if(!live)return null;
+    const iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height;if(!iw||!ih)return null;
+    const x=bbox[0],y=bbox[1],w=bbox[2],h=bbox[3];if(!(w>=4&&h>=4))return null;
+    const pad=Math.max(3,Math.round(Math.min(w,h)*0.2));
+    const x0=Math.max(0,Math.floor(x-pad)),y0=Math.max(0,Math.floor(y-pad)),x1=Math.min(iw,Math.ceil(x+w+pad)),y1=Math.min(ih,Math.ceil(y+h+pad));
+    const cw=x1-x0,ch=y1-y0;if(cw<6||ch<6)return null;
+    const k=Math.min(w,h)<SNAP_UPSCALE_BELOW?2:1,W=cw*k,H=ch*k;if(W*H>SNAP_MAX_AREA)return null;
+    const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=false;
+    try{ctx.drawImage(live,x0,y0,cw,ch,0,0,W,H);}catch(_){return null;}
+    let data;try{data=ctx.getImageData(0,0,W,H).data;}catch(_){return null;}
+    const mask=new Uint8Array(W*H);
+    if(signal==='red'){for(let i=0,j=0;i<data.length;i+=4,j++)mask[j]=rgbaIsRed(data[i],data[i+1],data[i+2])?1:0;}
+    else{
+      const lum=new Uint8Array(W*H);for(let i=0,j=0;i<data.length;i+=4,j++)lum[j]=(0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2])|0;
+      const st=W+1,I=new Float64Array((W+1)*(H+1));
+      for(let yy=0;yy<H;yy++){let row=0;const o=(yy+1)*st,pv=yy*st,b=yy*W;for(let xx=0;xx<W;xx++){row+=lum[b+xx];I[o+xx+1]=I[pv+xx+1]+row;}}
+      const R=Math.max(4,Math.round(INK_LOCAL_RADIUS*k));
+      for(let yy=0;yy<H;yy++){const ya=Math.max(0,yy-R),yb=Math.min(H,yy+R+1);
+        for(let xx=0;xx<W;xx++){const xa=Math.max(0,xx-R),xb=Math.min(W,xx+R+1);
+          const mean=(I[yb*st+xb]-I[ya*st+xb]-I[yb*st+xa]+I[ya*st+xa])/((yb-ya)*(xb-xa));
+          const l=lum[yy*W+xx];mask[yy*W+xx]=(l<INK_ABS_MAX&&l<mean-INK_LOCAL_DROP)?1:0;}}
+    }
+    cv.width=1;cv.height=1;
+    return {mask,w:W,h:H,x0,y0,k,inner:{x:(x-x0)*k,y:(y-y0)*k,w:w*k,h:h*k}};
+  }
   function tightenWorkBox(f,wb){
     const W=wb.w,H=wb.h;if(W<4||H<4)return null;
-    /* longest ink RUN per column and per row: the square's sides are runs the
-       size of the symbol; a digit's strokes are ~half that; a wire crossing
-       the box is a 1-2 px run the other way - so wires and digits drop out */
+    /* 1 - the plan's own pixels, full size */
+    let lv=null;try{lv=wb.original?liveCropMask(wb.original,f.signal):null;}catch(_){lv=null;}
+    if(lv){
+      const r=findClosedRect(lv.mask,lv.w,lv.h,lv.inner,lv.k);
+      if(r){
+        const m=TIGHTEN_MARGIN_PX,ix=lv.x0+(r.L-m)/lv.k,iy=lv.y0+(r.T-m)/lv.k,iw=(r.R-r.L+1+2*m)/lv.k,ih=(r.B-r.T+1+2*m)/lv.k;
+        const o=wb.original;
+        if(!(iw>=o[2]-1&&ih>=o[3]-1)){   /* not already tight */
+          const x0=Math.floor(ix*f.scaleX),y0=Math.floor(iy*f.scaleY),x1=Math.ceil((ix+iw)*f.scaleX),y1=Math.ceil((iy+ih)*f.scaleY);
+          return {x:x0,y:y0,w:Math.max(3,x1-x0),h:Math.max(3,y1-y0),closed:true,img:[ix,iy,iw,ih]};
+        }
+        return null;
+      }
+    }
+    /* 2 - the same search on the detection frame */
+    if(W*H<=SNAP_MAX_AREA){
+      const mask=new Uint8Array(W*H);
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++)mask[y*W+x]=f.mask[(wb.y+y)*f.w+wb.x+x];
+      const r=findClosedRect(mask,W,H,null,1);
+      if(r){
+        const x0=Math.max(0,r.L-TIGHTEN_MARGIN_PX),y0=Math.max(0,r.T-TIGHTEN_MARGIN_PX),x1=Math.min(W-1,r.R+TIGHTEN_MARGIN_PX),y1=Math.min(H-1,r.B+TIGHTEN_MARGIN_PX);
+        const nw=x1-x0+1,nh=y1-y0+1;
+        if(nw>=W-1&&nh>=H-1)return null;   /* already tight */
+        return {x:wb.x+x0,y:wb.y+y0,w:nw,h:nh,closed:true};
+      }
+    }
+    /* 3 - the Pass 211 run rule (circles, triangles) */
+    return tightenByRuns(f,wb);
+  }
+  function tightenByRuns(f,wb){
+    const W=wb.w,H=wb.h;if(W<4||H<4)return null;
+    /* PASS 211 rule, kept as the fallback for symbols that are not closed
+       rectangles (circles, triangles): longest ink RUN per column / per row */
     const colRun=new Int32Array(W),rowRun=new Int32Array(H);
     for(let x=0;x<W;x++){let run=0,best=0;for(let y=0;y<H;y++){if(f.mask[(wb.y+y)*f.w+wb.x+x]){run++;if(run>best)best=run;}else run=0;}colRun[x]=best;}
     for(let y=0;y<H;y++){let run=0,best=0;for(let x=0;x<W;x++){if(f.mask[(wb.y+y)*f.w+wb.x+x]){run++;if(run>best)best=run;}else run=0;}rowRun[y]=best;}
     let M=0,N=0;for(let x=0;x<W;x++)if(colRun[x]>M)M=colRun[x];for(let y=0;y<H;y++)if(rowRun[y]>N)N=rowRun[y];
-    /* the symbol size is the SMALLER of the two longest runs: a wire crossing the
-       box makes one long run in one direction only, and is then too long to
-       count as a side (> 2.2x the symbol) */
     const S=Math.min(M,N);if(S<TIGHTEN_MIN_SIDE)return null;
     const lo=TIGHTEN_RUN_FRACTION*S,hi=TIGHTEN_RUN_MAX*S;
     let x0=-1,x1=-1,y0=-1,y1=-1;
@@ -1290,7 +1399,7 @@
     if(nw<TIGHTEN_MIN_SIDE||nh<TIGHTEN_MIN_SIDE)return null;
     if(nw>3*S||nh>3*S)return null;   /* not a symbol-shaped outline - leave his box alone */
     if(nw>=W-1&&nh>=H-1)return null;   /* already tight */
-    return {x:wb.x+x0,y:wb.y+y0,w:nw,h:nh};
+    return {x:wb.x+x0,y:wb.y+y0,w:nw,h:nh,closed:false};
   }
   function tightenTemplateBox(bbox,signal){
     if(!session)throw new Error('Start Smart Plan first.');
@@ -1298,7 +1407,7 @@
     if(signal==='auto')signal=autoSignalForBBox(bbox);
     const f=makeFeature(signal),wb=workBBox(f,bbox),t=tightenWorkBox(f,wb);
     if(!t)return {bbox:wb.original.slice(),tightened:false};
-    const out=[t.x/f.scaleX,t.y/f.scaleY,t.w/f.scaleX,t.h/f.scaleY];
+    const out=t.img?t.img.slice():[t.x/f.scaleX,t.y/f.scaleY,t.w/f.scaleX,t.h/f.scaleY];   /* [213-A] full-size coords when the snap saw the plan itself */
     return {bbox:out,tightened:true};
   }
   function autoSignalForBBox(bbox){
@@ -1958,6 +2067,7 @@
 #${MODAL_ID} details{margin:8px 0;border:1px solid var(--fs-border,#3a4047);border-radius:10px;padding:6px 10px}
 #${MODAL_ID} details summary{cursor:pointer;font-size:12.5px;color:var(--fs-sub,#9aa2aa);min-height:36px;display:flex;align-items:center}
 #${MODAL_ID} .spField{display:grid;grid-template-columns:minmax(90px,1fr) minmax(120px,1.3fr);gap:8px;align-items:center;margin:6px 0;font-size:12.5px}
+#${MODAL_ID} .spField.spTypeRow{grid-template-columns:max-content minmax(120px,1fr);gap:10px}  /* [213-C] the label sits beside the select */
 #${MODAL_ID} .spField select,#${MODAL_ID} .spField input{min-height:40px;border-radius:7px;border:1px solid var(--fs-border,#4b525c);background:var(--fs-field,#15181c);color:var(--fs-fieldText,inherit);padding:6px;min-width:0;width:100%}
 #${MODAL_ID} .spDone{padding:9px 11px;border-radius:10px;background:rgba(0,166,90,.14);border:1px solid #2d8b57;font-size:13px;margin:8px 0}
 #${MODAL_ID} .spWarn{padding:9px 11px;border-radius:10px;background:rgba(255,179,0,.12);border:1px solid #b88926;font-size:13px;margin:8px 0}
@@ -2300,7 +2410,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     let html='';
     if(uiStep===2){
       const picking=!!(session.templatePick&&session.templatePick.active);
-      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField"><label>What is it?</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':(session.teach?'Draw the box again':'Draw the box on the plan')}</button>${(session.teach&&!picking)?`<div class="spDone">${session.boxSnapped?'Box snapped to the symbol - the printed number stays outside it, where the reader looks. ':'Box drawn. '}Drag a corner on the plan to adjust it, draw it again, or press Next.</div>`:''}${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
+      html=`<div class="spScreen"><h3>Show one detector</h3><p>Drag a box around <b>ONE</b> detector on the plan. Smart Plan finds every other one that looks like it.</p>${SP_PICTURE}<div class="spField spTypeRow"><label>Type of item</label><select data-sp="dtype">${typeOptions}</select></div><button class="btn spPrimary spBig" data-sp="teach" ${picking||busy?'disabled':''}>${picking?'Now drag the box on the plan →':(session.teach?'Draw the box again':'Draw the box on the plan')}</button>${(session.teach&&!picking)?`<div class="spDone">${session.boxSnapped?'Box snapped to the symbol - the printed number stays outside it, where the reader looks. ':'Box drawn. '}Drag a corner on the plan to adjust it, draw it again, or press Next.</div>`:''}${picking?'<div class="spWarn">Zoom in on the plan first (pinch, scroll, or the + button), then drag from one corner of the detector to the opposite corner. Keep the box tight.</div>':''}${session.candidates.length?`<div class="spDone">${s.total} already found. Showing another detector adds to them.</div>`:''}<details data-sp="advanced"><summary>Advanced (usually not needed)</summary><div class="spField"><label>Signal</label><select data-sp="signal"><option value="auto">Auto</option><option value="red">Red ink</option><option value="ink">Dark / colour ink</option></select></div><div class="spField"><label>Sensitivity (0.35–0.95)</label><input data-sp="threshold" type="number" min="0.35" max="0.95" step="0.01" value="${DETECT_DEFAULT_THRESHOLD}"></div><label class="spCheck" style="min-height:36px"><input data-sp="mirrors" type="checkbox"> Also look for mirrored copies</label></details></div>`;
     }else if(uiStep===3){
       const t=session.teach;const done=session.findDone;
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
@@ -2322,7 +2432,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     /* ---- wiring, by step ---- */
     const q=sel=>left.querySelector(sel);
     if(uiStep===2){
-      const dt=q('[data-sp="dtype"]');if(dt&&teach.type)dt.value=teach.type;
+      const dt=q('[data-sp="dtype"]');const pickType=session.templatePick&&session.templatePick.type;if(dt&&(pickType||teach.type))dt.value=pickType||teach.type;  /* [213-B] the pick's own type wins over the last taught one */
+      if(dt)dt.onchange=()=>{if(session&&session.templatePick)session.templatePick.type=dt.value;if(session&&session.teach)session.teach.type=dt.value;};
       q('[data-sp="teach"]').onclick=()=>{const type=dt.value,signal=(q('[data-sp="signal"]')||{}).value||'auto',threshold=Number((q('[data-sp="threshold"]')||{}).value)||DETECT_DEFAULT_THRESHOLD,includeMirrors=!!(q('[data-sp="mirrors"]')||{}).checked;session.templatePick={active:true,type,signal,threshold,includeMirrors,start:null,end:null};render();try{if(window.innerWidth<=820){const rp=m.querySelector('[data-sp="right"]');if(rp&&rp.scrollIntoView)rp.scrollIntoView({behavior:'smooth',block:'start'});}}catch(_){}};
       const sg=q('[data-sp="signal"]');if(sg&&teach.signal)sg.value=teach.signal;const th=q('[data-sp="threshold"]');if(th&&teach.threshold)th.value=teach.threshold;const mr=q('[data-sp="mirrors"]');if(mr)mr.checked=!!teach.includeMirrors;
       spNav(left,{next:'Next: Find and read',nextDisabled:!session.teach,nextPrimary:!!session.teach});
@@ -2481,7 +2592,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   function maxCanvasPx(){try{return typeof FS_MAX_CANVAS_PX!=='undefined'?FS_MAX_CANVAS_PX:MAX_CANVAS_FALLBACK}catch(_){return MAX_CANVAS_FALLBACK}}
 
-  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const api={version:VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
