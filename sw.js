@@ -1,4 +1,4 @@
-const CACHE = "aa-v201";
+const CACHE = "aa-v202";
 const PREFIX = "aa-";   // PASS 39 [39-4] — this app owns ONLY its own caches
 if (CACHE.indexOf(PREFIX) !== 0) throw new Error("cache name does not carry its own prefix");
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png", "./favicon.png", "./pdf.min.js", "./pdf.worker.min.js", "./qr.js", "./jsqr.js", "./zxing.js", "./smart-plan.js"];
@@ -51,7 +51,10 @@ self.addEventListener("fetch", e => {
   // NEVER intercept cross-origin calls (geocoding/routing APIs): ignoreSearch matching
   // was serving the FIRST map lookup's cached answer for EVERY site (C7.1 fix)
   if (new URL(e.request.url).origin !== location.origin) return;
-  if (e.request.mode === "navigate" || e.request.destination === "document") {
+  // PASS 215 [215-D] - smart-plan.js is fetched like the document: network first,
+  // past the HTTP cache, cache only as the fallback. Cache-first let a stale
+  // module outlive every update (his PC: a V0.184 Smart Plan under V0.193).
+  if (e.request.mode === "navigate" || e.request.destination === "document" || /\/smart-plan\.js$/.test(new URL(e.request.url).pathname)) {
     e.respondWith(
       // cache:"reload" bypasses the BROWSER's own HTTP cache, not just ours.
       // GitHub Pages serves HTML with a max-age, so a plain fetch() here can be
