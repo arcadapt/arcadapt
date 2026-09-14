@@ -42,6 +42,7 @@
      number beside the symbol (58, not L01.D58), 7 px tall at the sheet's own
      resolution. Four tight strips around the symbol, Lanczos 6x, one line,
      digits only; a read must agree across two scales. */
+  const OCR_STRIP_WIDEN = 0.85;   /* [219-B] how much wider the confirming look is, in strip widths */
   const OCR_STRIP_UPSCALES = [5, 7], OCR_STRIP_UPSCALE = 6, OCR_STRIP_SINGLE_MIN_CONF = 85, OCR_STRIP_NARROW_CUT = 0.2, OCR_STRIP_ADOPT_RATIO = 0.15, OCR_STYLE_PROBE_N = 6;
   const OCR_STRIPS = Object.freeze([
     {name:'left', x:-1.45, y:-0.5, w:1.0, h:1.0},
@@ -1504,7 +1505,7 @@
       if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
       session.candidates.push(...created);refreshIssues();
       const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
-      session.detectReport={summary:{type,signal,threshold,raw:raw.length,kept:created.length,skippedByArea:areaSkipped,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+      session.detectReport={summary:{runId,type,signal,threshold,raw:raw.length,kept:created.length,skippedByArea:areaSkipped,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
       session.detectStatus='';return clone(session.detectReport);
     } catch(e){
       /* [205-A] a cancelled detection adds NOTHING: candidates are only pushed after the last pass. */
@@ -1646,9 +1647,30 @@
         if(y>0&&ink[q-w]&&!seen[q-w]){seen[q-w]=1;stack.push(q-w);}if(y<h-1&&ink[q+w]&&!seen[q+w]){seen[q+w]=1;stack.push(q+w);}}
       blobs.push({x0,x1,y0,y1,n,px,bw:x1-x0+1,bh:y1-y0+1});}
     if(!blobs.length)return t;
+    /* [219-A] WHICH BLOBS ARE THE DIGITS. V0.197 took every blob at least half as
+       tall as the tallest and gave up unless that came to exactly one per character.
+       A real strip also holds the symbol box edge and the loop wire, so the count
+       never matched on his sheet and the 7->1 correction never ran: 77 still read 11.
+       (A wire also inflates `tall`, which throws the filter the other way and drops
+       real digits.) TWO sets are tried, the V0.197 one FIRST so a strip that already
+       worked is untouched; the first with one blob per character wins, and if neither
+       does the text is returned exactly as read. A third, cleverer set was written and
+       then deleted: mutate-p219 M2/M4 showed it and the second set rescued the same
+       crops, so neither could be removed without the suite noticing - two names for
+       one behaviour, which is how dead code gets shipped looking tested. */
+    const byX=a=>a.slice().sort((p,q)=>p.x0-q.x0);
     const tall=Math.max.apply(null,blobs.map(b=>b.bh));
-    const digits=blobs.filter(b=>b.bh>=tall*0.5).sort((a,b)=>a.x0-b.x0);
-    if(digits.length!==t.length)return t;
+    /* What separates a digit from the two things that get into the crop: the symbol
+       box edge and the loop wire are far TALLER THAN THEY ARE WIDE (measured on his
+       sheet: 20:1 and up), where even a hairline 1 stays inside about 10:1. Ink
+       fraction rules out a hollow outline. Neither test may use an absolute pixel
+       size - the same crop arrives at 4x and at 7x. */
+    const glyphish=b=>{const fill=b.n/Math.max(1,b.bw*b.bh),ar=b.bh/Math.max(1,b.bw);
+      return fill>=0.12&&ar>=0.6&&ar<=12&&b.bw>=2&&b.bh>=6;};
+    let digits=null;
+    for(const s of [blobs.filter(b=>b.bh>=tall*0.5),blobs.filter(glyphish)]){
+      if(s.length===t.length){digits=byX(s);break;}}
+    if(!digits)return t;   /* still ambiguous: return the text exactly as read, never guess */
     let out='';
     for(let i=0;i<t.length;i++){const b=digits[i];if(t[i]!=='1'||b.bw<4||b.bh<8){out+=t[i];continue;}
       const topN=Math.max(1,Math.round(b.bh*0.2)),botN=Math.max(1,Math.round(b.bh*0.3));let tx0=w,tx1=-1,bx0=w,bx1=-1;
@@ -1943,14 +1965,14 @@
   }
   async function runOcrStripPass(worker,candidates,indexes,rawLabels){
     if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:'7',preserve_interword_spaces:'1',tessedit_char_whitelist:'0123456789'});
-    let crops=0,reads=0,readCandidates=0;
+    let crops=0,reads=0,readCandidates=0,clippedTotal=0;   /* [219-B] */
     try{
       for(let n=0;n<indexes.length;n++){
         const i=indexes[n],c=candidates[i];spThrowIfCancelled();
         session.ocrStatus=`Reading numbers — ${n+1} / ${indexes.length}`;session.progress={done:n,total:indexes.length,phase:0,phases:1};spTick();
         const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox:[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
         const cx=b[0]+b[2]/2,cy=b[1]+b[3]/2,w=Math.max(6,b[2]),h=Math.max(6,b[3]);
-        const seen=[];
+        const seen=[];let clipped=0;   /* [219-B] */
         for(const st of OCR_STRIPS){
           spThrowIfCancelled();
           const rx=cx+st.x*w,ry=cy+st.y*h,rw=st.w*w,rh=st.h*h;
@@ -1986,6 +2008,30 @@
           }
           if(text!==null)break;}
           if(text===null)continue;
+          /* [219-B] IS THE NUMBER WIDER THAN THE STRIP? The strips are 1.0-1.3 x the
+             symbol box. "113" does not fit; V0.197 read "11" and ACCEPTED it, because
+             the wire guard above only ever examined 3-character reads. Re-take a 2-digit
+             read on a strip widened AWAY from the symbol (the label runs outward, the
+             wire comes in from the symbol side). Two scales must agree here too. If the
+             wide look finds a different number, the narrow one was clipped: drop it and
+             let the row say so. He would rather type a number than correct a wrong one. */
+          if(text.length===2){
+            const g=OCR_STRIP_WIDEN,horiz=(st.name==='left'||st.name==='right');
+            const wx=st.name==='left'?rx-rw*g:(horiz?rx:rx-rw*g/2),
+                  wy=st.name==='up'?ry-rh*g:(horiz?ry-rh*g/2:ry),
+                  ww=horiz?rw*(1+g):rw*(1+g),
+                  wh=horiz?rh*(1+g):rh*(1+g);
+            let wide=null;
+            for(const up of (hiresHere?HIRES_STRIP_UPSCALES:OCR_STRIP_UPSCALES)){
+              const wcv=cropStripCanvas(wx,wy,ww,wh,up,hiresHere?'hires':'live');crops++;
+              const wres=await worker.recognize(wcv,{},{text:true});
+              let wt=String(wres&&wres.data&&wres.data.text||'').replace(/\s+/g,'');
+              if(hiresHere&&/^\d{1,3}$/.test(wt))wt=hiresFixSevens(wcv,wt);
+              if(!/^\d{2,3}$/.test(wt)){wide=null;break;}
+              if(wide===null)wide=wt;else if(wt!==wide){wide=null;break;}
+            }
+            if(wide!==null&&wide!==text){clipped++;text=null;continue;}
+          }
           if(text[0]==='0')continue;  /* a leading 0 is a clipped longer number */
           /* a lone "1" is a wall line or a wire far more often than device 1 */
           if(text.length<2&&(conf<OCR_STRIP_SINGLE_MIN_CONF||text==='1'))continue;
@@ -1995,6 +2041,8 @@
           reads++;
         }
         c.meta.stripReads=seen;
+        clippedTotal+=clipped;   /* [219-B] */
+        if(clipped&&!seen.length)c.meta.ocrIssue="The printed number is wider than the reader's window - it is probably three digits. Type it in.";
         const distinct=[...new Set(seen.map(k=>k.dev))];
         if(distinct.length>1){
           /* two different numbers printed within reach: never guess, never let a
@@ -2007,7 +2055,7 @@
     }finally{
       if(worker.setParameters) await worker.setParameters({tessedit_char_whitelist:''});
     }
-    return {candidates:indexes.length,crops,reads,readCandidates,upscale:OCR_STRIP_UPSCALE};
+    return {candidates:indexes.length,crops,reads,readCandidates,clipped:clippedTotal,upscale:OCR_STRIP_UPSCALE};
   }
 
   async function runOcrCandidatePass(worker,candidates,indexes,opts,rawLabels,phase,offsets,upscale){
@@ -2609,7 +2657,14 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
             const o=await recognisePrintedIdentities();
             if(!session)return;
             if(o===null){session.findDone={kept,read:null,area,type:t.type,ms};spRunLog(session.findDone);render();return;}
-            read=o&&o.summary?(o.summary.applied||0):0;ms+=o&&o.summary?(o.summary.elapsedMs||0):0;
+            /* [219-C] `applied` is SESSION-wide - the reader re-reads every candidate on
+               every run - while `kept` is this run's. V0.197 printed them side by side:
+               "Found 81 Thermal Detectors - read 117 numbers", more numbers than
+               detectors. Count the numbers THIS run's detections are carrying. */
+            const rid=r&&r.summary?r.summary.runId:null;
+            read=rid?session.candidates.filter(c=>c.decision!=='rejected'&&c.meta&&c.meta.detectorRun===rid&&c.meta.devSource==='ocr').length
+                    :(o&&o.summary?(o.summary.applied||0):0);
+            ms+=o&&o.summary?(o.summary.elapsedMs||0):0;
           }
           if(session){session.findDone={kept,read,area,type:t.type,ms};spRunLog(session.findDone);render();}
         }catch(e){if(session){session.detectBusy=false;session.ocrBusy=false;session.detectStatus='';session.ocrStatus='';render();}alert(e.message||String(e));}
@@ -2755,8 +2810,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.197 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.198 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
