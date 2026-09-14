@@ -70,6 +70,16 @@
   const DETECT_NMS_IOU = 0.15;
   const DETECT_NMS_CENTRE_FACTOR = 1.30;
   const DETECT_MAX_RESULTS = 400;
+  /* [220-A] how far around a symbol to look, in multiples of its half-width, and the
+     gate for "this pixel is a coloured fill" - the same saturation/value cut
+     teachZoneHatch already uses, so a wall, black ink or white paper never votes.
+     FILL_MIN_FRACTION is a FRACTION and not a pixel count on purpose: an absolute
+     floor means the same detector passes on a 300-dpi sheet and fails on a 150-dpi
+     one, which is a bug that only ever shows up on somebody else's scan. */
+  const FILL_RING_OUTER = 2.6;
+  const FILL_MIN_SAT = 0.10, FILL_MIN_VAL = 0.15, FILL_MAX_VAL = 0.985;
+  const FILL_MIN_FRACTION = 0.35;
+  const FILL_HUE_TOLERANCE = 14;
   const ZONE_SOURCE_MAX_PX = 2500000;
   const ZONE_DENSITY_THRESHOLD = 0.015;
   const ZONE_DENSITY_AUTO_DIVISOR = 4;
@@ -447,6 +457,7 @@
       zoneAlign:{pairs:[],fit:null,pending:null},
       zoneTool:null,
       zoneStatus:'',
+      fillZones:null,   /* [220-A] */
       hostSnapshot:hostSnapshot(),
       ocrReport:null,
       ocrBusy:false,
@@ -481,6 +492,7 @@
     return {active:true,total:session.candidates.length,accepted,review,rejected,errors,warnings,numbered,
       zones:session.zones.length,zoneAccepted,zoneReview,zoneRejected,schedule:session.schedule.length,
       reconciliation:session.scheduleReport ? clone(session.scheduleReport.summary || {}) : null,
+      fillZones:session.fillZones?{groups:session.fillZones.groups.length,named:session.fillZones.groups.filter(g=>field(g.zone)).length,sampled:session.fillZones.sampled,plain:session.fillZones.plain}:null,   /* [220-A] */
       zoneSource:session.zoneSource ? {name:session.zoneSource.name,width:session.zoneSource.width,height:session.zoneSource.height,samples:session.zoneSamples.length,regions:session.zoneRegions.length,pairs:session.zoneAlign.pairs.length,rmse:session.zoneAlign.fit?session.zoneAlign.fit.rmse:null} : null,
       ocr:session.ocrReport ? clone(session.ocrReport.summary || {}) : null,
       detection:session.detectReport ? clone(session.detectReport.summary || {}) : null};
@@ -782,6 +794,163 @@
     const z=await zoneCanvasFromFile(file);session.zoneSource=z;session.zoneSamples=[];session.zoneRegions=[];session.zoneAlign={pairs:[],fit:null,pending:null};session.zoneTool=null;session.zoneStatus=`Zone source loaded: ${z.name} (${z.width}×${z.height} working px)`;
     session.zones=session.zones.filter(x=>x.source!=='zone-plan-transfer');if(session.schedule.length)reconcileSchedule(true);render();return {name:z.name,width:z.width,height:z.height,originalWidth:z.originalWidth,originalHeight:z.originalHeight,scale:z.scale};
   }
+  /* ================= PASS 220 [220-A] ZONES FROM THE COLOUR FILL =================
+     The plan itself is the zone source. Everything below reads the WORKSPACE
+     IMAGE, never the 4x grey tiles Pass 218 built - those are grey, and hue is
+     the whole signal here.
+
+     A DISC AROUND THE SYMBOL, AND A FRACTION, NOT A COUNT. Everything within
+     FILL_RING_OUTER half-widths of the symbol's centre is sampled - the symbol
+     itself included, because its own black outline, white middle and the black
+     number beside it are all removed by the saturation/value gate anyway, and a
+     minority of coloured symbol ink cannot pull a saturation-weighted CIRCULAR
+     mean off the floor's hue. (An inner radius that skipped the symbol was
+     written first and then deleted: mutate-p220 showed removing it changed
+     nothing a test could see, even with the symbols printed in red, which is
+     the definition of a guard that is not guarding.)
+
+     What DOES decide is how much of that disc is coloured at all. A detector
+     six pixels outside a zone boundary catches a sliver of the fill next door;
+     one standing on white paper catches none. Both must come back with no hue,
+     because a zone number he has to un-type is worse than one he types. The
+     floor is a FRACTION of the disc rather than a pixel count so that the same
+     detector behaves the same way on a 150-dpi scan and a 4x re-render. */
+  function fillRingHue(ctx, b){
+    const [bx,by,bw,bh]=b;
+    const cx=bx+bw/2, cy=by+bh/2, r=Math.max(bw,bh)/2;
+    const ro=r*FILL_RING_OUTER;
+    const x0=Math.max(0,Math.floor(cx-ro)), y0=Math.max(0,Math.floor(cy-ro));
+    const x1=Math.ceil(cx+ro), y1=Math.ceil(cy+ro);
+    const w=Math.max(1,x1-x0), h=Math.max(1,y1-y0);
+    let d; try{ d=ctx.getImageData(x0,y0,w,h).data; }catch(_){ return null; }
+    let sx=0,sy=0,ss=0,sv=0,n=0,seen=0;
+    for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){
+      const px=x0+xx+0.5, py=y0+yy+0.5, dx=px-cx, dy=py-cy;
+      if(Math.hypot(dx,dy)>ro)continue;
+      const i=(yy*w+xx)*4;
+      if(d[i+3]<128)continue;
+      seen++;
+      const q=rgbToHsv(d[i],d[i+1],d[i+2]);
+      if(q.s<FILL_MIN_SAT||q.v<FILL_MIN_VAL||q.v>FILL_MAX_VAL)continue;
+      const wt=Math.max(.1,q.s);
+      sx+=Math.cos(q.h*Math.PI/180)*wt; sy+=Math.sin(q.h*Math.PI/180)*wt;
+      ss+=q.s; sv+=q.v; n++;
+    }
+    if(!seen||n/seen<FILL_MIN_FRACTION)return null;
+    let hue=Math.atan2(sy,sx)*180/Math.PI; if(hue<0)hue+=360;
+    return {h:hue,s:ss/n,v:sv/n,n:n,fraction:n/seen};
+  }
+
+  /* Single-link on the circle. Sorted by hue, a gap wider than the tolerance
+     starts a new group, then the last group is merged into the first if they
+     meet across 0/360 - otherwise a red fill splits into "358 deg" and "3 deg". */
+  function clusterHues(items){
+    if(!items.length)return [];
+    const a=items.slice().sort((p,q)=>p.h-q.h);
+    const out=[[a[0]]];
+    for(let i=1;i<a.length;i++){
+      const prev=out[out.length-1];
+      if(circularHueDelta(a[i].h, prev[prev.length-1].h)<=FILL_HUE_TOLERANCE)prev.push(a[i]);
+      else out.push([a[i]]);
+    }
+    if(out.length>1){
+      const first=out[0], last=out[out.length-1];
+      if(circularHueDelta(first[0].h, last[last.length-1].h)<=FILL_HUE_TOLERANCE){
+        out[0]=last.concat(first); out.pop();
+      }
+    }
+    return out;
+  }
+
+  function meanHue(list){
+    let sx=0,sy=0,ss=0,sv=0;
+    list.forEach(x=>{const wt=Math.max(.1,x.s);sx+=Math.cos(x.h*Math.PI/180)*wt;sy+=Math.sin(x.h*Math.PI/180)*wt;ss+=x.s;sv+=x.v;});
+    let h=Math.atan2(sy,sx)*180/Math.PI; if(h<0)h+=360;
+    return {h,s:ss/list.length,v:sv/list.length};
+  }
+
+  function hsvCss(h,s,v){
+    const c=v*s, x=c*(1-Math.abs(((h/60)%2)-1)), m=v-c;
+    let r=0,g=0,b=0;
+    if(h<60){r=c;g=x;} else if(h<120){r=x;g=c;} else if(h<180){g=c;b=x;}
+    else if(h<240){g=x;b=c;} else if(h<300){r=x;b=c;} else {r=c;b=x;}
+    const f=n=>Math.round((n+m)*255);
+    return `rgb(${f(r)},${f(g)},${f(b)})`;
+  }
+
+  function sampleFillZones(){
+    if(!session)throw new Error('Start a Smart Plan session first.');
+    const live=livePlanImage(); if(!live)throw new Error('No decoded Workspace plan is available.');
+    const cands=session.candidates.filter(c=>c.decision!=='rejected');
+    if(!cands.length)throw new Error('Find some detectors first - the zone colour is read from under each one.');
+    const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
+    const cv=document.createElement('canvas'); cv.width=iw; cv.height=ih;
+    const ctx=cv.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(live,0,0,iw,ih);
+    const hues=[]; let plain=0;
+    cands.forEach(c=>{
+      const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox
+             :[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
+      const r=fillRingHue(ctx,b);
+      if(r)hues.push({id:c.id,h:r.h,s:r.s,v:r.v,n:r.n}); else plain++;
+    });
+    const groups=clusterHues(hues).map((list,i)=>{
+      const m=meanHue(list);
+      return {id:`fill-${i+1}`,hue:m.h,sat:m.s,val:m.v,css:hsvCss(m.h,m.s,m.v),
+              zone:'',members:list.map(x=>x.id),count:list.length};
+    }).sort((a,b)=>b.count-a.count);
+    /* carry a zone number already typed for a colour that is still here */
+    const old=(session.fillZones&&session.fillZones.groups)||[];
+    groups.forEach(g=>{const prev=old.find(o=>circularHueDelta(o.hue,g.hue)<=FILL_HUE_TOLERANCE&&field(o.zone));if(prev)g.zone=prev.zone;});
+    session.fillZones={groups,sampled:cands.length,plain,at:Date.now()};
+    session.zoneStatus=groups.length
+      ? `${groups.length} colour${groups.length===1?'':'s'} under ${cands.length-plain} of ${cands.length} detectors. Name each one.`
+      : `No coloured fill under any detector - this plan's zones are not colour areas.`;
+    render();
+    return clone(session.fillZones);
+  }
+
+  function setFillZone(groupId, zone){
+    if(!session||!session.fillZones)throw new Error('Find the zones by colour first.');
+    const g=session.fillZones.groups.find(x=>x.id===groupId);
+    if(!g)throw new Error('No such colour group.');
+    g.zone=normaliseScheduleZone(zone);
+    return g.zone;
+  }
+
+  /* Writing is its own step so a half-typed set of numbers never lands in Review.
+     A zone he typed himself, or one off the panel schedule, always wins; only a
+     zone this pass wrote is ever overwritten by this pass. */
+  function applyFillZones(){
+    if(!session||!session.fillZones)throw new Error('Find the zones by colour first.');
+    const byId=new Map(session.candidates.map(c=>[c.id,c]));
+    let set=0, cleared=0;
+    session.fillZones.groups.forEach(g=>{
+      const z=field(g.zone);
+      g.members.forEach(id=>{
+        const c=byId.get(id); if(!c||c.decision==='rejected')return;
+        const owned=(c.meta.zoneSource==='fill');
+        if(z){ if(owned||!field(c.obj.zone)){c.obj.zone=z;c.meta.zoneSource='fill';set++;} }
+        else if(owned){ c.obj.zone='';c.meta.zoneSource='';cleared++; }
+      });
+    });
+    if(session.schedule.length)reconcileSchedule(true); else refreshIssues();
+    session.zoneStatus=`${set} detector${set===1?'':'s'} zoned by colour${cleared?`, ${cleared} cleared`:''}.`;
+    render();
+    return {set,cleared};
+  }
+
+  function fillZoneRowsHtml(){
+    const f=session&&session.fillZones; if(!f)return '';
+    if(!f.groups.length)return `<div class="spHint" style="margin-top:8px">No coloured fill was found under any detector.</div>`;
+    const rows=f.groups.map(g=>`<div class="spFillRow"><span class="spSwatch" style="background:${g.css}"></span>`
+      +`<span class="spFillN">${g.count} detector${g.count===1?'':'s'}</span>`
+      +`<input data-sp="fillzone" data-gid="${escapeHtml(g.id)}" value="${escapeHtml(g.zone)}" placeholder="Zone" maxlength="5" inputmode="numeric"></div>`).join('');
+    return `<div class="spFillList">${rows}</div>`
+      +(f.plain?`<div class="spHint" style="margin-top:6px">${f.plain} detector${f.plain===1?'':'s'} sit on no colour and will stay unzoned.</div>`:'')
+      +`<button class="btn spPrimary spBig" data-sp="fillapply" style="margin-top:9px">Put these zones on the detectors</button>`;
+  }
+
   function teachZoneHatch(zone,bbox,options){
     if(!session||!session.zoneSource)throw new Error('Load a separate zone plan first.');zone=normaliseScheduleZone(zone);if(!zone)throw new Error('Enter the zone number before teaching hatch.');options=options||{};
     const cv=session.zoneSource.canvas,w=cv.width,h=cv.height;let [x,y,bw,bh]=(bbox||[]).map(Number);x=Math.max(0,Math.floor(x));y=Math.max(0,Math.floor(y));bw=Math.min(w-x,Math.ceil(bw));bh=Math.min(h-y,Math.ceil(bh));if(!(bw>=4&&bh>=4))throw new Error('Draw a larger hatch sample box.');
@@ -2209,6 +2378,11 @@
 #${MODAL_ID} .spRow.spRowFocus{outline:2px solid #e040fb;outline-offset:-2px;border-radius:6px}
 #${MODAL_ID} .spRow{cursor:pointer}
 #${MODAL_ID} .spZoneBox{margin:8px 0 12px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
+#${MODAL_ID} .spFillList{display:flex;flex-direction:column;gap:1px;background:var(--fs-border,#3a4047);border:1px solid var(--fs-border,#3a4047);border-radius:8px;overflow:hidden;margin-top:8px}
+#${MODAL_ID} .spFillRow{display:grid;grid-template-columns:26px 1fr 92px;gap:10px;align-items:center;padding:8px 10px;background:var(--fs-panel,#22272c)}
+#${MODAL_ID} .spSwatch{width:22px;height:22px;border-radius:5px;border:1px solid rgba(128,128,128,.55);display:block}
+#${MODAL_ID} .spFillN{color:var(--fs-sub,#9aa2aa);font-size:13.5px}
+@media(max-width:820px){#${MODAL_ID} .spFillRow{grid-template-columns:26px 1fr 78px}}
 #${MODAL_ID} .spZoneRow{display:grid;grid-template-columns:minmax(90px,1fr) 92px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.14)}
 #${MODAL_ID} .spZoneRow:last-child{border-bottom:0}
 #${MODAL_ID} .spBadge{font-size:10px;border:1px solid var(--fs-border,#59626c);border-radius:999px;padding:3px 7px;white-space:nowrap;color:var(--fs-sub,#9aa2aa)}.spBadge.ok{border-color:#2d8b57;color:#71d69c} html:not(.fsdark) #${MODAL_ID} .spBadge.ok{color:#1f7a45}.spBadge.rev{border-color:#b88926;color:#ffd36e} html:not(.fsdark) #${MODAL_ID} .spBadge.rev{color:#8a5a00}.spBadge.bad{border-color:#a94141;color:#ff9999} html:not(.fsdark) #${MODAL_ID} .spBadge.bad{color:#b3261e}
@@ -2314,7 +2488,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
      has no session yet. */
   let uiStep=1;
   let ocrOk=null;
-  const SP_STEPS=['Start','Show one detector','Find and read','Panel schedule','Zone plan','Review','Commit'];
+  const SP_STEPS=['Start','Show one detector','Find and read','Panel schedule','Zones','Review','Commit'];
   const SP_PICTURE=`<div class="spPic"><figure><svg viewBox="0 0 150 90" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="142" height="78" fill="none" stroke="#bbb" stroke-width="1"/><path d="M4 46 H60 M60 6 V84 M100 46 H146" stroke="#ccc" stroke-width="1" fill="none"/><rect x="22" y="26" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M24 28 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="70" y="24" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M72 26 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="118" y="30" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M120 32 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="46" y="66" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M48 68 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="96" y="68" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M98 70 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><rect x="19" y="23" width="15" height="15" fill="none" stroke="#1e88e5" stroke-width="1.6" stroke-dasharray="3 2"/></svg><figcaption>1 &middot; you draw a box around ONE</figcaption></figure><figure><svg viewBox="0 0 150 90" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="142" height="78" fill="none" stroke="#bbb" stroke-width="1"/><path d="M4 46 H60 M60 6 V84 M100 46 H146" stroke="#ccc" stroke-width="1" fill="none"/><rect x="22" y="26" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M24 28 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="26.5" cy="30.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="70" y="24" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M72 26 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="74.5" cy="28.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="118" y="30" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M120 32 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="122.5" cy="34.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="46" y="66" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M48 68 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="50.5" cy="70.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/><rect x="96" y="68" width="9" height="9" fill="none" stroke="#c62828" stroke-width="1.6"/><path d="M98 70 l5 2 l-5 2" fill="none" stroke="#c62828" stroke-width="1.2"/><circle cx="100.5" cy="72.5" r="8" fill="none" stroke="#00a65a" stroke-width="1.6"/></svg><figcaption>2 &middot; Smart Plan finds the rest</figcaption></figure></div>`;
   /* [206-C] the app BRAND, not the OCR probe: EverDue is the register app and
      does not expose the Workspace as a product feature. */
@@ -2628,12 +2802,12 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
     }else if(uiStep===5){
       const z=session.zoneSource;
-      html=`<div class="spScreen"><h3>Zone plan <span class="spHint">(optional)</span></h3><p>Zones drawn on a separate sheet? Load it and Smart Plan carries the zones across onto this plan.</p><button class="btn ${z?'':'spPrimary'} spBig" data-sp="zone-source">${z?'Load a different zone plan…':'Load the zone plan…'}</button>${z?`<div class="spZoneWork"><div class="spHint" style="margin-bottom:6px">1 · Tell Smart Plan what each zone looks like — type the zone number, then either show it a patch of that zone's hatching or draw the zone by hand.</div><div class="spZoneGrid"><input data-sp="zone-no" placeholder="Zone" maxlength="5" inputmode="numeric"><input data-sp="zone-window" type="number" min="5" step="2" placeholder="Window"><input data-sp="zone-threshold" type="number" min="0.001" max="0.2" step="0.001" placeholder="Density: Auto"><button class="btn" data-sp="zone-sample">Show a patch of hatching</button><button class="btn" data-sp="zone-poly">Draw the zone by hand</button><button class="btn" data-sp="zone-finish">Finish the drawn zone</button><button class="btn" data-sp="zone-detect">Find the coloured zones</button></div><div class="spHint" style="margin:10px 0 6px">2 · Match three points that appear on BOTH plans (a corner, a door, a column) so the zones land in the right place.</div><div class="spActions"><button class="btn" data-sp="zone-pair">Match a point on both plans</button><button class="btn" data-sp="zone-undo-pair">Undo last match</button></div><div class="spHint" style="margin:10px 0 6px">3 · Bring the kept zones across. They arrive at Review.</div><button class="btn spPrimary spBig" data-sp="zone-transfer">Bring the zones across</button><div data-sp="zone-work-status"></div><div data-sp="zone-regions"></div></div>`:''}<div data-sp="zones"></div></div>`;
+      html=`<div class="spScreen"><h3>Zones <span class="spHint">(optional)</span></h3><p>Are the zones coloured areas on <b>this</b> plan? Smart Plan reads the colour around each detector and groups them.</p><button class="btn ${session.fillZones?'':'spPrimary'} spBig" data-sp="fillfind">${session.fillZones?'Read the colours again':'Find the zones by colour'}</button>${fillZoneRowsHtml()}${session.zoneStatus?`<div class="spCaption" data-sp="zonestatus">${escapeHtml(session.zoneStatus)}</div>`:''}<h3 style="margin-top:18px">On a separate sheet <span class="spHint">(optional)</span></h3><p>Zones drawn on their own drawing? Load it and Smart Plan carries the zones across onto this plan.</p><button class="btn ${z?'':'spPrimary'} spBig" data-sp="zone-source">${z?'Load a different zone plan…':'Load the zone plan…'}</button>${z?`<div class="spZoneWork"><div class="spHint" style="margin-bottom:6px">1 · Tell Smart Plan what each zone looks like — type the zone number, then either show it a patch of that zone's hatching or draw the zone by hand.</div><div class="spZoneGrid"><input data-sp="zone-no" placeholder="Zone" maxlength="5" inputmode="numeric"><input data-sp="zone-window" type="number" min="5" step="2" placeholder="Window"><input data-sp="zone-threshold" type="number" min="0.001" max="0.2" step="0.001" placeholder="Density: Auto"><button class="btn" data-sp="zone-sample">Show a patch of hatching</button><button class="btn" data-sp="zone-poly">Draw the zone by hand</button><button class="btn" data-sp="zone-finish">Finish the drawn zone</button><button class="btn" data-sp="zone-detect">Find the coloured zones</button></div><div class="spHint" style="margin:10px 0 6px">2 · Match three points that appear on BOTH plans (a corner, a door, a column) so the zones land in the right place.</div><div class="spActions"><button class="btn" data-sp="zone-pair">Match a point on both plans</button><button class="btn" data-sp="zone-undo-pair">Undo last match</button></div><div class="spHint" style="margin:10px 0 6px">3 · Bring the kept zones across. They arrive at Review.</div><button class="btn spPrimary spBig" data-sp="zone-transfer">Bring the zones across</button><div data-sp="zone-work-status"></div><div data-sp="zone-regions"></div></div>`:''}<div data-sp="zones"></div></div>`;
     }else if(uiStep===6){
       html=`<div class="spScreen"><h3>Review</h3><p>Every row is a detector Smart Plan found. Fix a number, change a type, or reject a row. Rows with a flag need a look.</p><div class="spStats"><div class="spStat"><strong>${s.total}</strong><span>found</span></div><div class="spStat"><strong>${s.accepted}</strong><span>accepted</span></div><div class="spStat"><strong>${s.review}</strong><span>to check</span></div><div class="spStat"><strong>${s.rejected}</strong><span>rejected</span></div><div class="spStat"><strong>${s.numbered}</strong><span>numbered</span></div></div><div class="spCaption" data-sp="bytype">${spTypeLine()||'Nothing found yet.'}</div><div class="spActions">${(()=>{const n=session.candidates.filter(c=>c.decision!=='rejected'&&!c.issues.length).length;return `<button class="btn" data-sp="safe" ${n?'':'disabled'}>${n?`Accept the ${n} without issues`:'Nothing to accept yet'}</button>${n?'':'<span class="spHint" data-sp="safe-why">Every row still has an issue - most need a number. Read them, or tap a row and type it.</span>'}`;})()}${(()=>{const m=session.candidates.filter(c=>c.decision!=='rejected').length;return `<button class="btn" data-sp="acceptall" ${m?'':'disabled'} title="Every row that is not rejected, flagged or not">Accept all ${m}</button>`;})()}<button class="btn" data-sp="review">Show flagged only</button><button class="btn" data-sp="all">Show all</button>${ocrOk===false?'':'<button class="btn" data-sp="ocr">Read printed numbers</button>'}</div><div data-sp="zones"></div><p class="spHint" data-sp="legend">Issues: a tick means nothing to fix; a number is how many things to check - they are listed under the row. Tap a row to see that detector on the plan.</p><div class="spColHead"><span>Issues</span><span>Type</span><span>Zone</span><span>Loop</span><span>Device</span><span>Decision</span></div><div data-sp="rows"></div></div>`;
     }else{
       const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length;
-      html=`<div class="spScreen"><h3>Commit</h3>${session.committed?`<div class="spDone">Committed. ${s.total} candidate(s) were reviewed. The devices are on the plan - Close Smart Plan, or start another plan.</div>`:`<p><b>${s.accepted}</b> detector${s.accepted===1?'':'s'}${s.zoneAccepted?` and <b>${s.zoneAccepted}</b> zone${s.zoneAccepted===1?'':'s'}`:''} will be added to the plan.${s.review?` <b>${s.review}</b> still at Review will be left out.`:''}${s.rejected?` ${s.rejected} rejected.`:''}</p>${blockers?`<div class="spWarn">${blockers} accepted row${blockers===1?' has':'s have'} a blocking issue — go Back to Review and fix or reject ${blockers===1?'it':'them'}.</div>`:''}${s.zoneReview?`<div class="spWarn">${s.zoneReview} zone${s.zoneReview===1?' is':'s are'} still at Review — accept or reject ${s.zoneReview===1?'it':'them'} on the Zone plan step.</div>`:''}<p>Nothing has been written yet. Commit adds them in one step — one Undo takes the lot back out.</p><button class="btn spPrimary spBig" data-sp="commitbig">Commit to Workspace</button>`}</div>`;
+      html=`<div class="spScreen"><h3>Commit</h3>${session.committed?`<div class="spDone">Committed. ${s.total} candidate(s) were reviewed. The devices are on the plan - Close Smart Plan, or start another plan.</div>`:`<p><b>${s.accepted}</b> detector${s.accepted===1?'':'s'}${s.zoneAccepted?` and <b>${s.zoneAccepted}</b> zone${s.zoneAccepted===1?'':'s'}`:''} will be added to the plan.${s.review?` <b>${s.review}</b> still at Review will be left out.`:''}${s.rejected?` ${s.rejected} rejected.`:''}</p>${blockers?`<div class="spWarn">${blockers} accepted row${blockers===1?' has':'s have'} a blocking issue — go Back to Review and fix or reject ${blockers===1?'it':'them'}.</div>`:''}${s.zoneReview?`<div class="spWarn">${s.zoneReview} zone${s.zoneReview===1?' is':'s are'} still at Review — accept or reject ${s.zoneReview===1?'it':'them'} on the Zones step.</div>`:''}<p>Nothing has been written yet. Commit adds them in one step — one Undo takes the lot back out.</p><button class="btn spPrimary spBig" data-sp="commitbig">Commit to Workspace</button>`}</div>`;
     }
     left.innerHTML=html;
     /* ---- wiring, by step ---- */
@@ -2676,8 +2850,12 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       q('[data-sp="schedule"]').onclick=()=>m.querySelector(`#${SCHEDULE_FILE_ID}`).click();
       const rc=q('[data-sp="reconcile"]');if(rc)rc.onclick=()=>{try{reconcileSchedule(true);render();}catch(e){alert(e.message||String(e));}};
       renderReconciliation();
-      spNav(left,{next:session.schedule.length?'Next: Zone plan':'Skip',nextPrimary:!!session.schedule.length});
+      spNav(left,{next:session.schedule.length?'Next: Zones':'Skip',nextPrimary:!!session.schedule.length});
     }else if(uiStep===5){
+      q('[data-sp="fillfind"]').onclick=()=>{try{sampleFillZones();}catch(e){alert(e.message||String(e));}};
+      Array.prototype.forEach.call(left.querySelectorAll('[data-sp="fillzone"]'),el=>{
+        el.onchange=()=>{try{el.value=setFillZone(el.getAttribute('data-gid'),el.value);}catch(e){alert(e.message||String(e));}};});
+      const fa=q('[data-sp="fillapply"]');if(fa)fa.onclick=()=>{try{applyFillZones();}catch(e){alert(e.message||String(e));}};
       q('[data-sp="zone-source"]').onclick=()=>m.querySelector(`#${ZONE_SOURCE_FILE_ID}`).click();
       if(session.zoneSource){
         q('[data-sp="zone-detect"]').onclick=()=>{try{detectZoneSourceRegions();}catch(e){alert(e.message||String(e));}};
@@ -2691,7 +2869,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
         renderZoneWorkbench();
       }
       renderZones();
-      spNav(left,{next:session.zoneSource?'Next: Review':'Skip',nextPrimary:!!session.zoneSource});
+      spNav(left,{next:(session.zoneSource||session.fillZones)?'Next: Review':'Skip',nextPrimary:!!(session.zoneSource||session.fillZones)});
     }else if(uiStep===6){
       q('[data-sp="safe"]').onclick=()=>{session.candidates.forEach(c=>{if(!c.issues.length)c.decision='accepted'});render();};const qa=q('[data-sp="acceptall"]');if(qa)qa.onclick=()=>{session.candidates.forEach(c=>{if(c.decision!=='rejected')c.decision='accepted'});render();};q('[data-sp="review"]').onclick=()=>renderRows(true);q('[data-sp="all"]').onclick=()=>renderRows(false);
       const ob=q('[data-sp="ocr"]');
@@ -2810,8 +2988,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.198 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.199 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
