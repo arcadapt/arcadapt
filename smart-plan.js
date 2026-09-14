@@ -2076,6 +2076,12 @@
 #${MODAL_ID} .spNav button{flex:1 1 auto}
 #${MODAL_ID} .spCaption{font-size:12px;line-height:1.4;color:var(--fs-sub,#9aa2aa);margin:6px 0 0}
 #${MODAL_ID} .spCaption.on{color:#ffd36e}
+#${MODAL_ID} .spRuns{margin:8px 0 0;padding:8px 10px;border-radius:10px;border:1px solid var(--fs-border,#3a4047);background:var(--fs-card,#20242a);font-size:12.5px}
+#${MODAL_ID} .spRunsHead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;margin-bottom:4px;color:var(--fs-sub,#9aa2aa)}
+#${MODAL_ID} .spRunsHead b{color:inherit;font-size:13px}
+#${MODAL_ID} .spRunsRow{display:flex;gap:10px;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--fs-border,#3a4047)}
+#${MODAL_ID} .spRunsType{font-weight:700;min-width:120px}
+#${MODAL_ID} .spRunsBits{color:var(--fs-sub,#9aa2aa)}
 html:not(.fsdark) #${MODAL_ID} .spCaption.on{color:#8a5a00}
 html:not(.fsdark) #${MODAL_ID} .spDone{border-color:#1f7a45}
 html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
@@ -2224,6 +2230,21 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
   function spAreas(){if(!session)return {exclude:[],include:[]};if(!session.areas)session.areas={exclude:[],include:[]};return session.areas;}
   function spInBox(b,x,y){return x>=b[0]&&x<=b[0]+b[2]&&y>=b[1]&&y<=b[1]+b[3];}
   function spAreaExcluded(x,y){const a=spAreas();if(a.exclude.some(b=>spInBox(b,x,y)))return true;if(a.include.length&&!a.include.some(b=>spInBox(b,x,y)))return true;return false;}
+  /* PASS 217 [217-A] - the running list of finds. One row per Find and read run; the total is live (rejected in Review drops out). */
+  function spRuns(){if(!session)return [];if(!Array.isArray(session.runs))session.runs=[];return session.runs;}
+  function spRunLog(d){if(!session||!d)return;spRuns().push({type:d.type||'?',kept:d.kept|0,read:(d.read===null||d.read===undefined)?null:(d.read|0),area:d.area|0,ms:d.ms|0,at:Date.now()});}
+  function spRunSecs(ms){return ms>=1000?`${Math.round(ms/1000)} s`:(ms>0?'<1 s':'');}
+  function spRunsHtml(){
+    const runs=spRuns();if(!runs.length)return '';
+    /* one row per TYPE: found and read are LIVE (the reader re-reads every candidate on each run; Review can reject), time and left-out are summed over that type's runs */
+    const live=session.candidates.filter(c=>c.decision!=='rejected');
+    const types=spTypeCounts().map(x=>x.type);runs.forEach(r=>{if(!types.includes(r.type))types.push(r.type);});
+    const rows=types.map((type,i)=>{const mine=runs.filter(r=>r.type===type),of=live.filter(c=>(field(c.obj&&c.obj.type)||'?')===type);const found=of.length,read=of.filter(c=>c.meta&&c.meta.devSource==='ocr').length,ms=mine.reduce((a,r)=>a+r.ms,0),area=mine.reduce((a,r)=>a+r.area,0),anyRead=mine.some(r=>r.read!==null);
+      const bits=[`<b>${found}</b> found`];if(anyRead)bits.push(`${read} number${read===1?'':'s'} read`);const secs=spRunSecs(ms);if(secs)bits.push(secs);if(area)bits.push(`${area} left out (excluded areas)`);
+      return `<div class="spRunsRow" data-sp="run" data-run="${i}" data-type="${escapeHtml(type)}"><span class="spRunsType">${escapeHtml(arcTypeLabel(type))}</span><span class="spRunsBits">${bits.join(' · ')}</span></div>`;}).join('');
+    const total=live.length;
+    return `<div class="spRuns" data-sp="runs"><div class="spRunsHead"><b>Found so far</b><span data-sp="runs-total">${total} on the plan${types.length>1?` · ${escapeHtml(spTypeLine())}`:''}</span></div>${rows}</div>`;
+  }
   function spAreasNote(){const a=spAreas();const parts=[];if(a.exclude.length)parts.push(`${a.exclude.length} area${a.exclude.length===1?'':'s'} left out (red)`);if(a.include.length)parts.push(`searching only ${a.include.length} area${a.include.length===1?'':'s'} (green)`);return parts.length?parts.join(' · ')+'.':'None drawn - the whole plan is searched.';}
   function spNav(left,opts){
     opts=opts||{};
@@ -2344,7 +2365,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     /* PASS 208 [208-A] - zoom and pan on both previews; see pvAttach above. */
     const right=ensureModal().querySelector('[data-sp="right"]');
     const hasZone=!!(session&&session.zoneSource);
-    right.innerHTML='<div class="spPvHead"><div style="font-weight:700">The plan</div>'+pvToolbarHtml('main')+'</div><canvas data-sp="canvas" width="1400" height="965"></canvas>'+spCaptionHtml()+''+(hasZone?'<div class="spSourceCanvas"><div class="spPvHead"><div style="font-weight:700">The zone plan</div>'+pvToolbarHtml('zone')+'</div><canvas data-sp="zone-canvas" width="1400" height="965"></canvas><div class="spCaption">Show hatching, draw zones and pick match points here. Pinch or scroll to zoom, drag to pan. This sheet is never written into the plan or the register.</div></div>':'');
+    right.innerHTML='<div class="spPvHead"><div style="font-weight:700">The plan</div>'+pvToolbarHtml('main')+'</div><canvas data-sp="canvas" width="1400" height="965"></canvas>'+spCaptionHtml()+spRunsHtml()+(hasZone?'<div class="spSourceCanvas"><div class="spPvHead"><div style="font-weight:700">The zone plan</div>'+pvToolbarHtml('zone')+'</div><canvas data-sp="zone-canvas" width="1400" height="965"></canvas><div class="spCaption">Show hatching, draw zones and pick match points here. Pinch or scroll to zoom, drag to pan. This sheet is never written into the plan or the register.</div></div>':'');
     const cv=right.querySelector('[data-sp="canvas"]'),ctx=cv.getContext('2d');const dims=currentDims();
     const geometry=()=>{const sw=dims.w||cv.width,sh=dims.h||cv.height;return pvGeometry(cv,pvMain,sw,sh);};
     const LW=cv.width/900;   /* line weights were tuned on a 900-wide canvas */
@@ -2458,14 +2479,14 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
         try{
           const r=await detectTemplate({type:t.type,signal:t.signal,threshold:t.threshold,includeMirrors:t.includeMirrors,bbox:t.bbox});
           if(!session||r===null)return;                       /* cancelled: nothing was added */
-          const kept=r&&r.summary?r.summary.kept:0,area=r&&r.summary?(r.summary.skippedByArea||0):0;let read=null;
+          const kept=r&&r.summary?r.summary.kept:0,area=r&&r.summary?(r.summary.skippedByArea||0):0;let read=null,ms=r&&r.summary?(r.summary.elapsedMs||0):0;
           if(ocrOk!==false&&session.candidates.some(c=>c.decision!=='rejected')){
             const o=await recognisePrintedIdentities();
             if(!session)return;
-            if(o===null){session.findDone={kept,read:null,area,type:t.type};render();return;}
-            read=o&&o.summary?(o.summary.applied||0):0;
+            if(o===null){session.findDone={kept,read:null,area,type:t.type,ms};spRunLog(session.findDone);render();return;}
+            read=o&&o.summary?(o.summary.applied||0):0;ms+=o&&o.summary?(o.summary.elapsedMs||0):0;
           }
-          if(session){session.findDone={kept,read,area,type:t.type};render();}
+          if(session){session.findDone={kept,read,area,type:t.type,ms};spRunLog(session.findDone);render();}
         }catch(e){if(session){session.detectBusy=false;session.ocrBusy=false;session.detectStatus='';session.ocrStatus='';render();}alert(e.message||String(e));}
       };
       q('[data-sp="another"]').onclick=()=>spGo(2);
@@ -2609,7 +2630,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.195 beta";
+  const MODULE_VERSION = "V0.196 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
