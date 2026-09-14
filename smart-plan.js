@@ -36,6 +36,7 @@
   const OCR_CORE = './ocr/tesseract-core-simd-lstm.wasm.js';
   const OCR_LANG = './ocr';
   const OCR_CROP_MAX_PX = 1500000;
+  const HIRES_K = 4, HIRES_TILE = 512, HIRES_MAX_PX = 120000000, HIRES_OCR_UPSCALE = 3, HIRES_INK_GROW = 1, HIRES_STRIP_UPSCALES = [4, 6];   /* [218-D] */
   const OCR_RETRY_DIRECTIONS = Object.freeze([{name:'up',dx:0,dy:-1},{name:'down',dx:0,dy:1},{name:'right',dx:1,dy:0},{name:'left',dx:-1,dy:0}]);
   /* PASS 209 [209-G3] - BARE-NUMBER SHEETS. Some drawings print only the device
      number beside the symbol (58, not L01.D58), 7 px tall at the sheet's own
@@ -1037,7 +1038,7 @@
   }
 
   function discard() {
-    session=null;
+    session=null;hires=null;   /* [218-D] ~90 MB of tiles go with the session */
     const m=document.getElementById(MODAL_ID); if(m) m.style.display='none';
   }
 
@@ -1554,6 +1555,115 @@
     return ocrWorkerPromise;
   }
 
+  /* PASS 218 [218-D] - THE SHEET AT FULL DETAIL.
+     The workspace image is a 1x raster of a vector PDF: 7 px digits. When the
+     level kept its source PDF (index.html fsPlanSrcAttach), the reader
+     re-renders the sheet at up to 4x in 512-px tiles - grey, kept for the
+     session - and the two crop functions read from those tiles instead. The
+     'red' variant (red-printed labels) keeps the workspace image. A photo or
+     a scan has no source and takes the old path unchanged. */
+  let hires=null;
+  function planSource(){try{const lv=(typeof levels!=='undefined'&&levels)?levels[Number(curLevel||0)]:null;const s=lv&&lv.src;return (s&&s.kind==='pdf'&&s.b64)?s:null;}catch(_){return null;}}
+  async function hiresOpen(){
+    const src=planSource(); if(!src){hires=null;return null;}
+    const live=livePlanImage(); if(!live) return null;
+    if(hires&&hires.src===src&&hires.live===live) return hires;
+    if(typeof ensurePdfJs!=='function') return null;
+    await ensurePdfJs(); if(!window.pdfjsLib) return null;
+    const bin=atob(src.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    const pdf=await window.pdfjsLib.getDocument({data:u}).promise,page=await pdf.getPage(src.page||1);
+    const w=live.naturalWidth||live.width,h=live.naturalHeight||live.height;
+    let k=HIRES_K; while(k>1.5&&w*h*k*k>HIRES_MAX_PX)k-=0.5;
+    hires={src,live,page,k,w,h,T:HIRES_TILE,cols:Math.ceil(w/HIRES_TILE),rows:Math.ceil(h/HIRES_TILE),tiles:new Map(),rendered:0,ms:0};
+    return hires;
+  }
+  async function hiresTile(tx,ty){
+    const H=hires,key=ty*H.cols+tx; if(H.tiles.has(key)) return H.tiles.get(key);
+    const T=H.T,k=H.k,x0=tx*T,y0=ty*T,tw=Math.min(T,H.w-x0),th=Math.min(T,H.h-y0),cw=Math.round(tw*k),ch=Math.round(th*k);
+    const vp=H.page.getViewport({scale:(H.src.scale||1)*k,offsetX:-(H.src.dx+x0)*k,offsetY:-(H.src.dy+y0)*k});
+    const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;const ctx=cv.getContext('2d',{willReadFrequently:true});
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);
+    const t0=Date.now(); await H.page.render({canvasContext:ctx,viewport:vp}).promise; H.ms+=Date.now()-t0;
+    const d=ctx.getImageData(0,0,cw,ch).data,g=new Uint8ClampedArray(cw*ch);
+    for(let i=0,j=0;i<d.length;i+=4,j++)g[j]=(0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2])|0;
+    cv.width=cv.height=1;
+    hiresInkGrow(g,cw,ch,HIRES_INK_GROW);
+    const tile={g,w:cw,h:ch,x0,y0}; H.tiles.set(key,tile); H.rendered++; return tile;
+  }
+  /* a vector hairline is ONE anti-aliased pixel at any scale: 30 px digits with 1 px strokes, which
+     the reader breaks into fragments. Grow the ink by a 3x3 minimum, n times (separable), so the
+     strokes are the width a printed sheet would have. */
+  function hiresInkGrow(g,w,h,n){
+    if(!n)return;const t=new Uint8ClampedArray(g.length);
+    for(let it=0;it<n;it++){
+      for(let y=0;y<h;y++){const o=y*w;for(let x=0;x<w;x++){let m=g[o+x];if(x>0&&g[o+x-1]<m)m=g[o+x-1];if(x<w-1&&g[o+x+1]<m)m=g[o+x+1];t[o+x]=m;}}
+      for(let y=0;y<h;y++){const o=y*w;for(let x=0;x<w;x++){let m=t[o+x];if(y>0&&t[o-w+x]<m)m=t[o-w+x];if(y<h-1&&t[o+w+x]<m)m=t[o+w+x];g[o+x]=m;}}
+    }
+  }
+  async function hiresPrepare(cands,radiusX,radiusY,onTick){
+    const H=await hiresOpen(); if(!H) return null;
+    const T=H.T,need=[];const seen=new Set();
+    for(const c of cands){const cx=c.obj.x,cy=c.obj.y;
+      const tx0=clamp(Math.floor((cx-radiusX)/T),0,H.cols-1),tx1=clamp(Math.floor((cx+radiusX)/T),0,H.cols-1),ty0=clamp(Math.floor((cy-radiusY)/T),0,H.rows-1),ty1=clamp(Math.floor((cy+radiusY)/T),0,H.rows-1);
+      for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++){const key=ty*H.cols+tx;if(!seen.has(key)){seen.add(key);need.push(key);}}}
+    let i=0;for(const key of need){spThrowIfCancelled();if(!H.tiles.has(key)){if(onTick)onTick(i,need.length);await hiresTile(key%H.cols,Math.floor(key/H.cols));}i++;}
+    return H;
+  }
+  function hiresReady(x0,y0,sw,sh){
+    const H=hires; if(!H||!H.tiles.size) return false; const T=H.T;
+    for(let ty=Math.floor(y0/T);ty<=Math.floor((y0+sh-1)/T);ty++)for(let tx=Math.floor(x0/T);tx<=Math.floor((x0+sw-1)/T);tx++){if(!H.tiles.has(ty*H.cols+tx))return false;}
+    return true;
+  }
+  /* the grey of plan region [x0,x0+sw) x [y0,y0+sh) at k: Float32Array, (sw*k) x (sh*k) */
+  function hiresGrey(x0,y0,sw,sh){
+    const H=hires,k=H.k,T=H.T,W=Math.round(sw*k),Hh=Math.round(sh*k),out=new Float32Array(W*Hh).fill(255),gx0=Math.round(x0*k),gy0=Math.round(y0*k);
+    for(let ty=Math.floor(y0/T);ty<=Math.floor((y0+sh-1)/T);ty++)for(let tx=Math.floor(x0/T);tx<=Math.floor((x0+sw-1)/T);tx++){
+      const t=H.tiles.get(ty*H.cols+tx);if(!t)continue;const tgx=Math.round(t.x0*k),tgy=Math.round(t.y0*k);
+      const ax=Math.max(gx0,tgx),ay=Math.max(gy0,tgy),bx=Math.min(gx0+W,tgx+t.w),by=Math.min(gy0+Hh,tgy+t.h);
+      for(let y=ay;y<by;y++){const so=(y-tgy)*t.w,oo=(y-gy0)*W;for(let x=ax;x<bx;x++)out[oo+(x-gx0)]=t.g[so+(x-tgx)];}}
+    return {g:out,w:W,h:Hh};
+  }
+  function hiresCanvas(x0,y0,sw,sh){
+    const r=hiresGrey(x0,y0,sw,sh),cv=document.createElement('canvas');cv.width=r.w;cv.height=r.h;
+    const ctx=cv.getContext('2d'),im=ctx.createImageData(r.w,r.h),o=im.data;
+    for(let i=0,j=0;i<r.g.length;i++,j+=4){o[j]=o[j+1]=o[j+2]=r.g[i];o[j+3]=255;}
+    ctx.putImageData(im,0,0);return cv;
+  }
+  /* This sheet's CAD font draws a 7 with a short hooked top; at 4x the reader calls it a 1. Width alone cannot tell
+     them apart across fonts, the SHAPE can: a 7 is inked right across its top rows and narrow at its bottom rows
+     (the stem's foot); a 1 is either a plain bar (top AND bottom as wide as the glyph) or a stem with a flag
+     (top rows narrower than the glyph) or a stem with a foot (bottom rows as wide as the glyph). Measured on the
+     Merriwa CAD font (7: top 1.0, bottom 0.32) and on the fixture's sans (1: top 0.62, bottom 1.0).
+     Only on the sharp render, only 1 -> 7. */
+  function hiresFixSevens(cv,t){
+    if(!/1/.test(t))return t;   /* (also the trailing-I rule below, which needs a 1 at the end) */
+    const w=cv.width,h=cv.height,d=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h).data,ink=new Uint8Array(w*h);
+    for(let i=0,j=0;i<d.length;i+=4,j++)ink[j]=d[i]<128?1:0;
+    const seen=new Uint8Array(w*h),blobs=[],stack=[];
+    for(let p=0;p<ink.length;p++){if(!ink[p]||seen[p])continue;let x0=w,x1=0,y0=h,y1=0,n=0;const px=[];stack.push(p);seen[p]=1;
+      while(stack.length){const q=stack.pop();const x=q%w,y=(q-x)/w;n++;px.push(q);if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+        if(x>0&&ink[q-1]&&!seen[q-1]){seen[q-1]=1;stack.push(q-1);}if(x<w-1&&ink[q+1]&&!seen[q+1]){seen[q+1]=1;stack.push(q+1);}
+        if(y>0&&ink[q-w]&&!seen[q-w]){seen[q-w]=1;stack.push(q-w);}if(y<h-1&&ink[q+w]&&!seen[q+w]){seen[q+w]=1;stack.push(q+w);}}
+      blobs.push({x0,x1,y0,y1,n,px,bw:x1-x0+1,bh:y1-y0+1});}
+    if(!blobs.length)return t;
+    const tall=Math.max.apply(null,blobs.map(b=>b.bh));
+    const digits=blobs.filter(b=>b.bh>=tall*0.5).sort((a,b)=>a.x0-b.x0);
+    if(digits.length!==t.length)return t;
+    let out='';
+    for(let i=0;i<t.length;i++){const b=digits[i];if(t[i]!=='1'||b.bw<4||b.bh<8){out+=t[i];continue;}
+      const topN=Math.max(1,Math.round(b.bh*0.2)),botN=Math.max(1,Math.round(b.bh*0.3));let tx0=w,tx1=-1,bx0=w,bx1=-1;
+      for(const q of b.px){const x=q%w,y=(q-x)/w;if(y<b.y0+topN){if(x<tx0)tx0=x;if(x>tx1)tx1=x;}if(y>b.y1-botN){if(x<bx0)bx0=x;if(x>bx1)bx1=x;}}
+      const topSpan=tx1>=tx0?(tx1-tx0+1)/b.bw:0,botSpan=bx1>=bx0?(bx1-bx0+1)/b.bw:1;
+      out+=(topSpan>=0.9&&botSpan<=0.5&&b.bw>=b.bh*0.35)?'7':'1';}
+    /* "74 I": a trailing I (an isolator mark) - the whitelist made it a 1. An I with serifs is inked across its top AND
+       bottom rows with a thin centred stem between; a 1 with a foot has a flag on one side only, a plain-bar 1 is as
+       wide at its middle as at its ends. Measured on Merriwa: the I is 12 px wide next to 14-17 px digits. */
+    if(out.length===3&&out[2]==='1'){const b=digits[2];const topN=Math.max(1,Math.round(b.bh*0.2)),botN=Math.max(1,Math.round(b.bh*0.2));let tx0=w,tx1=-1,bx0=w,bx1=-1,mx0=w,mx1=-1;
+      for(const q of b.px){const x=q%w,y=(q-x)/w;if(y<b.y0+topN){if(x<tx0)tx0=x;if(x>tx1)tx1=x;}else if(y>b.y1-botN){if(x<bx0)bx0=x;if(x>bx1)bx1=x;}else{if(x<mx0)mx0=x;if(x>mx1)mx1=x;}}
+      const sp=(a,z)=>z>=a?(z-a+1)/b.bw:0,mid=sp(mx0,mx1),c=(mx0+mx1)/2-b.x0;
+      if(sp(tx0,tx1)>=0.9&&sp(bx0,bx1)>=0.9&&mid<=0.5&&c>=b.bw*0.3&&c<=b.bw*0.7)out=out.slice(0,2);}
+    return out;
+  }
   function cropCanvas(cx,cy,radiusX,radiusY,upscale,variant) {
     const live=livePlanImage(); if(!live) throw new Error('No decoded Workspace plan is available.');
     const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
@@ -1561,12 +1671,13 @@
     const x1=Math.min(iw,Math.ceil(cx+radiusX)), y1=Math.min(ih,Math.ceil(cy+radiusY));
     const sw=Math.max(1,x1-x0), sh=Math.max(1,y1-y0);
     let scale=Math.max(1,Number(upscale)||2);
+    const hi=variant!=='red'&&hiresReady(x0,y0,sw,sh);if(hi)scale=Math.max(scale,Math.min(hires.k,HIRES_OCR_UPSCALE));   /* [218-D] sharp source: read it larger */
     const cap=Math.min(maxCanvasPx(),OCR_CROP_MAX_PX);
     if(sw*sh*scale*scale>cap) scale=Math.max(1,Math.sqrt(cap/(sw*sh)));
     const cv=document.createElement('canvas'); cv.width=Math.max(1,Math.round(sw*scale)); cv.height=Math.max(1,Math.round(sh*scale));
     const ctx=cv.getContext('2d',{willReadFrequently:variant==='red'});
     ctx.imageSmoothingEnabled=true; try{ctx.imageSmoothingQuality='high'}catch(_){}
-    ctx.drawImage(live,x0,y0,sw,sh,0,0,cv.width,cv.height);
+    if(hi){const hc=hiresCanvas(x0,y0,sw,sh);ctx.drawImage(hc,0,0,hc.width,hc.height,0,0,cv.width,cv.height);}else ctx.drawImage(live,x0,y0,sw,sh,0,0,cv.width,cv.height);   /* [218-D] */
     if(variant==='red'){
       const im=ctx.getImageData(0,0,cv.width,cv.height), d=im.data;
       for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2];const red=r>75&&r>g*1.18&&r>b*1.18;const v=red?0:255;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
@@ -1807,16 +1918,20 @@
       for(let x=0;x<dw;x++){let v=0;for(let i=y0,j=0;i<=y1;i++,j++)v+=tmp[i*dw+x]*ws[j];out[y*dw+x]=wsum?v/wsum:0;}}
     return out;
   }
-  function cropStripCanvas(x0,y0,w,h,upscale){
+  function cropStripCanvas(x0,y0,w,h,upscale,source){
     const live=livePlanImage(); if(!live) throw new Error('No decoded Workspace plan is available.');
     const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
     const sx=clamp(Math.floor(x0),0,iw-1),sy=clamp(Math.floor(y0),0,ih-1),sw=Math.max(1,Math.min(iw-sx,Math.ceil(w))),sh=Math.max(1,Math.min(ih-sy,Math.ceil(h)));
     const pad=20,cw=Math.round(sw*upscale),ch=Math.round(sh*upscale);
+    let big;
+    if(source!=='live'&&hiresReady(sx,sy,sw,sh)){const r=hiresGrey(sx,sy,sw,sh);big=lanczosGrey(r.g,r.w,r.h,cw,ch);}   /* [218-D] the strip from the 4x render, not a 1x raster stretched 5-7x */
+    else{
     const src=document.createElement('canvas');src.width=sw;src.height=sh;
     const sctx=src.getContext('2d',{willReadFrequently:true});sctx.drawImage(live,sx,sy,sw,sh,0,0,sw,sh);
     const d=sctx.getImageData(0,0,sw,sh).data,grey=new Float32Array(sw*sh);
     for(let i=0,j=0;i<d.length;i+=4,j++)grey[j]=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];
-    const big=lanczosGrey(grey,sw,sh,cw,ch);let lo=255,hi=0;
+    big=lanczosGrey(grey,sw,sh,cw,ch);}
+    let lo=255,hi=0;
     for(let i=0;i<big.length;i++){const v=big[i];if(v<lo)lo=v;if(v>hi)hi=v;}
     const span=Math.max(1,hi-lo);
     const cv=document.createElement('canvas');cv.width=cw+2*pad;cv.height=ch+2*pad;
@@ -1851,10 +1966,16 @@
           else if(st.name==='right')looks.push([rx+rw*cut,ry,rw*(1-cut),rh,OCR_STRIP_UPSCALE,'near']);
           else if(st.name==='up')looks.push([rx,ry,rw,rh*(1-cut),OCR_STRIP_UPSCALE,'near']);
           else looks.push([rx,ry+rh*cut,rw,rh*(1-cut),OCR_STRIP_UPSCALE,'near']);
-          for(const [lx,ly,lw,lh,up,kind] of looks){
-            const cv=cropStripCanvas(lx,ly,lw,lh,up);crops++;
+          /* [218-D] the sharp render first (its own, smaller upscales - the digits are already 4x); the workspace image only if that read nothing */
+          const hiresHere=hiresReady(Math.max(0,Math.floor(rx-rw)),Math.max(0,Math.floor(ry-rh)),Math.ceil(rw*3),Math.ceil(rh*3));
+          const looksHi=HIRES_STRIP_UPSCALES.map(up=>[rx,ry,rw,rh,up]).concat(looks.slice(OCR_STRIP_UPSCALES.length));
+          for(const source of (hiresHere?['hires','live']:['live'])){
+          text=null;conf=0;
+          for(const [lx,ly,lw,lh,up,kind] of (source==='hires'?looksHi:looks)){
+            const cv=cropStripCanvas(lx,ly,lw,lh,up,source);crops++;
             const result=await worker.recognize(cv,{},{text:true});
-            const t=String(result&&result.data&&result.data.text||'').replace(/\s+/g,'');
+            let t=String(result&&result.data&&result.data.text||'').replace(/\s+/g,'');
+            if(source==='hires'&&/^\d{1,3}$/.test(t))t=hiresFixSevens(cv,t);   /* [218-D] */
             const cf=Number(result&&result.data&&result.data.confidence)||0;
             if(kind==='near'){
               if(text!==null&&text[0]==='1'&&text.length===3&&t!==text)text=null;  /* 139 -> 39: the 1 was the wire */
@@ -1863,6 +1984,7 @@
             if(!/^\d{1,3}$/.test(t)){text=null;break;}
             if(text===null){text=t;conf=cf;}else if(t!==text){text=null;break;}else conf=Math.min(conf,cf);
           }
+          if(text!==null)break;}
           if(text===null)continue;
           if(text[0]==='0')continue;  /* a leading 0 is a clipped longer number */
           /* a lone "1" is a wall line or a wire far more often than device 1 */
@@ -1917,6 +2039,9 @@
     if(!candidates.length)throw new Error('No non-rejected candidates are available for OCR.');
     session.ocrBusy=true;session.ocrStatus='Starting Arc OCR…';render();
     const rawLabels=[];const worker=await ensureOcrWorker();const started=Date.now();
+    let hi=null;   /* [218-D] */
+    try{hi=await hiresPrepare(candidates,opts.radiusX+OCR_QUADRANT_W+OCR_QUADRANT_OFFSET_X,opts.radiusY+OCR_QUADRANT_H+OCR_QUADRANT_OFFSET_Y,(i,n)=>{session.ocrStatus=`Reading the sheet at full detail… ${i+1} of ${n}`;session.progress=null;spTick();});}
+    catch(e){if(e&&e.cancelled)throw e;hi=null;}
     try{
       /* AL4 fill discipline: every candidate gets one centred read. Only rows
          still unsafe/unassigned after global one-to-one assignment get retries.
@@ -2001,7 +2126,7 @@
       const finalAssigned=pool.assigned.usedCandidates.size;
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
-        retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started},
+        retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:null},
         phases:clone(phases),labels:clone(labels),consistency:clone(consistency),finishedAt:Date.now()};
       session.ocrReport=report;session.ocrStatus='';return clone(report);
     }catch(e){
@@ -2159,7 +2284,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
   function spReadDiag(){
     const r=session&&session.ocrReport;if(!r||!r.phases)return null;
     const p=r.phases,s=r.summary||{};const st=p.strip||{};
-    const style=st.adopted?'bare numbers (strips)':(st.skipped?'L01.D40 labels (wide passes)':(p.probe?'no style adopted - fell back to the wide passes':'wide passes'));
+    const style=(s.hires?`sheet at ${s.hires.k}× detail, `:'')+(st.adopted?'bare numbers (strips)':(st.skipped?'L01.D40 labels (wide passes)':(p.probe?'no style adopted - fell back to the wide passes':'wide passes')));
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
     return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,
       text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p},null,1)};
@@ -2450,7 +2575,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
       const reader=ocrOk===false?'<div class="spWarn" data-sp="noocr">This app does not include the label reader — the numbers are typed in at Review.</div>':'';
       const btnLabel=ocrOk===false?'Find the rest':'Find the rest and read their numbers';
-      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
+      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spCaption" data-sp="nosrc">This plan has no source PDF (imported before V0.197, or from a photo), so numbers are read from the workspace image. For a PDF, Replace the plan with the PDF once and the reader works at full detail.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
     }else if(uiStep===4){
       html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
     }else if(uiStep===5){
@@ -2630,8 +2755,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.196 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.197 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}

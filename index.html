@@ -770,7 +770,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.196 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.197 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -902,7 +902,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.196 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.197 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -9756,11 +9756,35 @@ function fsRegionPick(srcCanvas, forObject) {
   });
 }
 
+/* PASS 218 [218-D] - THE SOURCE PDF STAYS WITH THE LEVEL.
+   Reece, 14 Sep, on the Merriwa sheet: the reader was stuck at 40% of the
+   numbers. The PDF is vector; the 1x raster the workspace draws on has 7 px
+   digits. Smart Plan re-renders the sheet at up to 4x from these bytes, so
+   they ride with the level (and so with the register, between devices).
+   Over 12 MB is not kept - a scan that size is pixels anyway. */
+let fsPlanSrcBytes = null;
+const FS_PLAN_SRC_MAX = 12 * 1024 * 1024;
+function fsPlanSrcKeep(buf) {
+  try {
+    if (!buf || buf.byteLength > FS_PLAN_SRC_MAX) return null;
+    const u = new Uint8Array(buf.slice(0));
+    let s = "";
+    for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    return btoa(s);
+  } catch (_) { return null; }
+}
+function fsPlanSrcAttach(page, scale, cc) {
+  const b64 = fsPlanSrcBytes;
+  fsPlanSrcBytes = null;
+  if (!b64 || !cc || !levels[curLevel]) return;
+  levels[curLevel].src = { kind:"pdf", page:page, scale:scale, dx:cc.fsRgnDx || 0, dy:cc.fsRgnDy || 0, w:cc.width, h:cc.height, bytes:b64.length, b64:b64, t:Date.now() };
+  scheduleAutosave();
+}
 function loadPdfFile(file, asObject) {
   statusEl.textContent = "Opening PDF…";
   ensurePdfJs()
     .then(() => file.arrayBuffer())
-    .then(buf => window.pdfjsLib.getDocument({ data: buf }).promise)
+    .then(buf => { fsPlanSrcBytes = fsPlanSrcKeep(buf); return window.pdfjsLib.getDocument({ data: buf }).promise; })
     .then(async pdf => {
       let n = 1;
       if (pdf.numPages > 1) {
@@ -9782,6 +9806,7 @@ function loadPdfFile(file, asObject) {
       if (!cc) { updateStatus(); return; }
       const dataUrl = fsEncodePlan(cc, 0.92);
       if (asObject && img) {
+        fsPlanSrcBytes = null;   /* [218-D] a sheet placed as an object is not the plan */
         insertImageFromDataUrl(dataUrl, cc.width, cc.height, true);
         updateStatus();
         /* PASS 106 [W104-2] - being AFTER updateStatus was never enough: the
@@ -9791,7 +9816,7 @@ function loadPdfFile(file, asObject) {
         return;
       }
       const im = new Image();
-      im.onload = () => setImage(im, dataUrl, false);
+      im.onload = () => { setImage(im, dataUrl, false); fsPlanSrcAttach(n, scale, cc); };   /* [218-D] */
       /* PASS 42 [42-1] — battle finding #7: a failed load must fail loudly. */
       im.onerror = () => { updateStatus(); alert("Couldn't display that PDF page."); };
       im.src = dataUrl;
@@ -10541,7 +10566,7 @@ function fsLvImportChange(e) {
   const isPdf = f.type === "application/pdf" || (f.name || "").toLowerCase().endsWith(".pdf");
   if (isPdf) {
     ensurePdfJs().then(() => f.arrayBuffer())
-      .then(buf => window.pdfjsLib.getDocument({ data: buf }).promise)
+      .then(buf => { fsPlanSrcBytes = fsPlanSrcKeep(buf); return window.pdfjsLib.getDocument({ data: buf }).promise; })
       .then(async pdf => {
         let n = 1;
         if (pdf.numPages > 1) {
@@ -10558,7 +10583,7 @@ function fsLvImportChange(e) {
         cx2.fillStyle = "#ffffff"; cx2.fillRect(0, 0, c.width, c.height);
         await page.render({ canvasContext: cx2, viewport: vp }).promise;
         const cc = await fsRegionPick(c);
-        if (cc) addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92), repIdx);
+        if (cc) { addLevelFromDataUrl(nm.trim() || "Level", fsEncodePlan(cc, 0.92), repIdx); fsPlanSrcAttach(n, scale, cc); }   /* [218-D] */
       })
       .catch(() => alert("Couldn't open that PDF."));
   } else {
@@ -30677,7 +30702,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v204";
+const FS_BUILD = "aa-v205";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
