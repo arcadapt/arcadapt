@@ -849,6 +849,12 @@
      detector on white paper still gets nothing (all paper), and one straddling a
      boundary still gets nothing - that is the separate dominance test below, which
      asks what share of the COLOURED pixels agree with each other. */
+  /* [222-D] A REFUSAL CARRIES ITS NUMBERS. 221-D recorded hue/colour/fraction/
+     dominance for every detector and recorded NOTHING for a refused one, because
+     this returned a bare null - so his "some detectors in coloured zones didn't get
+     picked up" was the one question the payload could not answer. It now returns
+     {zoned:false, why, ...the same numbers}. THE CALLER'S BEHAVIOUR IS UNCHANGED:
+     anything without zoned===true is no zone, exactly as before. */
   function fillRingHue(ctx, b){
     const [bx,by,bw,bh]=b;
     const cx=bx+bw/2, cy=by+bh/2, r=Math.max(bw,bh)/2;
@@ -871,14 +877,16 @@
       ss+=q.s; sv+=q.v; n++; hues.push(q.h);
     }
     const lit=n+paper;
-    if(!lit||n/lit<FILL_MIN_FRACTION)return null;
+    const frac=lit?n/lit:0;
+    if(!lit)return {zoned:false,why:'nothing-lit',n:n,paper:paper,fraction:0,dominance:0};   /* [222-D] */
+    if(frac<FILL_MIN_FRACTION)return {zoned:false,why:'too-little-colour',n:n,paper:paper,fraction:frac,dominance:0};   /* [222-D] */
     let hue=Math.atan2(sy,sx)*180/Math.PI; if(hue<0)hue+=360;
     /* one colour, or a boundary? If the coloured pixels do not agree with each other
        the detector is standing on the join and the answer is no answer. */
     let agree=0; for(let k=0;k<hues.length;k++)if(circularHueDelta(hues[k],hue)<=FILL_HUE_TOLERANCE)agree++;
     const dom=agree/Math.max(1,hues.length);
-    if(dom<FILL_DOMINANT_SHARE)return null;
-    return {h:hue,s:ss/n,v:sv/n,n:n,paper:paper,fraction:n/lit,dominance:dom};
+    if(dom<FILL_DOMINANT_SHARE)return {zoned:false,why:'on-a-boundary',h:hue,n:n,paper:paper,fraction:frac,dominance:dom};   /* [222-D] */
+    return {zoned:true,h:hue,s:ss/n,v:sv/n,n:n,paper:paper,fraction:frac,dominance:dom};
   }
 
   /* Single-link on the circle. Sorted by hue, a gap wider than the tolerance
@@ -931,11 +939,11 @@
     cands.forEach(c=>{
       const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox
              :[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
-      const r=fillRingHue(ctx,b);
-      if(r)hues.push({id:c.id,h:r.h,s:r.s,v:r.v,n:r.n}); else plain++;
-      zoneDiag.push({id:c.id,x:Number(c.obj.x),y:Number(c.obj.y),hue:r?Math.round(r.h):null,
-        colour:r?r.n:null,fraction:r?Math.round(r.fraction*100)/100:null,
-        dominance:r?Math.round(r.dominance*100)/100:null,zoned:!!r});   /* [221-D] */
+      const r=fillRingHue(ctx,b),got=!!(r&&r.zoned);   /* [222-D] */
+      if(got)hues.push({id:c.id,h:r.h,s:r.s,v:r.v,n:r.n}); else plain++;
+      zoneDiag.push({id:c.id,x:Number(c.obj.x),y:Number(c.obj.y),hue:(r&&r.h!=null)?Math.round(r.h):null,
+        colour:r?r.n:null,paper:r?r.paper:null,fraction:r?Math.round(r.fraction*100)/100:null,
+        dominance:r?Math.round(r.dominance*100)/100:null,why:got?'':((r&&r.why)||'no-sample'),zoned:got});   /* [221-D] [222-D] */
     });
     const groups=clusterHues(hues).map((list,i)=>{
       const m=meanHue(list);
@@ -1777,17 +1785,25 @@
      a scan has no source and takes the old path unchanged. */
   let hires=null;
   function planSource(){try{const lv=(typeof levels!=='undefined'&&levels)?levels[Number(curLevel||0)]:null;const s=lv&&lv.src;return (s&&s.kind==='pdf'&&s.b64)?s:null;}catch(_){return null;}}
+  /* [222-A] WHY IT DID NOT RUN, NOT JUST THAT IT DID NOT. Five separate ways to
+     return null landed in the diagnostics as one bare `null`, and his V0.200 paste
+     is exactly that: the whole of Pass 221 was inert on his machine and working out
+     which of the five took a code read. The point of a diagnostics payload is that
+     it does not. */
+  let hiresWhy = '';   /* why the sheet was NOT re-rendered; '' when it was */
+  function hiresOff(why){ hiresWhy=why; return null; }
   async function hiresOpen(){
-    const src=planSource(); if(!src){hires=null;return null;}
-    const live=livePlanImage(); if(!live) return null;
-    if(hires&&hires.src===src&&hires.live===live) return hires;
-    if(typeof ensurePdfJs!=='function') return null;
-    await ensurePdfJs(); if(!window.pdfjsLib) return null;
+    const src=planSource(); if(!src){hires=null;return hiresOff('no-source-pdf');}
+    const live=livePlanImage(); if(!live) return hiresOff('no-plan-image');
+    if(hires&&hires.src===src&&hires.live===live){hiresWhy='';return hires;}
+    if(typeof ensurePdfJs!=='function') return hiresOff('no-pdfjs-loader');
+    await ensurePdfJs(); if(!window.pdfjsLib) return hiresOff('pdfjs-did-not-load');
     const bin=atob(src.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
     const pdf=await window.pdfjsLib.getDocument({data:u}).promise,page=await pdf.getPage(src.page||1);
     const w=live.naturalWidth||live.width,h=live.naturalHeight||live.height;
     let k=HIRES_K; while(k>1.5&&w*h*k*k>HIRES_MAX_PX)k-=0.5;
     hires={src,live,page,k,w,h,T:HIRES_TILE,cols:Math.ceil(w/HIRES_TILE),rows:Math.ceil(h/HIRES_TILE),tiles:new Map(),rendered:0,ms:0};
+    hiresWhy='';   /* [222-A] */
     return hires;
   }
   async function hiresTile(tx,ty){
@@ -1814,7 +1830,7 @@
     }
   }
   async function hiresPrepare(cands,radiusX,radiusY,onTick){
-    const H=await hiresOpen(); if(!H) return null;
+    const H=await hiresOpen(); if(!H) return null;   /* [222-A] hiresOpen set the reason */
     const T=H.T,need=[];const seen=new Set();
     for(const c of cands){const cx=c.obj.x,cy=c.obj.y;
       const tx0=clamp(Math.floor((cx-radiusX)/T),0,H.cols-1),tx1=clamp(Math.floor((cx+radiusX)/T),0,H.cols-1),ty0=clamp(Math.floor((cy-radiusY)/T),0,H.rows-1),ty1=clamp(Math.floor((cy+radiusY)/T),0,H.rows-1);
@@ -2392,7 +2408,7 @@
     const rawLabels=[];const worker=await ensureOcrWorker();const started=Date.now();
     let hi=null;   /* [218-D] */
     try{hi=await hiresPrepare(candidates,opts.radiusX+OCR_QUADRANT_W+OCR_QUADRANT_OFFSET_X,opts.radiusY+OCR_QUADRANT_H+OCR_QUADRANT_OFFSET_Y,(i,n)=>{session.ocrStatus=`Reading the sheet at full detail… ${i+1} of ${n}`;session.progress=null;spTick();});}
-    catch(e){if(e&&e.cancelled)throw e;hi=null;}
+    catch(e){if(e&&e.cancelled)throw e;hi=null;hiresWhy='render-failed: '+((e&&e.message)||'unknown');}   /* [222-A] */
     try{
       /* AL4 fill discipline: every candidate gets one centred read. Only rows
          still unsafe/unassigned after global one-to-one assignment get retries.
@@ -2477,7 +2493,7 @@
       const finalAssigned=pool.assigned.usedCandidates.size;
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
-        retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:null},
+        retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:{off:hiresWhy||'unknown'}},   /* [222-A] */
         phases:clone(phases),labels:clone(labels),consistency:clone(consistency),finishedAt:Date.now()};
       session.ocrReport=report;session.ocrStatus='';return clone(report);
     }catch(e){
@@ -2640,7 +2656,13 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
   function spReadDiag(){
     const r=session&&session.ocrReport;if(!r||!r.phases)return null;
     const p=r.phases,s=r.summary||{};const st=p.strip||{};
-    const style=(s.hires?`sheet at ${s.hires.k}× detail, `:'')+(st.adopted?'bare numbers (strips)':(st.skipped?'L01.D40 labels (wide passes)':(p.probe?'no style adopted - fell back to the wide passes':'wide passes')));
+    /* [222-B] SAY IT, DO NOT OMIT IT. When the sheet WAS re-rendered this said so;
+       when it was not it said nothing and the sentence simply started a word later.
+       After a ten-minute pass, nothing on the line he reads told him the reader had
+       been looking at screen pixels - which is the whole reason his V0.200 numbers
+       went backwards. */
+    const style=(s.hires&&s.hires.k?`sheet at ${s.hires.k}× detail, `
+                 :`SCREEN RESOLUTION ONLY (${(s.hires&&s.hires.off)||'unknown'}) — far fewer numbers will be read, `)+(st.adopted?'bare numbers (strips)':(st.skipped?'L01.D40 labels (wide passes)':(p.probe?'no style adopted - fell back to the wide passes':'wide passes')));
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
     return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,unconfirmed:st.unconfirmed||0,
       text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p,
@@ -2932,7 +2954,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
       const reader=ocrOk===false?'<div class="spWarn" data-sp="noocr">This app does not include the label reader — the numbers are typed in at Review.</div>':'';
       const btnLabel=ocrOk===false?'Find the rest':'Find the rest and read their numbers';
-      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spCaption" data-sp="nosrc">This plan has no source PDF (imported before V0.197, or from a photo), so numbers are read from the workspace image. For a PDF, Replace the plan with the PDF once and the reader works at full detail.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review${d.unconfirmed?`, ${d.unconfirmed} two-digit read${d.unconfirmed===1?'':'s'} a wider look could not confirm`:''}, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
+      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spWarn" data-sp="nosrc"><b>This plan has no PDF behind it, so numbers will be read at screen resolution</b> — on a big sheet that is roughly half as many read, and it is the single biggest thing you can change here. Replace the plan with the PDF once (Workspace › the plan › Replace) and the reader works at full detail. Imported before V0.197, brought in from a photo, or brought in from a project file all land here.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review${d.unconfirmed?`, ${d.unconfirmed} two-digit read${d.unconfirmed===1?'':'s'} a wider look could not confirm`:''}, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
     }else if(uiStep===4){
       html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
     }else if(uiStep===5){
@@ -3123,7 +3145,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.200 beta";
+  const MODULE_VERSION = "V0.201 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 

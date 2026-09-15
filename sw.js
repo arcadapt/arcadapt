@@ -1,4 +1,4 @@
-const CACHE = "aa-v208";
+const CACHE = "aa-v209";
 const PREFIX = "aa-";   // PASS 39 [39-4] — this app owns ONLY its own caches
 if (CACHE.indexOf(PREFIX) !== 0) throw new Error("cache name does not carry its own prefix");
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png", "./favicon.png", "./pdf.min.js", "./pdf.worker.min.js", "./qr.js", "./jsqr.js", "./zxing.js", "./smart-plan.js"];
@@ -71,7 +71,8 @@ self.addEventListener("fetch", e => {
           // served offline from then on. A 404 cached as the app the same way.
           if (resp && resp.ok) {
             const copy = resp.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copy));
+            // [222-E] waitUntil, NOT a bare then. See patch-p222.py.
+            e.waitUntil(caches.open(CACHE).then(c => c.put(e.request, copy)));
           }
           return resp;
         }),
@@ -87,7 +88,7 @@ self.addEventListener("fetch", e => {
         // PASS 39 [39-5] — same status check as the navigation branch.
         if (resp && resp.ok) {
           const copy = resp.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
+          e.waitUntil(caches.open(CACHE).then(c => c.put(e.request, copy)));   // [222-E]
         }
         return resp;
       // PASS 40 [40-1b] — THIS LINE IS WHY Tesseract COULD VANISH SILENTLY.
