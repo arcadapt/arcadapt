@@ -103,6 +103,28 @@
   const FILL_MIN_FRACTION = 0.55;
   const FILL_DOMINANT_SHARE = 0.70;
   const FILL_HUE_TOLERANCE = 14;
+  /* [225-A] THE ZONE NAMES ARE ON THE SHEET. Read once, at half size, in sparse-text
+     mode: his labels are 30 px lettering and half size found 8 of 8 in 1.7 s where 1x
+     took 11 s and broke one of them. Half size is also why there is no size floor: his
+     room names are 14 px and at half size the reader does not see them at all, and a
+     floor that never bites would only ever drop a real label on a sheet with smaller
+     lettering. A stray word that says ZONE with no colour under it names nothing. */
+  const ZONE_LABEL_SCALE = 0.5;
+  const ZONE_LABEL_RE = /^ZONE[^A-Z0-9]{0,2}(\d{1,3})(?![\d])/i;   /* a wire through the words reads as a stray mark */
+  const ZONE_LABEL_WORD_RE = /^ZONE/i;   /* ZONE, ZONE-, ZONE®, ZONES, - the word with its number lost to whatever was drawn against it */
+  const ZONE_LABEL_NUM_RE = /^(\d{1,3})(?![\d])/;
+  const ZONE_STUMP_H = 14;   /* what is left of small text after the opening is erased below this height */
+  const ZONE_DIGIT_FROM = [0.2, -0.1], ZONE_DIGIT_PSM = ['7', '8', '13'], ZONE_DIGIT_REACH = 3.2, ZONE_DIGIT_UPSCALE = 2;   /* the second look: a strip 3.2 heights wide starting just right of the word and again a little inside it, each read as a line, a word and a raw line - six votes on one digit */
+  /* [225-A] THE LEADER. A one-pixel grey line renders at ~50% - or, straddling two
+     columns, at ~75% each - and is NOT ink by the fill rule (FILL_INK_VAL 0.42), so the
+     walk has its own softer mask. The dot at the end is
+     black and compact: 5-15 px of ink across, on BOTH sides of the line, for four rows -
+     a wall the line crosses is wider, a room name it crosses is grey and one-sided. */
+  const ZONE_LEADER_V = 0.80;
+  const ZONE_LEADER_GAP = 3, ZONE_LEADER_MIN = 25, ZONE_LEADER_NEAR = 70, ZONE_LEADER_BACK = 40;
+  const ZONE_LEADER_REACH = 500, ZONE_LEADER_RUN = 900, ZONE_LEADER_TURN = 8;
+  const ZONE_DOT_MIN = 5, ZONE_DOT_MAX = 15, ZONE_DOT_SIDE = 2, ZONE_DOT_ROWS = 4, ZONE_DOT_HALF = 7;
+  const ZONE_ANCHOR_HALF = 6;   /* fillRingHue on a 12 px box samples a 15.6 px disc under the dot */
   const ZONE_DIAG_MAX = 14;   /* [221-D] how many detectors the pasted payload carries */
   /* [221-D] THE REFUSED ONES FIRST. "Some detectors in coloured zones didn't get picked
      up" is a question about refusals, and a flat slice of the first fourteen would answer
@@ -974,7 +996,7 @@
     if(!session||!session.fillZones)throw new Error('Find the zones by colour first.');
     const g=session.fillZones.groups.find(x=>x.id===groupId);
     if(!g)throw new Error('No such colour group.');
-    g.zone=normaliseScheduleZone(zone);
+    g.zone=normaliseScheduleZone(zone); g.zoneFrom=(g.zoneNames&&g.zoneNames.length===1&&g.zoneNames[0]===g.zone)?'sheet':'typed';   /* [225-B] */
     return g.zone;
   }
 
@@ -1000,13 +1022,238 @@
     return {set,cleared};
   }
 
+  /* [225-A] ---- the zone names, read off the sheet ------------------------------ */
+  function zoneLabelWords(tsv, scale){
+    return tsvWords(tsv).map(w=>({text:w.text,conf:w.confidence,block:w.block_num,par:w.par_num,line:w.line_num,word:w.word_num,
+      x:w.bbox.x0/scale,y:w.bbox.y0/scale,w:(w.bbox.x1-w.bbox.x0)/scale,h:(w.bbox.y1-w.bbox.y0)/scale}));
+  }
+  function zoneLabelsFromWords(words){
+    const out=[], orphans=[]; const used=new Set();
+    words.forEach((w,i)=>{
+      if(used.has(i))return;
+      let m=ZONE_LABEL_RE.exec(w.text);
+      if(m){used.add(i);out.push({zone:String(Number(m[1])),text:w.text,bbox:[w.x,w.y,w.w,w.h],conf:w.conf});return;}
+      if(!ZONE_LABEL_WORD_RE.test(w.text))return;
+      /* the number is the nearest word that starts with digits and sits on the same row just
+         right of ZONE - by GEOMETRY, not by tesseract's line and word numbering, which put
+         one of his 5s on its own line */
+      let j=-1,best=1e9;
+      words.forEach((v,k)=>{if(k===i||used.has(k)||!ZONE_LABEL_NUM_RE.test(v.text))return;
+        const gap=v.x-(w.x+w.w), dy=Math.abs((v.y+v.h/2)-(w.y+w.h/2));
+        if(gap<-1.0*w.h||gap>2*w.h||dy>0.6*w.h)return; if(gap<best){best=gap;j=k;}});   /* the word's box often swallows part of the digit: gap may be negative */
+      const v=j>=0?words[j]:null, n=v?ZONE_LABEL_NUM_RE.exec(v.text):null;
+      if(!n){used.add(i);orphans.push(w);return;}   /* the word ZONE with no number beside it - looked at again, closer */
+      used.add(i);used.add(j);
+      const x0=Math.min(w.x,v.x),y0=Math.min(w.y,v.y),x1=Math.max(w.x+w.w,v.x+v.w),y1=Math.max(w.y+w.h,v.y+v.h);
+      out.push({zone:String(Number(n[1])),text:w.text+' '+v.text,bbox:[x0,y0,x1-x0,y1-y0],conf:Math.min(w.conf,v.conf)});
+    });
+    return {labels:out,orphans};
+  }
+  /* [225-A] THE SECOND LOOK. On his own sheet one of the eight labels came back as the
+     word ZONE with its 4 lost - the sparse pass had glued the digit to a door swing
+     beside it. The digit is still there, so the strip just right of the word is read
+     again on its own, at 1x, as a single line: one small crop per orphan, digits only. */
+  async function zoneDigitRead(worker, live, w){
+    const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height, k=ZONE_DIGIT_UPSCALE;
+    const votes=[];   /* [zone, x1, y0, y1, conf] per strip that read as a bare number */
+    for(const from of ZONE_DIGIT_FROM){
+      const x0=Math.max(0,Math.round(w.x+w.w+from*w.h)), y0=Math.max(0,Math.round(w.y-w.h*0.5));
+      const cw=Math.min(iw-x0,Math.round(w.h*ZONE_DIGIT_REACH)), ch=Math.min(ih-y0,Math.round(w.h*2));
+      if(cw<4||ch<4)continue;
+      const cv=document.createElement('canvas'); cv.width=cw*k; cv.height=ch*k;
+      const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.drawImage(live,x0,y0,cw,ch,0,0,cv.width,cv.height);
+      for(const psm of ZONE_DIGIT_PSM){
+        if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:psm,preserve_interword_spaces:'1'});
+        const res=await worker.recognize(cv,{},{text:true,tsv:true});
+        /* the strip must read as a NUMBER and little else - a letter in it means the crop
+           caught the word, a symbol or a wall */
+        const m=/^[^0-9A-Za-z]{0,2}(\d{1,3})[^0-9A-Za-z]{0,3}$/.exec(String(res&&res.data&&res.data.text||'').trim());
+        if(!m)continue;
+        const t=tsvWords(res&&res.data?res.data.tsv:'').find(x=>/\d/.test(x.text));
+        votes.push([String(Number(m[1])), t?x0+t.bbox.x1/k:x0+cw, t?y0+t.bbox.y0/k:w.y, t?y0+t.bbox.y1/k:w.y+w.h, t?(Number(t.confidence)||0):0]);
+      }
+      cv.width=1; cv.height=1;
+    }
+    if(!votes.length)return null;
+    /* a lone digit is the reader's weakest case - a 7 came back as 2 from one strip and
+       as 7 from five - so the strips and modes VOTE, and the first strip breaks a tie */
+    const tally=new Map(); votes.forEach(v=>tally.set(v[0],(tally.get(v[0])||0)+1));
+    let zone=votes[0][0]; tally.forEach((n,z)=>{if(n>tally.get(zone))zone=z;});
+    const v=votes.find(x=>x[0]===zone);
+    const by0=Math.min(w.y,v[2]), by1=Math.max(w.y+w.h,v[3]);
+    return {zone,text:w.text+' '+zone,bbox:[w.x,by0,v[1]-w.x,by1-by0],conf:Math.min(w.conf,v[4]),second:true,votes:votes.length};
+  }
+  /* two masks over the whole sheet: LINE (anything darker than the leader grey) for the
+     walk, INK (the fill rule's own ink) for the dot. One pass over the pixels. */
+  function zoneMasks(d,w,h){
+    const line=new Uint8Array(w*h), ink=new Uint8Array(w*h);
+    for(let i=0,p=0;i<w*h;i++,p+=4){
+      if(d[p+3]<128)continue;
+      const v=Math.max(d[p],d[p+1],d[p+2])/255;
+      if(v<ZONE_LEADER_V)line[i]=1;
+      if(v<FILL_INK_VAL)ink[i]=1;
+    }
+    return {line,ink,w,h};
+  }
+  /* [225-A] THE READER SEES A SHEET WITHOUT ITS THIN LINES. Every failure the sparse pass
+     had on his two sheets was a leader, a door swing or a wall drawn against a label: the
+     4 glued to a door swing, a 2 read as S, a 6 read as a symbol. A 3x3 opening on the
+     line mask erases anything one or two pixels wide - leaders, walls, room names, the
+     symbol numbers - and leaves the 4 px strokes of a 30 px label untouched. The walk to
+     the dot still runs on the ORIGINAL pixels; only the reader gets the cleaned copy.
+     Measured on his two sheets: before this, 7 of 8 and 7 of 8 with a different label
+     lost each time; after it, 8 of 8 and 8 of 8, every one as ZONE plus its digit. */
+  function zoneCleanCanvas(id,m){
+    const w=m.w,h=m.h,n=w*h,src=m.line,er=new Uint8Array(n),keep=new Uint8Array(n);
+    for(let y=1;y<h-1;y++){const r=y*w;for(let x=1;x<w-1;x++){const i=r+x;if(!src[i])continue;
+      if(src[i-1]&&src[i+1]&&src[i-w]&&src[i+w]&&src[i-w-1]&&src[i-w+1]&&src[i+w-1]&&src[i+w+1])er[i]=1;}}
+    for(let y=1;y<h-1;y++){const r=y*w;for(let x=1;x<w-1;x++){const i=r+x;if(!er[i])continue;
+      keep[i]=1;keep[i-1]=1;keep[i+1]=1;keep[i-w]=1;keep[i+w]=1;keep[i-w-1]=1;keep[i-w+1]=1;keep[i+w-1]=1;keep[i+w+1]=1;}}
+    /* and the STUMPS go too: small text (room names, asset codes) is 2 px thick, so the
+       opening leaves broken fragments of it that the reader then glues to a nearby label
+       - his ZONE 6 came back as ZONE(R) with STAFF ACCOMMODATION's stumps under it. Any
+       connected piece shorter than ZONE_STUMP_H is erased; a label's letters are 30 px. */
+    const seen=new Uint8Array(n),stack=new Int32Array(n);
+    for(let s0=0;s0<n;s0++){if(!keep[s0]||seen[s0])continue;let sp=0;stack[sp++]=s0;seen[s0]=1;const comp=[];let y0=h,y1=-1;
+      while(sp){const i=stack[--sp];comp.push(i);const y=(i/w)|0,x=i-y*w;if(y<y0)y0=y;if(y>y1)y1=y;
+        if(x>0&&keep[i-1]&&!seen[i-1]){seen[i-1]=1;stack[sp++]=i-1;}
+        if(x<w-1&&keep[i+1]&&!seen[i+1]){seen[i+1]=1;stack[sp++]=i+1;}
+        if(y>0&&keep[i-w]&&!seen[i-w]){seen[i-w]=1;stack[sp++]=i-w;}
+        if(y<h-1&&keep[i+w]&&!seen[i+w]){seen[i+w]=1;stack[sp++]=i+w;}}
+      if(y1-y0+1<ZONE_STUMP_H)for(const i of comp)keep[i]=0;}
+    const d=new Uint8ClampedArray(id.data);
+    for(let i=0,p=0;i<n;i++,p+=4){if(src[i]&&!keep[i]){d[p]=255;d[p+1]=255;d[p+2]=255;d[p+3]=255;}}
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').putImageData(new ImageData(d,w,h),0,0);
+    return cv;
+  }
+  function zmAny(m,x,y0,y1){ if(x<0||x>=m.w)return false; for(let y=Math.max(0,y0);y<=Math.min(m.h-1,y1);y++)if(m.line[y*m.w+x])return true; return false; }
+  function zmThin(m,x,y){ return zmAny(m,x,y-1,y+1)&&!zmAny(m,x,y-3,y-2)&&!zmAny(m,x,y+2,y+3); }
+  function zoneLeaderH(m,bbox){
+    const [bx,by,bw,bh]=bbox; let best=null;
+    [[1,bx+bw],[-1,bx]].forEach(([dirn,edge])=>{
+      for(let yy=Math.max(2,Math.round(by)-4);yy<=Math.min(m.h-3,Math.round(by+bh)+4);yy++){
+        let xx=Math.round(edge)-ZONE_LEADER_NEAR*dirn, start=null, last=null, miss=0; const runs=[];
+        for(let k=0;k<ZONE_LEADER_NEAR+ZONE_LEADER_REACH;k++,xx+=dirn){
+          if(xx>=0&&xx<m.w&&zmThin(m,xx,yy)){ if(start===null)start=xx; last=xx; miss=0; }
+          else if(start!==null&&++miss>ZONE_LEADER_GAP){ runs.push([start,last]); start=null; miss=0; }
+        }
+        if(start!==null)runs.push([start,last]);
+        runs.forEach(([s0,e])=>{
+          const len=(e-s0)*dirn; if(len<ZONE_LEADER_MIN)return;
+          if((e-edge)*dirn<-ZONE_LEADER_BACK)return;          /* ends inside the words: a letter, not a leader */
+          const near=Math.abs(s0-edge); if(near>ZONE_LEADER_NEAR)return;   /* starts away from the words: a wall */
+          if(!best||near<best.near||(near===best.near&&len>best.len))best={len,dirn,row:yy,xe:e,near};
+        });
+      }
+    });
+    return best;
+  }
+  function zoneLeaderV(m,x,y0,dirn){
+    let y=y0, last=null, miss=0, dot=null, wide=0;
+    for(let n=0;n<ZONE_LEADER_RUN&&y>=0&&y<m.h;n++,y+=dirn){
+      if(zmAny(m,x,y,y)||zmAny(m,x-1,y,y)||zmAny(m,x+1,y,y)){
+        last=y; miss=0;
+        let lft=0,rgt=0; const row=y*m.w;
+        for(let k=1;k<=ZONE_DOT_HALF;k++){ if(x-k>=0&&m.ink[row+x-k])lft++; if(x+k<m.w&&m.ink[row+x+k])rgt++; }
+        const wdt=lft+rgt+(m.ink[row+x]?1:0);
+        wide=(wdt>=ZONE_DOT_MIN&&wdt<=ZONE_DOT_MAX&&lft>=ZONE_DOT_SIDE&&rgt>=ZONE_DOT_SIDE)?wide+1:0;
+        if(wide>=ZONE_DOT_ROWS&&dot===null&&n>ZONE_LEADER_TURN)dot=y-Math.floor(ZONE_DOT_ROWS/2);
+      } else if(++miss>ZONE_LEADER_GAP)break;   /* blank from the corner is no leader at all */
+    }
+    return {last,dot};
+  }
+  function zoneLeaderAnchor(m,bbox){
+    const H=zoneLeaderH(m,bbox); if(!H)return null;
+    let best=null;
+    [-1,1].forEach(d=>{[H.xe,H.xe+H.dirn,H.xe+2*H.dirn].forEach(xc=>{
+      const r=zoneLeaderV(m,xc,H.row,d); if(r.last===null)return;
+      const len=Math.abs(r.last-H.row); if(len<ZONE_LEADER_TURN)return;
+      if(!best||len>best.len)best={len,x:xc,y:(r.dot!==null?r.dot:r.last),dot:r.dot!==null};
+    });});
+    if(best)return {x:best.x,y:best.y,how:'leader'+(best.dot?'-dot':'-end')};
+    return {x:H.xe,y:H.row,how:'leader-h'};
+  }
+  async function readZoneNames(){
+    if(!session)throw new Error('Start a Smart Plan session first.');
+    if(!session.fillZones||!session.fillZones.groups.length)throw new Error('Find the zones by colour first.');
+    const live=livePlanImage(); if(!live)throw new Error('No decoded Workspace plan is available.');
+    if(session.zoneNamesBusy)return null;
+    const f=session.fillZones; const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
+    session.zoneNamesBusy=true; session.zoneStatus='Reading the zone names off the sheet…'; render();
+    const started=Date.now();
+    try{
+      const worker=await ensureOcrWorker();
+      const cv=document.createElement('canvas'); cv.width=iw; cv.height=ih;
+      const ctx=cv.getContext('2d',{willReadFrequently:true}); ctx.drawImage(live,0,0,iw,ih);
+      const id=ctx.getImageData(0,0,iw,ih);
+      const m=zoneMasks(id.data,iw,ih);          /* the walk to the dot runs on the original pixels */
+      const clean=zoneCleanCanvas(id,m);         /* the reader gets the sheet without its thin lines */
+      /* TWO PASSES, cleaned sheet first, then the sheet as drawn. Measured on his two
+         sheets: each pass alone loses one label - a different one each time, because the
+         sparse reader's blocks fall differently around the lines - and the two together
+         lose none. A label is the same label when its box sits where the other pass's
+         did; the reading with the higher confidence wins, and a ZONE word with no
+         number in EITHER pass gets the second look. */
+      const sw=Math.max(1,Math.round(iw*ZONE_LABEL_SCALE)), sh=Math.max(1,Math.round(ih*ZONE_LABEL_SCALE));
+      if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});
+      const labels=[], orphans=[];
+      const same=(a,b)=>Math.abs((a[0]+a[2]/2)-(b[0]+b[2]/2))<Math.max(a[3],b[3])*2&&Math.abs((a[1]+a[3]/2)-(b[1]+b[3]/2))<Math.max(a[3],b[3]);
+      for(const source of [clean,live]){
+        const small=document.createElement('canvas'); small.width=sw; small.height=sh;
+        small.getContext('2d').drawImage(source,0,0,sw,sh);
+        const res=await worker.recognize(small,{},{text:true,tsv:true});
+        small.width=1; small.height=1;
+        const found=zoneLabelsFromWords(zoneLabelWords(res&&res.data?res.data.tsv:'',ZONE_LABEL_SCALE));
+        found.labels.forEach(L=>{L.pass=source===clean?'clean':'drawn';const k=labels.findIndex(x=>same(x.bbox,L.bbox));
+          if(k<0)labels.push(L); else if(L.zone!==labels[k].zone&&L.conf>labels[k].conf)labels[k]=L;});
+        found.orphans.forEach(w=>{const b=[w.x,w.y,w.w,w.h];if(!orphans.some(o=>same([o.x,o.y,o.w,o.h],b)))orphans.push(w);});
+      }
+      for(const w of orphans){ if(labels.some(x=>same(x.bbox,[w.x,w.y,w.w,w.h])))continue;
+        try{ const L=await zoneDigitRead(worker,clean,w); if(L)labels.push(L); }catch(_){} }
+      clean.width=1; clean.height=1;
+      labels.forEach(L=>{
+        const a=m?zoneLeaderAnchor(m,L.bbox):null;
+        L.anchor=a?[a.x,a.y]:[L.bbox[0]+L.bbox[2]/2,L.bbox[1]+L.bbox[3]/2]; L.how=a?a.how:'label';
+        const r=a?fillRingHue(ctx,[a.x-ZONE_ANCHOR_HALF,a.y-ZONE_ANCHOR_HALF,2*ZONE_ANCHOR_HALF,2*ZONE_ANCHOR_HALF]):fillRingHue(ctx,L.bbox);
+        L.hue=(r&&r.zoned)?Math.round(r.h):null; L.group='';
+        if(L.hue==null)return;
+        let g=null; f.groups.forEach(x=>{const d=circularHueDelta(x.hue,L.hue); if(d<=FILL_HUE_TOLERANCE&&(!g||d<g.d))g={d,id:x.id};});
+        if(g)L.group=g.id;
+      });
+      let named=0;
+      f.groups.forEach(g=>{
+        const names=Array.from(new Set(labels.filter(L=>L.group===g.id).map(L=>L.zone)));
+        g.zoneNames=names; g.zoneConflict=names.length>1;
+        if(g.zoneFrom==='sheet'){g.zone='';g.zoneFrom='';}          /* a previous read never outranks this one */
+        if(names.length===1&&!field(g.zone)){g.zone=names[0];g.zoneFrom='sheet';named++;}
+        else if(names.length===1&&g.zone===names[0]){g.zoneFrom='sheet';named++;}
+      });
+      const conflicts=f.groups.filter(g=>g.zoneConflict).length;
+      f.labels=labels.map(L=>({zone:L.zone,text:L.text,bbox:L.bbox.map(v=>Math.round(v)),anchor:L.anchor.map(v=>Math.round(v)),how:L.how,hue:L.hue,group:L.group,conf:Math.round(L.conf),pass:L.pass||'second',second:!!L.second}));
+      f.named=named; f.readMs=Date.now()-started;
+      session.zoneStatus=labels.length
+        ?`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. ${named} named off the sheet${conflicts?`, ${conflicts} with two names`:''} - check them, then put them on.`
+        :`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. No zone names found on the sheet - name each one.`;
+      return clone(f);
+    } catch(e){
+      f.labels=[]; f.named=0; f.readError=(e&&e.message)||String(e);
+      session.zoneStatus=`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. Could not read the zone names (${f.readError}) - name each one.`;
+      return clone(f);
+    } finally { session.zoneNamesBusy=false; render(); }
+  }
+
   function fillZoneRowsHtml(){
     const f=session&&session.fillZones; if(!f)return '';
     if(!f.groups.length)return `<div class="spHint" style="margin-top:8px">No coloured fill was found under any detector.</div>`;
     const rows=f.groups.map(g=>`<div class="spFillRow"><span class="spSwatch" style="background:${g.css}"></span>`
-      +`<span class="spFillN">${g.count} detector${g.count===1?'':'s'}</span>`
+      +`<span class="spFillN">${g.count} detector${g.count===1?'':'s'}`
+      +(g.zoneConflict?`<span class="spFillHint" data-sp="fillread">two names on the sheet: ${escapeHtml((g.zoneNames||[]).join(' and '))}</span>`
+        :(g.zoneFrom==='sheet'&&field(g.zone)?`<span class="spFillHint" data-sp="fillread">read off the sheet</span>`:''))   /* [225-B] */
+      +`</span>`
       +`<input data-sp="fillzone" data-gid="${escapeHtml(g.id)}" value="${escapeHtml(g.zone)}" placeholder="Zone" maxlength="5" inputmode="numeric"></div>`).join('');
     return `<div class="spFillList">${rows}</div>`
+      +(session.zoneNamesBusy?`<div class="spHint" style="margin-top:6px" data-sp="fillreading">Reading the zone names off the sheet…</div>`:'')   /* [225-B] */
       +(f.plain?`<div class="spHint" style="margin-top:6px">${f.plain} detector${f.plain===1?'':'s'} sit on no colour and will stay unzoned.</div>`:'')
       +`<button class="btn spPrimary spBig" data-sp="fillapply" style="margin-top:9px">Put these zones on the detectors</button>`;
   }
@@ -2538,6 +2785,7 @@
 #${MODAL_ID} .spRow{cursor:pointer}
 #${MODAL_ID} .spZoneBox{margin:8px 0 12px;padding:9px;border:1px solid var(--fs-border,#3a4047);border-radius:10px;background:var(--fs-tile,#292e34)}
 #${MODAL_ID} .spFillList{display:flex;flex-direction:column;gap:1px;background:var(--fs-border,#3a4047);border:1px solid var(--fs-border,#3a4047);border-radius:8px;overflow:hidden;margin-top:8px}
+#${MODAL_ID} .spFillHint{display:block;font-size:11.5px;color:var(--fs-sub2,#8a939c);font-weight:400;margin-top:2px}   /* [225-B] */
 #${MODAL_ID} .spFillRow{display:grid;grid-template-columns:26px 1fr 92px;gap:10px;align-items:center;padding:8px 10px;background:var(--fs-panel,#22272c)}
 #${MODAL_ID} .spSwatch{width:22px;height:22px;border-radius:5px;border:1px solid rgba(128,128,128,.55);display:block}
 #${MODAL_ID} .spFillN{color:var(--fs-sub,#9aa2aa);font-size:13.5px}
@@ -2681,7 +2929,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
     return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,unconfirmed:st.unconfirmed||0,
       text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p,
-        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,diag:zoneDiagOut(session.fillZones.diag)}:null},null,1)};   /* [221-D] */
+        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone,from:g.zoneFrom||'',names:g.zoneNames||[]})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,labels:session.fillZones.labels||[],readMs:session.fillZones.readMs||null,readError:session.fillZones.readError||'',diag:zoneDiagOut(session.fillZones.diag)}:null},null,1)};   /* [225-B] */   /* [221-D] */
   }
   function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
   /* PASS 209 [209-A] - a progress tick touches the status line, the bar and the
@@ -3049,7 +3297,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       renderReconciliation();
       spNav(left,{next:session.schedule.length?'Next: Zones':'Skip',nextPrimary:!!session.schedule.length});
     }else if(uiStep===5){
-      q('[data-sp="fillfind"]').onclick=()=>{try{sampleFillZones();}catch(e){alert(e.message||String(e));}};
+      q('[data-sp="fillfind"]').onclick=()=>{try{sampleFillZones();readZoneNames().catch(()=>{});}catch(e){alert(e.message||String(e));}};   /* [225-A] */
       Array.prototype.forEach.call(left.querySelectorAll('[data-sp="fillzone"]'),el=>{
         el.onchange=()=>{try{el.value=setFillZone(el.getAttribute('data-gid'),el.value);}catch(e){alert(e.message||String(e));}};});
       const fa=q('[data-sp="fillapply"]');if(fa)fa.onclick=()=>{try{applyFillZones();}catch(e){alert(e.message||String(e));}};
@@ -3185,8 +3433,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.203 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.204 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
