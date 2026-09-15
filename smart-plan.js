@@ -2653,6 +2653,12 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     try{fsOcrProbe().then(ok=>{ocrOk=!!ok;render();}).catch(()=>{ocrOk=false;render();});}catch(_){ocrOk=false;}
   }
   /* PASS 210 [210-D] - what the reader did, in words he can copy */
+  /* [223-B] "not even sure I got it all" is unanswerable when the thing is a wall of
+     text in a small box, so the size goes where he can see it before and after. */
+  function spDiagSize(t){
+    const n=(t||'').length;
+    return n>=1024?((n/1024).toFixed(1)+' KB'):(n+' characters');
+  }
   function spReadDiag(){
     const r=session&&session.ocrReport;if(!r||!r.phases)return null;
     const p=r.phases,s=r.summary||{};const st=p.strip||{};
@@ -2954,7 +2960,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
       const reader=ocrOk===false?'<div class="spWarn" data-sp="noocr">This app does not include the label reader — the numbers are typed in at Review.</div>':'';
       const btnLabel=ocrOk===false?'Find the rest':'Find the rest and read their numbers';
-      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spWarn" data-sp="nosrc"><b>This plan has no PDF behind it, so numbers will be read at screen resolution</b> — on a big sheet that is roughly half as many read, and it is the single biggest thing you can change here. Replace the plan with the PDF once (Workspace › the plan › Replace) and the reader works at full detail. Imported before V0.197, brought in from a photo, or brought in from a project file all land here.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review${d.unconfirmed?`, ${d.unconfirmed} two-digit read${d.unconfirmed===1?'':'s'} a wider look could not confirm`:''}, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
+      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spWarn" data-sp="nosrc"><b>This plan has no PDF behind it, so numbers will be read at screen resolution</b> — on a big sheet that is roughly half as many read, and it is the single biggest thing you can change here. Replace the plan with the PDF once (Workspace › the plan › Replace) and the reader works at full detail. Imported before V0.197, brought in from a photo, or brought in from a project file all land here.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review${d.unconfirmed?`, ${d.unconfirmed} two-digit read${d.unconfirmed===1?'':'s'} a wider look could not confirm`:''}, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics \u00b7 ${spDiagSize(d.text)} (send this to Claude if the numbers look wrong)</summary><button class="btn spQuiet spBig" data-sp="diagcopy" style="width:100%;margin:6px 0">Copy the diagnostics</button><div class="spCaption" data-sp="diagsaid">One tap. Nothing to select, and it tells you the size so you know the whole lot went.</div><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
     }else if(uiStep===4){
       html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
     }else if(uiStep===5){
@@ -2999,6 +3005,31 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
           }
           if(session){session.findDone={kept,read,area,type:t.type,ms};spRunLog(session.findDone);render();}
         }catch(e){if(session){session.detectBusy=false;session.ocrBusy=false;session.detectStatus='';session.ocrStatus='';render();}alert(e.message||String(e));}
+      };
+      /* [223-A] ONE TAP. Select-All inside a readonly textarea on iPadOS is a
+         long-press, a loupe, a menu and a scroll to the bottom to check you got the
+         end - for a payload that is meant for me and not for him. The async clipboard
+         API needs a user gesture and this is one; select()+execCommand is the fallback
+         for older Safari, and it needs the textarea VISIBLE, which inside an open
+         <details> it is. Either way the button says what happened, with the size, so a
+         short paste is obvious to both of us. */
+      const dc=q('[data-sp="diagcopy"]');
+      if(dc)dc.onclick=()=>{
+        const ta=q('[data-sp="diagtext"]'),said=q('[data-sp="diagsaid"]');
+        const txt=ta?ta.value:'';
+        const done=ok=>{ if(!said)return;
+          said.textContent=ok?('Copied \u2713 \u00b7 '+spDiagSize(txt)+' \u00b7 paste it to Claude')
+                             :('Could not reach the clipboard \u2014 tap inside the box below, Select All, Copy (' + spDiagSize(txt) + ')');
+          if(dc)dc.textContent=ok?'Copy again':'Copy the diagnostics'; };
+        if(!txt){done(false);return;}
+        try{
+          if(navigator.clipboard&&navigator.clipboard.writeText){
+            navigator.clipboard.writeText(txt).then(()=>done(true)).catch(()=>{
+              try{ta.focus();ta.setSelectionRange(0,txt.length);done(!!document.execCommand('copy'));}catch(_){done(false);}});
+            return;
+          }
+          ta.focus();ta.setSelectionRange(0,txt.length);done(!!document.execCommand('copy'));
+        }catch(_){done(false);}
       };
       q('[data-sp="another"]').onclick=()=>spGo(2);
       spNav(left,{next:session.findDone?'Next: Panel schedule':'Skip to Review',nextPrimary:!!session.findDone,nextDisabled:busy});
@@ -3145,7 +3176,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.201 beta";
+  const MODULE_VERSION = "V0.202 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
