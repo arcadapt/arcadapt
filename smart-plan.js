@@ -87,7 +87,16 @@
      floor means the same detector passes on a 300-dpi sheet and fails on a 150-dpi
      one, which is a bug that only ever shows up on somebody else's scan. */
   const FILL_RING_OUTER = 2.6;
-  const FILL_MIN_SAT = 0.10, FILL_MIN_VAL = 0.15, FILL_MAX_VAL = 0.985;
+  /* [224-A] SATURATION IS THE WHOLE PAPER TEST. FILL_MAX_VAL (0.985) used to sit
+     beside this and threw away any pixel brighter than it AS PAPER - which is every
+     pale tint, because a pale tint of a colour saturates one channel at 255 and so
+     reads v = 1.0 exactly. Measured on his sheet: rgb(255,204,156) at s 0.39 and
+     rgb(184,184,255) at s 0.28, the two zones that came back empty, discarded as
+     paper and then counted AGAINST their own fill. White paper is s ~ 0 and a warm
+     scanner cast is s 0.05, so this line refuses both without help. FILL_MIN_VAL
+     has been dead since 221-C replaced it with FILL_INK_VAL; both are gone rather
+     than left in place looking like bounds that something enforces. */
+  const FILL_MIN_SAT = 0.10;
   /* [221-C] both measured against COLOUR+PAPER, never against every pixel in the disc.
      FILL_INK_VAL is what counts as ink and is therefore excluded from the question. */
   const FILL_INK_VAL = 0.42;
@@ -871,7 +880,7 @@
       if(d[i+3]<128)continue;
       const q=rgbToHsv(d[i],d[i+1],d[i+2]);
       if(q.v<FILL_INK_VAL)continue;                    /* ink: the symbol, its number, a wall, a wire */
-      if(q.s<FILL_MIN_SAT||q.v>FILL_MAX_VAL){paper++;continue;}   /* unfilled paper */
+      if(q.s<FILL_MIN_SAT){paper++;continue;}   /* [224-A] unfilled paper - no colour, never merely bright */
       const wt=Math.max(.1,q.s);
       sx+=Math.cos(q.h*Math.PI/180)*wt; sy+=Math.sin(q.h*Math.PI/180)*wt;
       ss+=q.s; sv+=q.v; n++; hues.push(q.h);
@@ -3176,7 +3185,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.202 beta";
+  const MODULE_VERSION = "V0.203 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
