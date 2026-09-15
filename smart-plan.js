@@ -42,8 +42,18 @@
      number beside the symbol (58, not L01.D58), 7 px tall at the sheet's own
      resolution. Four tight strips around the symbol, Lanczos 6x, one line,
      digits only; a read must agree across two scales. */
+  /* [221-A] the shape test's own numbers, all RATIOS of the text band so the same
+     crop behaves the same at 4x and at 7x. */
+  const FIX7_ROW_FLOOR = 0.15, FIX7_MIN_BAND = 6, FIX7_MIN_COL = 3;
+  const FIX7_TOP_SPAN = 0.72, FIX7_BOT_SPAN = 0.6, FIX7_BOT_MIN = 0.05;
+  const FIX7_BAND_MARGIN = 0.18, FIX7_GAP = 0.7;
+  const OCR_DIAG_MAX = 14;   /* [221-D] how many reads the diagnostics carries back */
   const OCR_STRIP_WIDEN = 0.85;   /* [219-B] how much wider the confirming look is, in strip widths */
   const OCR_STRIP_UPSCALES = [5, 7], OCR_STRIP_UPSCALE = 6, OCR_STRIP_SINGLE_MIN_CONF = 85, OCR_STRIP_NARROW_CUT = 0.2, OCR_STRIP_ADOPT_RATIO = 0.15, OCR_STYLE_PROBE_N = 6;
+  /* [221-B] DELIBERATELY NOT WIDENED - see tests/patch-p221.py. A window sized for a
+     three-digit number reads a two-digit one WORSE (tesseract returns nothing for a
+     short number sitting in a wide white tile), and two digits is the common case.
+     The three-digit number is caught by the wider SECOND look on a 2-digit read. */
   const OCR_STRIPS = Object.freeze([
     {name:'left', x:-1.45, y:-0.5, w:1.0, h:1.0},
     {name:'up',   x:-0.65, y:-1.35, w:1.3, h:0.9},
@@ -78,8 +88,22 @@
      one, which is a bug that only ever shows up on somebody else's scan. */
   const FILL_RING_OUTER = 2.6;
   const FILL_MIN_SAT = 0.10, FILL_MIN_VAL = 0.15, FILL_MAX_VAL = 0.985;
-  const FILL_MIN_FRACTION = 0.35;
+  /* [221-C] both measured against COLOUR+PAPER, never against every pixel in the disc.
+     FILL_INK_VAL is what counts as ink and is therefore excluded from the question. */
+  const FILL_INK_VAL = 0.42;
+  const FILL_MIN_FRACTION = 0.55;
+  const FILL_DOMINANT_SHARE = 0.70;
   const FILL_HUE_TOLERANCE = 14;
+  const ZONE_DIAG_MAX = 14;   /* [221-D] how many detectors the pasted payload carries */
+  /* [221-D] THE REFUSED ONES FIRST. "Some detectors in coloured zones didn't get picked
+     up" is a question about refusals, and a flat slice of the first fourteen would answer
+     it with fourteen that worked. The session keeps an entry for EVERY detector; only what
+     he pastes is trimmed. */
+  function zoneDiagOut(d){
+    if(!Array.isArray(d))return [];
+    const no=d.filter(e=>!e.zoned), yes=d.filter(e=>e.zoned);
+    return no.concat(yes).slice(0,ZONE_DIAG_MAX);
+  }
   const ZONE_SOURCE_MAX_PX = 2500000;
   const ZONE_DENSITY_THRESHOLD = 0.015;
   const ZONE_DENSITY_AUTO_DIVISOR = 4;
@@ -815,6 +839,16 @@
      because a zone number he has to un-type is worse than one he types. The
      floor is a FRACTION of the disc rather than a pixel count so that the same
      detector behaves the same way on a 150-dpi scan and a 4x re-render. */
+  /* [221-C] INK IS NOT EVIDENCE EITHER WAY.
+     220-A asked whether 35% of ALL the pixels in the disc were coloured. On his sheet
+     four detectors sitting well inside the pale-purple ZONE 6 got no zone at all,
+     because on a small symbol the symbol itself, its printed number, a wall and a wire
+     are most of that disc - even though every scrap of floor under them is one colour.
+     A wall drawn through a zone is not an argument about which zone it is.
+     So ink is excluded from the denominator: the question is COLOUR vs PAPER. A
+     detector on white paper still gets nothing (all paper), and one straddling a
+     boundary still gets nothing - that is the separate dominance test below, which
+     asks what share of the COLOURED pixels agree with each other. */
   function fillRingHue(ctx, b){
     const [bx,by,bw,bh]=b;
     const cx=bx+bw/2, cy=by+bh/2, r=Math.max(bw,bh)/2;
@@ -823,22 +857,28 @@
     const x1=Math.ceil(cx+ro), y1=Math.ceil(cy+ro);
     const w=Math.max(1,x1-x0), h=Math.max(1,y1-y0);
     let d; try{ d=ctx.getImageData(x0,y0,w,h).data; }catch(_){ return null; }
-    let sx=0,sy=0,ss=0,sv=0,n=0,seen=0;
+    let sx=0,sy=0,ss=0,sv=0,n=0,paper=0;const hues=[];
     for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){
       const px=x0+xx+0.5, py=y0+yy+0.5, dx=px-cx, dy=py-cy;
       if(Math.hypot(dx,dy)>ro)continue;
       const i=(yy*w+xx)*4;
       if(d[i+3]<128)continue;
-      seen++;
       const q=rgbToHsv(d[i],d[i+1],d[i+2]);
-      if(q.s<FILL_MIN_SAT||q.v<FILL_MIN_VAL||q.v>FILL_MAX_VAL)continue;
+      if(q.v<FILL_INK_VAL)continue;                    /* ink: the symbol, its number, a wall, a wire */
+      if(q.s<FILL_MIN_SAT||q.v>FILL_MAX_VAL){paper++;continue;}   /* unfilled paper */
       const wt=Math.max(.1,q.s);
       sx+=Math.cos(q.h*Math.PI/180)*wt; sy+=Math.sin(q.h*Math.PI/180)*wt;
-      ss+=q.s; sv+=q.v; n++;
+      ss+=q.s; sv+=q.v; n++; hues.push(q.h);
     }
-    if(!seen||n/seen<FILL_MIN_FRACTION)return null;
+    const lit=n+paper;
+    if(!lit||n/lit<FILL_MIN_FRACTION)return null;
     let hue=Math.atan2(sy,sx)*180/Math.PI; if(hue<0)hue+=360;
-    return {h:hue,s:ss/n,v:sv/n,n:n,fraction:n/seen};
+    /* one colour, or a boundary? If the coloured pixels do not agree with each other
+       the detector is standing on the join and the answer is no answer. */
+    let agree=0; for(let k=0;k<hues.length;k++)if(circularHueDelta(hues[k],hue)<=FILL_HUE_TOLERANCE)agree++;
+    const dom=agree/Math.max(1,hues.length);
+    if(dom<FILL_DOMINANT_SHARE)return null;
+    return {h:hue,s:ss/n,v:sv/n,n:n,paper:paper,fraction:n/lit,dominance:dom};
   }
 
   /* Single-link on the circle. Sorted by hue, a gap wider than the tolerance
@@ -887,12 +927,15 @@
     const cv=document.createElement('canvas'); cv.width=iw; cv.height=ih;
     const ctx=cv.getContext('2d',{willReadFrequently:true});
     ctx.drawImage(live,0,0,iw,ih);
-    const hues=[]; let plain=0;
+    const hues=[]; let plain=0; const zoneDiag=[];   /* [221-D] */
     cands.forEach(c=>{
       const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox
              :[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
       const r=fillRingHue(ctx,b);
       if(r)hues.push({id:c.id,h:r.h,s:r.s,v:r.v,n:r.n}); else plain++;
+      zoneDiag.push({id:c.id,x:Number(c.obj.x),y:Number(c.obj.y),hue:r?Math.round(r.h):null,
+        colour:r?r.n:null,fraction:r?Math.round(r.fraction*100)/100:null,
+        dominance:r?Math.round(r.dominance*100)/100:null,zoned:!!r});   /* [221-D] */
     });
     const groups=clusterHues(hues).map((list,i)=>{
       const m=meanHue(list);
@@ -902,7 +945,7 @@
     /* carry a zone number already typed for a colour that is still here */
     const old=(session.fillZones&&session.fillZones.groups)||[];
     groups.forEach(g=>{const prev=old.find(o=>circularHueDelta(o.hue,g.hue)<=FILL_HUE_TOLERANCE&&field(o.zone));if(prev)g.zone=prev.zone;});
-    session.fillZones={groups,sampled:cands.length,plain,at:Date.now()};
+    session.fillZones={groups,sampled:cands.length,plain,diag:zoneDiag,at:Date.now()};
     session.zoneStatus=groups.length
       ? `${groups.length} colour${groups.length===1?'':'s'} under ${cands.length-plain} of ${cands.length} detectors. Name each one.`
       : `No coloured fill under any detector - this plan's zones are not colour areas.`;
@@ -1805,56 +1848,130 @@
      (top rows narrower than the glyph) or a stem with a foot (bottom rows as wide as the glyph). Measured on the
      Merriwa CAD font (7: top 1.0, bottom 0.32) and on the fixture's sans (1: top 0.62, bottom 1.0).
      Only on the sharp render, only 1 -> 7. */
-  function hiresFixSevens(cv,t){
-    if(!/1/.test(t))return t;   /* (also the trailing-I rule below, which needs a 1 at the end) */
-    const w=cv.width,h=cv.height,d=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h).data,ink=new Uint8Array(w*h);
-    for(let i=0,j=0;i<d.length;i+=4,j++)ink[j]=d[i]<128?1:0;
-    const seen=new Uint8Array(w*h),blobs=[],stack=[];
-    for(let p=0;p<ink.length;p++){if(!ink[p]||seen[p])continue;let x0=w,x1=0,y0=h,y1=0,n=0;const px=[];stack.push(p);seen[p]=1;
-      while(stack.length){const q=stack.pop();const x=q%w,y=(q-x)/w;n++;px.push(q);if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
-        if(x>0&&ink[q-1]&&!seen[q-1]){seen[q-1]=1;stack.push(q-1);}if(x<w-1&&ink[q+1]&&!seen[q+1]){seen[q+1]=1;stack.push(q+1);}
-        if(y>0&&ink[q-w]&&!seen[q-w]){seen[q-w]=1;stack.push(q-w);}if(y<h-1&&ink[q+w]&&!seen[q+w]){seen[q+w]=1;stack.push(q+w);}}
-      blobs.push({x0,x1,y0,y1,n,px,bw:x1-x0+1,bh:y1-y0+1});}
-    if(!blobs.length)return t;
-    /* [219-A] WHICH BLOBS ARE THE DIGITS. V0.197 took every blob at least half as
-       tall as the tallest and gave up unless that came to exactly one per character.
-       A real strip also holds the symbol box edge and the loop wire, so the count
-       never matched on his sheet and the 7->1 correction never ran: 77 still read 11.
-       (A wire also inflates `tall`, which throws the filter the other way and drops
-       real digits.) TWO sets are tried, the V0.197 one FIRST so a strip that already
-       worked is untouched; the first with one blob per character wins, and if neither
-       does the text is returned exactly as read. A third, cleverer set was written and
-       then deleted: mutate-p219 M2/M4 showed it and the second set rescued the same
-       crops, so neither could be removed without the suite noticing - two names for
-       one behaviour, which is how dead code gets shipped looking tested. */
-    const byX=a=>a.slice().sort((p,q)=>p.x0-q.x0);
-    const tall=Math.max.apply(null,blobs.map(b=>b.bh));
-    /* What separates a digit from the two things that get into the crop: the symbol
-       box edge and the loop wire are far TALLER THAN THEY ARE WIDE (measured on his
-       sheet: 20:1 and up), where even a hairline 1 stays inside about 10:1. Ink
-       fraction rules out a hollow outline. Neither test may use an absolute pixel
-       size - the same crop arrives at 4x and at 7x. */
-    const glyphish=b=>{const fill=b.n/Math.max(1,b.bw*b.bh),ar=b.bh/Math.max(1,b.bw);
-      return fill>=0.12&&ar>=0.6&&ar<=12&&b.bw>=2&&b.bh>=6;};
-    let digits=null;
-    for(const s of [blobs.filter(b=>b.bh>=tall*0.5),blobs.filter(glyphish)]){
-      if(s.length===t.length){digits=byX(s);break;}}
-    if(!digits)return t;   /* still ambiguous: return the text exactly as read, never guess */
+  /* [221-A] THE 7 CHECK, WITHOUT A BLOB-PER-CHARACTER MATCH.
+
+     V0.197 found the connected ink blobs in the crop and gave up unless they
+     came to exactly one per character. 219-A kept that requirement and only
+     tried harder to satisfy it - two filters instead of one - and 77 STILL read
+     11 on his sheet. A real strip holds the symbol's box edge, the loop wire,
+     part of a wall and sometimes the neighbour's digit; no filter makes that
+     come out at one blob per character. The requirement is the fault.
+
+     So: no correspondence. Find the row band the text sits in from the row
+     profile, take that band's ink extent, split it into N equal columns, and
+     ask of each column the same shape question as before. A 7 in this CAD font
+     is inked right across its top and narrow at the bottom; a 1 is the same
+     width top and bottom, and a 1 with a foot is WIDER at the bottom. If the
+     split is off, or a wire sits in the column, the test simply fails and the
+     digit is kept - identical to doing nothing. This can improve a read and it
+     can never give up. */
+  function hiresFixSevens(cv,t,diag){
+    if(!/1/.test(t))return t;   /* (and the trailing-I rule below, which needs a 1 at the end) */
+    const w=cv.width,h=cv.height,d=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h).data;
+    const ink=new Uint8Array(w*h);
+    let any=0;
+    for(let i=0,j=0;i<d.length;i+=4,j++){ink[j]=d[i]<128?1:0;any+=ink[j];}
+    if(!any)return t;
+    /* THE ONE THING BLOBS ARE STILL FOR: throwing the interlopers away. Nothing here
+       counts them or matches them to characters. A blob goes if it TOUCHES THE CROP'S
+       BORDER - the loop wire and the wall run in from outside - or if it STANDS WELL
+       OUTSIDE THE TEXT BAND, which is what the symbol's box edge does: it is a tall
+       thin line through a crop whose digits occupy a short band in the middle. (A digit
+       the strip clipped touches the edge too, and it was unreadable anyway; 221-B
+       widened the strip so that is rare.) */
+    const blobs=[];
+    {
+      const seen=new Uint8Array(w*h),stack=[];
+      for(let p0=0;p0<ink.length;p0++){
+        if(!ink[p0]||seen[p0])continue;
+        const px=[];let edge=0,by0=h,by1=-1;stack.push(p0);seen[p0]=1;
+        while(stack.length){const q=stack.pop();const x=q%w,y=(q-x)/w;px.push(q);
+          if(x===0||y===0||x===w-1||y===h-1)edge=1;
+          if(y<by0)by0=y; if(y>by1)by1=y;
+          if(x>0&&ink[q-1]&&!seen[q-1]){seen[q-1]=1;stack.push(q-1);}
+          if(x<w-1&&ink[q+1]&&!seen[q+1]){seen[q+1]=1;stack.push(q+1);}
+          if(y>0&&ink[q-w]&&!seen[q-w]){seen[q-w]=1;stack.push(q-w);}
+          if(y<h-1&&ink[q+w]&&!seen[q+w]){seen[q+w]=1;stack.push(q+w);}}
+        blobs.push({px:px,edge:edge,by0:by0,by1:by1,gone:0});
+      }
+    }
+    const erase=(b)=>{if(b.gone)return;b.gone=1;for(const q of b.px){ink[q]=0;any--;}};
+    for(const b of blobs)if(b.edge)erase(b);
+    if(any<=0)return t;
+    /* the row the text is densest on, then out to where the rows thin out */
+    const band=()=>{
+      const rows=new Int32Array(h);
+      for(let y=0;y<h;y++){let n=0;const off=y*w;for(let x=0;x<w;x++)n+=ink[off+x];rows[y]=n;}
+      let peak=0;for(let y=1;y<h;y++)if(rows[y]>rows[peak])peak=y;
+      if(!rows[peak])return null;
+      const rowFloor=Math.max(1,rows[peak]*FIX7_ROW_FLOOR);
+      let a=peak,b=peak;
+      while(a>0&&rows[a-1]>=rowFloor)a--;
+      while(b<h-1&&rows[b+1]>=rowFloor)b++;
+      return [a,b];
+    };
+    let bd=band();
+    if(!bd)return t;
+    {
+      const m=Math.max(2,Math.round((bd[1]-bd[0]+1)*FIX7_BAND_MARGIN));
+      for(const b of blobs)if(!b.gone&&(b.by0<bd[0]-m||b.by1>bd[1]+m))erase(b);
+    }
+    if(any<=0)return t;
+    bd=band();
+    if(!bd)return t;
+    const y0=bd[0],y1=bd[1],bandH=y1-y0+1;
+    if(bandH<FIX7_MIN_BAND)return t;
+    /* THE TEXT'S OWN RUN OF COLUMNS, not simply the widest thing left standing. Inked
+       columns are grouped where the gap between them is small against the band's height;
+       a neighbour's digit sitting at the far side of the strip lands in its own group
+       and is not part of the extent. The widest group is the number. */
+    let gs=-1,ge=-1,prev=-2,bw=-1,x0=-1,x1=-1;
+    const gapMax=Math.max(2,Math.round(bandH*FIX7_GAP));
+    const close=()=>{if(gs>=0&&ge-gs+1>bw){bw=ge-gs+1;x0=gs;x1=ge;}};
+    for(let x=0;x<w;x++){
+      let hit=0;for(let y=y0;y<=y1;y++)if(ink[y*w+x]){hit=1;break;}
+      if(!hit)continue;
+      if(gs<0){gs=ge=x;}
+      else if(x-prev-1>gapMax){close();gs=ge=x;}
+      else ge=x;
+      prev=x;
+    }
+    close();
+    if(x0<0)return t;
+    const bandW=x1-x0+1;
+    if(bandW<t.length*FIX7_MIN_COL)return t;
+    const colW=bandW/t.length;
+    const spanIn=(cx0,cx1,ry0,ry1)=>{let a=-1,b=-1;
+      for(let x=cx0;x<=cx1;x++){let hit=0;for(let y=ry0;y<=ry1;y++)if(ink[y*w+x]){hit=1;break;}
+        if(hit){if(a<0)a=x;b=x;}}
+      return b>=a&&a>=0?(b-a+1)/Math.max(1,cx1-cx0+1):0;};
+    const topN=Math.max(1,Math.round(bandH*0.22)),botN=Math.max(1,Math.round(bandH*0.3));
     let out='';
-    for(let i=0;i<t.length;i++){const b=digits[i];if(t[i]!=='1'||b.bw<4||b.bh<8){out+=t[i];continue;}
-      const topN=Math.max(1,Math.round(b.bh*0.2)),botN=Math.max(1,Math.round(b.bh*0.3));let tx0=w,tx1=-1,bx0=w,bx1=-1;
-      for(const q of b.px){const x=q%w,y=(q-x)/w;if(y<b.y0+topN){if(x<tx0)tx0=x;if(x>tx1)tx1=x;}if(y>b.y1-botN){if(x<bx0)bx0=x;if(x>bx1)bx1=x;}}
-      const topSpan=tx1>=tx0?(tx1-tx0+1)/b.bw:0,botSpan=bx1>=bx0?(bx1-bx0+1)/b.bw:1;
-      out+=(topSpan>=0.9&&botSpan<=0.5&&b.bw>=b.bh*0.35)?'7':'1';}
-    /* "74 I": a trailing I (an isolator mark) - the whitelist made it a 1. An I with serifs is inked across its top AND
-       bottom rows with a thin centred stem between; a 1 with a foot has a flag on one side only, a plain-bar 1 is as
-       wide at its middle as at its ends. Measured on Merriwa: the I is 12 px wide next to 14-17 px digits. */
-    if(out.length===3&&out[2]==='1'){const b=digits[2];const topN=Math.max(1,Math.round(b.bh*0.2)),botN=Math.max(1,Math.round(b.bh*0.2));let tx0=w,tx1=-1,bx0=w,bx1=-1,mx0=w,mx1=-1;
-      for(const q of b.px){const x=q%w,y=(q-x)/w;if(y<b.y0+topN){if(x<tx0)tx0=x;if(x>tx1)tx1=x;}else if(y>b.y1-botN){if(x<bx0)bx0=x;if(x>bx1)bx1=x;}else{if(x<mx0)mx0=x;if(x>mx1)mx1=x;}}
-      const sp=(a,z)=>z>=a?(z-a+1)/b.bw:0,mid=sp(mx0,mx1),c=(mx0+mx1)/2-b.x0;
-      if(sp(tx0,tx1)>=0.9&&sp(bx0,bx1)>=0.9&&mid<=0.5&&c>=b.bw*0.3&&c<=b.bw*0.7)out=out.slice(0,2);}
+    for(let i=0;i<t.length;i++){
+      if(t[i]!=='1'){out+=t[i];continue;}
+      const cx0=Math.round(x0+i*colW),cx1=Math.max(cx0,Math.round(x0+(i+1)*colW)-1);
+      const top=spanIn(cx0,cx1,y0,y0+topN-1),bot=spanIn(cx0,cx1,y1-botN+1,y1);
+      /* bot>0 IS NOT A TUNING KNOB. A 7 in this font has a stem that reaches the
+         baseline, so a column with NO ink at all across its bottom is not a 7 - it is
+         a piece of a wall, or the split landing beside the digits. Measured on the
+         3-digit fixture's WIDE look: "117" came back "717" with top=1.00 bot=0.00 on
+         the leading column, which is a horizontal stroke with nothing under it. */
+      const seven=(top>=FIX7_TOP_SPAN&&bot<=FIX7_BOT_SPAN&&bot>=FIX7_BOT_MIN);
+      out+=seven?'7':'1';
+      if(diag)diag.push({i,top:Math.round(top*100)/100,bot:Math.round(bot*100)/100,seven});
+    }
+    /* "74 I": a trailing isolator mark the digit whitelist turned into a 1. An I with
+       serifs is inked right across its top AND its bottom with a thin waist between. */
+    if(out.length===3&&out[2]==='1'){
+      const cx0=Math.round(x0+2*colW),cx1=x1;
+      const midY0=y0+topN,midY1=y1-botN;
+      const top=spanIn(cx0,cx1,y0,y0+topN-1),bot=spanIn(cx0,cx1,y1-botN+1,y1),
+            mid=midY1>=midY0?spanIn(cx0,cx1,midY0,midY1):1;
+      if(top>=0.85&&bot>=0.85&&mid<=0.55){out=out.slice(0,2);if(diag)diag.push({i:2,droppedI:true});}
+    }
     return out;
   }
+
   function cropCanvas(cx,cy,radiusX,radiusY,upscale,variant) {
     const live=livePlanImage(); if(!live) throw new Error('No decoded Workspace plan is available.');
     const iw=live.naturalWidth||live.width, ih=live.naturalHeight||live.height;
@@ -2134,14 +2251,15 @@
   }
   async function runOcrStripPass(worker,candidates,indexes,rawLabels){
     if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:'7',preserve_interword_spaces:'1',tessedit_char_whitelist:'0123456789'});
-    let crops=0,reads=0,readCandidates=0,clippedTotal=0;   /* [219-B] */
+    let crops=0,reads=0,readCandidates=0,clippedTotal=0,unconfirmedTotal=0;   /* [219-B] [221-B] */
+    const readDiag=[];   /* [221-D] */
     try{
       for(let n=0;n<indexes.length;n++){
         const i=indexes[n],c=candidates[i];spThrowIfCancelled();
         session.ocrStatus=`Reading numbers — ${n+1} / ${indexes.length}`;session.progress={done:n,total:indexes.length,phase:0,phases:1};spTick();
         const b=(c.meta&&Array.isArray(c.meta.bbox)&&c.meta.bbox.length===4)?c.meta.bbox:[Number(c.obj.x)-9,Number(c.obj.y)-9,18,18];
         const cx=b[0]+b[2]/2,cy=b[1]+b[3]/2,w=Math.max(6,b[2]),h=Math.max(6,b[3]);
-        const seen=[];let clipped=0;   /* [219-B] */
+        const seen=[];let clipped=0,unconfirmed=0;   /* [219-B] [221-B] */
         for(const st of OCR_STRIPS){
           spThrowIfCancelled();
           const rx=cx+st.x*w,ry=cy+st.y*h,rw=st.w*w,rh=st.h*h;
@@ -2166,7 +2284,9 @@
             const cv=cropStripCanvas(lx,ly,lw,lh,up,source);crops++;
             const result=await worker.recognize(cv,{},{text:true});
             let t=String(result&&result.data&&result.data.text||'').replace(/\s+/g,'');
-            if(source==='hires'&&/^\d{1,3}$/.test(t))t=hiresFixSevens(cv,t);   /* [218-D] */
+            let fixDiag=null;
+            if(source==='hires'&&/^\d{1,3}$/.test(t)){fixDiag=[];const before=t;t=hiresFixSevens(cv,t,fixDiag);
+              if(readDiag.length<OCR_DIAG_MAX)readDiag.push({id:c.id,dir:st.name,up,src:source,raw:before,fixed:t,cols:fixDiag});}   /* [218-D] [221-D] */
             const cf=Number(result&&result.data&&result.data.confidence)||0;
             if(kind==='near'){
               if(text!==null&&text[0]==='1'&&text.length===3&&t!==text)text=null;  /* 139 -> 39: the 1 was the wire */
@@ -2195,11 +2315,23 @@
               const wcv=cropStripCanvas(wx,wy,ww,wh,up,hiresHere?'hires':'live');crops++;
               const wres=await worker.recognize(wcv,{},{text:true});
               let wt=String(wres&&wres.data&&wres.data.text||'').replace(/\s+/g,'');
-              if(hiresHere&&/^\d{1,3}$/.test(wt))wt=hiresFixSevens(wcv,wt);
+              let wDiag=null;
+              if(hiresHere&&/^\d{1,3}$/.test(wt)){wDiag=[];const wb=wt;wt=hiresFixSevens(wcv,wt,wDiag);
+                if(readDiag.length<OCR_DIAG_MAX)readDiag.push({id:c.id,dir:st.name,up,src:'wide',raw:wb,fixed:wt,cols:wDiag});}   /* [221-D] */
               if(!/^\d{2,3}$/.test(wt)){wide=null;break;}
               if(wide===null)wide=wt;else if(wt!==wide){wide=null;break;}
             }
-            if(wide!==null&&wide!==text){clipped++;text=null;continue;}
+            if(wide!==null&&wide!==text){
+              /* the wide look read a DIFFERENT number and the narrow one is a tail or a
+                 head of it: the narrow strip clipped a digit. Take the wide read. */
+              if(/^\d{3}$/.test(wide)&&(wide.slice(1)===text||wide.slice(0,2)===text)){text=wide;}
+              else {clipped++;text=null;continue;}
+            } else if(wide===null){
+              /* [221-B] the wide look could not be read at all. V0.199 kept the narrow
+                 read here without a word, which is how 113 shipped as 11. Keep it - most
+                 2-digit reads on this sheet are simply 2-digit numbers - but SAY SO. */
+              unconfirmed++;
+            }
           }
           if(text[0]==='0')continue;  /* a leading 0 is a clipped longer number */
           /* a lone "1" is a wall line or a wire far more often than device 1 */
@@ -2210,7 +2342,9 @@
           reads++;
         }
         c.meta.stripReads=seen;
-        clippedTotal+=clipped;   /* [219-B] */
+        clippedTotal+=clipped;unconfirmedTotal+=unconfirmed;   /* [219-B] [221-B] */
+        if(unconfirmed&&seen.length&&seen.every(k=>String(k.dev).length===2))
+          c.meta.ocrNote='The number read as two digits and a wider look could not confirm it. If it is a three-digit number, type it in.';
         if(clipped&&!seen.length)c.meta.ocrIssue="The printed number is wider than the reader's window - it is probably three digits. Type it in.";
         const distinct=[...new Set(seen.map(k=>k.dev))];
         if(distinct.length>1){
@@ -2224,7 +2358,7 @@
     }finally{
       if(worker.setParameters) await worker.setParameters({tessedit_char_whitelist:''});
     }
-    return {candidates:indexes.length,crops,reads,readCandidates,clipped:clippedTotal,upscale:OCR_STRIP_UPSCALE};
+    return {candidates:indexes.length,crops,reads,readCandidates,clipped:clippedTotal,unconfirmed:unconfirmedTotal,diag:readDiag,upscale:OCR_STRIP_UPSCALE};
   }
 
   async function runOcrCandidatePass(worker,candidates,indexes,opts,rawLabels,phase,offsets,upscale){
@@ -2508,8 +2642,9 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     const p=r.phases,s=r.summary||{};const st=p.strip||{};
     const style=(s.hires?`sheet at ${s.hires.k}× detail, `:'')+(st.adopted?'bare numbers (strips)':(st.skipped?'L01.D40 labels (wide passes)':(p.probe?'no style adopted - fell back to the wide passes':'wide passes')));
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
-    return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,
-      text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p},null,1)};
+    return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,unconfirmed:st.unconfirmed||0,
+      text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p,
+        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,diag:zoneDiagOut(session.fillZones.diag)}:null},null,1)};   /* [221-D] */
   }
   function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
   /* PASS 209 [209-A] - a progress tick touches the status line, the bar and the
@@ -2797,7 +2932,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const status=session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):'');
       const reader=ocrOk===false?'<div class="spWarn" data-sp="noocr">This app does not include the label reader — the numbers are typed in at Review.</div>':'';
       const btnLabel=ocrOk===false?'Find the rest':'Find the rest and read their numbers';
-      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spCaption" data-sp="nosrc">This plan has no source PDF (imported before V0.197, or from a photo), so numbers are read from the workspace image. For a PDF, Replace the plan with the PDF once and the reader works at full detail.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
+      html=`<div class="spScreen"><h3>Find and read</h3><p>Smart Plan will find every detector like the one you showed it${ocrOk===false?'':', then read the number printed next to each'}. This can take a few minutes on a big sheet — Cancel is in the footer.</p>${(ocrOk===false||planSource())?'':'<div class="spCaption" data-sp="nosrc">This plan has no source PDF (imported before V0.197, or from a photo), so numbers are read from the workspace image. For a PDF, Replace the plan with the PDF once and the reader works at full detail.</div>'}${reader}${t?'':'<div class="spWarn">Show one detector first (Back).</div>'}<button class="btn spPrimary spBig" data-sp="findread" ${(!t||busy||session.committed)?'disabled':''}>${btnLabel}</button>${status?`<div class="spWarn" data-sp="status">${escapeHtml(status)}</div>`:''}${done?`<div class="spDone" data-sp="found">Found <b>${done.kept}</b> ${done.type?escapeHtml(arcTypeLabel(done.type)):'detector'}${done.kept===1?'':'s'}${done.read!=null?` · read <b>${done.read}</b> number${done.read===1?'':'s'}`:''}${done.area?` · ${done.area} left out (excluded areas)`:''}.${spTypeCounts().length>1?` All runs: ${spTypeLine()}.`:''}${done.kept?'':' Try a tighter box, or a different detector, under Show one detector.'}${(()=>{const d=spReadDiag();if(!d||done.read==null)return '';return ` Reader: ${escapeHtml(d.style)}, ${d.looks} looks, ${d.agreed} agreed read${d.agreed===1?'':'s'} on ${d.readCandidates} symbol${d.readCandidates===1?'':'s'}, ${d.applied} applied, ${d.withheld} held for Review${d.unconfirmed?`, ${d.unconfirmed} two-digit read${d.unconfirmed===1?'':'s'} a wider look could not confirm`:''}, ${Math.round(d.ms/1000)} s.<details data-sp="diag"><summary>Diagnostics (copy this to Claude if the numbers look wrong)</summary><textarea readonly data-sp="diagtext" style="width:100%;min-height:120px;font-size:11px">${escapeHtml(d.text)}</textarea></details>`;})()}</div>`:''}<button class="btn spQuiet" data-sp="another" ${busy?'disabled':''}>Show a different detector type</button></div>`;
     }else if(uiStep===4){
       html=`<div class="spScreen"><h3>Panel schedule <span class="spHint">(optional)</span></h3><p>Have the panel's device list? Load it and Smart Plan checks every number against it.</p><button class="btn spPrimary spBig" data-sp="schedule">${session.schedule.length?'Load a different list…':'Load the device list…'}</button><p class="spHint">CSV, TSV, TXT, JSON or XLSX — the same file the Annuals tool takes.</p><div data-sp="recon"></div>${session.schedule.length?'<button class="btn spQuiet" data-sp="reconcile">Check again</button>':''}</div>`;
     }else if(uiStep===5){
@@ -2988,7 +3123,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.199 beta";
+  const MODULE_VERSION = "V0.200 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
