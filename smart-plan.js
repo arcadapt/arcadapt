@@ -93,6 +93,21 @@
      hatches are the same symbol; a filled shape's outline lands on the square's own sides,
      so its stroke count is chance (0-5 on his sounders) and the fill alone is the symbol */
   const VEC_HATCH_MIN = 10, VEC_INNER_TOL = 1;
+  /* [228-A] THE STROKE-FONT DIGITS. A glyph piece is a black stroked path no bigger than
+     VEC_PIECE_MAX_PX; pieces that touch (within a fraction of the expected glyph height,
+     tighter sideways than up-and-down because the next digit is only 0.8 px away while an
+     8's loops can sit 0.9 px apart) make a glyph; a glyph is digit-sized when its height is
+     VEC_GLYPH_H_MIN..MAX of the square's side; glyphs on one baseline (VEC_WORD_BASE of a
+     height apart) with a gap under VEC_WORD_GAP heights make a word. A glyph reads as a
+     digit when its 90th-percentile point distance to that digit's template, in units of
+     glyph height, is under VEC_GLYPH_TOL and no OTHER digit comes within VEC_GLYPH_MARGIN
+     of that. A word is a label when it is all digits, at most three, and its centre is
+     within VEC_LABEL_REACH sides of the square. The templates are the ten digits of the
+     stroke font on his sheets, height 1, as drawn: 8, 1 and 3 have a second form. */
+  const VEC_PIECE_MAX_PX = 12, VEC_GLYPH_H_MIN = 0.32, VEC_GLYPH_H_MAX = 0.58, VEC_GLYPH_W_MAX = 0.5;
+  const VEC_TOUCH_X = 0.05, VEC_TOUCH_Y = 0.16, VEC_WORD_BASE = 0.25, VEC_WORD_GAP = 0.7, VEC_WORD_MAX = 3;
+  const VEC_GLYPH_TOL = 0.08, VEC_GLYPH_MARGIN = 0.03, VEC_LABEL_REACH = 1.6, VEC_SAMPLE = 0.04;
+  const VEC_DIGITS = Object.freeze([{"d":"1","w":0.217,"s":[[[0.217,1.0],[0.217,0.0],[0.0,0.217]]]},{"d":"6","w":0.449,"s":[[[0.336,0.0],[0.206,0.075],[0.103,0.178],[0.037,0.299],[0.0,0.449],[0.0,0.776],[0.019,0.86],[0.065,0.935],[0.14,0.981],[0.224,1.0],[0.308,0.981],[0.383,0.935],[0.43,0.86],[0.449,0.776],[0.449,0.664],[0.439,0.598],[0.411,0.533],[0.364,0.477],[0.299,0.449],[0.0,0.449]]]},{"d":"2","w":0.443,"s":[[[0.226,0.0],[0.123,0.019],[0.047,0.075],[0.0,0.17]],[[0.415,0.34],[0.443,0.255],[0.434,0.16],[0.387,0.075],[0.311,0.019],[0.226,0.0]],[[0.415,0.34],[0.0,1.0],[0.443,1.0]]]},{"d":"4","w":0.551,"s":[[[0.215,0.0],[0.0,0.776],[0.551,0.776]],[[0.383,0.561],[0.383,1.0]]]},{"d":"9","w":0.443,"s":[[[0.104,1.0],[0.217,0.953],[0.311,0.868],[0.377,0.764],[0.425,0.651],[0.443,0.528],[0.443,0.226],[0.425,0.142],[0.377,0.066],[0.302,0.019],[0.217,0.0],[0.132,0.019],[0.057,0.066],[0.009,0.142],[0.0,0.226],[0.0,0.33],[0.009,0.415],[0.057,0.491],[0.132,0.538],[0.217,0.557],[0.443,0.557]]]},{"d":"5","w":0.443,"s":[[[0.0,1.0],[0.226,1.0],[0.311,0.981],[0.387,0.934],[0.434,0.868],[0.443,0.783],[0.443,0.67],[0.434,0.585],[0.387,0.509],[0.311,0.462],[0.226,0.443],[0.0,0.443],[0.0,0.0],[0.396,0.0]]]},{"d":"7","w":0.443,"s":[[[0.226,1.0],[0.443,0.0],[0.0,0.0],[0.0,0.113]]]},{"d":"3","w":0.453,"s":[[[0.0,0.0],[0.226,0.0]],[[0.226,0.443],[0.311,0.434],[0.387,0.377],[0.434,0.311],[0.453,0.226],[0.434,0.142],[0.387,0.066],[0.311,0.019],[0.226,0.0]],[[0.226,0.443],[0.113,0.443]],[[0.453,0.67],[0.434,0.585],[0.387,0.509],[0.311,0.462],[0.226,0.443]],[[0.453,0.67],[0.453,0.783]],[[0.226,1.0],[0.311,0.991],[0.387,0.934],[0.434,0.868],[0.453,0.783]],[[0.226,1.0],[0.0,1.0]]]},{"d":"0","w":0.434,"s":[[[0.104,0.057],[0.028,0.226],[0.0,0.406],[0.0,0.594],[0.028,0.774],[0.104,0.943]],[[0.33,0.057],[0.274,0.009],[0.217,0.0],[0.151,0.009],[0.104,0.057]],[[0.33,0.943],[0.396,0.774],[0.434,0.594],[0.434,0.406],[0.396,0.226],[0.33,0.057]],[[0.104,0.943],[0.151,0.991],[0.217,1.0],[0.274,0.991],[0.33,0.943]]]},{"d":"8","w":0.443,"s":[[[0.443,0.226],[0.425,0.142],[0.377,0.066],[0.311,0.019],[0.217,0.0],[0.132,0.019],[0.066,0.066],[0.019,0.142],[0.0,0.226],[0.019,0.311],[0.377,0.377],[0.425,0.311],[0.443,0.226],[0.443,0.226]],[[0.443,0.67],[0.425,0.585],[0.377,0.509],[0.311,0.462],[0.217,0.443],[0.132,0.462],[0.066,0.509],[0.019,0.585],[0.0,0.67]],[[0.443,0.67],[0.443,0.783]],[[0.0,0.783],[0.019,0.868],[0.066,0.934],[0.132,0.991],[0.217,1.0],[0.311,0.991],[0.377,0.934],[0.425,0.868],[0.443,0.783]],[[0.0,0.783],[0.0,0.67]]]},{"d":"8","w":0.511,"s":[[[0.511,0.261],[0.489,0.152],[0.435,0.076],[0.348,0.022],[0.25,0.0],[0.152,0.022],[0.065,0.076],[0.011,0.152],[0.0,0.261],[0.011,0.359],[0.065,0.435],[0.152,0.489],[0.25,0.511],[0.348,0.489],[0.435,0.435],[0.489,0.359],[0.511,0.261],[0.511,0.261]],[[0.511,0.772],[0.489,0.674],[0.435,0.587],[0.348,0.533],[0.25,0.511],[0.152,0.533],[0.065,0.587],[0.011,0.674],[0.0,0.772]],[[0.511,0.772],[0.511,0.902]],[[0.0,0.902],[0.011,1.0],[0.489,1.0],[0.511,0.902]],[[0.0,0.902],[0.0,0.772]]]},{"d":"1","w":0.224,"s":[[[0.0,0.224],[0.224,0.0],[0.224,1.0]]]},{"d":"3","w":0.439,"s":[[[0.0,0.0],[0.224,0.0]],[[0.224,0.449],[0.308,0.43],[0.308,0.019],[0.224,0.0]],[[0.224,0.449],[0.112,0.449]],[[0.439,0.664],[0.421,0.579],[0.374,0.514],[0.308,0.458],[0.224,0.449]],[[0.439,0.664],[0.439,0.776]],[[0.224,1.0],[0.308,0.981],[0.374,0.935],[0.421,0.86],[0.439,0.776]],[[0.224,1.0],[0.0,1.0]]]}]);
   /* [220-A] how far around a symbol to look, in multiples of its half-width, and the
      gate for "this pixel is a coloured fill" - the same saturation/value cut
      teachZoneHatch already uses, so a wall, black ink or white paper never votes.
@@ -377,6 +392,7 @@
       ocrConfidence:m0.ocrConfidence == null ? null : Number(m0.ocrConfidence),
       detectorRun:field(m0.detectorRun),
       detectorSignal:field(m0.detectorSignal),
+      method:field(m0.method),vectorSide:m0.vectorSide == null ? null : Number(m0.vectorSide),vectorInner:m0.vectorInner == null ? null : Number(m0.vectorInner),vectorFill:!!m0.vectorFill,devHow:field(m0.devHow),   /* [228-A] the vector finder's facts about a candidate, kept */
       bbox:Array.isArray(m0.bbox) ? m0.bbox.map(Number) : null,
       rotation:m0.rotation == null ? null : Number(m0.rotation),
       interiorNcc:m0.interiorNcc == null ? null : Number(m0.interiorNcc),
@@ -1882,34 +1898,40 @@
       const bin=atob(src.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
       const pdf=await window.pdfjsLib.getDocument({data:u}).promise,page=await pdf.getPage(src.page||1);
       const vp=page.getViewport({scale:src.scale||1}),ol=await page.getOperatorList(),O=window.pdfjsLib.OPS;
-      const paths=[];let ctm=[1,0,0,1,0,0];const stack=[];let cur=null,start=null;
+      const paths=[];let ctm=[1,0,0,1,0,0];const stack=[];let cur=null,start=null;let sub=null,black=true;   /* [228-A] the glyph pieces need the polylines and the stroke colour */
       const ap=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
       const FILL=new Set([O.fill,O.eoFill,O.fillStroke,O.eoFillStroke,O.closeFillStroke,O.closeEOFillStroke]);
+      const STROKE=new Set([O.stroke,O.closeStroke,O.fillStroke,O.eoFillStroke,O.closeFillStroke,O.closeEOFillStroke]);   /* [228-A] */
       for(let i=0;i<ol.fnArray.length;i++){const fn=ol.fnArray[i],a=ol.argsArray[i];
         if(fn===O.save)stack.push(ctm.slice());
         else if(fn===O.restore){if(stack.length)ctm=stack.pop();}
         else if(fn===O.transform)ctm=vecMul(ctm,a);
         else if(fn===O.paintFormXObjectBegin){stack.push(ctm.slice());if(a&&a[0])ctm=vecMul(ctm,a[0]);}
         else if(fn===O.paintFormXObjectEnd){if(stack.length)ctm=stack.pop();}
-        else if(fn===O.constructPath){const ops=a[0],c=a[1];let k=0;const segs=[];
+        else if(fn===O.setStrokeRGBColor){const rgb=a?Array.from(a).slice(0,3):[];black=rgb.length===3&&rgb.every(v=>Number(v)<=64);}   /* [228-A] pdf.js hands the colour over as 0..255; a digit is black, a room code on his sheet is not */
+        else if(fn===O.setStrokeGray){const g=Number(a&&a[0]);black=g<=0.25||(g>1&&g<=64);}
+        else if(fn===O.setStrokeCMYKColor){const k=Number(a&&a[3]);black=k>=0.75||(k>1&&k>=191);}
+        else if(fn===O.constructPath){const ops=a[0],c=a[1];let k=0;const segs=[],subs=[];sub=null;
           for(const op of ops){
-            if(op===O.moveTo){cur=ap(ctm,c[k],c[k+1]);start=cur;k+=2;}
-            else if(op===O.lineTo){const p=ap(ctm,c[k],c[k+1]);if(cur)segs.push([cur,p]);cur=p;k+=2;}
-            else if(op===O.curveTo){const p=ap(ctm,c[k+4],c[k+5]);if(cur)segs.push([cur,p]);cur=p;k+=6;}
-            else if(op===O.curveTo2||op===O.curveTo3){const p=ap(ctm,c[k+2],c[k+3]);if(cur)segs.push([cur,p]);cur=p;k+=4;}
-            else if(op===O.closePath){if(cur&&start)segs.push([cur,start]);cur=start;}
-            else if(op===O.rectangle){const x=c[k],y=c[k+1],w=c[k+2],h=c[k+3];k+=4;const p=[ap(ctm,x,y),ap(ctm,x+w,y),ap(ctm,x+w,y+h),ap(ctm,x,y+h)];for(let q=0;q<4;q++)segs.push([p[q],p[(q+1)%4]]);cur=p[0];start=p[0];}
+            if(op===O.moveTo){cur=ap(ctm,c[k],c[k+1]);start=cur;k+=2;sub=[cur];subs.push(sub);}
+            else if(op===O.lineTo){const p=ap(ctm,c[k],c[k+1]);if(cur)segs.push([cur,p]);cur=p;k+=2;if(sub)sub.push(p);}
+            else if(op===O.curveTo){const p=ap(ctm,c[k+4],c[k+5]);if(cur)segs.push([cur,p]);cur=p;k+=6;if(sub)sub.push(p);}
+            else if(op===O.curveTo2||op===O.curveTo3){const p=ap(ctm,c[k+2],c[k+3]);if(cur)segs.push([cur,p]);cur=p;k+=4;if(sub)sub.push(p);}
+            else if(op===O.closePath){if(cur&&start)segs.push([cur,start]);cur=start;if(sub&&start)sub.push(start);}
+            else if(op===O.rectangle){const x=c[k],y=c[k+1],w=c[k+2],h=c[k+3];k+=4;const p=[ap(ctm,x,y),ap(ctm,x+w,y),ap(ctm,x+w,y+h),ap(ctm,x,y+h)];for(let q=0;q<4;q++)segs.push([p[q],p[(q+1)%4]]);cur=p[0];start=p[0];subs.push([p[0],p[1],p[2],p[3],p[0]]);}
           }
           /* the op after the path is how it is painted: a filled path is a solid shape (a sounder's triangle), a stroked one is lines */
-          const nx=ol.fnArray[i+1];paths.push({segs,fill:FILL.has(nx)});}
+          const nx=ol.fnArray[i+1];paths.push({segs,fill:FILL.has(nx),stroke:STROKE.has(nx),black,subs});}
       }
       const toPx=(p)=>{const A=vp.convertToViewportPoint(p[0],p[1]);return [A[0]-(src.dx||0),A[1]-(src.dy||0)];};
-      const px=[],ppx=[];
+      const px=[],ppx=[],pieces=[];
       paths.forEach(pt=>{const ss=pt.segs.map(([p,q])=>{const A=toPx(p),B=toPx(q);return [A[0],A[1],B[0],B[1]];});ss.forEach(v=>px.push(v));
-        if(ss.length){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ss.forEach(([a,b,c,d])=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d);});ppx.push({segs:ss,fill:pt.fill,x0,y0,x1,y1});}});
+        if(ss.length){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ss.forEach(([a,b,c,d])=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d);});ppx.push({segs:ss,fill:pt.fill,x0,y0,x1,y1});
+          /* [228-A] a glyph piece: black, stroked, not filled, small */
+          if(pt.stroke&&!pt.fill&&pt.black&&x1-x0<=VEC_PIECE_MAX_PX&&y1-y0<=VEC_PIECE_MAX_PX)pieces.push({x0,y0,x1,y1,pl:pt.subs.filter(s=>s.length>=2).map(s=>s.map(toPx))});}});
       const sq=vecSquaresFromSegments(px);
       vecSignatures(sq.squares,ppx);
-      session.vector={src,squares:sq.squares,segments:px.length,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};
+      session.vector={src,squares:sq.squares,segments:px.length,pieces,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};   /* [228-A] */
       try{pdf.destroy();}catch(_){}
       return session.vector;
     }catch(e){session.vector={src,squares:null,why:'vector-failed: '+((e&&e.message)||'unknown')};return session.vector;}
@@ -1942,6 +1964,95 @@
     const mine=squares.filter(s=>Math.abs(s.x-cx)<=ow/2+2&&Math.abs(s.y-cy)<=oh/2+2&&s.side>=VEC_TAUGHT_MIN*lo&&s.side<=VEC_TAUGHT_MAX*hi)
       .sort((a,b)=>Math.abs(a.side-lo)-Math.abs(b.side-lo));
     return mine.length?mine[0].side:null;
+  }
+
+  /* [228-A] ---- the numbers, read off the drawing --------------------------------- */
+  function vecSamplePts(strokes,h,x0,y0){
+    /* points every VEC_SAMPLE heights along every polyline, in units of glyph height, from the glyph's top-left */
+    const out=[],step=VEC_SAMPLE;
+    for(const s of strokes)for(let i=0;i+1<s.length;i++){
+      const ax=(s[i][0]-x0)/h,ay=(s[i][1]-y0)/h,bx=(s[i+1][0]-x0)/h,by=(s[i+1][1]-y0)/h,L=Math.hypot(bx-ax,by-ay),n=Math.max(1,Math.ceil(L/step));
+      for(let k=0;k<=n;k++){const t=k/n;out.push([ax+(bx-ax)*t,ay+(by-ay)*t]);}
+    }
+    return out;
+  }
+  function vecP90(p,q){
+    /* the 90th-percentile nearest distance from p to q: a shape has to match nearly everywhere */
+    const ds=new Float64Array(p.length);
+    for(let i=0;i<p.length;i++){let best=1e9;const [x,y]=p[i];for(let j=0;j<q.length;j++){const dx=x-q[j][0],dy=y-q[j][1],d=dx*dx+dy*dy;if(d<best)best=d;}ds[i]=Math.sqrt(best);}
+    ds.sort();return ds[Math.min(ds.length-1,Math.floor(ds.length*0.9))];
+  }
+  let vecTemplateCache=null;
+  function vecTemplates(){
+    if(vecTemplateCache)return vecTemplateCache;
+    vecTemplateCache=VEC_DIGITS.map(t=>({d:t.d,pts:vecSamplePts(t.s,1,0,0)}));
+    return vecTemplateCache;
+  }
+  function vecReadGlyph(strokes,b){
+    const h=b[3]-b[1];if(!(h>0))return null;
+    const pts=vecSamplePts(strokes,h,b[0],b[1]);
+    const scores=vecTemplates().map(t=>({d:t.d,s:Math.max(vecP90(pts,t.pts),vecP90(t.pts,pts))})).sort((a,b)=>a.s-b.s);
+    const best=scores[0],other=scores.find(x=>x.d!==best.d);
+    if(best.s>VEC_GLYPH_TOL||(other&&other.s-best.s<VEC_GLYPH_MARGIN))return null;
+    return best.d;
+  }
+  function vecLabelsFor(cx,cy,side,pieces){
+    /* the pieces around one square -> glyphs -> words -> the digit words, nearest first */
+    const reach=side*VEC_LABEL_REACH+side*0.6,half=side/2+0.02*side,gh=side*0.45;
+    const near=[];
+    for(const p of pieces){
+      const mx=(p.x0+p.x1)/2,my=(p.y0+p.y1)/2;
+      if(Math.abs(mx-cx)>reach||Math.abs(my-cy)>reach)continue;
+      if(p.x0>=cx-half&&p.x1<=cx+half&&p.y0>=cy-half&&p.y1<=cy+half)continue;   /* inside the square: the symbol */
+      near.push(p);
+    }
+    const tx=gh*VEC_TOUCH_X,ty=gh*VEC_TOUCH_Y;
+    const glyphs=[];
+    for(const p of near){
+      const hit=glyphs.filter(g=>!(g.x1<p.x0-tx||p.x1<g.x0-tx||g.y1<p.y0-ty||p.y1<g.y0-ty));
+      if(!hit.length){glyphs.push({x0:p.x0,y0:p.y0,x1:p.x1,y1:p.y1,pieces:[p]});continue;}
+      const g=hit[0];g.pieces.push(p);g.x0=Math.min(g.x0,p.x0);g.y0=Math.min(g.y0,p.y0);g.x1=Math.max(g.x1,p.x1);g.y1=Math.max(g.y1,p.y1);
+      for(const o of hit.slice(1)){g.pieces.push(...o.pieces);g.x0=Math.min(g.x0,o.x0);g.y0=Math.min(g.y0,o.y0);g.x1=Math.max(g.x1,o.x1);g.y1=Math.max(g.y1,o.y1);glyphs.splice(glyphs.indexOf(o),1);}
+    }
+    const sized=glyphs.filter(g=>{const h=g.y1-g.y0,w=g.x1-g.x0;return h>=side*VEC_GLYPH_H_MIN&&h<=side*VEC_GLYPH_H_MAX&&w<=side*VEC_GLYPH_W_MAX;}).sort((a,b)=>a.x0-b.x0);
+    const words=[];
+    for(const g of sized){
+      const h=g.y1-g.y0;let w=null;
+      for(const x of words){if(Math.abs(x.bot-g.y1)<=h*VEC_WORD_BASE&&g.x0-x.x1<=h*VEC_WORD_GAP){w=x;break;}}
+      if(w){w.g.push(g);w.x1=Math.max(w.x1,g.x1);w.top=Math.min(w.top,g.y0);}else words.push({g:[g],bot:g.y1,top:g.y0,x0:g.x0,x1:g.x1});
+    }
+    const out=[];let seen=0;
+    for(const w of words){
+      if(w.g.length>VEC_WORD_MAX)continue;
+      const mx=(w.x0+w.x1)/2,my=(w.top+w.bot)/2,d=Math.max(Math.abs(mx-cx),Math.abs(my-cy));
+      if(d>side*VEC_LABEL_REACH)continue;
+      seen++;
+      let text='';
+      for(const g of w.g){const dgt=vecReadGlyph(g.pieces.flatMap(p=>p.pl),[g.x0,g.y0,g.x1,g.y1]);if(dgt===null){text=null;break;}text+=dgt;}
+      if(text===null||!text.length)continue;
+      out.push({text,dist:d,bbox:[w.x0,w.top,w.x1-w.x0,w.bot-w.top]});
+    }
+    out.sort((a,b)=>a.dist-b.dist);
+    return {words:out,seen};
+  }
+  function vecReadLabels(candidates,rawLabels){
+    /* [228-A] every candidate the vector finder placed gets its number from the drawing, if
+       the drawing has one beside it in the stroke font. Reads go into the same pool as the
+       OCR's, so one label lands on one device and the OCR only looks at what is left. */
+    const started=performance.now?performance.now():Date.now();
+    const v=session.vector;const pieces=v&&v.pieces;
+    if(!pieces||!pieces.length)return {candidates:0,reads:0,readCandidates:0,seen:0,ms:0,why:v?(v.why||'no-glyph-pieces'):'no-vector'};
+    let reads=0,readCandidates=0,seen=0,n=0;
+    candidates.forEach(c=>{
+      if(!c.meta||c.meta.method!=='vector'||!(c.meta.vectorSide>0))return;
+      n++;const cx=Number(c.obj.x),cy=Number(c.obj.y),side=c.meta.vectorSide;
+      const r=vecLabelsFor(cx,cy,side,pieces);seen+=r.seen;
+      if(!r.words.length)return;
+      const w=r.words[0],dev=String(parseInt(w.text,10));
+      rawLabels.push({loop:'',dev,raw:w.text,text:w.text,confidence:100,bbox:w.bbox.slice(),votes:1,variant:'vector',psm:'',phase:'vector',observedNear:c.id,offsetX:0,offsetY:0,upscale:1});
+      reads++;readCandidates++;
+    });
+    return {candidates:n,reads,readCandidates,seen,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};
   }
 
   function tightenWorkBox(f,wb){
@@ -2837,8 +2948,15 @@
       }
       if(opts.mode==='dev-only'||opts.mode==='dev-only-try'){
         const forced=opts.mode==='dev-only';
-        phases.strip=await runOcrStripPass(worker,candidates,all,rawLabels);
-        numbersOnly=forced||phases.strip.readCandidates>=Math.max(1,Math.ceil(candidates.length*OCR_STRIP_ADOPT_RATIO));
+        /* [228-A] the drawing first: on a vector sheet the numbers are stroke-font glyphs beside
+           each square, read by shape in well under a second. What that reads settles those
+           candidates; the OCR strips run only on what is left. */
+        session.ocrStatus='Reading the numbers off the drawing…';session.progress=null;spTick();
+        phases.vector=vecReadLabels(candidates,rawLabels);
+        let stripIdx=all;
+        if(phases.vector.reads){const pv=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);stripIdx=unreadCandidateIndexes(pv,candidates);phases.vector.settled=candidates.length-stripIdx.length;}
+        phases.strip=await runOcrStripPass(worker,candidates,stripIdx,rawLabels);
+        numbersOnly=forced||(phases.strip.readCandidates+phases.vector.readCandidates)>=Math.max(1,Math.ceil(candidates.length*OCR_STRIP_ADOPT_RATIO));
         if(!numbersOnly){rawLabels.length=0;candidates.forEach(c=>{delete c.meta.stripReads;delete c.meta.stripConflict;});}
         opts.mode=numbersOnly?'dev-only':'loop-device';
         phases.strip.adopted=numbersOnly;
@@ -2882,7 +3000,7 @@
 
       const labels=pool.labels,assigned=pool.assigned,consistency=pool.consistency;
       let applied=0,withheld=0,mismatch=0;
-      candidates.forEach(c=>{if(c.meta.devSource==='ocr'){c.obj.dev='';c.meta.devSource='';}if(c.meta.loopSource==='ocr'){c.obj.loop='';c.meta.loopSource='';}c.meta.ocrIssue='';c.meta.ocrDistance=null;c.meta.ocrConfidence=null;});
+      candidates.forEach(c=>{if(c.meta.devSource==='ocr'){c.obj.dev='';c.meta.devSource='';c.meta.devHow='';}if(c.meta.loopSource==='ocr'){c.obj.loop='';c.meta.loopSource='';}c.meta.ocrIssue='';c.meta.ocrDistance=null;c.meta.ocrConfidence=null;});
       candidates.forEach(c=>{if(numbersOnly&&Array.isArray(c.meta.stripConflict)&&c.meta.stripConflict.length>1){c.meta.ocrIssue=`Two numbers are printed next to it: ${c.meta.stripConflict.join(' and ')}. Pick one.`;c.decision='review';withheld++;}});
       assigned.assignments.forEach(a=>{
         const c=a.candidate,lab=a.label;c.meta.ocrDistance=Math.round(a.distance*10)/10;c.meta.ocrConfidence=lab.confidence;
@@ -2892,7 +3010,7 @@
         if((protectedDev&&field(c.obj.dev)!==lab.dev)||(protectedLoop&&lab.loop&&field(c.obj.loop)!==lab.loop)){
           mismatch++;c.meta.ocrIssue=`Printed identity ${lab.loop?`L${lab.loop}.D`:''}${lab.dev} disagrees with the ${protectedDev||protectedLoop?'user/schedule':'existing'} identity.`;c.decision='review';return;
         }
-        if(!protectedDev){c.obj.dev=lab.dev;c.meta.devSource='ocr';}
+        if(!protectedDev){c.obj.dev=lab.dev;c.meta.devSource='ocr';c.meta.devHow=lab.variant==='vector'?'vector':'ocr';}   /* [228-A] read off the drawing, or read off the pixels */
         if(lab.loop&&!protectedLoop){c.obj.loop=lab.loop;c.meta.loopSource='ocr';}
         applied++;
       });
@@ -2901,6 +3019,7 @@
       const finalAssigned=pool.assigned.usedCandidates.size;
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
+        vector:phases.vector?{reads:phases.vector.reads,settled:phases.vector.settled||0,seen:phases.vector.seen,ms:phases.vector.ms,why:phases.vector.why||''}:null,   /* [228-A] */
         retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:{off:hiresWhy||'unknown'}},   /* [222-A] */
         phases:clone(phases),labels:clone(labels),consistency:clone(consistency),finishedAt:Date.now()};
       session.ocrReport=report;session.ocrStatus='';return clone(report);
@@ -3588,8 +3707,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.206 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.207 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
