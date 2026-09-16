@@ -1245,7 +1245,15 @@
       const conflicts=f.groups.filter(g=>g.zoneConflict).length;
       f.labels=labels.map(L=>({zone:L.zone,text:L.text,bbox:L.bbox.map(v=>Math.round(v)),anchor:L.anchor.map(v=>Math.round(v)),how:L.how,hue:L.hue,group:L.group,conf:Math.round(L.conf),pass:L.pass||'second',second:!!L.second}));
       f.named=named; f.readMs=Date.now()-started;
-      session.zoneStatus=labels.length
+      /* [226-1] his ruling on the V0.204 walk: a CLEAN read goes straight on. Clean = every colour
+         named and none with two names. The same applyFillZones() the button runs - nothing lands
+         that the button would not have put there. Anything short of clean is exactly as before:
+         the boxes fill, the refusal shows its reason, and the button waits for him. */
+      const cleanRead=labels.length>0&&f.groups.length>0&&named===f.groups.length&&conflicts===0;
+      f.autoApplied=false;
+      if(cleanRead){const put=applyFillZones();f.autoApplied=true;f.applied=put.set;
+        session.zoneStatus=`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. ${named} named off the sheet and put on ${put.set} detector${put.set===1?'':'s'} - check Review if one looks wrong.`;}
+      else session.zoneStatus=labels.length
         ?`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. ${named} named off the sheet${conflicts?`, ${conflicts} with two names`:''} - check them, then put them on.`
         :`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. No zone names found on the sheet - name each one.`;
       return clone(f);
@@ -3580,7 +3588,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.205 beta";
+  const MODULE_VERSION = "V0.206 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
