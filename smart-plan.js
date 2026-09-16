@@ -80,6 +80,19 @@
   const DETECT_NMS_IOU = 0.15;
   const DETECT_NMS_CENTRE_FACTOR = 1.30;
   const DETECT_MAX_RESULTS = 400;
+  /* [226-A] THE VECTOR FINDER. A vector PDF says where every square is, exactly; these
+     bound what counts as one. Sides in plan px. VEC_SIDE_MATCH is how far a square's side
+     may sit from the one he showed (his drafting firm's 14.34 pt squares agree to 0.06 pt;
+     6 % leaves room for a plotter's rounding, not for a different symbol). VEC_CORNER_TOL
+     is how far apart two strokes' endpoints may be and still make a corner - some corners
+     are drawn as separate strokes that do not meet exactly. */
+  const VEC_SIDE_MIN = 6, VEC_SIDE_MAX = 80, VEC_CORNER_TOL = 0.45, VEC_SIDE_MATCH = 0.06;
+  const VEC_TAUGHT_MIN = 0.5, VEC_TAUGHT_MAX = 1.15;   /* the taught square's side against his box */
+  /* inner strokes: a symbol repeats its stroke count exactly (his 109 smokes all have 3); a
+     hatch is anchored to the sheet, not the symbol, so its count varies (41-53 on his) and any two
+     hatches are the same symbol; a filled shape's outline lands on the square's own sides,
+     so its stroke count is chance (0-5 on his sounders) and the fill alone is the symbol */
+  const VEC_HATCH_MIN = 10, VEC_INNER_TOL = 1;
   /* [220-A] how far around a symbol to look, in multiples of its half-width, and the
      gate for "this pixel is a coloured fill" - the same saturation/value cut
      teachZoneHatch already uses, so a wall, black ink or white paper never votes.
@@ -1827,6 +1840,102 @@
     cv.width=1;cv.height=1;
     return {mask,w:W,h:H,x0,y0,k,inner:{x:(x-x0)*k,y:(y-y0)*k,w:w*k,h:h*k}};
   }
+  /* [226-A] ---- the drawing's own geometry ---------------------------------------- */
+  /* Every closed axis-aligned square the PDF draws, in plan px, read once per plan and
+     kept on the session. Paths come out of pdf.js as constructPath ops with their own
+     coordinate stack (save / restore / transform / form XObjects), so the walk keeps a
+     matrix and converts through the viewport the plan was rendered with, then subtracts
+     the region he kept (src.dx / src.dy) - the same mapping the hi-res reader uses. */
+  function vecMul(m,n){return [m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],m[0]*n[2]+m[2]*n[3],m[1]*n[2]+m[3]*n[3],m[0]*n[4]+m[2]*n[5]+m[4],m[1]*n[4]+m[3]*n[5]+m[5]];}
+  function vecSquaresFromSegments(px){
+    const H=[],V=[];
+    for(const [x0,y0,x1,y1] of px){const L=Math.hypot(x1-x0,y1-y0);if(L<VEC_SIDE_MIN||L>VEC_SIDE_MAX)continue;
+      if(Math.abs(y1-y0)<0.35)H.push([Math.min(x0,x1),(y0+y1)/2,Math.max(x0,x1)]);else if(Math.abs(x1-x0)<0.35)V.push([(x0+x1)/2,Math.min(y0,y1),Math.max(y0,y1)]);}
+    const vix=new Map(),hix=new Map();
+    for(const v of V){const k=Math.round(v[0]);(vix.get(k)||vix.set(k,[]).get(k)).push(v);}
+    for(const h of H){const k=Math.round(h[1]);(hix.get(k)||hix.set(k,[]).get(k)).push(h);}
+    const near=(m,k)=>[].concat(m.get(k-1)||[],m.get(k)||[],m.get(k+1)||[]);
+    const T=VEC_CORNER_TOL,out=[];
+    for(const [x,y,x1] of H){const L=x1-x;
+      for(const [x2,y2,x3] of near(hix,Math.round(y+L))){
+        if(Math.abs(x2-x)>T||Math.abs(x3-x1)>T||Math.abs(y2-(y+L))>T)continue;
+        const lv=near(vix,Math.round(x)).some(v=>Math.abs(v[0]-x)<=T&&Math.abs(v[1]-y)<=T&&Math.abs(v[2]-y2)<=T);
+        const rv=near(vix,Math.round(x1)).some(v=>Math.abs(v[0]-x1)<=T&&Math.abs(v[1]-y)<=T&&Math.abs(v[2]-y2)<=T);
+        if(lv&&rv&&!out.some(o=>Math.abs(o.x-(x+L/2))<1.5&&Math.abs(o.y-(y+L/2))<1.5))out.push({x:x+L/2,y:y+L/2,side:L});}}
+    return {squares:out,h:H.length,v:V.length};
+  }
+  async function vectorSquares(){
+    const src=planSource(); if(!src)return {squares:null,why:'no-source-pdf'};
+    if(session.vector&&session.vector.src===src)return session.vector;
+    const started=performance.now?performance.now():Date.now();
+    try{
+      if(typeof ensurePdfJs!=='function')return {squares:null,why:'no-pdfjs-loader'};
+      await ensurePdfJs(); if(!window.pdfjsLib)return {squares:null,why:'pdfjs-did-not-load'};
+      const bin=atob(src.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      const pdf=await window.pdfjsLib.getDocument({data:u}).promise,page=await pdf.getPage(src.page||1);
+      const vp=page.getViewport({scale:src.scale||1}),ol=await page.getOperatorList(),O=window.pdfjsLib.OPS;
+      const paths=[];let ctm=[1,0,0,1,0,0];const stack=[];let cur=null,start=null;
+      const ap=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
+      const FILL=new Set([O.fill,O.eoFill,O.fillStroke,O.eoFillStroke,O.closeFillStroke,O.closeEOFillStroke]);
+      for(let i=0;i<ol.fnArray.length;i++){const fn=ol.fnArray[i],a=ol.argsArray[i];
+        if(fn===O.save)stack.push(ctm.slice());
+        else if(fn===O.restore){if(stack.length)ctm=stack.pop();}
+        else if(fn===O.transform)ctm=vecMul(ctm,a);
+        else if(fn===O.paintFormXObjectBegin){stack.push(ctm.slice());if(a&&a[0])ctm=vecMul(ctm,a[0]);}
+        else if(fn===O.paintFormXObjectEnd){if(stack.length)ctm=stack.pop();}
+        else if(fn===O.constructPath){const ops=a[0],c=a[1];let k=0;const segs=[];
+          for(const op of ops){
+            if(op===O.moveTo){cur=ap(ctm,c[k],c[k+1]);start=cur;k+=2;}
+            else if(op===O.lineTo){const p=ap(ctm,c[k],c[k+1]);if(cur)segs.push([cur,p]);cur=p;k+=2;}
+            else if(op===O.curveTo){const p=ap(ctm,c[k+4],c[k+5]);if(cur)segs.push([cur,p]);cur=p;k+=6;}
+            else if(op===O.curveTo2||op===O.curveTo3){const p=ap(ctm,c[k+2],c[k+3]);if(cur)segs.push([cur,p]);cur=p;k+=4;}
+            else if(op===O.closePath){if(cur&&start)segs.push([cur,start]);cur=start;}
+            else if(op===O.rectangle){const x=c[k],y=c[k+1],w=c[k+2],h=c[k+3];k+=4;const p=[ap(ctm,x,y),ap(ctm,x+w,y),ap(ctm,x+w,y+h),ap(ctm,x,y+h)];for(let q=0;q<4;q++)segs.push([p[q],p[(q+1)%4]]);cur=p[0];start=p[0];}
+          }
+          /* the op after the path is how it is painted: a filled path is a solid shape (a sounder's triangle), a stroked one is lines */
+          const nx=ol.fnArray[i+1];paths.push({segs,fill:FILL.has(nx)});}
+      }
+      const toPx=(p)=>{const A=vp.convertToViewportPoint(p[0],p[1]);return [A[0]-(src.dx||0),A[1]-(src.dy||0)];};
+      const px=[],ppx=[];
+      paths.forEach(pt=>{const ss=pt.segs.map(([p,q])=>{const A=toPx(p),B=toPx(q);return [A[0],A[1],B[0],B[1]];});ss.forEach(v=>px.push(v));
+        if(ss.length){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ss.forEach(([a,b,c,d])=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d);});ppx.push({segs:ss,fill:pt.fill,x0,y0,x1,y1});}});
+      const sq=vecSquaresFromSegments(px);
+      vecSignatures(sq.squares,ppx);
+      session.vector={src,squares:sq.squares,segments:px.length,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};
+      try{pdf.destroy();}catch(_){}
+      return session.vector;
+    }catch(e){session.vector={src,squares:null,why:'vector-failed: '+((e&&e.message)||'unknown')};return session.vector;}
+  }
+  /* WHAT IS INSIDE EACH SQUARE, from the drawing: the strokes that begin AND end inside it
+     (a loop wire running through has its ends outside and does not count - which is the
+     whole reason the raster finder lost those smokes), and whether a filled shape sits in
+     it (a sounder's solid triangle). A smoke on his sheet is 3 inner strokes and no fill;
+     a thermal's hatch is 40-50; a sounder is a fill with 5-7. */
+  function vecSignatures(squares,paths){
+    const M=0.8;
+    for(const s of squares){const h=s.side/2,x0=s.x-h,y0=s.y-h,x1=s.x+h,y1=s.y+h;let n=0,fill=false,len=0;
+      for(const p of paths){if(p.x1<x0-M||p.x0>x1+M||p.y1<y0-M||p.y0>y1+M)continue;
+        if(p.fill&&p.x0>=x0-M&&p.x1<=x1+M&&p.y0>=y0-M&&p.y1<=y1+M)fill=true;
+        for(const [a,b,c,d] of p.segs){if(a>x0+M&&a<x1-M&&b>y0+M&&b<y1-M&&c>x0+M&&c<x1-M&&d>y0+M&&d<y1-M){n++;len+=Math.hypot(c-a,d-b);}}}
+      s.inner=n;s.fill=fill;s.len=Math.round(len*10)/10;}
+  }
+  function vecSameSymbol(a,b){
+    if(!!a.fill!==!!b.fill)return false;
+    const ah=a.inner>=VEC_HATCH_MIN,bh=b.inner>=VEC_HATCH_MIN;
+    if(ah||bh)return ah&&bh;                                                  /* two hatches: the hatch never repeats exactly */
+    if(a.fill)return true;                                                    /* a filled shape: its outline strokes land on the square's own sides and count 0-5 by chance */
+    return Math.abs(a.inner-b.inner)<=VEC_INNER_TOL;
+  }
+  /* The square he drew the box around names the size; every square of that size is a
+     device; what is drawn inside it, against what is drawn inside the one he showed, says
+     whether it is THIS device. */
+  function vectorSideFor(squares,wb){
+    const [ox,oy,ow,oh]=wb.original,cx=ox+ow/2,cy=oy+oh/2,lo=Math.min(ow,oh),hi=Math.max(ow,oh);
+    const mine=squares.filter(s=>Math.abs(s.x-cx)<=ow/2+2&&Math.abs(s.y-cy)<=oh/2+2&&s.side>=VEC_TAUGHT_MIN*lo&&s.side<=VEC_TAUGHT_MAX*hi)
+      .sort((a,b)=>Math.abs(a.side-lo)-Math.abs(b.side-lo));
+    return mine.length?mine[0].side:null;
+  }
+
   function tightenWorkBox(f,wb){
     const W=wb.w,H=wb.h;if(W<4||H<4)return null;
     /* 1 - the plan's own pixels, full size */
@@ -1925,6 +2034,41 @@
       const base=cropMask(f,wb);
       if(base.ink<8)throw new Error(`The taught rectangle contains too little ${signal==='red'?'red ':' '}symbol ink. Draw tightly around one complete symbol.`);
       const taught=contourStats(f,wb.x,wb.y,wb.w,wb.h),taughtHole=closedContourStats(f,wb.x,wb.y,wb.w,wb.h),taughtClosed=taught.sides>=3||taughtHole.enclosedRatio>=0.035;
+      /* [226-A] the drawing's own geometry first; template matching only when it has nothing to say */
+      let vecRun=null;
+      {
+        session.detectStatus='Reading the drawing\u2019s own geometry\u2026';spTick();
+        const vs=await vectorSquares();spThrowIfCancelled();
+        const side=(vs&&vs.squares&&vs.squares.length)?vectorSideFor(vs.squares,wb):null;
+        if(!vs||!vs.squares)vecRun={why:vs?vs.why:'no-vector'};
+        else if(!vs.squares.length)vecRun={why:vs.segments?'no-squares-in-the-drawing':'no-lines-in-the-pdf-(a-scan)',squares:0};
+        else if(side===null)vecRun={why:'taught-box-is-not-a-square',squares:vs.squares.length};
+        else{
+          const same=vs.squares.filter(s=>Math.abs(s.side-side)<=side*VEC_SIDE_MATCH);
+          const [ox,oy,ow,oh]=wb.original,cx0=ox+ow/2,cy0=oy+oh/2;
+          const shown=same.filter(s=>Math.abs(s.x-cx0)<=ow/2+2&&Math.abs(s.y-cy0)<=oh/2+2).sort((a,b)=>Math.hypot(a.x-cx0,a.y-cy0)-Math.hypot(b.x-cx0,b.y-cy0))[0];
+          const hits=[],misses=[];let unmatched=0;
+          for(const s of same){
+            /* the candidate's box is the SQUARE itself, not the box he drew: the number reader lays its strips out from the box's size and the zone sampler its ring, and a loose teach pushes both off (test_p221 N2 and Z1 caught it both ways). Same shape as the template route's tightened box - the ink extent plus TIGHTEN_MARGIN_PX each side, floored and ceiled to whole pixels the way workBBox does - so a candidate carries the same box whichever route found it */
+            if(vecSameSymbol(shown,s)){const bs=s.side+1+2*TIGHTEN_MARGIN_PX,bx0=Math.floor(s.x-bs/2),by0=Math.floor(s.y-bs/2),bx1=Math.ceil(s.x+bs/2),by1=Math.ceil(s.y+bs/2);hits.push({x:bx0,y:by0,w:bx1-bx0,h:by1-by0,interior:1,interiorInk:1,side:s.side,inner:s.inner,fill:s.fill});}
+            else{unmatched++;misses.push({x:Math.round(s.x*10)/10,y:Math.round(s.y*10)/10,inner:s.inner,fill:s.fill});}
+          }
+          vecRun={why:'',side:Math.round(side*100)/100,squares:same.length,allSquares:vs.squares.length,shown:{inner:shown.inner,fill:shown.fill},matched:hits.length,unmatched,ms:vs.ms,hits,misses};
+        }
+      }
+      if(vecRun&&vecRun.hits){
+        const runId=`vector-${Date.now().toString(36)}`;const created=[];let areaSkipped=0;
+        vecRun.hits.forEach((d,i)=>{
+          const cx=d.x+d.w/2,cy=d.y+d.h/2;if(spAreaExcluded(cx,cy)){areaSkipped++;return;}
+          created.push(normaliseDetection({id:`${runId}-${i+1}`,obj:{kind:'sym',type,x:cx,y:cy,zone:'',loop:'',dev:'',info:''},meta:{source:'template',method:'vector',confidence:Math.round(d.interior*1000)/1000,requiresDeviceNumber:true,suspectStub:false,detectorRun:runId,detectorSignal:signal,bbox:[d.x,d.y,d.w,d.h],rotation:0,mirrored:false,scale:1,closedContourScore:1,closedContourSides:4,interiorNcc:d.interior,interiorInk:d.interiorInk,vectorSide:d.side,vectorInner:d.inner,vectorFill:d.fill}},i));
+        });
+        if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
+        session.candidates.push(...created);refreshIssues();
+        const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
+        session.detectReport={summary:{runId,type,signal,threshold,method:'vector',raw:vecRun.squares,kept:created.length,skippedByArea:areaSkipped,stubFlags:0,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio,vector:{side:vecRun.side,squares:vecRun.squares,allSquares:vecRun.allSquares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,geometryMs:vecRun.ms}},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:false,closedContourScore:1,closedContourSides:4,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+        session.vectorLast={type,side:vecRun.side,squares:vecRun.squares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,misses:vecRun.misses};   /* misses carry what is drawn in them, for the diagnostics */
+        session.detectStatus='';return clone(session.detectReport);
+      }
       const raw=[];const mirrors=includeMirrors?[false,true]:[false];
       let pass=0,totalPass=DETECT_SCALES.length*DETECT_ROTATIONS.length*mirrors.length;
       for(const scale of DETECT_SCALES){
@@ -1981,7 +2125,7 @@
       if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
       session.candidates.push(...created);refreshIssues();
       const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
-      session.detectReport={summary:{runId,type,signal,threshold,raw:raw.length,kept:created.length,skippedByArea:areaSkipped,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+      session.detectReport={summary:{runId,type,signal,threshold,method:'template',vectorWhy:(vecRun&&vecRun.why)||'',raw:raw.length,kept:created.length,skippedByArea:areaSkipped,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
       session.detectStatus='';return clone(session.detectReport);
     } catch(e){
       /* [205-A] a cancelled detection adds NOTHING: candidates are only pushed after the last pass. */
@@ -3002,7 +3146,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
   function spRunLog(d){if(!session||!d)return;spRuns().push({type:d.type||'?',kept:d.kept|0,read:(d.read===null||d.read===undefined)?null:(d.read|0),area:d.area|0,ms:d.ms|0,at:Date.now()});}
   function spRunSecs(ms){return ms>=1000?`${Math.round(ms/1000)} s`:(ms>0?'<1 s':'');}
   function spRunsHtml(){
-    const runs=spRuns();if(!runs.length)return '';
+    const runs=spRuns();if(!runs.length&&!(session&&session.vectorLast))return '';   /* [226-B] the drawing's row stands on its own */
     /* one row per TYPE: found and read are LIVE (the reader re-reads every candidate on each run; Review can reject), time and left-out are summed over that type's runs */
     const live=session.candidates.filter(c=>c.decision!=='rejected');
     const types=spTypeCounts().map(x=>x.type);runs.forEach(r=>{if(!types.includes(r.type))types.push(r.type);});
@@ -3010,7 +3154,10 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const bits=[`<b>${found}</b> found`];if(anyRead)bits.push(`${read} number${read===1?'':'s'} read`);const secs=spRunSecs(ms);if(secs)bits.push(secs);if(area)bits.push(`${area} left out (excluded areas)`);
       return `<div class="spRunsRow" data-sp="run" data-run="${i}" data-type="${escapeHtml(type)}"><span class="spRunsType">${escapeHtml(arcTypeLabel(type))}</span><span class="spRunsBits">${bits.join(' · ')}</span></div>`;}).join('');
     const total=live.length;
-    return `<div class="spRuns" data-sp="runs"><div class="spRunsHead"><b>Found so far</b><span data-sp="runs-total">${total} on the plan${types.length>1?` · ${escapeHtml(spTypeLine())}`:''}</span></div>${rows}</div>`;
+    const vl=session.vectorLast;   /* [226-B] the squares no teach has claimed yet - not merely the ones that are not THIS symbol - so the ask 'show one of those next' means something on the third teach */
+    const half=vl?Math.max(2,vl.side/2):0,left=vl?vl.misses.filter(m=>!live.some(c=>Math.abs(Number(c.obj.x)-m.x)<=half&&Math.abs(Number(c.obj.y)-m.y)<=half)).length:0;
+    const vec=vl?`<div class="spRunsRow" data-sp="vector"><span class="spRunsType">Drawing</span><span class="spRunsBits">${vl.squares} squares this size on the drawing · ${vl.matched} look like ${escapeHtml(arcTypeLabel(vl.type))}${left?` · <b>${left} not matched by any teach yet</b> — show one of those next`:' · every one is matched'}</span></div>`:'';
+    return `<div class="spRuns" data-sp="runs"><div class="spRunsHead"><b>Found so far</b><span data-sp="runs-total">${total} on the plan${types.length>1?` · ${escapeHtml(spTypeLine())}`:''}</span></div>${rows}${vec}</div>`;
   }
   function spAreasNote(){const a=spAreas();const parts=[];if(a.exclude.length)parts.push(`${a.exclude.length} area${a.exclude.length===1?'':'s'} left out (red)`);if(a.include.length)parts.push(`searching only ${a.include.length} area${a.include.length===1?'':'s'} (green)`);return parts.length?parts.join(' · ')+'.':'None drawn - the whole plan is searched.';}
   function spNav(left,opts){
@@ -3433,8 +3580,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.204 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.205 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
