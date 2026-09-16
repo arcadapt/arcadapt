@@ -93,6 +93,15 @@
      hatches are the same symbol; a filled shape's outline lands on the square's own sides,
      so its stroke count is chance (0-5 on his sounders) and the fill alone is the symbol */
   const VEC_HATCH_MIN = 10, VEC_INNER_TOL = 1;
+  /* [230-A] ANY SYMBOL DRAWN AS PATHS. A shape is any path no bigger than VEC_SHAPE_MAX_PX.
+     The symbol he showed is the longest end-to-end joined group of pieces fully inside his
+     box (joined: an endpoint within VEC_SHAPE_TOL of another piece's vertex). A repeat is
+     the same pieces at the same relative positions, any of the 8 turns and flips, every
+     vertex within VEC_SHAPE_TOL; pieces totalling under VEC_SHAPE_MISS_FRAC of the drawn
+     length may be missing (a plotter drops a 3 px edge to a dot now and then). */
+  const VEC_SHAPE_MAX_PX = 80, VEC_SHAPE_MIN_PX = 3, VEC_SHAPE_TOL = 0.5, VEC_SHAPE_MISS_FRAC = 0.25;
+  const VEC_SHAPE_NUMBERED_FRAC = 0.5;   /* a shape symbol carries numbers when at least this share of its repeats have a digit word beside them; otherwise the reader leaves the lot alone */
+  const VEC_SYMS = Object.freeze([[1,0,0,1],[0,-1,1,0],[-1,0,0,-1],[0,1,-1,0],[-1,0,0,1],[0,1,1,0],[1,0,0,-1],[0,-1,-1,0]]);
   /* [228-A] THE STROKE-FONT DIGITS. A glyph piece is a black stroked path no bigger than
      VEC_PIECE_MAX_PX; pieces that touch (within a fraction of the expected glyph height,
      tighter sideways than up-and-down because the next digit is only 0.8 px away while an
@@ -392,7 +401,7 @@
       ocrConfidence:m0.ocrConfidence == null ? null : Number(m0.ocrConfidence),
       detectorRun:field(m0.detectorRun),
       detectorSignal:field(m0.detectorSignal),
-      method:field(m0.method),vectorSide:m0.vectorSide == null ? null : Number(m0.vectorSide),vectorInner:m0.vectorInner == null ? null : Number(m0.vectorInner),vectorFill:!!m0.vectorFill,devHow:field(m0.devHow),   /* [228-A] the vector finder's facts about a candidate, kept */
+      method:field(m0.method),vectorSide:m0.vectorSide == null ? null : Number(m0.vectorSide),vectorInner:m0.vectorInner == null ? null : Number(m0.vectorInner),vectorFill:!!m0.vectorFill,vectorShape:!!m0.vectorShape,vectorPartial:!!m0.vectorPartial,noNumber:!!m0.noNumber,devHow:field(m0.devHow),   /* [230-A] */   /* [228-A] the vector finder's facts about a candidate, kept */
       bbox:Array.isArray(m0.bbox) ? m0.bbox.map(Number) : null,
       rotation:m0.rotation == null ? null : Number(m0.rotation),
       interiorNcc:m0.interiorNcc == null ? null : Number(m0.interiorNcc),
@@ -1927,14 +1936,17 @@
           const nx=ol.fnArray[i+1];paths.push({segs,fill:FILL.has(nx),stroke:STROKE.has(nx),black,subs});}
       }
       const toPx=(p)=>{const A=vp.convertToViewportPoint(p[0],p[1]);return [A[0]-(src.dx||0),A[1]-(src.dy||0)];};
-      const px=[],ppx=[],pieces=[];
+      const px=[],ppx=[],pieces=[],shapes=[];   /* [230-A] */
       paths.forEach(pt=>{const ss=pt.segs.map(([p,q])=>{const A=toPx(p),B=toPx(q);return [A[0],A[1],B[0],B[1]];});ss.forEach(v=>px.push(v));
         if(ss.length){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ss.forEach(([a,b,c,d])=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d);});ppx.push({segs:ss,fill:pt.fill,x0,y0,x1,y1});
+          const small=x1-x0<=VEC_PIECE_MAX_PX&&y1-y0<=VEC_PIECE_MAX_PX,pl=(small||(x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX))?pt.subs.filter(s=>s.length>=2).map(s=>s.map(toPx)):null;
           /* [228-A] a glyph piece: black, stroked, not filled, small */
-          if(pt.stroke&&!pt.fill&&pt.black&&x1-x0<=VEC_PIECE_MAX_PX&&y1-y0<=VEC_PIECE_MAX_PX)pieces.push({x0,y0,x1,y1,pl:pt.subs.filter(s=>s.length>=2).map(s=>s.map(toPx))});}});
+          if(pt.stroke&&!pt.fill&&pt.black&&small)pieces.push({x0,y0,x1,y1,pl});
+          /* [230-A] a shape: any path that is not a dot and no bigger than a symbol */
+          if(pl&&pl.length&&(x1-x0>=0.2||y1-y0>=0.2)&&x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX)shapes.push({x0,y0,x1,y1,pl,fill:pt.fill,len:vecShapeLen(pl)});}});
       const sq=vecSquaresFromSegments(px);
       vecSignatures(sq.squares,ppx);
-      session.vector={src,squares:sq.squares,segments:px.length,pieces,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};   /* [228-A] */
+      session.vector={src,squares:sq.squares,segments:px.length,pieces,shapes,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};   /* [228-A] [230-A] */
       try{pdf.destroy();}catch(_){}
       return session.vector;
     }catch(e){session.vector={src,squares:null,why:'vector-failed: '+((e&&e.message)||'unknown')};return session.vector;}
@@ -1964,9 +1976,70 @@
      whether it is THIS device. */
   function vectorSideFor(squares,wb){
     const [ox,oy,ow,oh]=wb.original,cx=ox+ow/2,cy=oy+oh/2,lo=Math.min(ow,oh),hi=Math.max(ow,oh);
-    const mine=squares.filter(s=>Math.abs(s.x-cx)<=ow/2+2&&Math.abs(s.y-cy)<=oh/2+2&&s.side>=VEC_TAUGHT_MIN*lo&&s.side<=VEC_TAUGHT_MAX*hi)
+    const mine=squares.filter(s=>Math.abs(s.x-cx)<=ow/2&&Math.abs(s.y-cy)<=oh/2&&s.side>=VEC_TAUGHT_MIN*lo&&s.side<=VEC_TAUGHT_MAX*hi)   /* [230-A] its centre inside his box, not 2 px outside it */
       .sort((a,b)=>Math.abs(a.side-lo)-Math.abs(b.side-lo));
     return mine.length?mine[0].side:null;
+  }
+
+  /* [230-A] ---- any symbol drawn as paths --------------------------------------- */
+  function vecShapeVerts(pl){const out=[];for(const s of pl)for(const q of s)out.push(q);return out;}
+  function vecShapeLen(pl){let L=0;for(const s of pl)for(let i=0;i+1<s.length;i++)L+=Math.hypot(s[i+1][0]-s[i][0],s[i+1][1]-s[i][1]);return L;}
+  function vecShapeIndex(vec){
+    /* every vertex of every shape, by its rounded cell, once per sheet */
+    if(vec.shapeIndex)return vec.shapeIndex;
+    const ix=new Map();
+    (vec.shapes||[]).forEach((s,i)=>{for(const v of vecShapeVerts(s.pl)){const k=Math.round(v[0])+','+Math.round(v[1]);const a=ix.get(k);if(a){if(a[a.length-1]!==i)a.push(i);}else ix.set(k,[i]);}});
+    vec.shapeIndex=ix;return ix;
+  }
+  function vecShapeFor(box,shapes){
+    /* the symbol inside the box he drew: pieces wholly inside, joined end to end; the longest joined group */
+    if(!box||!shapes||!shapes.length)return null;
+    const [bx,by,bw,bh]=box,T=VEC_SHAPE_TOL,inside=shapes.filter(s=>s.x0>=bx-T&&s.y0>=by-T&&s.x1<=bx+bw+T&&s.y1<=by+bh+T);
+    if(!inside.length)return null;
+    const near=(a,b)=>Math.abs(a[0]-b[0])<=T&&Math.abs(a[1]-b[1])<=T;
+    const verts=inside.map(s=>vecShapeVerts(s.pl)),seen=new Array(inside.length).fill(false);let best=null;
+    for(let i=0;i<inside.length;i++){if(seen[i])continue;const grp=[i];seen[i]=true;
+      for(let g=0;g<grp.length;g++)for(let j=0;j<inside.length;j++){if(seen[j])continue;const A=verts[grp[g]],B=verts[j];let hit=false;for(const a of A){for(const b of B)if(near(a,b)){hit=true;break;}if(hit)break;}if(hit){seen[j]=true;grp.push(j);}}
+      const L=grp.reduce((a,k)=>a+inside[k].len,0);if(!best||L>best.L)best={grp,L};}
+    if(!best||!(best.L>0))return null;
+    const pcs=best.grp.map(k=>inside[k]);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pcs.forEach(s=>{x0=Math.min(x0,s.x0);y0=Math.min(y0,s.y0);x1=Math.max(x1,s.x1);y1=Math.max(y1,s.y1);});
+    const w=x1-x0,h=y1-y0;if(Math.max(w,h)<VEC_SHAPE_MIN_PX)return null;
+    const cx=(x0+x1)/2,cy=(y0+y1)/2;
+    const pieces=pcs.map(s=>({pl:s.pl.map(q=>q.map(v=>[v[0]-cx,v[1]-cy])),len:s.len,fill:!!s.fill}));
+    let anchor=0;pieces.forEach((p,i)=>{if(p.len>pieces[anchor].len)anchor=i;});
+    return {pieces,anchor,w,h,len:best.L,fill:pieces.some(p=>p.fill),cx,cy};
+  }
+  function vecPieceAt(pl,d,m,shapes,ix){
+    /* the sheet piece whose polylines are pl turned by m and moved by d, or -1 */
+    const T=VEC_SHAPE_TOL,tp=pl.map(s=>s.map(([x,y])=>[m[0]*x+m[1]*y+d[0],m[2]*x+m[3]*y+d[1]]));
+    const v0=tp[0][0],rx=Math.round(v0[0]),ry=Math.round(v0[1]);
+    for(let ax=-1;ax<=1;ax++)for(let ay=-1;ay<=1;ay++){const c=ix.get((rx+ax)+','+(ry+ay));if(!c)continue;
+      for(const i of c){const s=shapes[i];if(s.pl.length!==tp.length)continue;let ok=true;
+        for(const q of tp){let hit=false;
+          for(const sp of s.pl){if(sp.length!==q.length)continue;let f=true,r=true;
+            for(let k=0;k<q.length;k++){const a=q[k],b=sp[k],c2=sp[q.length-1-k];if(f&&!(Math.abs(a[0]-b[0])<=T&&Math.abs(a[1]-b[1])<=T))f=false;if(r&&!(Math.abs(a[0]-c2[0])<=T&&Math.abs(a[1]-c2[1])<=T))r=false;if(!f&&!r)break;}
+            if(f||r){hit=true;break;}}
+          if(!hit){ok=false;break;}}
+        if(ok)return i;}}
+    return -1;
+  }
+  function vecShapeMatches(shape,shapes,ix){
+    /* every place the shape repeats: the anchor piece first (same piece and vertex counts), then the rest around it */
+    const A=shape.pieces[shape.anchor],an=A.pl.length,av=vecShapeVerts(A.pl).length,a0=A.pl[0][0],hits=[];
+    const corners=[[-shape.w/2,-shape.h/2],[shape.w/2,-shape.h/2],[shape.w/2,shape.h/2],[-shape.w/2,shape.h/2]];
+    for(let i=0;i<shapes.length;i++){const s=shapes[i];if(s.pl.length!==an||vecShapeVerts(s.pl).length!==av)continue;
+      let placed=false;
+      for(const m of VEC_SYMS){if(placed)break;const ax=m[0]*a0[0]+m[1]*a0[1],ay=m[2]*a0[0]+m[3]*a0[1];
+        for(const v of vecShapeVerts(s.pl)){const d=[v[0]-ax,v[1]-ay];
+          if(vecPieceAt(A.pl,d,m,shapes,ix)!==i)continue;
+          let missing=0;for(let k=0;k<shape.pieces.length;k++){if(k===shape.anchor)continue;if(vecPieceAt(shape.pieces[k].pl,d,m,shapes,ix)<0)missing+=shape.pieces[k].len;}
+          if(missing>VEC_SHAPE_MISS_FRAC*shape.len)continue;
+          const cs=corners.map(([x,y])=>[m[0]*x+m[1]*y+d[0],m[2]*x+m[3]*y+d[1]]),x0=Math.min(...cs.map(c=>c[0])),x1=Math.max(...cs.map(c=>c[0])),y0=Math.min(...cs.map(c=>c[1])),y1=Math.max(...cs.map(c=>c[1]));
+          const cx=(x0+x1)/2,cy=(y0+y1)/2;if(hits.some(h=>Math.abs(h.cx-cx)<1.5&&Math.abs(h.cy-cy)<1.5)){placed=true;break;}
+          hits.push({cx,cy,w:x1-x0,h:y1-y0,partial:missing>0});placed=true;break;}}
+    }
+    /* a repeat missing a piece never stands where a whole one already stands: a symmetric symbol flipped onto itself would otherwise count twice */
+    return hits.filter(h=>!h.partial||!hits.some(o=>!o.partial&&Math.abs(o.cx-h.cx)<(o.w+h.w)/2&&Math.abs(o.cy-h.cy)<(o.h+h.h)/2));
   }
 
   /* [228-A] ---- the numbers, read off the drawing --------------------------------- */
@@ -2047,7 +2120,7 @@
     if(!pieces||!pieces.length)return {candidates:0,reads:0,readCandidates:0,seen:0,ms:0,why:v?(v.why||'no-glyph-pieces'):'no-vector'};
     let reads=0,readCandidates=0,seen=0,n=0;
     candidates.forEach(c=>{
-      if(!c.meta||c.meta.method!=='vector'||!(c.meta.vectorSide>0))return;
+      if(!c.meta||c.meta.method!=='vector'||!(c.meta.vectorSide>0)||c.meta.noNumber)return;   /* [230-A] */
       n++;const cx=Number(c.obj.x),cy=Number(c.obj.y),side=c.meta.vectorSide;
       const r=vecLabelsFor(cx,cy,side,pieces);seen+=r.seen;
       if(!r.words.length)return;
@@ -2190,7 +2263,19 @@
         const side=(vs&&vs.squares&&vs.squares.length)?vectorSideFor(vs.squares,wb):null;
         if(!vs||!vs.squares)vecRun={why:vs?vs.why:'no-vector'};
         else if(!vs.squares.length)vecRun={why:vs.segments?'no-squares-in-the-drawing':'no-lines-in-the-pdf-(a-scan)',squares:0};
-        else if(side===null)vecRun={why:'taught-box-is-not-a-square',squares:vs.squares.length};
+        else if(side===null){
+          /* [230-A] no square under his box: the joined pieces inside it are the symbol, and every exact repeat on the sheet is a device */
+          const shp=vecShapeFor(bbox,vs.shapes||[]);   /* the box HE drew - the raster tighten can shrink it to one stroke of a hollow symbol */
+          const found=shp?vecShapeMatches(shp,vs.shapes,vecShapeIndex(vs)):[];
+          /* does this symbol carry a number? The sheet says: when at least half of the repeats have a digit word beside them in the stroke font it does; his loudspeakers have one in 12 (a neighbour's label within reach) and the reader leaves every one of them alone */
+          const withWord=(shp&&vs.pieces&&vs.pieces.length)?found.filter(h=>vecLabelsFor(h.cx,h.cy,Math.max(h.w,h.h),vs.pieces).words.length>0).length:0;
+          const numbered=found.length>0&&withWord>=VEC_SHAPE_NUMBERED_FRAC*found.length;
+          if(!shp||found.length<1)vecRun={why:shp?'shape-repeats-nowhere':'taught-box-is-not-a-square',squares:vs.squares.length,shapeTried:!!shp};
+          else{
+            const hits=found.map(h=>{const bw=h.w+1+2*TIGHTEN_MARGIN_PX,bh=h.h+1+2*TIGHTEN_MARGIN_PX,bx0=Math.floor(h.cx-bw/2),by0=Math.floor(h.cy-bh/2),bx1=Math.ceil(h.cx+bw/2),by1=Math.ceil(h.cy+bh/2);return {x:bx0,y:by0,w:bx1-bx0,h:by1-by0,interior:1,interiorInk:1,side:Math.max(h.w,h.h),inner:0,fill:shp.fill,shape:true,partial:h.partial,noNumber:!numbered};});
+            vecRun={why:'',side:Math.round(Math.max(shp.w,shp.h)*100)/100,squares:vs.squares.length,allSquares:vs.squares.length,shown:{inner:0,fill:shp.fill,pieces:shp.pieces.length},matched:hits.length,unmatched:0,ms:vs.ms,hits,misses:[],shape:{pieces:shp.pieces.length,w:Math.round(shp.w*100)/100,h:Math.round(shp.h*100)/100,len:Math.round(shp.len*10)/10,matched:hits.length,partial:hits.filter(h=>h.partial).length,numbered,withWord}};
+          }
+        }
         else{
           const same=vs.squares.filter(s=>Math.abs(s.side-side)<=side*VEC_SIDE_MATCH);
           const [ox,oy,ow,oh]=wb.original,cx0=ox+ow/2,cy0=oy+oh/2;
@@ -2208,13 +2293,14 @@
         const runId=`vector-${Date.now().toString(36)}`;const created=[];let areaSkipped=0;
         vecRun.hits.forEach((d,i)=>{
           const cx=d.x+d.w/2,cy=d.y+d.h/2;if(spAreaExcluded(cx,cy)){areaSkipped++;return;}
-          created.push(normaliseDetection({id:`${runId}-${i+1}`,obj:{kind:'sym',type,x:cx,y:cy,zone:'',loop:'',dev:'',info:''},meta:{source:'template',method:'vector',confidence:Math.round(d.interior*1000)/1000,requiresDeviceNumber:true,suspectStub:false,detectorRun:runId,detectorSignal:signal,bbox:[d.x,d.y,d.w,d.h],rotation:0,mirrored:false,scale:1,closedContourScore:1,closedContourSides:4,interiorNcc:d.interior,interiorInk:d.interiorInk,vectorSide:d.side,vectorInner:d.inner,vectorFill:d.fill}},i));
+          created.push(normaliseDetection({id:`${runId}-${i+1}`,obj:{kind:'sym',type,x:cx,y:cy,zone:'',loop:'',dev:'',info:''},meta:{source:'template',method:'vector',confidence:Math.round(d.interior*1000)/1000,requiresDeviceNumber:!d.noNumber,   /* [230-A] */suspectStub:false,detectorRun:runId,detectorSignal:signal,bbox:[d.x,d.y,d.w,d.h],rotation:0,mirrored:false,scale:1,closedContourScore:1,closedContourSides:4,interiorNcc:d.interior,interiorInk:d.interiorInk,vectorSide:d.side,vectorInner:d.inner,vectorFill:d.fill,vectorShape:!!d.shape,vectorPartial:!!d.partial,noNumber:!!d.noNumber}},i));   /* [230-A] */
         });
         if(options.replaceType!==false)session.candidates=session.candidates.filter(c=>!(c.meta&&c.meta.source==='template'&&field(c.obj.type)===type));
         session.candidates.push(...created);refreshIssues();
         const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
-        session.detectReport={summary:{runId,type,signal,threshold,method:'vector',raw:vecRun.squares,kept:created.length,skippedByArea:areaSkipped,stubFlags:0,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio,vector:{side:vecRun.side,squares:vecRun.squares,allSquares:vecRun.allSquares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,geometryMs:vecRun.ms}},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:false,closedContourScore:1,closedContourSides:4,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
-        session.vectorLast={type,side:vecRun.side,squares:vecRun.squares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,misses:vecRun.misses};   /* misses carry what is drawn in them, for the diagnostics */
+        session.detectReport={summary:{runId,type,signal,threshold,method:'vector',raw:vecRun.squares,kept:created.length,skippedByArea:areaSkipped,stubFlags:0,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio,vector:{side:vecRun.side,squares:vecRun.squares,allSquares:vecRun.allSquares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,geometryMs:vecRun.ms,shape:vecRun.shape||null}},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:false,closedContourScore:1,closedContourSides:4,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+        if(vecRun.shape)session.vectorShapeLast={type,pieces:vecRun.shape.pieces,matched:vecRun.matched,partial:vecRun.shape.partial,numbered:vecRun.shape.numbered,w:vecRun.shape.w,h:vecRun.shape.h};   /* [230-B] its own row; the squares' row stands */
+        else session.vectorLast={type,side:vecRun.side,squares:vecRun.squares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,misses:vecRun.misses};   /* misses carry what is drawn in them, for the diagnostics */
         session.detectReport.summary.zonesRefreshed=zonesForNewcomers(created.length);   /* [229-1] */
         session.detectStatus='';return clone(session.detectReport);
       }
@@ -2704,6 +2790,7 @@
        of its bbox is closer. Rank eligible pairs by label-centre distance. */
     const pairs=[];
     labels.forEach((lab,li)=>candidates.forEach((c,ci)=>{
+      if(c.meta&&c.meta.noNumber)return;   /* [230-A] a symbol that carries no number never takes a label */
       const x=Number(c.obj.x),y=Number(c.obj.y);
       const edge=bboxDistance(lab.bbox,x,y);
       if(edge>maxPx)return;
@@ -2771,7 +2858,7 @@
   }
 
   function unreadCandidateIndexes(pool,candidates){
-    const out=[];for(let i=0;i<candidates.length;i++)if(!pool.settledCandidates.has(i))out.push(i);return out;
+    const out=[];for(let i=0;i<candidates.length;i++)if(!pool.settledCandidates.has(i)&&!(candidates[i].meta&&candidates[i].meta.noNumber))out.push(i);return out;   /* [230-A] */
   }
 
   function tagOcrLabels(labels,candidate,phase,dx,dy,upscale,rawLabels){
@@ -2965,7 +3052,7 @@
          V1.6 proved the left-only D76 recovery matters, so all four 30 px cardinal
          retries are restored. Rows still unresolved then get four larger quadrant
          crops at the SAME 2x raster, raw pixels and PSM 6; no 4x upscaling. */
-      const all=candidates.map((_,i)=>i);
+      const all=candidates.map((_,i)=>i).filter(i=>!(candidates[i].meta&&candidates[i].meta.noNumber));   /* [230-A] */
       const phases={};
       let numbersOnly=false,centerAssigned0=0,afterOffset0=0;
       if(opts.mode==='auto'){
@@ -3231,7 +3318,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
     return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,unconfirmed:st.unconfirmed||0,
       text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p,
-        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone,from:g.zoneFrom||'',names:g.zoneNames||[]})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,labels:session.fillZones.labels||[],readMs:session.fillZones.readMs||null,readError:session.fillZones.readError||'',diag:zoneDiagOut(session.fillZones.diag),log:(session.zoneLog||[]).slice(-20)}:null,zoneLog:session.fillZones?undefined:(session.zoneLog||[]).slice(-20)},null,1)};   /* [229-1] the zones step's own log rides in the paste */   /* [225-B] */   /* [221-D] */
+        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone,from:g.zoneFrom||'',names:g.zoneNames||[]})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,labels:session.fillZones.labels||[],readMs:session.fillZones.readMs||null,readError:session.fillZones.readError||'',diag:zoneDiagOut(session.fillZones.diag),log:(session.zoneLog||[]).slice(-20)}:null,zoneLog:session.fillZones?undefined:(session.zoneLog||[]).slice(-20),drawing:{squares:session.vectorLast||null,shape:session.vectorShapeLast||null}},null,1)};   /* [230-B] the drawing's own finds ride in the paste */   /* [229-1] the zones step's own log rides in the paste */   /* [225-B] */   /* [221-D] */
   }
   function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
   /* PASS 209 [209-A] - a progress tick touches the status line, the bar and the
@@ -3304,7 +3391,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
   function spRunLog(d){if(!session||!d)return;spRuns().push({type:d.type||'?',kept:d.kept|0,read:(d.read===null||d.read===undefined)?null:(d.read|0),area:d.area|0,ms:d.ms|0,at:Date.now()});}
   function spRunSecs(ms){return ms>=1000?`${Math.round(ms/1000)} s`:(ms>0?'<1 s':'');}
   function spRunsHtml(){
-    const runs=spRuns();if(!runs.length&&!(session&&session.vectorLast))return '';   /* [226-B] the drawing's row stands on its own */
+    const runs=spRuns();if(!runs.length&&!(session&&(session.vectorLast||session.vectorShapeLast)))return '';   /* [226-B] the drawing's row stands on its own */   /* [230-B] */
     /* one row per TYPE: found and read are LIVE (the reader re-reads every candidate on each run; Review can reject), time and left-out are summed over that type's runs */
     const live=session.candidates.filter(c=>c.decision!=='rejected');
     const types=spTypeCounts().map(x=>x.type);runs.forEach(r=>{if(!types.includes(r.type))types.push(r.type);});
@@ -3315,7 +3402,9 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     const vl=session.vectorLast;   /* [226-B] the squares no teach has claimed yet - not merely the ones that are not THIS symbol - so the ask 'show one of those next' means something on the third teach */
     const half=vl?Math.max(2,vl.side/2):0,left=vl?vl.misses.filter(m=>!live.some(c=>Math.abs(Number(c.obj.x)-m.x)<=half&&Math.abs(Number(c.obj.y)-m.y)<=half)).length:0;
     const vec=vl?`<div class="spRunsRow" data-sp="vector"><span class="spRunsType">Drawing</span><span class="spRunsBits">${vl.squares} squares this size on the drawing · ${vl.matched} look like ${escapeHtml(arcTypeLabel(vl.type))}${left?` · <b>${left} not matched by any teach yet</b> — show one of those next`:' · every one is matched'}</span></div>`:'';
-    return `<div class="spRuns" data-sp="runs"><div class="spRunsHead"><b>Found so far</b><span data-sp="runs-total">${total} on the plan${types.length>1?` · ${escapeHtml(spTypeLine())}`:''}</span></div>${rows}${vec}</div>`;
+    const vsl=session.vectorShapeLast;   /* [230-B] a symbol that is not a square: its own row */
+    const shape=vsl?`<div class="spRunsRow" data-sp="vector-shape"><span class="spRunsType">Drawing</span><span class="spRunsBits">${vsl.matched} drawn like ${escapeHtml(arcTypeLabel(vsl.type))} — its own shape, ${vsl.pieces} stroke${vsl.pieces===1?'':'s'}${vsl.partial?`, ${vsl.partial} with a stroke missing`:''}${vsl.numbered?'':' · no number beside most of them, so none are read'}</span></div>`:'';
+    return `<div class="spRuns" data-sp="runs"><div class="spRunsHead"><b>Found so far</b><span data-sp="runs-total">${total} on the plan${types.length>1?` · ${escapeHtml(spTypeLine())}`:''}</span></div>${rows}${vec}${shape}</div>`;
   }
   function spAreasNote(){const a=spAreas();const parts=[];if(a.exclude.length)parts.push(`${a.exclude.length} area${a.exclude.length===1?'':'s'} left out (red)`);if(a.include.length)parts.push(`searching only ${a.include.length} area${a.include.length===1?'':'s'} (green)`);return parts.length?parts.join(' · ')+'.':'None drawn - the whole plan is searched.';}
   function spNav(left,opts){
@@ -3738,8 +3827,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.208 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.209 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
