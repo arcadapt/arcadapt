@@ -2826,6 +2826,7 @@
     const pairs=[];
     labels.forEach((lab,li)=>candidates.forEach((c,ci)=>{
       if(c.meta&&(c.meta.noNumber||c.meta.devCleared))return;   /* [230-A] a symbol that carries no number never takes a label; [232-B] nor does a row whose number he took off */
+      if(lab.only&&lab.only!==c.id)return;   /* [236-A] a learned label belongs to the symbol it was read beside */
       const x=Number(c.obj.x),y=Number(c.obj.y);
       const edge=bboxDistance(lab.bbox,x,y);
       if(edge>maxPx)return;
@@ -3065,6 +3066,153 @@
     return {candidates:indexes.length,crops:cropReads,reads:labelReads,upscale};
   }
 
+  /* ============================================================================
+     [236-A] THE SHEET TEACHES ITS OWN DIGITS - the learned reader, for the numbers the
+     strips could not read on a scan.
+
+     On his scanned Merriwa sheet the digits are 6 px tall. Tesseract, at 6x, read 77 of
+     191 with none wrong and could not read the rest - the glyphs are too small for it.
+     But the 77 it did read are 133 labelled glyphs in the sheet's OWN font, at the
+     sheet's OWN size and blur. Every other number on the sheet is written in that font.
+     So: every confirmed read (vector or strip) hands over its glyphs - the dark
+     components under the word, as grey patches - and each still-unread symbol's
+     nearest word is read glyph by glyph by nearest neighbour against that library.
+     Measured on his scan before a line of this was written (rig/knn236.py): 156 right,
+     3 wrong (a wire through a 7 - the word is cut), 32 unread, of 191.
+
+     Rules, each measured:
+       - ink is darker than a threshold between the sheet's ink (its darkest 0.1 %) and
+         its paper (its median): the sheet teaches that too - the fraction (LRN_INK_FRACS)
+         at which the confirmed reads yield the MOST library glyphs wins. Measured: the
+         library peaks at the same threshold where reading is best (100 of 255 on his scan
+         as the app renders it, and on the raw JPEG with its other tone curve), and loses
+         thin strokes below it and merges glyphs into grey room codes above it;
+       - a glyph is an ink component 0.65-1.35 glyph heights
+         tall (the glyph height is 0.45 x the sheet's square side), not inside the
+         symbol's own square, not cut by the window edge (a wire);
+       - glyphs on one baseline (bottoms within 0.3 h) with gaps under 0.7 h make a word;
+         a word has at most LRN_WORD_MAX glyphs and its centre lies within
+         VEC_LABEL_REACH x side of the symbol, nearest first;
+       - a word with LOOSE INK beside it on its baseline is NOT read: a fragment-sized
+         component within 0.8 h of either end that is not one of its glyphs (a broken
+         glyph), or ink filling more than LRN_GAP_INK of the 0.8 h zone beside either end
+         (a glyph merged into a wire - the 7 with a wire through it, three times on his
+         sheet); either would make a truncated number. Measured: the zone rule costs 4
+         right reads and removes every truncation;
+       - a glyph reads when its LRN_K nearest library patches agree on one digit - LRN_AGREE
+         of them, or every example the library holds of that digit when it holds fewer
+         (never fewer than 2) - with the best correlation at least LRN_NCC; a glyph that
+         does not read makes the WHOLE word unread - never a shortened number;
+       - the library is every read the sheet has confirmed: the strips', the drawing's, and
+         the numbers HE typed or the schedule matched - on a scan the strips cannot read at
+         all, he types a handful and the rest read themselves;
+       - the library must hold LRN_MIN_LIB glyphs, or nothing is read;
+       - a word read for one symbol is claimed - the next symbol reads its next word - and a
+         learned label may only ever be assigned to the symbol it was read beside (`only`):
+         a label read 20 px from A is never handed to B because B happened to be nearer.
+     ============================================================================ */
+  const LRN_INK_FRACS = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65], LRN_PW = 8, LRN_PH = 14, LRN_K = 5, LRN_AGREE = 4, LRN_NCC = 0.8, LRN_MIN_LIB = 30, LRN_WORD_MAX = 3, LRN_LOOSE = 0, LRN_GAP_INK = 0.25;
+
+  function lrnGrey(live){
+    const iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;
+    const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);
+    const d=ctx.getImageData(0,0,iw,ih).data,g=new Uint8Array(iw*ih);
+    const hist=new Uint32Array(256);
+    for(let i=0,j=0;i<g.length;i++,j+=4){g[i]=(d[j]*299+d[j+1]*587+d[j+2]*114)/1000;hist[g[i]]++;}
+    let acc=0,ink=0,paper=128;for(let v=0;v<256;v++){acc+=hist[v];if(acc>=g.length*0.001){ink=v;break;}}   /* the darkest 0.1 %: the ink, on a sparse sheet as on a full one */
+    acc=0;for(let v=0;v<256;v++){acc+=hist[v];if(acc>=g.length*0.5){paper=v;break;}}
+    return {g,w:iw,h:ih,dark:Math.round(ink+0.4*(paper-ink)),ink,paper};
+  }
+  function lrnSide(candidates){
+    const s=candidates.map(c=>c.meta&&(c.meta.vectorSide>0?c.meta.vectorSide:(Array.isArray(c.meta.bbox)?Math.max(c.meta.bbox[2],c.meta.bbox[3]):0))).filter(x=>x>0).sort((a,b)=>a-b);
+    return s.length?s[Math.floor(s.length/2)]:0;
+  }
+  /* 8-connected dark components inside a window [x0,y0,x1,y1) of the grey plan */
+  function lrnComponents(G,x0,y0,x1,y1){
+    const w=x1-x0,h=y1-y0,lab=new Int32Array(w*h),out=[];let n=0;const st=[];
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const i=y*w+x;if(lab[i]||G.g[(y0+y)*G.w+x0+x]>=G.dark)continue;
+      n++;lab[i]=n;st.length=0;st.push(i);let bx0=x,by0=y,bx1=x,by1=y,cnt=0;
+      while(st.length){const k=st.pop();cnt++;const ky=(k/w)|0,kx=k-ky*w;if(kx<bx0)bx0=kx;if(kx>bx1)bx1=kx;if(ky<by0)by0=ky;if(ky>by1)by1=ky;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=kx+dx,ny=ky+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const j=ny*w+nx;if(lab[j]||G.g[(y0+ny)*G.w+x0+nx]>=G.dark)continue;lab[j]=n;st.push(j);}}
+      out.push({x0:x0+bx0,y0:y0+by0,x1:x0+bx1+1,y1:y0+by1+1,n:cnt,edge:bx0===0||by0===0||bx1===w-1||by1===h-1});
+    }
+    return out;
+  }
+  /* the words beside one symbol at (cx,cy): glyph components grouped on a baseline, nearest first, with the loose-ink count */
+  function lrnWordsFor(G,cx,cy,side){
+    const gh=0.45*side,reach=Math.round(side*VEC_LABEL_REACH+side*0.6);
+    const x0=Math.max(0,Math.round(cx-reach)),y0=Math.max(0,Math.round(cy-reach)),x1=Math.min(G.w,Math.round(cx+reach)),y1=Math.min(G.h,Math.round(cy+reach));
+    if(x1-x0<4||y1-y0<4)return [];
+    const all=lrnComponents(G,x0,y0,x1,y1).filter(c=>!(Math.abs((c.x0+c.x1)/2-cx)<side*0.55&&Math.abs((c.y0+c.y1)/2-cy)<side*0.55));
+    const frag=all.filter(c=>c.y1-c.y0<=1.35*gh&&c.x1-c.x0<=1.35*gh);
+    const glyphs=all.filter(c=>{const hh=c.y1-c.y0,ww=c.x1-c.x0;return hh>=0.65*gh&&hh<=1.35*gh&&ww<=0.98*gh&&ww>=1&&!c.edge;}).sort((a,b)=>a.x0-b.x0);
+    const words=[];
+    for(const g of glyphs){const h=g.y1-g.y0;let w=null;
+      for(const x of words){if(Math.abs(x.bot-g.y1)<=h*0.3&&g.x0-x.x1<=h*0.7){w=x;break;}}
+      if(w){w.g.push(g);w.x1=Math.max(w.x1,g.x1);w.top=Math.min(w.top,g.y0);}else words.push({g:[g],bot:g.y1,top:g.y0,x0:g.x0,x1:g.x1});}
+    for(const w of words){
+      w.d=Math.max(Math.abs((w.x0+w.x1)/2-cx),Math.abs((w.top+w.bot)/2-cy));
+      const h=w.bot-w.top,gap=Math.round(0.8*h);w.loose=0;
+      for(const f of frag){if(w.g.some(g=>g.x0===f.x0&&g.y0===f.y0&&g.x1===f.x1&&g.y1===f.y1))continue;if(f.y1<=w.top||f.y0>=w.bot)continue;
+        if((f.x1>=w.x0-gap&&f.x1<=w.x0)||(f.x0>=w.x1&&f.x0<=w.x1+gap))w.loose++;}
+      const zone=(xa,xb)=>{xa=Math.max(0,xa);xb=Math.min(G.w,xb);if(xb<=xa)return 0;let ink=0,n=0;for(let yy=Math.max(0,w.top);yy<Math.min(G.h,w.bot);yy++)for(let xx=xa;xx<xb;xx++){n++;if(G.g[yy*G.w+xx]<G.dark)ink++;}return n?ink/n:0;};
+      w.inkL=zone(w.x0-gap,w.x0);w.inkR=zone(w.x1,w.x1+gap);if(Math.max(w.inkL,w.inkR)>LRN_GAP_INK)w.loose++;
+    }
+    return words.filter(w=>w.g.length<=LRN_WORD_MAX&&w.d<=side*VEC_LABEL_REACH).sort((a,b)=>a.d-b.d);
+  }
+  /* a glyph's grey patch: its box with a 1 px margin, resampled to LRN_PW x LRN_PH, zero mean unit variance */
+  function lrnPatch(G,g){
+    const x0=g.x0-1,y0=g.y0-1,bw=g.x1-g.x0+2,bh=g.y1-g.y0+2,p=new Float32Array(LRN_PW*LRN_PH);let s=0,ss=0;
+    for(let py=0;py<LRN_PH;py++)for(let px=0;px<LRN_PW;px++){
+      const fx=x0+(px+0.5)*bw/LRN_PW-0.5,fy=y0+(py+0.5)*bh/LRN_PH-0.5;const ix=Math.floor(fx),iy=Math.floor(fy),ax=fx-ix,ay=fy-iy;
+      const v=(xx,yy)=>{xx=Math.min(G.w-1,Math.max(0,xx));yy=Math.min(G.h-1,Math.max(0,yy));return G.g[yy*G.w+xx];};
+      const val=v(ix,iy)*(1-ax)*(1-ay)+v(ix+1,iy)*ax*(1-ay)+v(ix,iy+1)*(1-ax)*ay+v(ix+1,iy+1)*ax*ay;p[py*LRN_PW+px]=val;s+=val;ss+=val*val;}
+    const n=p.length,m=s/n,sd=Math.sqrt(Math.max(1e-6,ss/n-m*m));for(let i=0;i<n;i++)p[i]=(p[i]-m)/sd;return p;
+  }
+  function lrnNcc(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s/a.length;}
+  function lrnKnn(lib,p){
+    const sc=lib.map(e=>({s:lrnNcc(p,e.p),d:e.d})).sort((a,b)=>b.s-a.s).slice(0,LRN_K);
+    const votes={};for(const x of sc)votes[x.d]=(votes[x.d]||0)+1;let best='',n=0;for(const d in votes)if(votes[d]>n){n=votes[d];best=d;}
+    return {d:best,s:sc.length?sc[0].s:0,n};
+  }
+  /* the pass: the library from every assigned read, then the still-unread symbols */
+  function learnedReadLabels(candidates,pool,unread,rawLabels){
+    const t0=Date.now(),live=livePlanImage();
+    if(!live)return {library:0,candidates:0,reads:0,ms:0,why:'no-plan-image'};
+    const side=lrnSide(candidates);if(!(side>0))return {library:0,candidates:0,reads:0,ms:0,why:'no-square-side'};
+    const G=lrnGrey(live),reads0=pool.assigned.assignments.filter(a=>!a.withheld&&/^\d{1,3}$/.test(String(a.label.dev||''))).map(a=>({candidate:a.candidate,dev:String(a.label.dev)}));
+    const seen=new Set(reads0.map(r=>r.candidate.id));
+    candidates.forEach(c=>{if(seen.has(c.id))return;const src=c.meta&&c.meta.devSource;if((src==='user'||src==='schedule')&&/^\d{1,3}$/.test(String(c.obj.dev||'')))reads0.push({candidate:c,dev:String(c.obj.dev)});});   /* his typed numbers teach too */
+    /* the threshold: the fraction of the ink-to-paper range at which the confirmed reads yield the most glyphs */
+    let lib=[],byDigit={},bestF=null;
+    for(const f of LRN_INK_FRACS){
+      G.dark=Math.min(200,Math.max(20,Math.round(G.ink+f*(G.paper-G.ink))));const L=[],B={};
+      reads0.forEach(a=>{const c=a.candidate,dev=a.dev;const ws=lrnWordsFor(G,Number(c.obj.x),Number(c.obj.y),side).filter(w=>w.g.length===dev.length);if(!ws.length)return;
+        ws[0].g.forEach((g,i)=>{L.push({p:lrnPatch(G,g),d:dev[i]});B[dev[i]]=(B[dev[i]]||0)+1;});});
+      if(L.length>lib.length){lib=L;byDigit=B;bestF=f;}
+    }
+    G.dark=bestF==null?G.dark:Math.min(200,Math.max(20,Math.round(G.ink+bestF*(G.paper-G.ink))));
+    if(lib.length<LRN_MIN_LIB)return {library:lib.length,byDigit,candidates:unread.length,reads:0,words:0,dark:G.dark,frac:bestF,ink:G.ink,paper:G.paper,ms:Date.now()-t0,why:'library-too-small'};
+    let reads=0,words=0;const claimed=new Set();
+    for(const i of unread){
+      const c=candidates[i];if(!c||!c.meta||c.meta.noNumber||c.meta.devCleared)continue;
+      if(c.meta.devSource==='user'||c.meta.devSource==='schedule')continue;   /* a teacher is not read */
+      const ws=lrnWordsFor(G,Number(c.obj.x),Number(c.obj.y),side);words+=ws.length;
+      for(const w of ws){
+        const key=w.x0+','+w.top+','+w.x1+','+w.bot;if(claimed.has(key))continue;
+        if(w.loose>LRN_LOOSE)continue;
+        let text='',ok=true,conf=1;
+        for(const g of w.g){const r=lrnKnn(lib,lrnPatch(G,g));const need=Math.max(2,Math.min(LRN_AGREE,byDigit[r.d]||0));if(r.s<LRN_NCC||r.n<need){ok=false;break;}text+=r.d;conf=Math.min(conf,r.s);}
+        if(!ok||!text)continue;
+        const dev=String(parseInt(text,10));
+        rawLabels.push({loop:'',dev,raw:text,text,confidence:Math.round(conf*100),bbox:[w.x0,w.top,w.x1-w.x0,w.bot-w.top],votes:1,variant:'learned',psm:'',phase:'learned',observedNear:c.id,only:c.id,offsetX:0,offsetY:0,upscale:1});
+        claimed.add(key);reads++;break;
+      }
+    }
+    return {library:lib.length,byDigit,candidates:unread.length,reads,words,dark:G.dark,frac:bestF,ink:G.ink,paper:G.paper,ms:Date.now()-t0,why:''};
+  }
+
   async function recognisePrintedIdentities(options) {
     if(!session||session.committed)throw new Error('Stage Smart Plan candidates before running printed-identity OCR.');
     if(!hostUnchanged(session.hostSnapshot))throw new Error('The Workspace changed while Smart Plan was open. Analyse again before OCR.');
@@ -3148,6 +3296,10 @@
         phases.quadrant.width=OCR_QUADRANT_W;phases.quadrant.height=OCR_QUADRANT_H;phases.quadrant.psm='6';phases.quadrant.raw=true;
       } else phases.quadrant={candidates:0,crops:0,reads:0,upscale:baseUpscale,width:OCR_QUADRANT_W,height:OCR_QUADRANT_H,psm:'6',raw:true};
       }
+      /* [236-A] what no pass could read, the sheet's own digits can: the library from every read so far, then the rest */
+      {const pl=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx),un=unreadCandidateIndexes(pl,candidates);
+      session.ocrStatus='Reading the rest with the sheet\u2019s own digits\u2026';session.progress=null;spTick();
+      phases.learned=un.length?learnedReadLabels(candidates,pl,un,rawLabels):{library:0,candidates:0,reads:0,words:0,ms:0,why:'nothing-unread'};}
       let pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
       const centerAssigned=numbersOnly?pool.assigned.usedCandidates.size:centerAssigned0;const afterOffset=numbersOnly?centerAssigned:afterOffset0;
 
@@ -3163,7 +3315,7 @@
         if((protectedDev&&field(c.obj.dev)!==lab.dev)||(protectedLoop&&lab.loop&&field(c.obj.loop)!==lab.loop)){
           mismatch++;c.meta.ocrIssue=`Printed identity ${lab.loop?`L${lab.loop}.D`:''}${lab.dev} disagrees with the ${protectedDev||protectedLoop?'user/schedule':'existing'} identity.`;c.decision='review';return;
         }
-        if(!protectedDev){c.obj.dev=lab.dev;c.meta.devSource='ocr';c.meta.devHow=lab.variant==='vector'?'vector':'ocr';}   /* [228-A] read off the drawing, or read off the pixels */
+        if(!protectedDev){c.obj.dev=lab.dev;c.meta.devSource='ocr';c.meta.devHow=lab.variant==='vector'?'vector':lab.variant==='learned'?'learned':'ocr';}   /* [228-A] read off the drawing, or read off the pixels; [236-A] or by the sheet's own digits */
         if(lab.loop&&!protectedLoop){c.obj.loop=lab.loop;c.meta.loopSource='ocr';}
         applied++;
       });
@@ -3173,6 +3325,7 @@
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
         vector:phases.vector?{reads:phases.vector.reads,settled:phases.vector.settled||0,seen:phases.vector.seen,ms:phases.vector.ms,why:phases.vector.why||''}:null,   /* [228-A] */
+        learned:phases.learned?{library:phases.learned.library,reads:phases.learned.reads,candidates:phases.learned.candidates,ms:phases.learned.ms,why:phases.learned.why||''}:null,   /* [236-A] */
         retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:{off:hiresWhy||'unknown'}},   /* [222-A] */
         phases:clone(phases),labels:clone(labels),consistency:clone(consistency),finishedAt:Date.now()};
       session.ocrReport=report;session.ocrStatus='';return clone(report);
@@ -3766,7 +3919,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     preview();const blockers=session.candidates.filter(c=>c.decision==='accepted'&&c.issues.some(x=>x.level==='error')).length,hiddenAccepted=session.candidates.some(c=>c.decision==='accepted'&&hiddenTypesNow().has(field(c.obj.type)));commitBtn.disabled=session.committed||session.ocrBusy||session.detectBusy||!s.accepted||!!blockers||!!s.zoneReview||hiddenAccepted;
     const cbig=q('[data-sp="commitbig"]');if(cbig)cbig.disabled=commitBtn.disabled;
     const rec=s.reconciliation?` • reconcile M ${s.reconciliation.MATCH||0} / X ${s.reconciliation.MISMATCH||0} / registered ${s.reconciliation.ALREADY_IN_REGISTER||0} / missing ${s.reconciliation.MISSING_ON_PLAN||0} / plan-only ${s.reconciliation.PLAN_ONLY||0}`:'';
-    const ocr=s.ocr?` • OCR ${s.ocr.applied||0}/${s.total} applied, +${(s.ocr.offsetRecovered||0)+(s.ocr.quadrantRecovered||0)} retry, cap ${s.ocr.capPx||60}px`:'';const det=s.detection?` • detect ${s.detection.kept||0} kept / ${s.detection.stubFlags||0} stub flags / ${(s.detection.workPixels/1e6).toFixed(1)} MP`:'';const zf=s.zoneSource&&s.zoneSource.rmse!=null?` • zone fit ${Number(s.zoneSource.rmse).toFixed(1)}px`:'';
+    const ocr=s.ocr?` • OCR ${s.ocr.applied||0}/${s.total} applied, +${(s.ocr.offsetRecovered||0)+(s.ocr.quadrantRecovered||0)} retry, cap ${s.ocr.capPx||60}px${s.ocr.learned?`, ${s.ocr.learned.reads} by the sheet's own digits (library ${s.ocr.learned.library})`:''}`:'';   /* [236-A] */const det=s.detection?` • detect ${s.detection.kept||0} kept / ${s.detection.stubFlags||0} stub flags / ${(s.detection.workPixels/1e6).toFixed(1)} MP`:'';const zf=s.zoneSource&&s.zoneSource.rmse!=null?` • zone fit ${Number(s.zoneSource.rmse).toFixed(1)}px`:'';
     /* [206-B] the footer says it in plain words; the numbers a developer wants are the tooltip */
     foot.title=`zones ${s.zoneAccepted}/${s.zones} accepted${s.zoneReview?` (${s.zoneReview} review)`:''} • ${s.errors} blocking issue(s) • ${s.warnings} review flag(s)${det}${ocr}${zf}${rec}`;
     foot.textContent=session.committed?`Committed. ${s.total} candidate(s) were reviewed.`:(session.detectBusy?(session.detectStatus||'Detecting symbols…'):(session.ocrBusy?(session.ocrStatus||'Reading printed identities…'):`Candidates stay temporary until Commit. ${s.total} found${spTypeCounts().length>1?` (${spTypeLine()})`:''} · ${s.accepted} accepted · ${s.review} to check${s.rejected?` · ${s.rejected} rejected`:''}${s.zones?` · ${s.zoneAccepted}/${s.zones} zones`:''}${s.errors?` · ${s.errors} blocking`:''}`));
@@ -3873,8 +4026,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.214 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
+  const MODULE_VERSION = "V0.215 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
