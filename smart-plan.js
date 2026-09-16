@@ -1012,8 +1012,9 @@
     }).sort((a,b)=>b.count-a.count);
     /* carry a zone number already typed for a colour that is still here */
     const old=(session.fillZones&&session.fillZones.groups)||[];
-    groups.forEach(g=>{const prev=old.find(o=>circularHueDelta(o.hue,g.hue)<=FILL_HUE_TOLERANCE&&field(o.zone));if(prev)g.zone=prev.zone;});
+    groups.forEach(g=>{const prev=old.find(o=>circularHueDelta(o.hue,g.hue)<=FILL_HUE_TOLERANCE&&field(o.zone));if(prev){g.zone=prev.zone;g.zoneFrom=prev.zoneFrom||'';g.zoneNames=prev.zoneNames||[];}});   /* [229-1] read or typed rides with the name */
     session.fillZones={groups,sampled:cands.length,plain,diag:zoneDiag,at:Date.now()};
+    zoneLog('sample',{sampled:cands.length,groups:groups.length,plain});   /* [229-1] */
     session.zoneStatus=groups.length
       ? `${groups.length} colour${groups.length===1?'':'s'} under ${cands.length-plain} of ${cands.length} detectors. Name each one.`
       : `No coloured fill under any detector - this plan's zones are not colour areas.`;
@@ -1047,6 +1048,7 @@
     });
     if(session.schedule.length)reconcileSchedule(true); else refreshIssues();
     session.zoneStatus=`${set} detector${set===1?'':'s'} zoned by colour${cleared?`, ${cleared} cleared`:''}.`;
+    zoneLog('apply',{set,cleared,groups:session.fillZones.groups.length});   /* [229-1] */
     render();
     return {set,cleared};
   }
@@ -1267,6 +1269,7 @@
          the boxes fill, the refusal shows its reason, and the button waits for him. */
       const cleanRead=labels.length>0&&f.groups.length>0&&named===f.groups.length&&conflicts===0;
       f.autoApplied=false;
+      zoneLog('read',{labels:labels.length,named,conflicts});   /* [229-1] */
       if(cleanRead){const put=applyFillZones();f.autoApplied=true;f.applied=put.set;
         session.zoneStatus=`${f.groups.length} colour${f.groups.length===1?'':'s'} under ${f.sampled-f.plain} of ${f.sampled} detectors. ${named} named off the sheet and put on ${put.set} detector${put.set===1?'':'s'} - check Review if one looks wrong.`;}
       else session.zoneStatus=labels.length
@@ -2055,6 +2058,32 @@
     return {candidates:n,reads,readCandidates,seen,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};
   }
 
+  /* [229-1] ---- the zones follow the finder --------------------------------------- */
+  function zoneLog(what,extra){
+    if(!session)return;
+    if(!Array.isArray(session.zoneLog))session.zoneLog=[];
+    session.zoneLog.push(Object.assign({t:Date.now(),what},extra||{}));
+    if(session.zoneLog.length>40)session.zoneLog.splice(0,session.zoneLog.length-40);
+  }
+  function zonesNamed(){
+    return !!(session&&session.fillZones&&session.fillZones.groups&&session.fillZones.groups.some(g=>field(g.zone)));
+  }
+  function zonesForNewcomers(added){
+    /* [229-1] his walk: smokes found, zones put on, then the thermals found - and the thermals
+       had no zone, whatever he pressed. Now a find that adds candidates while the zones
+       already carry a name re-samples and re-applies at once: the names ride on the colour
+       (sampleFillZones carries them), so the newcomers land in the groups they sit on. */
+    if(!added||!zonesNamed())return null;
+    try{
+      const f=sampleFillZones();
+      const r=applyFillZones();
+      session.zoneStatus=`${r.set} detector${r.set===1?'':'s'} zoned by colour - the ${added} just found included.`;
+      zoneLog('auto-after-find',{added,sampled:f.sampled,set:r.set,cleared:r.cleared});
+      render();
+      return {added,sampled:f.sampled,set:r.set};
+    }catch(e){zoneLog('auto-after-find-failed',{added,error:(e&&e.message)||String(e)});return null;}
+  }
+
   function tightenWorkBox(f,wb){
     const W=wb.w,H=wb.h;if(W<4||H<4)return null;
     /* 1 - the plan's own pixels, full size */
@@ -2186,6 +2215,7 @@
         const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
         session.detectReport={summary:{runId,type,signal,threshold,method:'vector',raw:vecRun.squares,kept:created.length,skippedByArea:areaSkipped,stubFlags:0,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio,vector:{side:vecRun.side,squares:vecRun.squares,allSquares:vecRun.allSquares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,geometryMs:vecRun.ms}},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:false,closedContourScore:1,closedContourSides:4,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
         session.vectorLast={type,side:vecRun.side,squares:vecRun.squares,shown:vecRun.shown,matched:vecRun.matched,unmatched:vecRun.unmatched,misses:vecRun.misses};   /* misses carry what is drawn in them, for the diagnostics */
+        session.detectReport.summary.zonesRefreshed=zonesForNewcomers(created.length);   /* [229-1] */
         session.detectStatus='';return clone(session.detectReport);
       }
       const raw=[];const mirrors=includeMirrors?[false,true]:[false];
@@ -2245,6 +2275,7 @@
       session.candidates.push(...created);refreshIssues();
       const elapsed=Math.round((performance.now?performance.now():Date.now())-started);
       session.detectReport={summary:{runId,type,signal,threshold,method:'template',vectorWhy:(vecRun&&vecRun.why)||'',raw:raw.length,kept:created.length,skippedByArea:areaSkipped,stubFlags:created.filter(c=>c.meta.suspectStub).length,nmsCentreFactor:DETECT_NMS_CENTRE_FACTOR,workPixels:f.workPixels,workScale:Math.min(f.scaleX,f.scaleY),elapsedMs:elapsed,taughtClosed,taughtContourScore:taught.score,taughtHoleRatio:taughtHole.enclosedRatio},bbox:clone(wb.original),tightened:!!wb.tightened,detections:created.map(c=>({id:c.id,x:c.obj.x,y:c.obj.y,score:c.meta.confidence,stub:!!c.meta.suspectStub,closedContourScore:c.meta.closedContourScore,closedContourSides:c.meta.closedContourSides,box:clone(c.meta.bbox)})),finishedAt:Date.now()};
+      session.detectReport.summary.zonesRefreshed=zonesForNewcomers(created.length);   /* [229-1] */
       session.detectStatus='';return clone(session.detectReport);
     } catch(e){
       /* [205-A] a cancelled detection adds NOTHING: candidates are only pushed after the last pass. */
@@ -3200,7 +3231,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
     const looks=(st.crops||0)+((p.probe&&p.probe.crops)||0)+((p.center&&p.center.crops)||0)+((p.offset&&p.offset.crops)||0)+((p.quadrant&&p.quadrant.crops)||0);
     return {style,looks,agreed:st.reads||0,readCandidates:st.readCandidates||0,applied:s.applied||0,withheld:s.withheld||0,unread:s.unread||0,ms:s.elapsedMs||0,unconfirmed:st.unconfirmed||0,
       text:JSON.stringify({version:VERSION,ua:(typeof navigator!=='undefined'&&navigator.userAgent)||'',plan:currentDims(),candidates:session.candidates.length,summary:s,phases:p,
-        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone,from:g.zoneFrom||'',names:g.zoneNames||[]})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,labels:session.fillZones.labels||[],readMs:session.fillZones.readMs||null,readError:session.fillZones.readError||'',diag:zoneDiagOut(session.fillZones.diag)}:null},null,1)};   /* [225-B] */   /* [221-D] */
+        zones:session.fillZones?{groups:session.fillZones.groups.map(g=>({hue:Math.round(g.hue),count:g.count,zone:g.zone,from:g.zoneFrom||'',names:g.zoneNames||[]})),plain:session.fillZones.plain,sampled:session.fillZones.sampled,labels:session.fillZones.labels||[],readMs:session.fillZones.readMs||null,readError:session.fillZones.readError||'',diag:zoneDiagOut(session.fillZones.diag),log:(session.zoneLog||[]).slice(-20)}:null,zoneLog:session.fillZones?undefined:(session.zoneLog||[]).slice(-20)},null,1)};   /* [229-1] the zones step's own log rides in the paste */   /* [225-B] */   /* [221-D] */
   }
   function spGo(step){uiStep=Math.max(1,Math.min(SP_STEPS.length,step));render();}
   /* PASS 209 [209-A] - a progress tick touches the status line, the bar and the
@@ -3571,10 +3602,10 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       renderReconciliation();
       spNav(left,{next:session.schedule.length?'Next: Zones':'Skip',nextPrimary:!!session.schedule.length});
     }else if(uiStep===5){
-      q('[data-sp="fillfind"]').onclick=()=>{try{sampleFillZones();readZoneNames().catch(()=>{});}catch(e){alert(e.message||String(e));}};   /* [225-A] */
+      q('[data-sp="fillfind"]').onclick=()=>{zoneLog('press-find');try{sampleFillZones();readZoneNames().catch(()=>{});}catch(e){zoneLog('press-find-failed',{error:(e&&e.message)||String(e)});alert(e.message||String(e));}};   /* [225-A] [229-1] */
       Array.prototype.forEach.call(left.querySelectorAll('[data-sp="fillzone"]'),el=>{
         el.onchange=()=>{try{el.value=setFillZone(el.getAttribute('data-gid'),el.value);}catch(e){alert(e.message||String(e));}};});
-      const fa=q('[data-sp="fillapply"]');if(fa)fa.onclick=()=>{try{applyFillZones();}catch(e){alert(e.message||String(e));}};
+      const fa=q('[data-sp="fillapply"]');if(fa)fa.onclick=()=>{zoneLog('press-apply');try{applyFillZones();}catch(e){zoneLog('press-apply-failed',{error:(e&&e.message)||String(e)});alert(e.message||String(e));}};   /* [229-1] */
       q('[data-sp="zone-source"]').onclick=()=>m.querySelector(`#${ZONE_SOURCE_FILE_ID}`).click();
       if(session.zoneSource){
         q('[data-sp="zone-detect"]').onclick=()=>{try{detectZoneSourceRegions();}catch(e){alert(e.message||String(e));}};
@@ -3707,8 +3738,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.207 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
+  const MODULE_VERSION = "V0.208 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk})):null};
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
