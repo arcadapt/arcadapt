@@ -371,7 +371,7 @@
       const v = field(obj && obj[k]);
       if (v.length > MAX_FIELD) out.push({code:`${k}_too_long`, level:'error', text:`${k} exceeds Arc's ${MAX_FIELD}-character field`});
     });
-    if (meta && meta.requiresDeviceNumber && !field(obj.dev)) out.push({code:'missing_dev', level:'review', text:'Device number/address unread'});
+    if (meta && meta.requiresDeviceNumber && !field(obj.dev) && !meta.devCleared) out.push({code:'missing_dev', level:'review', text:'Device number/address unread'});   /* [232-B] he took it off - no flag */
     if (meta && meta.confidence != null && Number(meta.confidence) < 0.75) out.push({code:'low_confidence', level:'review', text:'Low recognition confidence'});
     if (meta && meta.source === 'template' && meta.suspectStub) {
       const score=Number.isFinite(Number(meta.closedContourScore)) ? ` (closed-contour ${Number(meta.closedContourScore).toFixed(2)})` : '';
@@ -403,7 +403,7 @@
       ocrConfidence:m0.ocrConfidence == null ? null : Number(m0.ocrConfidence),
       detectorRun:field(m0.detectorRun),
       detectorSignal:field(m0.detectorSignal),
-      method:field(m0.method),vectorSide:m0.vectorSide == null ? null : Number(m0.vectorSide),vectorInner:m0.vectorInner == null ? null : Number(m0.vectorInner),vectorFill:!!m0.vectorFill,vectorShape:!!m0.vectorShape,vectorPartial:!!m0.vectorPartial,noNumber:!!m0.noNumber,vectorScale:m0.vectorScale==null?1:Number(m0.vectorScale),devHow:field(m0.devHow),   /* [230-A] */   /* [228-A] the vector finder's facts about a candidate, kept */
+      method:field(m0.method),vectorSide:m0.vectorSide == null ? null : Number(m0.vectorSide),vectorInner:m0.vectorInner == null ? null : Number(m0.vectorInner),vectorFill:!!m0.vectorFill,vectorShape:!!m0.vectorShape,vectorPartial:!!m0.vectorPartial,noNumber:!!m0.noNumber,vectorScale:m0.vectorScale==null?1:Number(m0.vectorScale),zoneCleared:!!m0.zoneCleared,loopCleared:!!m0.loopCleared,devCleared:!!m0.devCleared,devHow:field(m0.devHow),   /* [232-B] */   /* [230-A] */   /* [228-A] the vector finder's facts about a candidate, kept */
       bbox:Array.isArray(m0.bbox) ? m0.bbox.map(Number) : null,
       rotation:m0.rotation == null ? null : Number(m0.rotation),
       interiorNcc:m0.interiorNcc == null ? null : Number(m0.interiorNcc),
@@ -1053,6 +1053,7 @@
       g.members.forEach(id=>{
         const c=byId.get(id); if(!c||c.decision==='rejected')return;
         const owned=(c.meta.zoneSource==='fill');
+        if(c.meta.zoneSource==='user')return;   /* [232-B] his - typed or taken off - is never put back by colour */
         if(z){ if(owned||!field(c.obj.zone)){c.obj.zone=z;c.meta.zoneSource='fill';set++;} }
         else if(owned){ c.obj.zone='';c.meta.zoneSource='';cleared++; }
       });
@@ -2134,7 +2135,7 @@
     if(!pieces||!pieces.length)return {candidates:0,reads:0,readCandidates:0,seen:0,ms:0,why:v?(v.why||'no-glyph-pieces'):'no-vector'};
     let reads=0,readCandidates=0,seen=0,n=0;
     candidates.forEach(c=>{
-      if(!c.meta||c.meta.method!=='vector'||!(c.meta.vectorSide>0)||c.meta.noNumber)return;   /* [230-A] */
+      if(!c.meta||c.meta.method!=='vector'||!(c.meta.vectorSide>0)||c.meta.noNumber||c.meta.devCleared)return;   /* [230-A] [232-B] */
       n++;const cx=Number(c.obj.x),cy=Number(c.obj.y),side=c.meta.vectorSide;
       const r=vecLabelsFor(cx,cy,side,pieces);seen+=r.seen;
       if(!r.words.length)return;
@@ -2805,7 +2806,7 @@
        of its bbox is closer. Rank eligible pairs by label-centre distance. */
     const pairs=[];
     labels.forEach((lab,li)=>candidates.forEach((c,ci)=>{
-      if(c.meta&&c.meta.noNumber)return;   /* [230-A] a symbol that carries no number never takes a label */
+      if(c.meta&&(c.meta.noNumber||c.meta.devCleared))return;   /* [230-A] a symbol that carries no number never takes a label; [232-B] nor does a row whose number he took off */
       const x=Number(c.obj.x),y=Number(c.obj.y);
       const edge=bboxDistance(lab.bbox,x,y);
       if(edge>maxPx)return;
@@ -2873,7 +2874,7 @@
   }
 
   function unreadCandidateIndexes(pool,candidates){
-    const out=[];for(let i=0;i<candidates.length;i++)if(!pool.settledCandidates.has(i)&&!(candidates[i].meta&&candidates[i].meta.noNumber))out.push(i);return out;   /* [230-A] */
+    const out=[];for(let i=0;i<candidates.length;i++)if(!pool.settledCandidates.has(i)&&!(candidates[i].meta&&(candidates[i].meta.noNumber||candidates[i].meta.devCleared)))out.push(i);return out;   /* [230-A] [232-B] */
   }
 
   function tagOcrLabels(labels,candidate,phase,dx,dy,upscale,rawLabels){
@@ -3067,7 +3068,7 @@
          V1.6 proved the left-only D76 recovery matters, so all four 30 px cardinal
          retries are restored. Rows still unresolved then get four larger quadrant
          crops at the SAME 2x raster, raw pixels and PSM 6; no 4x upscaling. */
-      const all=candidates.map((_,i)=>i).filter(i=>!(candidates[i].meta&&candidates[i].meta.noNumber));   /* [230-A] */
+      const all=candidates.map((_,i)=>i).filter(i=>!(candidates[i].meta&&(candidates[i].meta.noNumber||candidates[i].meta.devCleared)));   /* [230-A] [232-B] */
       const phases={};
       let numbersOnly=false,centerAssigned0=0,afterOffset0=0;
       if(opts.mode==='auto'){
@@ -3139,7 +3140,7 @@
         const c=a.candidate,lab=a.label;c.meta.ocrDistance=Math.round(a.distance*10)/10;c.meta.ocrConfidence=lab.confidence;
         if(a.withheld){withheld++;c.meta.ocrIssue=a.withheld;c.decision='review';return;}
         const protectedDev=(c.meta.devSource==='user'||c.meta.devSource==='schedule')&&field(c.obj.dev);
-        const protectedLoop=(c.meta.loopSource==='user'||c.meta.loopSource==='schedule')&&field(c.obj.loop);
+        const protectedLoop=(c.meta.loopSource==='user'||c.meta.loopSource==='schedule')&&(field(c.obj.loop)||c.meta.loopCleared);   /* [232-B] a loop he took off is his too */
         if((protectedDev&&field(c.obj.dev)!==lab.dev)||(protectedLoop&&lab.loop&&field(c.obj.loop)!==lab.loop)){
           mismatch++;c.meta.ocrIssue=`Printed identity ${lab.loop?`L${lab.loop}.D`:''}${lab.dev} disagrees with the ${protectedDev||protectedLoop?'user/schedule':'existing'} identity.`;c.decision='review';return;
         }
@@ -3253,7 +3254,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 #${MODAL_ID} details[open] summary::before{content:'\\25BE  '}
 #${MODAL_ID} .spColHead{display:grid;grid-template-columns:44px minmax(88px,1.1fr) 68px 68px 68px 92px;gap:6px;font-size:10px;color:var(--fs-sub,#9aa2aa);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.04em}
 @media(max-width:820px){#${MODAL_ID} .spHead{flex-wrap:wrap}#${MODAL_ID} .spStep{flex:1 1 100%;order:9;text-align:left;border:0;padding:2px 0 0}#${MODAL_ID} .spColHead{grid-template-columns:40px 1fr 58px 58px 58px}#${MODAL_ID} .spColHead span:last-child{display:none}}
-@media(max-width:820px){#${MODAL_ID} .spBody{display:block;overflow:auto}#${MODAL_ID} .spPane{overflow:visible}#${MODAL_ID} .spPane+ .spPane{border-left:0;border-top:1px solid var(--fs-border,#3a4047)}#${MODAL_ID} .spFoot{flex-wrap:wrap;row-gap:6px}#${MODAL_ID} .spFoot [data-sp="foot"]{flex:1 1 100%}#${MODAL_ID} .spFoot [data-sp="bar"]{flex:1 1 100%;width:auto!important}#${MODAL_ID} .spFoot .spGrow{display:none}#${MODAL_ID} .spFoot button{flex:1 1 auto}#${MODAL_ID} .spStats{grid-template-columns:repeat(3,1fr)}#${MODAL_ID} .spRow{grid-template-columns:40px 1fr 58px 58px 58px}.spRow .spDecision{grid-column:2/-1}#${MODAL_ID} .spDetectGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spDetectGrid button{grid-column:1/-1}#${MODAL_ID} .spZoneGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spZoneGrid button{grid-column:1/-1}}
+@media(max-width:820px){#${MODAL_ID} .spBody{display:block;overflow:auto}#${MODAL_ID} .spPane{overflow:visible}#${MODAL_ID} .spPane+ .spPane{border-left:0;border-top:1px solid var(--fs-border,#3a4047)}#${MODAL_ID} .spFoot{flex-wrap:wrap;row-gap:6px}#${MODAL_ID} .spFoot [data-sp="foot"]{flex:1 1 100%}#${MODAL_ID} .spFoot [data-sp="bar"]{flex:1 1 100%;width:auto!important}#${MODAL_ID} .spFoot .spGrow{display:none}#${MODAL_ID} .spFoot button{flex:1 1 auto}#${MODAL_ID} .spStats{grid-template-columns:repeat(3,1fr)}#${MODAL_ID} .spRow{grid-template-columns:40px 1fr 58px 58px 58px}.spRow .spDecision{grid-column:2/-1}#${MODAL_ID} .spRow .spCell{position:relative;min-width:0}#${MODAL_ID} .spRow .spCell input{width:100%;padding-right:22px}#${MODAL_ID} .spRow .spClr{position:absolute;right:1px;top:50%;transform:translateY(-50%);width:20px;height:26px;border:0;border-radius:6px;background:transparent;color:inherit;opacity:.55;font-size:17px;line-height:1;padding:0;cursor:pointer}#${MODAL_ID} .spRow .spClr:hover{opacity:1;background:rgba(128,128,128,.18)}#${MODAL_ID} .spRow .spClr[hidden]{display:none}#${MODAL_ID} .spDetectGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spDetectGrid button{grid-column:1/-1}#${MODAL_ID} .spZoneGrid{grid-template-columns:1fr 1fr}#${MODAL_ID} .spZoneGrid button{grid-column:1/-1}}
 `;
     document.head.appendChild(s);
   }
@@ -3792,16 +3793,18 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
       const row=document.createElement('div'); row.className='spRow';
       const cls=c.issues.some(x=>x.level==='error')?'bad':c.issues.length?'rev':'ok';
       row.innerHTML=`<span class="spBadge ${cls}" title="${escapeHtml(c.id)}">${c.issues.length||'✓'}</span>
-        <select data-k="type"></select><input data-k="zone" maxlength="5" placeholder="Zone"><input data-k="loop" maxlength="5" placeholder="Loop"><input data-k="dev" maxlength="5" placeholder="Device"><select class="spDecision" data-k="decision"><option value="accepted">Accept</option><option value="review">Review</option><option value="rejected">Reject</option></select><div class="spIssue"></div>`;
+        <select data-k="type"></select>${['zone','loop','dev'].map(k=>`<span class="spCell"><input data-k="${k}" maxlength="5" placeholder="${k==='dev'?'Device':k[0].toUpperCase()+k.slice(1)}"><button type="button" class="spClr" data-clr="${k}" title="Take the ${k==='dev'?'device number':k} off this row" aria-label="Take the ${k==='dev'?'device number':k} off">\u00d7</button></span>`).join('')}<select class="spDecision" data-k="decision"><option value="accepted">Accept</option><option value="review">Review</option><option value="rejected">Reject</option></select><div class="spIssue"></div>`;
       const typeSel=row.querySelector('[data-k="type"]');
       let types=[]; try{types=Object.keys(TYPE_MAP||{})}catch(_){types=[c.obj.type]}
       if(!types.includes(c.obj.type))types.unshift(c.obj.type);
       typeSel.innerHTML=types.filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(arcTypeLabel(t))}</option>`).join(''); typeSel.value=c.obj.type;
-      ['zone','loop','dev'].forEach(k=>row.querySelector(`[data-k="${k}"]`).value=field(c.obj[k])); row.querySelector('[data-k="decision"]').value=c.decision;
+      ['zone','loop','dev'].forEach(k=>{row.querySelector(`[data-k="${k}"]`).value=field(c.obj[k]);const b=row.querySelector(`[data-clr="${k}"]`);if(b)b.hidden=!field(c.obj[k]);});   /* [232-A] the x shows only where there is something to take off */
+      row.querySelector('[data-k="decision"]').value=c.decision;
+      row.querySelectorAll('[data-clr]').forEach(b=>{b.onclick=e=>{e.stopPropagation();const k=b.dataset.clr;c.obj[k]='';if(!c.meta)c.meta={};c.meta[`${k}Source`]='user';c.meta[`${k}Cleared`]=true;refreshIssues();render();};});   /* [232-A] one tap takes the label off - and it stays off (232-B) */
       row.querySelector('.spIssue').textContent=c.issues.map(x=>x.text).join(' · ');
       if(session.focusId===c.id)row.classList.add('spRowFocus');
       row.onclick=e=>{const tag=e.target&&e.target.tagName;if(/^(INPUT|SELECT|OPTION|BUTTON)$/.test(tag||''))return;session.focusId=c.id;box.querySelectorAll('.spRowFocus').forEach(r=>r.classList.remove('spRowFocus'));row.classList.add('spRowFocus');if(spCenterMain)spCenterMain(Number(c.obj.x),Number(c.obj.y));};
-      row.onchange=e=>{const k=e.target&&e.target.dataset&&e.target.dataset.k;if(!k)return;if(k==='decision')c.decision=e.target.value;else{c.obj[k]=field(e.target.value);if(c.meta)c.meta[`${k}Source`]='user';}refreshIssues();render();};
+      row.onchange=e=>{const k=e.target&&e.target.dataset&&e.target.dataset.k;if(!k)return;if(k==='decision')c.decision=e.target.value;else{c.obj[k]=field(e.target.value);if(c.meta){c.meta[`${k}Source`]='user';c.meta[`${k}Cleared`]=!field(e.target.value);}}refreshIssues();render();};   /* [232-A] emptied by hand counts as taken off too */
       box.appendChild(row);
     });
     if(!list.length)box.innerHTML='<div class="spHint" style="padding:12px">Nothing requires review.</div>';
@@ -3842,8 +3845,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.210 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
+  const MODULE_VERSION = "V0.211 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
