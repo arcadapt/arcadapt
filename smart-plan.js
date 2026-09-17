@@ -377,7 +377,7 @@
       if (v.length > MAX_FIELD) out.push({code:`${k}_too_long`, level:'error', text:`${k} exceeds Arc's ${MAX_FIELD}-character field`});
     });
     if (meta && meta.requiresDeviceNumber && !field(obj.dev) && !meta.devCleared) out.push({code:'missing_dev', level:'review', text:'Device number/address unread'});   /* [232-B] he took it off - no flag */
-    if (meta && meta.confidence != null && Number(meta.confidence) < 0.75) out.push({code:'low_confidence', level:'review', text:'Low recognition confidence'});
+    if (meta && meta.confidence != null && Number(meta.confidence) < 0.75) out.push({code:'low_confidence', level:'review', text:'Weak symbol match'});
     if (meta && meta.source === 'template' && meta.suspectStub) {
       const score=Number.isFinite(Number(meta.closedContourScore)) ? ` (closed-contour ${Number(meta.closedContourScore).toFixed(2)})` : '';
       out.push({code:'stub_candidate', level:'review', text:`Possible leader-line stub false positive${score}`});
@@ -3245,6 +3245,14 @@
       const ws=lrnWordsFor(G,Number(c.obj.x),Number(c.obj.y),side);words+=ws.length;
       for(const w of ws){
         const key=w.x0+','+w.top+','+w.x1+','+w.bot;if(claimed.has(key))continue;
+        /* [241-A] A PRINTED NUMBER BELONGS TO THE SYMBOL IT IS PRINTED BESIDE. `claimed` starts empty and
+           knows nothing of the words the strip pass already used, and `unread` is walked in candidate
+           order, so the FIRST symbol to reach a word took it: his 87 was read for the thermal beside its
+           owner and landed on two rows. The block comment above already says a learned label belongs to
+           the symbol it was read beside - that was enforced at assignment time only. Enforce it here:
+           the word must be nearest to THIS candidate, on the same Chebyshev distance as `w.d`. */
+        const wcx=(w.x0+w.x1)/2,wcy=(w.top+w.bot)/2;
+        if(candidates.some(o=>o!==c&&o.decision!=='rejected'&&Math.max(Math.abs(Number(o.obj.x)-wcx),Math.abs(Number(o.obj.y)-wcy))<=w.d))continue;
         if(w.loose>LRN_LOOSE)continue;
         let text='',ok=true,conf=1;
         for(const g of w.g){const r=lrnKnn(lib,lrnPatch(G,g));const need=Math.max(2,Math.min(LRN_AGREE,byDigit[r.d]||0));let d='';
@@ -4116,7 +4124,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.219 beta";
+  const MODULE_VERSION = "V0.220 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
