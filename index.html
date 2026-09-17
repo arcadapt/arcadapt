@@ -770,7 +770,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.221 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.222 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -902,7 +902,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.221 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.222 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -9316,7 +9316,7 @@ function fsRegionPick(srcCanvas, forObject) {
     const zLbl = document.getElementById("fsRgnZoomLbl");
     const HINTS = {
       box: "Drag a box around the building you want — edges don't need to be exact, the white margin is trimmed off automatically.",
-      poly: "Tap corner by corner around the building — tap your first point again to close the loop. Drag any dot to move it, even after the loop closes. Pinch or use ＋/－ to zoom, drag the sheet to aim; ✓ Keep is the last word."
+      poly: "Tap corner by corner around the building — tap your first point again to close the loop. Drag any point to move it, even after the loop closes. Pinch or use ＋/－ to zoom, drag the sheet to aim; ✓ Keep is the last word."
     };
     const k = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
     disp.width = Math.max(1, Math.round(srcCanvas.width * k));
@@ -12395,14 +12395,14 @@ function endPointer(e) {
          drag has already happened in pointermove and just ends here */
       if (!pr.moved && pr.knob === 0) fsWsCropClose();
       fsWsSay((fsWsCrop && fsWsCrop.closed)
-        ? "Drag any dot to adjust it, then Crop it"
-        : "Tap the first dot to close the loop");
+        ? "Drag any point to adjust it, then Crop it"
+        : "Tap the first point to close the loop");
       return;
     }
     if (pr.moved) { draw(); return; }     /* that was a pan, not a placement */
     fsWsCropTap(ip);
     fsWsSay((fsWsCrop && fsWsCrop.pts.length > 2)
-      ? "Tap the first dot to close the loop, or use Close & crop"
+      ? "Tap the first point to close the loop, or use Close & crop"
       : "Keep tapping the corners");
     return;
   }
@@ -26224,6 +26224,33 @@ function fsTodayOpenSite(e) {
   fsInfoEdit = false; fsEquipEdit = false;
   fsRenderSite(); fsShow("fsSiteView");
 }
+/* PASS 243 [243-B] - P-13, 26 Aug, with a screenshot: "it used to say and show which site
+   was first and what was due on the site with a picture". Half of that has been there since
+   [76-C1] - the row carries the time, the name, a Booked/Now/Done chip and the due cycles - and
+   it read as missing because on the day he stepped to (Mon 3 Aug) those three sites had no
+   August cycle falling due, so `due` was an empty string. The PHOTO was genuinely absent: no
+   <img> anywhere in the row, while the priority cards fifteen lines below have had one since
+   [P-1b].
+
+   **A NEW BUILD, NOT A RESTORATION.** No build of fsTodayHtml has ever carried an image in that
+   row; the fields have been time / name+due / chip throughout. Reporting this as "restored"
+   would be agreeing with a memory of a screen that never shipped.
+
+   Same source as the priority card - displayPhoto first, because PASS 94 [P-1b] created that
+   field to BE this photo, then photo - and the same letter-tile fallback, so a site looks like
+   itself on both. 38px: the row is 58px of time, three 12px gaps and a ~70px chip, and the name
+   already truncates with an ellipsis, so the thumbnail costs the name 50px and nothing wraps at
+   360. An ad-hoc job has no site and gets a tile from its own title, because a row with no first
+   column would stop the times lining up down the list. */
+function fsTdRowPhoto(s, label) {
+  const src = s && (s.displayPhoto || s.photo);
+  const BOX = "flex:0 0 38px;width:38px;height:38px;border-radius:8px;overflow:hidden";
+  if (src && typeof fsPhotoSrc === "function")
+    return '<img class="fsTdRowPhoto" src="' + fsPhotoSrc(src) + '" style="' + BOX + ';display:block;object-fit:cover" alt="">';
+  return '<div class="fsTdRowPhoto" style="' + BOX + ';display:flex;align-items:center;justify-content:center;'
+       + 'background:var(--fs-tile);color:var(--fs-sub2);font-size:15px;font-weight:800">'
+       + fsEsc(String(label || "?").slice(0, 1).toUpperCase()) + '</div>';
+}
 function fsTodayHtml(d) {
   const hr = new Date().getHours();
   const who = (typeof fsGreetName === "function" && fsGreetName()) ? ", " + fsEsc(fsGreetName()) : "";   /* PASS 206 [206-D] R-184 - only a Settings / sign-in name greets */
@@ -26294,10 +26321,11 @@ function fsTodayHtml(d) {
            would otherwise label its stops from the wrong month. */
         const due = (!r.x.adhoc && r.e) ? fsPlDueCycles(r.e.s, fsTdKey().slice(0, 7)).map(c => c.label).join(" + ") : "";
         h += '<div class="fsTdRow" data-i="' + i + '" style="display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--fs-border)' + (r.e ? ';cursor:pointer' : '') + '">' +
-          '<div style="width:58px;font-weight:700;font-size:13px;white-space:nowrap">' + fsEsc(r.x.start || "—") + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(label) + '</div>' +
+          '<div class="fsTdRowTime" style="width:58px;font-weight:700;font-size:13px;white-space:nowrap">' + fsEsc(r.x.start || "—") + '</div>' +
+          fsTdRowPhoto(r.e && r.e.s, label) +   /* [243-B] P-13 */
+          '<div class="fsTdRowBody" style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fsEsc(label) + '</div>' +
           (due ? '<div style="font-size:12px;color:var(--fs-sub)">' + fsEsc(due) + ' service</div>' : '') + '</div>' +
-          '<span style="font-size:11.5px;border-radius:20px;padding:3px 10px;' + chip[1] + '">' + chip[0] + '</span></div>';
+          '<span class="fsTdRowChip" style="font-size:11.5px;border-radius:20px;padding:3px 10px;' + chip[1] + '">' + chip[0] + '</span></div>';
       });
     }
     h += '</div>';
@@ -27576,7 +27604,12 @@ function fsRenderTab() {
         document.querySelectorAll(".fsVisM").forEach(f => { vm2[f.dataset.key] = +f.value || 0; });
         const pf = document.getElementById("fsVisPref");
         const tot = k => (vd[k] || 0) * 1440 + (vh[k] || 0) * 60 + (vm2[k] || 0);
+        /* [243-A] 68-2 - the DURATIONS only. A changed preferred start does not change
+           how long a visit takes, and a save that changed nothing must not speak. */
+        const durKey = v => [(v && v.mins) || 0, (v && v.mins6) || 0, (v && v.minsA) || 0].join("/");
+        const prevDur = durKey(s.visit);
         if (pf) s.visit = { mins: tot("mins"), mins6: tot("mins6"), minsA: tot("minsA"), pref: pf.value || "" };
+        if (pf && durKey(s.visit) !== prevDur && typeof fsPlResyncVisitSaved === "function") fsPlResyncVisitSaved(s);   /* [243-A] */
         /* PASS 143 [143-B] - the ticks and any renamed period, read with the
            rest of the form. Its own reader because a routine label lives on
            the REGISTER and the tick lives on the SITE, which the generic
@@ -30708,7 +30741,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v229";
+const FS_BUILD = "aa-v230";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31738,6 +31771,90 @@ function fsPlMinsParts(s, month) {
    the above happened. */
 function fsPlMinsFor(s, month) {
   return fsPlMinsParts(s, month).mins;
+}
+/* PASS 243 [243-A] - 68-2, asked 20 Aug, answered by Reece on the 22nd: "keep the old
+   one, I would expect it to change." Changing a site's time on site did not reach a day
+   already planned: a stop stores its own `mins` at plan time and nothing ever went back
+   for it, so the register and the plan disagreed silently and for ever. It does now.
+
+   WHAT IT LEAVES ALONE. Each of these is a rule with a reason, not a caution:
+     minsSet   a duration chosen by hand. V0.15 made that flag mean "chosen, not
+               computed", and fsPlAutoPlan already carries it through a whole re-plan
+               (keptMins). Overriding it here would make the pencil marker a lie.
+     done      history. A day that has been worked is a record of what happened.
+     adhoc     an ad-hoc job is not this site's standard visit, and has no site.
+     the past  any day before today, and any month before this one - same reason as done.
+     a split   a site with MORE THAN ONE stop in a month was carried across days by
+               fsPlAutoPlan, which divided the total (dayCap). Writing the new total into
+               each piece would MULTIPLY the visit, so those months are counted and
+               reported instead. Plan month again is the honest fix, and it is one tap.
+
+   IT DOES TOUCH A LOCKED DAY, deliberately. fsPlCommitPlace locks every day it places a
+   stop on, so locked days are the common case rather than the exception; and what `locked`
+   protects in fsPlAutoPlan is WHICH sites are on a day and in what order, which changing a
+   duration does not touch. Skipping locked days would have made this item a no-op for
+   exactly the work he places by hand.
+
+   THE START TIMES ARE NOT MOVED, and neither are the stops after it. That is precisely what
+   the hand-set Time link has always done (fsPlWireDay: `x.mins = n`, save, re-render), and
+   two paths writing the same field must write it the same way or the app disagrees with
+   itself. The consequence is already drawn: the month grid's capacity bar overflows visibly
+   and its tooltip says "OVER by" (V0.12, written for exactly this). */
+function fsPlResyncVisit(site) {
+  const out = { changed: 0, kept: 0, split: 0, mins: 0, months: 0 };
+  if (!site || !site.id || typeof fsPlPlans === "undefined" || !fsPlPlans) return out;
+  const today = fsPlTodayKey(), thisMonth = today.slice(0, 7);
+  Object.keys(fsPlPlans).forEach(function (mk) {
+    const mo = fsPlPlans[mk];
+    if (!mo || !mo.days || mk < thisMonth) return;
+    let n = 0;
+    Object.keys(mo.days).forEach(function (dk) {
+      (mo.days[dk] || []).forEach(function (x) { if (x && !x.adhoc && x.siteId === site.id) n++; });
+    });
+    if (!n) return;
+    if (n > 1) { out.split++; return; }          /* carried across days - see the note above */
+    const want = fsPlMinsFor(site, mk);
+    let hit = 0;
+    Object.keys(mo.days).forEach(function (dk) {
+      if (dk < today) return;
+      (mo.days[dk] || []).forEach(function (x) {
+        if (!x || x.adhoc || x.siteId !== site.id) return;
+        if (x.done || x.minsSet) { out.kept++; return; }
+        if (+x.mins === want) return;
+        x.mins = want; out.changed++; out.mins = want; hit = 1;
+      });
+    });
+    if (hit) out.months++;
+  });
+  return out;
+}
+/* [243-A] the register's Save is synchronous and fsPlPlans is NULL until the IDB read lands
+   (fsPlLoadPlans), so a bare call from there would have done nothing at all on a cold load -
+   the same silence this item exists to remove, with a fix in front of it. Same lazy-load
+   shape the hub already uses for Today's card.
+
+   It is SILENT when nothing was planned, which is most sites on most saves. It speaks only
+   when it changed something, or when it deliberately did not, because "I've changed it
+   multiple times and nothing happens" is the shape of the complaint. */
+function fsPlResyncVisitSaved(site) {
+  const go = function () {
+    const r = fsPlResyncVisit(site);
+    if (r.changed) {
+      fsPlSavePlans();
+      if (typeof fsTab !== "undefined" && fsTab === "planner" && typeof fsPlRender === "function") fsPlRender();
+    }
+    if (!r.changed && !r.kept && !r.split) return;
+    const bits = [];
+    if (r.changed) bits.push(r.changed + " planned " + (r.changed === 1 ? "day is" : "days are")
+                             + " now " + fsPlFmtMins(r.mins));
+    if (r.kept) bits.push(r.kept + " " + (r.kept === 1 ? "day was" : "days were")
+                          + " left alone (time set by hand for that day, or already done)");
+    if (r.split) bits.push(r.split + " " + (r.split === 1 ? "month splits" : "months split")
+                           + " this site across days - Plan month again to spread the new time");
+    alert(bits.join(".\n") + ".");
+  };
+  if (typeof fsPlPlans !== "undefined" && fsPlPlans) { go(); return; }
+  if (typeof fsPlLoadPlans === "function") fsPlLoadPlans().then(go).catch(function () {});
 }
 /* V0.15 — one duration field instead of a minutes-only box.
    The site register has had days+hours+mins boxes all along and fsPlFmtMins
