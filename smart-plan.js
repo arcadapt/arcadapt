@@ -2862,7 +2862,9 @@
     const symW=widths.length?widths[Math.floor(widths.length/2)]:44;
     const conf=ci=>{const v=candidates[ci].meta&&candidates[ci].meta.confidence;return Number.isFinite(Number(v))?Number(v):1;};
     pairs.forEach(([centre,edge,li,ci])=>{if(ul.has(li)||uc.has(ci))return;
-      const rival=pairs.find(q=>q[2]===li&&q[3]!==ci&&!uc.has(q[3])&&q[0]<=centre+2*symW&&conf(q[3])>=conf(ci)+0.15);
+      /* [240-A] between candidates of ONE type only: a hollow sounder's whole-patch NCC (0.97) and a thermal's
+         dice (0.7) are not on one scale, and an unnumbered sounder took 86 and 62 off the thermals beside it */
+      const rival=pairs.find(q=>q[2]===li&&q[3]!==ci&&!uc.has(q[3])&&q[0]<=centre+2*symW&&candidates[q[3]].obj.type===candidates[ci].obj.type&&conf(q[3])>=conf(ci)+0.15);
       if(rival)return;
       ul.add(li);uc.add(ci);out.push({distance:edge,centreDistance:centre,label:labels[li],candidate:candidates[ci],candidateIndex:ci});});
     return {assignments:out,usedLabels:ul,usedCandidates:uc};
@@ -2958,7 +2960,7 @@
   }
   async function runOcrStripPass(worker,candidates,indexes,rawLabels){
     if(worker.setParameters) await worker.setParameters({tessedit_pageseg_mode:'7',preserve_interword_spaces:'1',tessedit_char_whitelist:'0123456789'});
-    let crops=0,reads=0,readCandidates=0,clippedTotal=0,unconfirmedTotal=0;   /* [219-B] [221-B] */
+    let crops=0,reads=0,readCandidates=0,clippedTotal=0,unconfirmedTotal=0,overSymbol=0;   /* [219-B] [221-B] [240-B] */
     const readDiag=[];   /* [221-D] */
     try{
       for(let n=0;n<indexes.length;n++){
@@ -3043,6 +3045,9 @@
           if(text[0]==='0')continue;  /* a leading 0 is a clipped longer number */
           /* a lone "1" is a wall line or a wire far more often than device 1 */
           if(text.length<2&&(conf<OCR_STRIP_SINGLE_MIN_CONF||text==='1'))continue;
+          /* [240-B] a number is printed beside a symbol, never over one: a window that holds another
+             candidate's centre read that symbol (a thermal's dot and stem and the 77 beyond it read "14") */
+          if(candidates.some(o=>o!==c&&bboxDistance([rx,ry,rw,rh],Number(o.obj.x),Number(o.obj.y))===0)){overSymbol++;continue;}
           const dev=String(parseInt(text,10));
           seen.push({dir:st.name,dev,confidence:conf});
           rawLabels.push({loop:'',dev,raw:text,text,confidence:conf,bbox:[rx,ry,rw,rh],votes:1,variant:'strip',psm:'7',phase:'strip',observedNear:c.id,offsetX:0,offsetY:0,upscale:OCR_STRIP_UPSCALE});
@@ -3065,7 +3070,7 @@
     }finally{
       if(worker.setParameters) await worker.setParameters({tessedit_char_whitelist:''});
     }
-    return {candidates:indexes.length,crops,reads,readCandidates,clipped:clippedTotal,unconfirmed:unconfirmedTotal,diag:readDiag,upscale:OCR_STRIP_UPSCALE};
+    return {candidates:indexes.length,crops,reads,readCandidates,clipped:clippedTotal,unconfirmed:unconfirmedTotal,overSymbol,diag:readDiag,upscale:OCR_STRIP_UPSCALE};   /* [240-B] */
   }
 
   async function runOcrCandidatePass(worker,candidates,indexes,opts,rawLabels,phase,offsets,upscale){
@@ -3129,7 +3134,8 @@
          learned label may only ever be assigned to the symbol it was read beside (`only`):
          a label read 20 px from A is never handed to B because B happened to be nearer.
      ============================================================================ */
-  const LRN_INK_FRACS = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65], LRN_PW = 8, LRN_PH = 14, LRN_K = 5, LRN_AGREE = 4, LRN_NCC = 0.8, LRN_MIN_LIB = 30, LRN_WORD_MAX = 3, LRN_LOOSE = 0, LRN_GAP_INK = 0.25;
+  const LRN_INK_FRACS = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65], LRN_PW = 8, LRN_PH = 14, LRN_K = 5, LRN_AGREE = 4, LRN_NCC = 0.85, LRN_MIN_LIB = 30, LRN_WORD_MAX = 3, LRN_LOOSE = 0, LRN_GAP_INK = 0.25;
+  const LRN_THIN = 0.85, LRN_THIN_MARGIN = 0.05, LRN_VERIFY_MARGIN = 0.1;   /* [240-D] a thin class reads on its two nearest; [240-C] the library doubts a strip read by this margin */
 
   function lrnGrey(live){
     const iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;
@@ -3192,7 +3198,8 @@
   function lrnKnn(lib,p){
     const sc=lib.map(e=>({s:lrnNcc(p,e.p),d:e.d})).sort((a,b)=>b.s-a.s).slice(0,LRN_K);
     const votes={};for(const x of sc)votes[x.d]=(votes[x.d]||0)+1;let best='',n=0;for(const d in votes)if(votes[d]>n){n=votes[d];best=d;}
-    return {d:best,s:sc.length?sc[0].s:0,n};
+    const top=sc.length?sc[0].d:'';let other=0;for(const x of sc)if(x.d!==top&&x.s>other)other=x.s;   /* [240-D] */
+    return {d:best,s:sc.length?sc[0].s:0,n,top,second:sc.length>1?sc[1].s:0,secondD:sc.length>1?sc[1].d:'',other};
   }
   /* the pass: the library from every assigned read, then the still-unread symbols */
   function learnedReadLabels(candidates,pool,unread,rawLabels){
@@ -3207,11 +3214,30 @@
     for(const f of LRN_INK_FRACS){
       G.dark=Math.min(200,Math.max(20,Math.round(G.ink+f*(G.paper-G.ink))));const L=[],B={};
       reads0.forEach(a=>{const c=a.candidate,dev=a.dev;const ws=lrnWordsFor(G,Number(c.obj.x),Number(c.obj.y),side).filter(w=>w.g.length===dev.length);if(!ws.length)return;
-        ws[0].g.forEach((g,i)=>{L.push({p:lrnPatch(G,g),d:dev[i]});B[dev[i]]=(B[dev[i]]||0)+1;});});
+        ws[0].g.forEach((g,i)=>{L.push({p:lrnPatch(G,g),d:dev[i],id:c.id});B[dev[i]]=(B[dev[i]]||0)+1;});});   /* [240-C] whose glyph */
       if(L.length>lib.length){lib=L;byDigit=B;bestF=f;}
     }
     G.dark=bestF==null?G.dark:Math.min(200,Math.max(20,Math.round(G.ink+bestF*(G.paper-G.ink))));
     if(lib.length<LRN_MIN_LIB)return {library:lib.length,byDigit,candidates:unread.length,reads:0,words:0,dark:G.dark,frac:bestF,ink:G.ink,paper:G.paper,ms:Date.now()-t0,why:'library-too-small'};
+    /* [240-C] THE SHEET'S OWN DIGITS CHECK THE STRIPS. Tesseract's confidence is no signal (right at 17,
+       wrong at 89) and two scales agreeing is not enough on 7 px digits: 42 read 62, 98 read 38, 113 read 11.
+       Each strip read, leave-one-out (its own glyphs are in the library and match themselves at 1.0): the
+       nearest word of the read's length, glyph by glyph - doubted when another digit's best patch is at
+       least LRN_NCC and beats the read digit's best by LRN_VERIFY_MARGIN, or when no word of that length
+       is beside the symbol at all (merged glyphs, or three where the read has two). A doubted read is
+       not applied: the row goes to Review with what was read and what the digits say. */
+    const verify={checked:0,contradicted:0,unconfirmed:0};
+    pool.assigned.assignments.forEach(a=>{const lab=a.label,c=a.candidate;if(a.withheld||lab.phase!=='strip'||!/^\d{1,3}$/.test(String(lab.dev||'')))return;verify.checked++;
+      const dev=String(lab.dev),ws=lrnWordsFor(G,Number(c.obj.x),Number(c.obj.y),side).filter(w=>w.g.length===dev.length);
+      let doubt='',said='';
+      if(!ws.length)doubt='unconfirmed';
+      else{const own=lib.filter(e=>e.id!==c.id);
+        for(let i=0;i<dev.length;i++){const p=lrnPatch(G,ws[0].g[i]);
+          let same=0,other=0,od='';for(const e of own){const v=lrnNcc(p,e.p);if(e.d===dev[i]){if(v>same)same=v;}else if(v>other){other=v;od=e.d;}}   /* the read digit's best patch anywhere in the library, not only among the five nearest: a thin class sits below them and is not thereby contradicted */
+          said+=(other>same&&od)?od:dev[i];if(other>=LRN_NCC&&other-same>=LRN_VERIFY_MARGIN)doubt='contradict';}}
+      if(!doubt)return;verify[doubt==='contradict'?'contradicted':'unconfirmed']++;
+      rawLabels.forEach(l=>{if(l.phase==='strip'&&l.observedNear===lab.observedNear&&String(l.dev)===dev){l.doubt=doubt;l.said=doubt==='contradict'?said:'';}});
+    });
     let reads=0,words=0;const claimed=new Set();
     for(const i of unread){
       const c=candidates[i];if(!c||!c.meta||c.meta.noNumber||c.meta.devCleared)continue;
@@ -3221,14 +3247,17 @@
         const key=w.x0+','+w.top+','+w.x1+','+w.bot;if(claimed.has(key))continue;
         if(w.loose>LRN_LOOSE)continue;
         let text='',ok=true,conf=1;
-        for(const g of w.g){const r=lrnKnn(lib,lrnPatch(G,g));const need=Math.max(2,Math.min(LRN_AGREE,byDigit[r.d]||0));if(r.s<LRN_NCC||r.n<need){ok=false;break;}text+=r.d;conf=Math.min(conf,r.s);}
+        for(const g of w.g){const r=lrnKnn(lib,lrnPatch(G,g));const need=Math.max(2,Math.min(LRN_AGREE,byDigit[r.d]||0));let d='';
+          if(r.s>=LRN_NCC&&r.n>=need&&r.top===r.d)d=r.d;   /* the vote - and the nearest patch agrees with it [240-D] (6 read 8 on a 6 at 0.89 over four 8s at 0.81) */
+          else if(r.second>=LRN_THIN&&r.secondD===r.top&&r.s-r.other>=LRN_THIN_MARGIN)d=r.top;   /* [240-D] a thin class: the two nearest agree, clear of every other digit (four 6s in the library needed all four in the top five; one 7 could never read) */
+          if(!d){ok=false;break;}text+=d;conf=Math.min(conf,r.s);}
         if(!ok||!text)continue;
         const dev=String(parseInt(text,10));
         rawLabels.push({loop:'',dev,raw:text,text,confidence:Math.round(conf*100),bbox:[w.x0,w.top,w.x1-w.x0,w.bot-w.top],votes:1,variant:'learned',psm:'',phase:'learned',observedNear:c.id,only:c.id,offsetX:0,offsetY:0,upscale:1});
         claimed.add(key);reads++;break;
       }
     }
-    return {library:lib.length,byDigit,candidates:unread.length,reads,words,dark:G.dark,frac:bestF,ink:G.ink,paper:G.paper,ms:Date.now()-t0,why:''};
+    return {library:lib.length,byDigit,candidates:unread.length,reads,words,verify,dark:G.dark,frac:bestF,ink:G.ink,paper:G.paper,ms:Date.now()-t0,why:unread.length?'':'nothing-unread'};   /* [240-C] */
   }
 
   async function recognisePrintedIdentities(options) {
@@ -3317,7 +3346,7 @@
       /* [236-A] what no pass could read, the sheet's own digits can: the library from every read so far, then the rest */
       {const pl=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx),un=unreadCandidateIndexes(pl,candidates);
       session.ocrStatus='Reading the rest with the sheet\u2019s own digits\u2026';session.progress=null;spTick();
-      phases.learned=un.length?learnedReadLabels(candidates,pl,un,rawLabels):{library:0,candidates:0,reads:0,words:0,ms:0,why:'nothing-unread'};}
+      phases.learned=learnedReadLabels(candidates,pl,un,rawLabels);}   /* [240-C] always: the library checks the strips even when nothing is unread */
       let pool=poolOcrAssignments(rawLabels,candidates,opts.maxAssignmentPx);
       const centerAssigned=numbersOnly?pool.assigned.usedCandidates.size:centerAssigned0;const afterOffset=numbersOnly?centerAssigned:afterOffset0;
 
@@ -3328,6 +3357,7 @@
       assigned.assignments.forEach(a=>{
         const c=a.candidate,lab=a.label;c.meta.ocrDistance=Math.round(a.distance*10)/10;c.meta.ocrConfidence=lab.confidence;
         if(a.withheld){withheld++;c.meta.ocrIssue=a.withheld;c.decision='review';return;}
+        if(lab.doubt){withheld++;c.meta.ocrIssue=lab.doubt==='contradict'?`Read as ${lab.dev}, but the sheet's own digits say ${lab.said} - check the drawing and type it.`:`Read as ${lab.dev}, but the sheet's own digits could not confirm it - check the drawing and type it.`;c.decision='review';return;}   /* [240-C] */
         const protectedDev=(c.meta.devSource==='user'||c.meta.devSource==='schedule')&&field(c.obj.dev);
         const protectedLoop=(c.meta.loopSource==='user'||c.meta.loopSource==='schedule')&&(field(c.obj.loop)||c.meta.loopCleared);   /* [232-B] a loop he took off is his too */
         if((protectedDev&&field(c.obj.dev)!==lab.dev)||(protectedLoop&&lab.loop&&field(c.obj.loop)!==lab.loop)){
@@ -3343,7 +3373,7 @@
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
         vector:phases.vector?{reads:phases.vector.reads,settled:phases.vector.settled||0,seen:phases.vector.seen,ms:phases.vector.ms,why:phases.vector.why||''}:null,   /* [228-A] */
-        learned:phases.learned?{library:phases.learned.library,reads:phases.learned.reads,candidates:phases.learned.candidates,ms:phases.learned.ms,why:phases.learned.why||''}:null,   /* [236-A] */
+        learned:phases.learned?{library:phases.learned.library,reads:phases.learned.reads,candidates:phases.learned.candidates,verify:phases.learned.verify||null,ms:phases.learned.ms,why:phases.learned.why||''}:null,   /* [236-A] [240-C] */
         retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:{off:hiresWhy||'unknown'}},   /* [222-A] */
         phases:clone(phases),labels:clone(labels),consistency:clone(consistency),finishedAt:Date.now()};
       session.ocrReport=report;session.ocrStatus='';return clone(report);
@@ -4086,7 +4116,7 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.218 beta";
+  const MODULE_VERSION = "V0.219 beta";
   const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
