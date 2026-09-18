@@ -770,7 +770,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.222 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.223 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -902,7 +902,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.222 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.223 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -6212,7 +6212,28 @@ function draw() {
      zoom still does not change the feel. */
   if (fsWsGuides) {
     ctx.save();
-    ctx.strokeStyle = "rgba(79,195,247,0.42)"; ctx.lineWidth = 1;
+    /* PASS 244 [244-B] - HIS WORD, the morning after V0.222: "the second fainter probably
+       wasnt needed... it would be a little easier to see now". PASS 99 quietened this FOUR
+       ways at once (alpha, width, dash duty, overshoot) for one complaint; one step back on
+       two of them. MEASURED with rig/guide243.py on V0.222, which is the number this is
+       against: the SELECTION chrome puts 17.6x the guide's ink on screen - 75,810 over
+       441 px against 4,302 over 74 px. Alpha 0.42 -> 0.62 and the dash 4-on/8-off ->
+       ONE LEVER: THE ALPHA. The dash, the width and the overshoot are all left exactly as
+       Pass 99 set them, and that is the finding rather than a shortcut.
+       TWO DASHES WERE TRIED AND test_p99 F3 REFUSED BOTH, correctly. W97-10 carries a MEASURED
+       guarantee - under half the line is ink - and it is his, asked for twice. 5-on/4-off
+       measured a 65% duty, which is shoutier than the V0.97 line he called "too shouty" in the
+       first place (that dash was [6,5], 55%). 4-on/6-off is 40% nominal but measures 51.5%,
+       because antialiasing at every dash end inks pixels the nominal figure does not count -
+       still over half. So the dash cannot be raised at all without breaking something he asked
+       for, and it does not need to be: the alpha alone takes the guide from 4,302 units of ink
+       to 6,371 over the same 74 pixels, and drops the selection chrome's dominance from 17.6x
+       to 11.9x. "A little easier to see" is exactly what one lever delivers.
+       WIDTH STAYS 1px on purpose: 1.5 at devicePixelRatio 1 is a grey smear rather than a
+       line, which is a different complaint from the one he made.
+       AND THE DASH STAYS PINNED WHERE IT BELONGS: test_p99 F3 measures the duty off the live
+       canvas, so nothing here needs to re-pin it and a future pass cannot raise it quietly. */
+    ctx.strokeStyle = "rgba(79,195,247,0.62)"; ctx.lineWidth = 1;
     ctx.setLineDash([4, 8]);
     fsWsGuides.forEach(g => {
       const pad = 12 / view.scale;
@@ -30741,7 +30762,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v230";
+const FS_BUILD = "aa-v231";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -31843,15 +31864,12 @@ function fsPlResyncVisitSaved(site) {
       fsPlSavePlans();
       if (typeof fsTab !== "undefined" && fsTab === "planner" && typeof fsPlRender === "function") fsPlRender();
     }
-    if (!r.changed && !r.kept && !r.split) return;
-    const bits = [];
-    if (r.changed) bits.push(r.changed + " planned " + (r.changed === 1 ? "day is" : "days are")
-                             + " now " + fsPlFmtMins(r.mins));
-    if (r.kept) bits.push(r.kept + " " + (r.kept === 1 ? "day was" : "days were")
-                          + " left alone (time set by hand for that day, or already done)");
-    if (r.split) bits.push(r.split + " " + (r.split === 1 ? "month splits" : "months split")
-                           + " this site across days - Plan month again to spread the new time");
-    alert(bits.join(".\n") + ".");
+    /* PASS 244 [244-A] - SILENT. He ruled on it the morning after it shipped: "its fine
+       but get rid of the little message. I don't like having many of them, also these
+       scheduled visit times will very rarely change." The resync stands; the talking does
+       not. `r` is still returned and still read by the suite, so nothing is lost but the
+       dialog. Same reasoning fsPlCommitPlace records for its own silence: a dialog that
+       fires on the happy path is a dialog people learn to dismiss without reading. */
   };
   if (typeof fsPlPlans !== "undefined" && fsPlPlans) { go(); return; }
   if (typeof fsPlLoadPlans === "function") fsPlLoadPlans().then(go).catch(function () {});
