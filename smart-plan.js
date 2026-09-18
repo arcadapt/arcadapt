@@ -1928,8 +1928,15 @@
      that is at ONE import scale. A constant tuned there would be wrong on his sheet at a
      different zoom. So the touch distance is a fraction of the SYMBOL'S OWN BOX, which scales
      with the drawing, and the label reach is a fraction of the TEXT'S OWN HEIGHT. */
-  const LOOP_TOUCH_FRAC = 0.9;      /* of the candidate's box side: 14.4 px at a 16 px box, which
-                                       sits between the fixture's 9 px touch and its 68 px miss */
+  /* [247-D] how far BEYOND a symbol's own box a wire may stop and still count as reaching it.
+     A fraction of the box, so it scales with the drawing. At a 16 px box this is 8 px, against
+     the 12 px a hop's end actually sits from the centre and the ~40 px that separates a device
+     merely NEAR a wire from one on it. */
+  const LOOP_REACH_BEYOND = 0.5;
+  const LOOP_TOUCH_FRAC = 0.9;      /* [246-D], and still used by the single-run reader: a
+                                       fraction of the candidate's box side, measured from its
+                                       CENTRE. 14.4 px at a 16 px box. */
+
   const LOOP_REACH_FRAC = 3.0;      /* of the label's text height */
   const LOOP_AMBIG_RATIO = 1.5;     /* the runner-up must be this much further, or the label is
                                        ambiguous and is refused rather than guessed */
@@ -2005,14 +2012,230 @@
     return hit;
   }
 
-  /* [246-E] the whole step. Returns a report and assigns nothing it cannot justify. */
+  /* [246-E] the whole step. Returns a report and assigns nothing it cannot justify.
+     [247-A] and it reports WHAT IT SAW even when it does nothing - see loopSeen(). */
+
+  /* PASS 247 [247-A] WHAT THE STEP ACTUALLY SAW, on every return.
+     His V0.225 run came back `why: "the sheet prints no LOOP label", labels: 0` - and that
+     same sentence is returned when the PDF carries NO TEXT LAYER AT ALL and when it carries a
+     full text layer with no LOOP in it. Those are different faults with different fixes, and
+     his diagnostics could not tell me which; I nearly built on the guess.
+     Note the zone reader is no evidence either way - it OCRs a RENDER of the page ([225-A]),
+     so zones can read perfectly on a sheet with no text layer at all. */
+  function loopSeen(wires,texts,cands){
+    const side=(cands&&cands.length&&Number(cands[0].obj.size))||16;
+    let touching=0;
+    if(wires&&cands)cands.forEach(c=>{
+      const o=c&&c.obj;if(!o)return;
+      /* [247-D] to the BOX, like loopDevicesAlong - a `touching` count measured a different
+         way from the one that forms the circuits would be a diagnostic that disagrees with
+         the behaviour it is there to explain. */
+      const s=Number(o.size)||side, tol=s*LOOP_REACH_BEYOND;
+      if(wires.some(run=>run&&run.length>1&&loopRunToBox(run,o).d<=tol))touching++;
+    });
+
+    return {texts:(texts||[]).length,wires:(wires||[]).length,
+            devices:(cands||[]).length,touching};
+  }
+
+  /* ============ PASS 247 [247-B] [247-C] THE DAISY CHAIN ============
+     His V0.225 box e2: "They daisy chain between devices." Devices are NODES, a wire run is a
+     set of EDGES between the devices it passes in order. Connected components are circuits. */
+
+  /* where a point falls ALONG a run, as distance travelled from its start - so the devices a
+     run passes can be put in the order the wire passes them rather than in candidate order. */
+  function loopAlongRun(px,py,run){
+    let best=Infinity,at=0,acc=0;
+    for(let i=0;i<run.length-1;i++){
+      const a=run[i],b=run[i+1];
+      const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);
+      let t=(dx||dy)?(((px-a[0])*dx+(py-a[1])*dy)/(dx*dx+dy*dy)):0;
+      t=t<0?0:(t>1?1:t);
+      const d=Math.hypot(px-(a[0]+t*dx),py-(a[1]+t*dy));
+      if(d<best){best=d;at=acc+t*L;}
+      acc+=L;
+    }
+    return {d:best,at};
+  }
+
+  /* PASS 247 [247-D] HOW NEAR IS "TOUCHING", AND THE FIRST ANSWER WAS WRONG.
+     [246-D] measured from the symbol's CENTRE with a tolerance of 0.9 of its box side. That
+     flattered itself on the p246 fixture, where the wire was drawn THROUGH the symbol's edge
+     midpoint and every device measured 0-9 px from the centre. A real drawing does not do
+     that: his Merriwa wires stop AT the symbol and hop to the next one, so a hop's end sits
+     just outside the box - measured on the p247 fixture, **12.0 px from the centre against a
+     tolerance of 11.7.** Every circuit failed to form by three tenths of a pixel, which is the
+     kind of margin that means the measurement is wrong, not the number.
+     So the distance is now to the symbol's BOX, not to its centre: a wire that reaches the
+     symbol is touching it, whichever side it arrives from and whatever the box's size. The
+     tolerance is then a genuine reach BEYOND the symbol rather than a disguised box radius. */
+  function loopDistToBox(px,py,x0,y0,x1,y1){
+    const dx=px<x0?x0-px:(px>x1?px-x1:0), dy=py<y0?y0-py:(py>y1?py-y1:0);
+    return Math.hypot(dx,dy);
+  }
+
+  /* nearest approach of a run to a device's BOX, and where along the run that happens */
+  function loopRunToBox(run,o){
+    const side=Number(o.size)||16;
+    const x0=Number(o.x),y0=Number(o.y),x1=x0+side,y1=y0+side;
+    let best=Infinity,at=0,acc=0;
+    for(let i=0;i<run.length-1;i++){
+      const a=run[i],b=run[i+1];
+      const L=Math.hypot(b[0]-a[0],b[1]-a[1]);
+      /* sample the segment - a segment-to-rectangle distance in closed form is not worth the
+         code here, and the runs are short. 12 samples puts the error under a tenth of a box. */
+      const N=Math.max(2,Math.min(24,Math.ceil(L/3)));
+      for(let s=0;s<=N;s++){
+        const t=s/N, px=a[0]+(b[0]-a[0])*t, py=a[1]+(b[1]-a[1])*t;
+        const d=loopDistToBox(px,py,x0,y0,x1,y1);
+        if(d<best){best=d;at=acc+t*L;}
+      }
+      acc+=L;
+    }
+    return {d:best,at};
+  }
+
+  /* every device the run passes, in the order it passes them */
+  function loopDevicesAlong(run,cands){
+    const hit=[];
+    (cands||[]).forEach((c,idx)=>{
+      const o=c&&c.obj;if(!o)return;
+      const side=Number(o.size)||16, tol=side*LOOP_REACH_BEYOND;
+      const r=loopRunToBox(run,o);
+      if(r.d<=tol)hit.push({idx,at:r.at,c});
+    });
+    hit.sort((a,b)=>a.at-b.at);
+    return hit;
+  }
+
+
+  /* [247-B] the circuits. Union-find over device indices; an edge per consecutive pair of
+     devices along each run. A run that passes fewer than two devices makes no edge - which is
+     how a wire into the panel, a spur, or a wall line simply drops out without special-casing
+     any of them, and is why locating the panel is not needed here at all. */
+  function loopCircuits(wires,cands){
+    const n=(cands||[]).length;
+    const parent=new Array(n);for(let i=0;i<n;i++)parent[i]=i;
+    const find=(a)=>{while(parent[a]!==a){parent[a]=parent[parent[a]];a=parent[a];}return a;};
+    const join=(a,b)=>{const ra=find(a),rb=find(b);if(ra!==rb)parent[ra]=rb;};
+    const runDevices=[];let edges=0;
+    (wires||[]).forEach((run,ri)=>{
+      if(!run||run.length<2){runDevices[ri]=[];return;}
+      const along=loopDevicesAlong(run,cands);
+      runDevices[ri]=along.map(h=>h.idx);
+      for(let i=0;i<along.length-1;i++){join(along[i].idx,along[i+1].idx);edges++;}
+    });
+    const groups=new Map();
+    for(let i=0;i<n;i++){
+      if(!runDevices.some(rd=>rd&&rd.indexOf(i)>=0))continue;   /* untouched by any wire */
+      const r=find(i);
+      if(!groups.has(r))groups.set(r,[]);
+      groups.get(r).push(i);
+    }
+    return {parent,find,groups,runDevices,edges};
+  }
+
+  /* [247-C] the whole step, daisy-chain shaped. Returns a report and assigns nothing it
+     cannot justify - a circuit with no label keeps its number empty and is still reported. */
+  function readLoopCircuits(cands){
+    const t0=Date.now();
+    const v=session&&session.vector;
+    const wires=(v&&v.wires)||null, texts=(v&&v.texts)||null;
+    const seen=loopSeen(wires,texts,cands);
+    if(!wires||!wires.length)return {ran:false,seen,why:'no wires on this sheet - vector only for now'};
+    const cg=loopCircuits(wires,cands);
+    const circuits=[];
+    cg.groups.forEach((idxs,root)=>{circuits.push({root,idxs});});
+    if(!circuits.length)return {ran:false,seen,circuits:0,
+      why:'no detector is touched by a wire on this sheet - the wires and the symbols do not meet'};
+
+    /* which circuit does each run belong to? a run belongs to the circuit of the devices it
+       passes; a run passing none belongs to nothing and can carry no label anywhere. */
+    const runCircuit=cg.runDevices.map(rd=>(rd&&rd.length)?cg.find(rd[0]):-1);
+
+    const labels=loopLabelsFromTexts(texts||[]);
+    const named=new Map();       /* circuit root -> {n, from} */
+    const conflicts=[];
+    labels.forEach(lab=>{
+      const hit=loopWireFor(lab,wires);
+      if(hit.i<0)return;
+      const root=runCircuit[hit.i];
+      if(root<0)return;
+      const had=named.get(root);
+      if(had&&had.n!==lab.n){
+        /* [247-C] two different numbers on one circuit: the drawing is telling us two things
+           and we do not get to pick. Same principle as every other refusal in this reader. */
+        if(!conflicts.some(c=>c.root===root))conflicts.push({root,ns:[had.n,lab.n]});
+        named.delete(root);
+        named.set(root,{n:'',conflict:[had.n,lab.n]});
+      }else if(!had){
+        named.set(root,{n:lab.n,from:lab.text});
+      }
+    });
+
+    let applied=0;
+    const out=[];
+    circuits.forEach(({root,idxs})=>{
+      const nm=named.get(root);
+      const n=(nm&&nm.n)||'';
+      let set=0;
+      if(n)idxs.forEach(i=>{
+        const c=cands[i];if(!c)return;
+        if(!c.meta)c.meta={};
+        /* [232-B] a loop he typed, or one he took off, is his */
+        const mine=(c.meta.loopSource==='user'||c.meta.loopSource==='schedule')&&(field(c.obj.loop)||c.meta.loopCleared);
+        if(mine)return;
+        c.obj.loop=n;c.meta.loopSource='wire';set++;
+      });
+      applied+=set;
+      out.push({n:n||'',devices:idxs.length,set,
+                why:n?'':(nm&&nm.conflict?('two labels disagree: loop '+nm.conflict.join(' and loop '))
+                                         :'this circuit carries no LOOP label - the devices are grouped, the number is not known')});
+    });
+    out.sort((a,b)=>b.devices-a.devices);
+
+    /* PASS 247 [247-E] A LOOP THAT ARRIVES IN PIECES IS NAMED, AND SAID TO BE IN PIECES.
+       This is a ruling, so it is written down rather than left to be inferred from the code.
+       On the p246 fixture loop 3's wire is cut in the middle and BOTH halves carry their own
+       LOOP 3 label, so the circuit model finds two circuits and names both 3. [246-E] refused
+       instead and assigned nothing.
+       Naming them is the better answer and it is still true: every device on the IN half really
+       is on loop 3. What refusing bought was the WARNING - that we cannot know whether loop 3
+       has more devices on it than we found - and that is what is kept here, explicitly, instead
+       of being paid for by throwing away correct information. He gets the numbers AND the fact
+       that the trace came in pieces. */
+    const byN={};
+    out.forEach(c=>{if(c.n)byN[c.n]=(byN[c.n]||0)+1;});
+    const split=Object.keys(byN).filter(n=>byN[n]>1);
+    out.forEach(c=>{
+      if(c.n&&byN[c.n]>1){
+        c.pieces=byN[c.n];
+        c.why='loop '+c.n+' arrives in '+byN[c.n]+' pieces - the wire is broken between them, so '
+             +'these devices are on loop '+c.n+' but there may be more that were not reached';
+      }
+    });
+    const unnamed=out.filter(c=>!c.n).length;
+    const bits=[];
+    if(conflicts.length)bits.push('two labels disagree on '+conflicts.length+' circuit(s)');
+    if(split.length)bits.push('loop '+split.join(', ')+' arrives in pieces - the wire is broken, '
+      +'so some devices on it may not have been reached');
+    if(unnamed)bits.push(unnamed+' of '+out.length+' circuits carry no LOOP label - grouped, not named');
+    return {ran:true,seen,circuits:out.length,edges:cg.edges,labels:labels.length,
+            applied,conflicts:conflicts.length,split,loops:out,ms:Date.now()-t0,
+            why:bits.join('; ')};
+  }
+
   function readLoopsFromWires(cands){
     const t0=Date.now();
     const v=session&&session.vector;
     const wires=(v&&v.wires)||null, texts=(v&&v.texts)||null;
-    if(!wires||!texts)return {ran:false,why:v?'no wires or no text on this sheet - vector only for now':'no vector pass'};
+    const seen=loopSeen(wires,texts,cands);
+    if(!wires||!texts)return {ran:false,seen,why:v?'no wires or no text on this sheet - vector only for now':'no vector pass'};
     const labels=loopLabelsFromTexts(texts);
-    if(!labels.length)return {ran:false,why:'the sheet prints no LOOP label',labels:0};
+    if(!labels.length)return {ran:false,seen,labels:0,
+      /* [247-A] the two cases are now named separately rather than sharing a sentence */
+      why:seen.texts?('the sheet carries '+seen.texts+' pieces of text and none of them says LOOP')
+                    :'this PDF has no text layer at all - nothing to read a LOOP label from'};
     const byLoop={};
     labels.forEach(l=>{(byLoop[l.n]=byLoop[l.n]||[]).push(l);});
     const side=(cands&&cands.length&&Number(cands[0].obj.size))||16;
@@ -2058,7 +2281,7 @@
       applied+=set;
       loops.push({n,arrived:true,devices:hit.length,set,run:run.length});
     });
-    return {ran:true,labels:labels.length,loops,refused,applied,
+    return {ran:true,seen,labels:labels.length,loops,refused,applied,
             ms:Date.now()-t0,
             why:refused.length?('could not follow loop '+refused.map(r=>r.n).join(', ')):''};
   }
@@ -3604,7 +3827,22 @@
          row came back blank. The rig caught it because it read the ROWS and not just the
          report. It belongs here: after the reset, after the device numbers are applied, and
          before the report is built. */
-      try{phases.loops=readLoopsFromWires(candidates);}catch(e){phases.loops={ran:false,why:'loop step failed: '+((e&&e.message)||'unknown')};}
+      /* PASS 247 [247-C] THE DAISY CHAIN READER RUNS FIRST, and the [246-E] single-run
+         reader stays behind it as the fallback. His sheets daisy chain ("They daisy chain
+         between devices", box e2), so the circuit model is the one that will fire on a real
+         drawing; the single-run reader still answers a sheet drawn as one continuous wire with
+         IN and OUT labels, which it proves on the p246 fixture. Whichever ASSIGNS something
+         wins, and if neither does, the one with more to say about why is reported. */
+      try{
+        const dc=readLoopCircuits(candidates);
+        if(dc&&dc.ran&&dc.applied>0){phases.loops=dc;}
+        else{
+          const one=readLoopsFromWires(candidates);
+          if(one&&one.ran&&one.applied>0)phases.loops=one;
+          else phases.loops=(dc&&dc.ran)?dc:(one&&one.ran?one:(dc||one));
+          if(phases.loops)phases.loops.alsoTried=(phases.loops===dc)?'single-run':'circuits';
+        }
+      }catch(e){phases.loops={ran:false,why:'loop step failed: '+((e&&e.message)||'unknown')};}
       if(session.schedule.length) reconcileSchedule(true);
       else refreshIssues();
       const finalAssigned=pool.assigned.usedCandidates.size;
@@ -4368,8 +4606,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.225 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */_vecWires:()=>session&&session.vector&&session.vector.wires?session.vector.wires.map(w=>w.map(p=>p.slice())):null,_vecTexts:()=>session&&session.vector&&session.vector.texts?clone(session.vector.texts):null,_loopLabels:()=>loopLabelsFromTexts((session&&session.vector&&session.vector.texts)||[]),_loopWireFor:(lab)=>loopWireFor(lab,(session&&session.vector&&session.vector.wires)||[]),_readLoops:()=>session?readLoopsFromWires(session.candidates):null,   /* [246-C] [246-D] [246-E] */   /* [246-A] [246-B] diagnosis hooks - the wires and the sheet's own text, so a rig can measure both without a debug build */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,decision:c.decision,   /* [244-D] exposed for diagnosis. NOT a suggestion/applied discriminator: a candidate is born 'review' from missing_dev and nothing re-derives it once a number lands, so every row he has not accepted reads 'review'. Use meta.devHow for that. */type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,loop:c.obj.loop,   /* [246-F] the LOOP was missing here, and that is not a small omission: [246-E] assigned it correctly on the very first run and the diagnostics could not show it, so the rig read null and printed "15 WRONG" against a step that was working. A value the app sets and cannot report is a value nobody can check - same precedent as [244-D] exposing the decision. */zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
+  const MODULE_VERSION = "V0.226 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */_vecWires:()=>session&&session.vector&&session.vector.wires?session.vector.wires.map(w=>w.map(p=>p.slice())):null,_vecTexts:()=>session&&session.vector&&session.vector.texts?clone(session.vector.texts):null,_loopLabels:()=>loopLabelsFromTexts((session&&session.vector&&session.vector.texts)||[]),_loopWireFor:(lab)=>loopWireFor(lab,(session&&session.vector&&session.vector.wires)||[]),_readLoops:()=>session?readLoopsFromWires(session.candidates):null,_readLoopCircuits:()=>session?readLoopCircuits(session.candidates):null,_loopCircuits:()=>{if(!session)return null;const v=session.vector,cg=loopCircuits((v&&v.wires)||[],session.candidates);const out=[];cg.groups.forEach((idxs)=>out.push(idxs.slice()));return {edges:cg.edges,groups:out};},   /* [247-B] [247-C] */   /* [246-C] [246-D] [246-E] */   /* [246-A] [246-B] diagnosis hooks - the wires and the sheet's own text, so a rig can measure both without a debug build */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,decision:c.decision,   /* [244-D] exposed for diagnosis. NOT a suggestion/applied discriminator: a candidate is born 'review' from missing_dev and nothing re-derives it once a number lands, so every row he has not accepted reads 'review'. Use meta.devHow for that. */type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,loop:c.obj.loop,   /* [246-F] the LOOP was missing here, and that is not a small omission: [246-E] assigned it correctly on the very first run and the diagnostics could not show it, so the rig read null and printed "15 WRONG" against a step that was working. A value the app sets and cannot report is a value nobody can check - same precedent as [244-D] exposing the decision. */zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
