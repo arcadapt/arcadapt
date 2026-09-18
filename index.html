@@ -770,7 +770,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.227 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.228 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -902,7 +902,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.227 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.228 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2044,6 +2044,21 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <div style="font-size:11.5px;color:#888;margin-top:5px">Removes the cached register, backups, saved plans, planner data, PA recordings, library files and preferences from THIS device only. Register and plan files saved on disk / OneDrive are untouched &mdash; reload your register file afterwards.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsSetClose">Close</button></div>
+  </div>
+</div>
+<!-- PASS 249 [249-A] W176-D - OFFICE SETTINGS, INSIDE OFFICE. His box c1: "a settings
+     button in office... That would be not regularly used... that way we don't cluster the
+     office space". z-index 121 sits UNDER fsBizModal (122) on purpose: Business & tax opens
+     on top of this sheet and closing it leaves you back here, not back at the Office list. -->
+<div class="modal" id="fsOffSetModal" style="z-index:121">
+  <div class="modalbox" style="max-width:460px;width:94vw;text-align:left">
+    <h3 style="margin-bottom:4px">&#9881; Office settings</h3>
+    <div style="font-size:12px;color:#999;margin-bottom:14px">Things the office sets once and then works off. They are in here rather than on the Office header because they are not day-to-day.</div>
+    <div id="fsOffSetBizRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="flex:1;min-width:120px;font-size:13.5px"><b>Business &amp; tax</b><br><span style="font-size:11.5px;color:#888">Business name, ABN, GST, quote terms and bank details &mdash; they appear on the documents this app produces.</span></span>
+      <button class="btn" id="fsOffSetBiz">&#127970; Open</button>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="fsOffSetClose">Close</button></div>
   </div>
 </div>
 <div class="modal" id="fsBizModal" style="z-index:122">
@@ -25606,7 +25621,11 @@ function fsDashRender() {
     /* PASS 192 [192-A] R-7 - FS_BIZTAX_ADMIN. Rendered for an admin only,
        and fsBizOpen/fsBizSave refuse for anyone else regardless: a hidden
        control that still works is the failure, not the fix. */
-    (typeof fsCan === "function" && fsCan("admin") ? '<button class="fsbtn" id="fsBizBtn">&#127970; Business &amp; tax</button>' : '') +'<button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    /* PASS 249 [249-A] W176-D - the header's Business & tax button is now a cog, and
+       Business & tax is the first row inside it. SAME fsCan("admin") test as [192-A] used:
+       the gate moved with the control. The cog renders only while there is something inside
+       it for this user, because a cog that opens onto an empty sheet is worse than no cog. */
+    (typeof fsCan === "function" && fsCan("admin") ? '<button class="fsbtn" id="fsOffSetBtn" title="Business &amp; tax, and other things the office sets once">&#9881; Settings</button>' : '') +'<button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + (fsSiteFeatOn("defects") ? chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") : '') + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -25623,9 +25642,14 @@ function fsDashRender() {
   document.getElementById("fsDashBack").onclick = () => fsShow("fsClientsView");
   document.getElementById("fsDashPdf").onclick = fsDashPdf;
   document.getElementById("fsDashLibBtn").onclick = fsLibOpen;
-  /* PASS 192 [192-A] - gated exactly as the button is rendered ([59]'s rule). */
+  /* PASS 192 [192-A] - gated exactly as the button is rendered ([59]'s rule).
+     PASS 249 [249-A] - and the button it guards is the cog now. The fsBizBtn lookup stays:
+     it costs nothing, it is null on these bytes, and if a later pass puts a direct
+     Business & tax button back anywhere on this screen it is wired, not silently dead. */
   const bizBtn = document.getElementById("fsBizBtn");
   if (bizBtn) bizBtn.onclick = fsBizOpen;
+  const offSetBtn = document.getElementById("fsOffSetBtn");
+  if (offSetBtn) offSetBtn.onclick = fsOffSetOpen;
   /* PASS 66 [66-3] — gated exactly as the button is rendered ([59]'s rule). */
   const pipeBtn = document.getElementById("fsPipeBtn");
   if (pipeBtn) pipeBtn.onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
@@ -30610,6 +30634,18 @@ function fsBizGstLine() {
     el.textContent = "\u26a0 GST is on but no tax code is set \u2014 invoices will NOT show GST and cannot be issued.";
   }
 }
+/* PASS 249 [249-A] W176-D - the sheet's gate. fsBizOpen keeps its own ([192-A]); this is
+   a THIRD check, not a replacement for either, because the button being admin-only is not
+   what makes the control admin-only. */
+function fsOffSetOpen() {
+  if (typeof fsCan === "function" && !fsCan("admin")) {
+    alert("Office settings is admin only.\n\nWhat is in here goes on every document this app produces, so only an admin can change it.");
+    return;
+  }
+  const row = document.getElementById("fsOffSetBizRow");
+  if (row) row.style.display = "flex";
+  document.getElementById("fsOffSetModal").classList.add("show");
+}
 function fsBizOpen() {
   /* PASS 192 [192-A] R-7 - FS_BIZTAX_ADMIN, THE GATE ITSELF.
      The button is admin-only, and so is this, because the button is not the
@@ -30719,6 +30755,11 @@ function fsBizSave() {
    TypeError on every start and taken every handler below it with it. Wired
    beside the other Office buttons instead. */
 document.getElementById("fsBizClose").onclick = () => document.getElementById("fsBizModal").classList.remove("show");
+/* PASS 249 [249-A] - this markup is STATIC in index.html, so load-time wiring is safe here.
+   The cog BUTTON is rendered by fsDashRender and must not be wired at load ([192-A]'s
+   TypeError, which took every handler below it with it). */
+document.getElementById("fsOffSetClose").onclick = () => document.getElementById("fsOffSetModal").classList.remove("show");
+document.getElementById("fsOffSetBiz").onclick = () => fsBizOpen();
 document.getElementById("fsBizSave").onclick = () => fsBizSave();
 document.getElementById("fsBizGst").onchange = function () {
   /* PASS 76 [76-A2] — THE TRANSITION, and the only place the seed can fire.
@@ -30762,7 +30803,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v235";
+const FS_BUILD = "aa-v236";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
