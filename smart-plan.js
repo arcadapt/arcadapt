@@ -120,6 +120,14 @@
      within VEC_LABEL_REACH sides of the square. The templates are the ten digits of the
      stroke font on his sheets, height 1, as drawn: 8, 1 and 3 have a second form. */
   const VEC_PIECE_MAX_PX = 12, VEC_GLYPH_H_MIN = 0.32, VEC_GLYPH_H_MAX = 0.58, VEC_GLYPH_W_MAX = 0.5;
+  /* PASS 246 [246-A] THE WIRES. A loop wire is the one thing on the sheet that is BIGGER than
+     everything the reader has cared about so far: `pieces` stops at 12 px and `shapes` at 80,
+     so a wire that crosses the drawing has never been kept. VEC_WIRE_MIN_PX is the other side
+     of the shape cap - a path longer than a symbol in either direction is a candidate wire.
+     VEC_WIRE_MAX is a stated bound, not a guess about his sheets: a dense plan has thousands
+     of paths, and a silent truncation would make a trace fail for a reason nothing reports.
+     When the cap bites, session.vector.why says so. */
+  const VEC_WIRE_MIN_PX = VEC_SHAPE_MAX_PX, VEC_WIRE_MAX = 4000, VEC_TEXT_MAX = 4000;
   const VEC_TOUCH_X = 0.05, VEC_TOUCH_Y = 0.16, VEC_WORD_BASE = 0.25, VEC_WORD_GAP = 0.7, VEC_WORD_MAX = 3;
   const VEC_GLYPH_TOL = 0.08, VEC_GLYPH_MARGIN = 0.03, VEC_LABEL_REACH = 1.6, VEC_SAMPLE = 0.04;
   const VEC_STACK_GAP = 0.3;   /* [237-B] two glyph fragments stacked in one column with a gap under this many glyph heights are one glyph */
@@ -1909,6 +1917,152 @@
         if(lv&&rv&&!out.some(o=>Math.abs(o.x-(x+L/2))<1.5&&Math.abs(o.y-(y+L/2))<1.5))out.push({x:x+L/2,y:y+L/2,side:L});}}
     return {squares:out,h:H.length,v:V.length};
   }
+  /* ==================== PASS 246 [246-C] [246-D] [246-E] THE LOOP ====================
+     His V0.223 box c1, verbatim: "you can tell which is in which loop by following the
+     circuit wire(line) on plan and its labeled here in the plan. However, different plans are
+     labeled differently." And box d3: "that is what a loop is, out of the fip/fdcie to all
+     the detectors and then back into fip/fdcie."
+
+     THE THRESHOLDS ARE RELATIVE, NOT PIXEL CONSTANTS. The fixture measures 0, 3, 6 and 9 px
+     between a device and its wire, and 68 px to the nearest wire for a device on none - but
+     that is at ONE import scale. A constant tuned there would be wrong on his sheet at a
+     different zoom. So the touch distance is a fraction of the SYMBOL'S OWN BOX, which scales
+     with the drawing, and the label reach is a fraction of the TEXT'S OWN HEIGHT. */
+  const LOOP_TOUCH_FRAC = 0.9;      /* of the candidate's box side: 14.4 px at a 16 px box, which
+                                       sits between the fixture's 9 px touch and its 68 px miss */
+  const LOOP_REACH_FRAC = 3.0;      /* of the label's text height */
+  const LOOP_AMBIG_RATIO = 1.5;     /* the runner-up must be this much further, or the label is
+                                       ambiguous and is refused rather than guessed */
+  const LOOP_CLOSE_FRAC = 1.2;      /* of the box side: how near a run's two ends must be to
+                                       count as meeting */
+
+  function loopLabelsFromTexts(texts){   /* [246-C] */
+    const out=[];
+    (texts||[]).forEach(t=>{
+      const s=String((t&&t.s)||'');
+      const m=/LOOP\s*(\d+)/i.exec(s);
+      if(!m)return;
+      /* IN and OUT as whole words only: a loop label reading "POINT" must not become an OUT */
+      const io=/(^|[^A-Z])IN([^A-Z]|$)/i.test(s)?'in':(/(^|[^A-Z])OUT([^A-Z]|$)/i.test(s)?'out':'');
+      out.push({n:String(Number(m[1])),io,x:Number(t.x),y:Number(t.y),
+                w:Number(t.w)||0,h:Number(t.h)||0,deg:Number(t.deg)||0,text:s});
+    });
+    return out;
+  }
+
+  function loopSegDist(px,py,a,b){
+    const ax=a[0],ay=a[1],dx=b[0]-ax,dy=b[1]-ay;
+    if(!dx&&!dy)return Math.hypot(px-ax,py-ay);
+    let t=((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy);
+    t=t<0?0:(t>1?1:t);
+    return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
+  }
+
+  function loopDistToRun(px,py,run){
+    let best=Infinity;
+    for(let i=0;i<run.length-1;i++){const d=loopSegDist(px,py,run[i],run[i+1]);if(d<best)best=d;}
+    return best;
+  }
+
+  /* the point a label reaches from. A label sits BESIDE the wire it names, near the panel, so
+     the anchor is the middle of its own text box - not its origin, which on a long label is
+     far from the wire it belongs to. The rotation from [246-B] turns the box the right way. */
+  function loopLabelAnchor(lab){
+    const r=(Number(lab.deg)||0)*Math.PI/180, w=(Number(lab.w)||0)/2;
+    return [lab.x+Math.cos(r)*w, lab.y-Math.sin(r)*w];
+  }
+
+  function loopWireFor(lab,wires){   /* [246-D] */
+    const A=loopLabelAnchor(lab), reach=Math.max(8,(Number(lab.h)||12)*LOOP_REACH_FRAC);
+    let bi=-1,bd=Infinity,sd=Infinity;
+    (wires||[]).forEach((run,i)=>{
+      if(!run||run.length<2)return;
+      const d=loopDistToRun(A[0],A[1],run);
+      if(d<bd){sd=bd;bd=d;bi=i;}else if(d<sd){sd=d;}
+    });
+    if(bi<0||bd>reach)return {i:-1,why:'no wire within reach of the label'};
+    /* AMBIGUITY IS REFUSED, NOT RESOLVED. Two runs equally close to a label means the drawing
+       does not say which one it names, and picking the nearer by a hair is a guess wearing a
+       measurement's clothes. */
+    if(sd<bd*LOOP_AMBIG_RATIO)return {i:-1,why:'two wires are equally close to this label'};
+    return {i:bi,d:bd};
+  }
+
+  function loopRunClosed(run,side){
+    if(!run||run.length<3)return false;
+    const a=run[0],b=run[run.length-1];
+    return Math.hypot(a[0]-b[0],a[1]-b[1])<=side*LOOP_CLOSE_FRAC;
+  }
+
+  function loopDevicesOn(run,cands){   /* [246-D] follow the run, collect what it passes */
+    const hit=[];
+    (cands||[]).forEach(c=>{
+      const o=c&&c.obj;if(!o)return;
+      const side=Number(o.size)||16, tol=side*LOOP_TOUCH_FRAC;
+      const cx=Number(o.x)+side/2, cy=Number(o.y)+side/2;
+      if(loopDistToRun(cx,cy,run)<=tol)hit.push(c);
+    });
+    return hit;
+  }
+
+  /* [246-E] the whole step. Returns a report and assigns nothing it cannot justify. */
+  function readLoopsFromWires(cands){
+    const t0=Date.now();
+    const v=session&&session.vector;
+    const wires=(v&&v.wires)||null, texts=(v&&v.texts)||null;
+    if(!wires||!texts)return {ran:false,why:v?'no wires or no text on this sheet - vector only for now':'no vector pass'};
+    const labels=loopLabelsFromTexts(texts);
+    if(!labels.length)return {ran:false,why:'the sheet prints no LOOP label',labels:0};
+    const byLoop={};
+    labels.forEach(l=>{(byLoop[l.n]=byLoop[l.n]||[]).push(l);});
+    const side=(cands&&cands.length&&Number(cands[0].obj.size))||16;
+    const loops=[],refused=[];
+    let applied=0;
+    Object.keys(byLoop).sort((a,b)=>Number(a)-Number(b)).forEach(n=>{
+      const ls=byLoop[n];
+      const picks=ls.map(l=>({lab:l,hit:loopWireFor(l,wires)}));
+      const good=picks.filter(p=>p.hit.i>=0);
+      if(!good.length){
+        refused.push({n,why:(picks[0]&&picks[0].hit.why)||'no wire for this label'});
+        loops.push({n,arrived:false,devices:0,why:(picks[0]&&picks[0].hit.why)||'no wire for this label'});
+        return;
+      }
+      const runs=Array.from(new Set(good.map(p=>p.hit.i)));
+      const ins=good.filter(p=>p.lab.io==='in'), outs=good.filter(p=>p.lab.io==='out');
+      let arrived=false,why='';
+      if(ins.length&&outs.length){
+        /* two ends named: they must be the SAME run. See the note on why runs are not joined. */
+        arrived=ins.some(a=>outs.some(b=>a.hit.i===b.hit.i));
+        if(!arrived)why='the IN and OUT labels are on two different wires - the circuit is broken between them';
+      }else if(runs.length===1){
+        arrived=loopRunClosed(wires[runs[0]],side);
+        if(!arrived)why='the wire does not come back to where it started';
+      }else{
+        why='the labels for this loop land on more than one wire';
+      }
+      if(!arrived){
+        refused.push({n,why});
+        loops.push({n,arrived:false,devices:0,why});
+        return;
+      }
+      const run=wires[ins.length&&outs.length?ins.find(a=>outs.some(b=>a.hit.i===b.hit.i)).hit.i:runs[0]];
+      const hit=loopDevicesOn(run,cands);
+      let set=0;
+      hit.forEach(c=>{
+        if(!c.meta)c.meta={};
+        /* [232-B] a loop he typed, or one he took off, is his */
+        const mine=(c.meta.loopSource==='user'||c.meta.loopSource==='schedule')&&(field(c.obj.loop)||c.meta.loopCleared);
+        if(mine)return;
+        c.obj.loop=n;c.meta.loopSource='wire';set++;
+      });
+      applied+=set;
+      loops.push({n,arrived:true,devices:hit.length,set,run:run.length});
+    });
+    return {ran:true,labels:labels.length,loops,refused,applied,
+            ms:Date.now()-t0,
+            why:refused.length?('could not follow loop '+refused.map(r=>r.n).join(', ')):''};
+  }
+
   async function vectorSquares(){
     const src=planSource(); if(!src)return {squares:null,why:'no-source-pdf'};
     if(session.vector&&session.vector.src===src)return session.vector;
@@ -1945,17 +2099,55 @@
           const nx=ol.fnArray[i+1];paths.push({segs,fill:FILL.has(nx),stroke:STROKE.has(nx),black,subs});}
       }
       const toPx=(p)=>{const A=vp.convertToViewportPoint(p[0],p[1]);return [A[0]-(src.dx||0),A[1]-(src.dy||0)];};
-      const px=[],ppx=[],pieces=[],shapes=[];   /* [230-A] */
+      /* PASS 246 [246-B] THE SHEET'S OWN TEXT. Nothing in this app has ever asked a vector
+         PDF for its text: `ZONE 3` is found by OCR'ing a RENDER of the page ([225-A]), because
+         his Merriwa sheet is a scan and a scan has no text to ask for. A vector sheet does,
+         and it comes back EXACT - no reader, no vote, no confusion between 8 and 9 - and it
+         comes back with the TRANSFORM, which is how `LOOP 1 TO FIP` written at an angle to
+         follow its wire arrives with that angle instead of as nonsense. That rotation is the
+         case his own photos show, so it is not an optimisation, it is the feature.
+         The text is NOT used to find devices or zones here; only the loop step reads it. */
+      const texts=[];
+      try{
+        const tc=await page.getTextContent();
+        (tc&&tc.items||[]).forEach(it=>{
+          if(texts.length>=VEC_TEXT_MAX)return;
+          const s=String(it.str||'').trim(); if(!s)return;
+          const m=it.transform||[1,0,0,1,0,0];
+          const A=toPx([m[4],m[5]]);
+          /* the angle of the text's own baseline, in degrees, y-down like the canvas */
+          const deg=Math.round(Math.atan2(-m[1],m[0])*180/Math.PI*10)/10;
+          texts.push({s,x:Math.round(A[0]*100)/100,y:Math.round(A[1]*100)/100,
+                      w:Math.round((it.width||0)*100)/100,h:Math.round((it.height||0)*100)/100,deg});
+        });
+      }catch(e){/* a sheet with no text layer is the normal case on a scan - not an error */}
+      const px=[],ppx=[],pieces=[],shapes=[],wires=[];   /* [230-A] [246-A] */
       paths.forEach(pt=>{const ss=pt.segs.map(([p,q])=>{const A=toPx(p),B=toPx(q);return [A[0],A[1],B[0],B[1]];});ss.forEach(v=>px.push(v));
         if(ss.length){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ss.forEach(([a,b,c,d])=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d);});ppx.push({segs:ss,fill:pt.fill,x0,y0,x1,y1});
-          const small=x1-x0<=VEC_PIECE_MAX_PX&&y1-y0<=VEC_PIECE_MAX_PX,pl=(small||(x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX))?pt.subs.filter(s=>s.length>=2).map(s=>s.map(toPx)):null;
+          /* [246-A] a WIRE needs its polyline as much as a glyph does, and the old
+             condition computed one only for paths small enough to be a glyph or a symbol -
+             which is every path except a wire. `wireish` is the complement: black, stroked,
+             not filled, and longer than a symbol in either direction. */
+          const small=x1-x0<=VEC_PIECE_MAX_PX&&y1-y0<=VEC_PIECE_MAX_PX,
+                shapeish=x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX,
+                wireish=pt.stroke&&!pt.fill&&pt.black&&(x1-x0>VEC_WIRE_MIN_PX||y1-y0>VEC_WIRE_MIN_PX),
+                pl=(small||shapeish||wireish)?pt.subs.filter(s=>s.length>=2).map(s=>s.map(toPx)):null;
           /* [228-A] a glyph piece: black, stroked, not filled, small */
           if(pt.stroke&&!pt.fill&&pt.black&&small)pieces.push({x0,y0,x1,y1,pl});
           /* [230-A] a shape: any path that is not a dot and no bigger than a symbol */
-          if(pl&&pl.length&&(x1-x0>=0.2||y1-y0>=0.2)&&x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX)shapes.push({x0,y0,x1,y1,pl,fill:pt.fill,len:vecShapeLen(pl)});}});
+          if(pl&&pl.length&&(x1-x0>=0.2||y1-y0>=0.2)&&x1-x0<=VEC_SHAPE_MAX_PX&&y1-y0<=VEC_SHAPE_MAX_PX)shapes.push({x0,y0,x1,y1,pl,fill:pt.fill,len:vecShapeLen(pl)});
+          /* [246-A] and the wires. Each sub-path is kept whole: a loop drawn as one path with
+             several subs is several runs of the same circuit, and joining them here would
+             invent a connection the drawing does not make. */
+          if(wireish&&pl&&pl.length&&wires.length<VEC_WIRE_MAX)pl.forEach(s=>{if(s.length>=2&&wires.length<VEC_WIRE_MAX)wires.push(s.map(p=>[Math.round(p[0]*100)/100,Math.round(p[1]*100)/100]));});}});
       const sq=vecSquaresFromSegments(px);
       vecSignatures(sq.squares,ppx);
-      session.vector={src,squares:sq.squares,segments:px.length,pieces,shapes,ms:Math.round((performance.now?performance.now():Date.now())-started),why:''};   /* [228-A] [230-A] */
+      /* [246-A] [246-B] a truncation is STATED. A trace that fails because the wire list
+         was silently cut short is the worst kind of failure: correct-looking and unexplained. */
+      const capped=[];
+      if(wires.length>=VEC_WIRE_MAX)capped.push('wires-capped-at-'+VEC_WIRE_MAX);
+      if(texts.length>=VEC_TEXT_MAX)capped.push('texts-capped-at-'+VEC_TEXT_MAX);
+      session.vector={src,squares:sq.squares,segments:px.length,pieces,shapes,wires,texts,ms:Math.round((performance.now?performance.now():Date.now())-started),why:capped.join(' ')};   /* [228-A] [230-A] [246-A] [246-B] */
       try{pdf.destroy();}catch(_){}
       return session.vector;
     }catch(e){session.vector={src,squares:null,why:'vector-failed: '+((e&&e.message)||'unknown')};return session.vector;}
@@ -3360,7 +3552,7 @@
 
       const labels=pool.labels,assigned=pool.assigned,consistency=pool.consistency;
       let applied=0,withheld=0,mismatch=0;
-      candidates.forEach(c=>{if(c.meta.devSource==='ocr'){c.obj.dev='';c.meta.devSource='';c.meta.devHow='';}if(c.meta.loopSource==='ocr'){c.obj.loop='';c.meta.loopSource='';}c.meta.ocrIssue='';c.meta.ocrDistance=null;c.meta.ocrConfidence=null;});
+      candidates.forEach(c=>{if(c.meta.devSource==='ocr'){c.obj.dev='';c.meta.devSource='';c.meta.devHow='';}if(c.meta.loopSource==='ocr'||c.meta.loopSource==='wire'){c.obj.loop='';c.meta.loopSource='';}c.meta.ocrIssue='';c.meta.ocrDistance=null;c.meta.ocrConfidence=null;});   /* [246-D] a wire loop is re-derived on every Find like an ocr one - otherwise a second run keeps a loop the drawing no longer supports */
       candidates.forEach(c=>{if(numbersOnly&&Array.isArray(c.meta.stripConflict)&&c.meta.stripConflict.length>1){c.meta.ocrIssue=`Two numbers are printed next to it: ${c.meta.stripConflict.join(' and ')}. Pick one.`;c.decision='review';withheld++;}});
       assigned.assignments.forEach(a=>{
         const c=a.candidate,lab=a.label;c.meta.ocrDistance=Math.round(a.distance*10)/10;c.meta.ocrConfidence=lab.confidence;
@@ -3401,11 +3593,24 @@
         if(lab.loop&&!protectedLoop){c.obj.loop=lab.loop;c.meta.loopSource='ocr';}
         applied++;
       });
+      /* PASS 246 [246-E] THE LOOP, on the Find step he already runs - no teach, no button.
+         If the sheet is vector and prints a LOOP label it reads it; otherwise it does nothing
+         at all, which is what his caveat requires ("different plans are labeled differently").
+
+         WHERE THIS SITS IS THE WHOLE POINT, AND THE FIRST CUT HAD IT WRONG. It was placed
+         just after the learned reader - which is BEFORE the block above that clears
+         `loopSource==='wire'` on every Find. So it assigned 11 loops, the reset wiped all 11
+         a few lines later, and the diagnostics cheerfully reported `applied: 11` while every
+         row came back blank. The rig caught it because it read the ROWS and not just the
+         report. It belongs here: after the reset, after the device numbers are applied, and
+         before the report is built. */
+      try{phases.loops=readLoopsFromWires(candidates);}catch(e){phases.loops={ran:false,why:'loop step failed: '+((e&&e.message)||'unknown')};}
       if(session.schedule.length) reconcileSchedule(true);
       else refreshIssues();
       const finalAssigned=pool.assigned.usedCandidates.size;
       const report={summary:{labels:labels.length,assigned:assigned.assignments.length,applied,withheld,mismatch,unread:Math.max(0,candidates.length-finalAssigned),capPx:opts.maxAssignmentPx,
         centerAssigned,offsetRecovered:Math.max(0,afterOffset-centerAssigned),quadrantRecovered:Math.max(0,finalAssigned-afterOffset),baseUpscale,
+        loops:phases.loops||null,   /* [246-E] */
         vector:phases.vector?{reads:phases.vector.reads,settled:phases.vector.settled||0,seen:phases.vector.seen,ms:phases.vector.ms,why:phases.vector.why||''}:null,   /* [228-A] */
         learned:phases.learned?{library:phases.learned.library,reads:phases.learned.reads,candidates:phases.learned.candidates,verify:phases.learned.verify||null,ms:phases.learned.ms,why:phases.learned.why||''}:null,   /* [236-A] [240-C] */
         retryDirections:OCR_RETRY_DIRECTIONS.map(d=>d.name),quadrantDirections:OCR_QUADRANTS.map(d=>d.name),quadrantWidth:OCR_QUADRANT_W,quadrantHeight:OCR_QUADRANT_H,quadrantOffsetX:OCR_QUADRANT_OFFSET_X,quadrantOffsetY:OCR_QUADRANT_OFFSET_Y,elapsedMs:Date.now()-started,hires:hi?{k:hi.k,tiles:hi.rendered,renderMs:hi.ms}:{off:hiresWhy||'unknown'}},   /* [222-A] */
@@ -4163,8 +4368,8 @@ html:not(.fsdark) #${MODAL_ID} .spWarn{border-color:#8a5a00}
 
   /* PASS 215 [215-D] - the module carries the APP version it shipped with; patch-version.py bumps it
      with index.html and sw.js, and index.html refuses a module that does not match its own. */
-  const MODULE_VERSION = "V0.224 beta";
-  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,decision:c.decision,   /* [244-D] exposed for diagnosis. NOT a suggestion/applied discriminator: a candidate is born 'review' from missing_dev and nothing re-derives it once a number lands, so every row he has not accepted reads 'review'. Use meta.devHow for that. */type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
+  const MODULE_VERSION = "V0.225 beta";
+  const api={version:VERSION,build:MODULE_VERSION,open,start,stage,cancel:cancelActiveOperation,summary,reconciliation,importScheduleRows,importScheduleFile,importZoneSourceFile,sampleFillZones,setFillZone,applyFillZones,readZoneNames,teachZoneHatch,detectZoneSourceRegions,addManualZoneRegion,addZoneAlignmentPair,transferZoneRegions,detectTemplate,recognisePrintedIdentities,commit,discard,maxCanvasPx,_normalisePayload:normalisePayload,_dedupeLabels:dedupeLabels,_assignLabels:assignLabels,_fitZoneAlignment:fitZoneAlignment,_estimatePolyOverlap:estimatePolyOverlap,_clipPolygonRect:clipPolygonRect,_sourceRegionOverlapWarnings:sourceRegionOverlapWarnings,tightenTemplateBox,_cropStripCanvas:cropStripCanvas,_taughtBox:()=>session&&session.taughtBox?session.taughtBox.slice():null,_hires:()=>hires?{k:hires.k,tiles:hires.tiles.size,rendered:hires.rendered}:null,_fixSevens:(cv,t)=>hiresFixSevens(cv,String(t)),   /* [219-A] */_fillZones:()=>session&&session.fillZones?clone(session.fillZones):null,_zoneLabelsFromWords:zoneLabelsFromWords,_zoneLeaderAnchor:zoneLeaderAnchor,_zoneMasks:zoneMasks,_zoneCleanCanvas:zoneCleanCanvas,_zoneLabelWords:zoneLabelWords,_zoneDigitRead:async(w)=>{const live=livePlanImage(),iw=live.naturalWidth||live.width,ih=live.naturalHeight||live.height,cv=document.createElement('canvas');cv.width=iw;cv.height=ih;const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(live,0,0,iw,ih);const id=ctx.getImageData(0,0,iw,ih);return zoneDigitRead(await ensureOcrWorker(),zoneCleanCanvas(id,zoneMasks(id.data,iw,ih)),w);},   /* [225-A] */_clusterHues:(hs)=>clusterHues((hs||[]).map((h,i)=>({id:'u'+i,h:Number(h),s:1,v:1}))).map(g=>g.map(x=>x.h)),   /* [220-A] */_planSource:()=>!!planSource(),_zoneLog:()=>session&&session.zoneLog?clone(session.zoneLog):[],   /* [229-1] */_vectorSquares:vectorSquares,_vectorLast:()=>session&&session.vectorLast?clone(session.vectorLast):null,_vectorShapeLast:()=>session&&session.vectorShapeLast?clone(session.vectorShapeLast):null,_vecShapeFor:(box)=>session&&session.vector&&session.vector.shapes?vecShapeFor(box,session.vector.shapes):null,_readDiag:()=>{const d=spReadDiag();return d?d.text:'';},_orderRows:(l)=>spOrderRows(l),_rowsFilter:()=>session?session.rowsFilter||'all':null,_flaggedLeft:spFlaggedLeft,   /* [234-A] */_vecSameInside:vecSameInside,   /* [233] */_vecLabelScale:vecLabelScale,   /* [234-B] */_lrnWordsFor:(x,y,side,frac)=>{const live=livePlanImage();if(!live)return null;const G=lrnGrey(live);if(frac!=null)G.dark=Math.round(G.ink+frac*(G.paper-G.ink));return lrnWordsFor(G,x,y,side).map(w=>({d:w.d,loose:w.loose,g:w.g.map(g=>[g.x0,g.y0,g.x1-g.x0,g.y1-g.y0])}));},   /* [236-A] */_vecShownSide:(box)=>session&&session.vector&&session.vector.squares?vectorSideFor(session.vector.squares,{original:box}):null,   /* [230-A] */_vecLabelsFor:(x,y,s)=>session&&session.vector&&session.vector.pieces?vecLabelsFor(x,y,s,session.vector.pieces):null,   /* [228-A] */_vecWires:()=>session&&session.vector&&session.vector.wires?session.vector.wires.map(w=>w.map(p=>p.slice())):null,_vecTexts:()=>session&&session.vector&&session.vector.texts?clone(session.vector.texts):null,_loopLabels:()=>loopLabelsFromTexts((session&&session.vector&&session.vector.texts)||[]),_loopWireFor:(lab)=>loopWireFor(lab,(session&&session.vector&&session.vector.wires)||[]),_readLoops:()=>session?readLoopsFromWires(session.candidates):null,   /* [246-C] [246-D] [246-E] */   /* [246-A] [246-B] diagnosis hooks - the wires and the sheet's own text, so a rig can measure both without a debug build */   /* [226-A] */_stripReads:()=>session?session.candidates.map(c=>({id:c.id,decision:c.decision,   /* [244-D] exposed for diagnosis. NOT a suggestion/applied discriminator: a candidate is born 'review' from missing_dev and nothing re-derives it once a number lands, so every row he has not accepted reads 'review'. Use meta.devHow for that. */type:c.obj.type,x:c.obj.x,y:c.obj.y,dev:c.obj.dev,loop:c.obj.loop,   /* [246-F] the LOOP was missing here, and that is not a small omission: [246-E] assigned it correctly on the very first run and the diagnostics could not show it, so the rig read null and printed "15 WRONG" against a step that was working. A value the app sets and cannot report is a value nobody can check - same precedent as [244-D] exposing the decision. */zone:c.obj.zone,zoneSource:c.meta.zoneSource,   /* [220-A] */reads:c.meta.stripReads||null,conflict:c.meta.stripConflict||null,interiorNcc:c.meta.interiorNcc,interiorInk:c.meta.interiorInk,shape:!!c.meta.vectorShape,partial:!!c.meta.vectorPartial,noNumber:!!c.meta.noNumber,scale:c.meta.vectorScale==null?1:c.meta.vectorScale,cleared:['zone','loop','dev'].filter(k=>c.meta[`${k}Cleared`]),sources:{zone:c.meta.zoneSource||'',loop:c.meta.loopSource||'',dev:c.meta.devSource||''},how:c.meta.devHow||'',   /* [236-A] */issues:(c.issues||[]).map(x=>x.code)})):null};   /* [230-A] */
   Object.freeze(api); Object.defineProperty(window,'ArcSmartPlan',{value:api,configurable:true});
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installButton();ensureModal();},{once:true});else{installButton();ensureModal();}
