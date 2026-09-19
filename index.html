@@ -84,7 +84,6 @@ try{if(localStorage.getItem("fs-boot-reg")==="1"){document.documentElement.class
 <script src="./jsqr.js" defer></script>
 <script src="./zxing.js" defer></script>
 <script src="./smart-plan.js" defer></script>
-<script src="./clean-plan.js" defer></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 /* PASS 28 item 1 — iOS shows a text-selection callout on long-press, which
@@ -2059,6 +2058,14 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="flex:1;min-width:120px;font-size:13.5px"><b>Business &amp; tax</b><br><span style="font-size:11.5px;color:#888">Business name, ABN, GST, quote terms and bank details &mdash; they appear on the documents this app produces.</span></span>
       <button class="btn" id="fsOffSetBiz">&#127970; Open</button>
     </div>
+    <div id="fsOffSetBookRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="flex:1;min-width:120px;font-size:13.5px"><b>Pricebook</b><br><span style="font-size:11.5px;color:#888">Your rates and prices. Quoting and invoicing read them without you opening this.</span></span>
+      <button class="btn" id="fsOffSetBook">&#128176; Open</button>
+    </div>
+    <div id="fsOffSetChargesRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="flex:1;min-width:120px;font-size:13.5px"><b>Service charges</b><br><span style="font-size:11.5px;color:#888">Call-out and standing charges, set up once and then applied for you.</span></span>
+      <button class="btn" id="fsOffSetCharges">&#129534; Open</button>
+    </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="fsOffSetClose">Close</button></div>
   </div>
 </div>
@@ -2527,11 +2534,7 @@ const TOOLS_TAB = [
      send you something for inspiration." The inspiration has not arrived, so
      this is the plain tile style on purpose (walk sheet box). Gated like every
      other tile with fsModOn("wsTools.smartplan"). */
-  { id:"smartplan", label:"Smart Plan", icon:"\u2728", full:"Smart Plan reads the plan on screen: show it one detector, it finds the rest, reads the numbers and lets you check them before anything is saved" },
-  /* PASS 229 [CP-10/CP-11/CP-12] - Clean Plan. Reece, 18 Sep 2026: "all I want
-     is a tool that turns this into this. thats literally it." Same tile shape as
-     Smart Plan, same Tools home, same fsModOn gate. */
-  { id:"cleanplan", label:"Clean Plan", icon:"\u25f1", full:"Clean Plan redraws the plan on screen from your photo: walls and doors traced, zone colours kept, arrows and symbols dropped. It is a draft - check it, and Undo puts your photo back" }
+  { id:"smartplan", label:"Smart Plan", icon:"\u2728", full:"Smart Plan reads the plan on screen: show it one detector, it finds the rest, reads the numbers and lets you check them before anything is saved" }
 ];
 const MARKUP_TOOLS = [
   { id:"pen",     label:"Pen",         icon:"✏️" },
@@ -7540,7 +7543,6 @@ function buildPalette() {
       if (t.id === "sitenotes") { document.getElementById("btnNotes").onclick(); return; }
       if (t.id === "importsheet") { document.getElementById("btnOpenProj").onclick(); return; }
       if (t.id === "smartplan") { if (!window.ArcSmartPlan) { alert("Smart Plan is still loading \u2014 try again in a moment."); return; } if (fsSmartPlanStale()) { fsSmartPlanRefresh(); return; } ArcSmartPlan.open(); return; }
-      if (t.id === "cleanplan") { if (!window.ArcCleanPlan) { alert("Clean Plan is still loading \u2014 try again in a moment."); return; } ArcCleanPlan.open(); return; }
       if (t.id !== "hatch" && MODIFY_TOOLS.some(m => m.id === t.id)) { modifyAction(t.id); return; }
       fsToolToggle(t.id);      /* [91-C2] press again to put it down */
     };
@@ -25623,7 +25625,7 @@ function fsDashRender() {
   const defs = rows.reduce((a, r) => a + r.def, 0);
   let html = '<div style="margin-bottom:12px"><a id="fsDashBack" class="fsCrumb">&#8592; Dashboard</a></div>';
   html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h2 style="font-size:20px;flex:1;min-width:150px"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:19px;height:19px;vertical-align:-2px;margin-right:7px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M3 3v18h18"/><path d="M7 16V11"/><path d="M12 16V7"/><path d="M17 16v-3"/></svg>Office</h2>' +
-    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button>' + (fsSiteFeatOn("defects") ? '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' : '') + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '<button class="fsbtn" id="fsChargesBtn">&#129534; Service charges</button><button class="fsbtn" id="fsBookBtn">&#128176; Pricebook</button>' +
+    '<button class="fsbtn" id="fsDashLibBtn">&#128218; Library</button>' + (fsSiteFeatOn("defects") ? '<button class="fsbtn" id="fsPipeBtn">&#129518; Defect pipeline</button>' : '') + (fsQuotingAny() ? '<button class="fsbtn" id="fsQuotesBtn">&#128195; Quotes</button>' : '') + (fsInvScreenOn() ? '<button class="fsbtn" id="fsInvsBtn">&#128181; Invoices</button>' : '') + '' +   /* [250-B] his box g3, MOVE THEM IN: Service charges and Pricebook are rows in the cog now. They are rate tables - set up when prices change, then read for you - which is the same shape as Business & tax. */
     /* PASS 192 [192-A] R-7 - FS_BIZTAX_ADMIN. Rendered for an admin only,
        and fsBizOpen/fsBizSave refuse for anyone else regardless: a hidden
        control that still works is the failure, not the fix. */
@@ -25631,7 +25633,13 @@ function fsDashRender() {
        Business & tax is the first row inside it. SAME fsCan("admin") test as [192-A] used:
        the gate moved with the control. The cog renders only while there is something inside
        it for this user, because a cog that opens onto an empty sheet is worse than no cog. */
-    (typeof fsCan === "function" && fsCan("admin") ? '<button class="fsbtn" id="fsOffSetBtn" title="Business &amp; tax, and other things the office sets once">&#9881; Settings</button>' : '') +'<button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
+    /* PASS 250 [250-B] - THE GATE MOVED FROM THE CONTAINER TO THE ROW. [249-A] rendered this
+       cog for an admin only, which was right while Business & tax was the only thing in it.
+       Pricebook and Service charges are for everyone who reaches Office, so hiding the cog
+       would silently take them away from an office user. The cog is for everyone; the
+       Business & tax ROW is admin-only (fsOffSetOpen), and fsBizOpen/fsBizSave still refuse
+       on their own, which is what actually stops anybody. */
+    '<button class="fsbtn" id="fsOffSetBtn" title="Pricebook, service charges, and the things the office sets once">&#9881; Settings</button>' +'<button class="fsbtn" id="fsDashPdf">&#128196; PDF</button></div>';
   const chip = (n, lbl, col) => '<div class="fscard" style="flex:1;min-width:110px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:' + col + '">' + n + '</div><div style="font-size:11.5px;color:var(--fs-sub2)">' + lbl + '</div></div>';
   html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' + chip(over, "Overdue", over ? "#c62828" : "#1b8a3f") + chip(soon, "Due within 30 days", soon ? "#b58900" : "#1b8a3f") + (fsSiteFeatOn("defects") ? chip(defs, "Open defects", defs ? "#c62828" : "#1b8a3f") : '') + '</div>';
   html += '<div class="fscard" style="padding:4px 14px">';
@@ -25659,13 +25667,19 @@ function fsDashRender() {
   /* PASS 66 [66-3] — gated exactly as the button is rendered ([59]'s rule). */
   const pipeBtn = document.getElementById("fsPipeBtn");
   if (pipeBtn) pipeBtn.onclick = () => { fsDashMode = "pipeline"; fsPipeRender(); };
-  document.getElementById("fsBookBtn").onclick = () => { fsDashMode = "book"; fsBookRender(); };
+  /* [250-B] null on these bytes - the lookups stay so a later pass that puts either button
+     back anywhere on this screen is wired, not silently dead. Guarded, because an unguarded
+     lookup on a button that is no longer rendered throws and takes every handler below it
+     with it - [192-A] learned that one the hard way. */
+  const bookBtn = document.getElementById("fsBookBtn");
+  if (bookBtn) bookBtn.onclick = () => { fsDashMode = "book"; fsBookRender(); };
   const qBtn = document.getElementById("fsQuotesBtn");
   if (qBtn) qBtn.onclick = () => { fsDashMode = "quotes"; fsQuoteListRender(); };
   /* PASS 59 — gated exactly as the button is rendered. */
   const invBtn = document.getElementById("fsInvsBtn");
   if (invBtn) invBtn.onclick = () => { fsDashMode = "invoices"; fsInvListRender(); };
-  document.getElementById("fsChargesBtn").onclick = () => { fsDashMode = "charges"; fsChargeListRender(); };
+  const chargesBtn = document.getElementById("fsChargesBtn");
+  if (chargesBtn) chargesBtn.onclick = () => { fsDashMode = "charges"; fsChargeListRender(); };   /* [250-B] guarded, same reason */
   wrap.querySelectorAll(".fsDashRow").forEach(el => el.onclick = () => {
     const r = rows[+el.dataset.i];
     if (!r) return;
@@ -30644,12 +30658,13 @@ function fsBizGstLine() {
    a THIRD check, not a replacement for either, because the button being admin-only is not
    what makes the control admin-only. */
 function fsOffSetOpen() {
-  if (typeof fsCan === "function" && !fsCan("admin")) {
-    alert("Office settings is admin only.\n\nWhat is in here goes on every document this app produces, so only an admin can change it.");
-    return;
-  }
+  /* PASS 250 [250-B] - the sheet opens for everyone; the Business & tax ROW is what is
+     admin-only, and it is decided on EVERY open rather than once at load, because the iPad
+     changes hands and a sign-out must take the row with it. fsBizOpen and fsBizSave keep
+     their own gates ([192-A]) - this is the third check, not the only one. */
+  const admin = !(typeof fsCan === "function") || fsCan("admin");
   const row = document.getElementById("fsOffSetBizRow");
-  if (row) row.style.display = "flex";
+  if (row) row.style.display = admin ? "flex" : "none";
   document.getElementById("fsOffSetModal").classList.add("show");
 }
 function fsBizOpen() {
@@ -30766,6 +30781,17 @@ document.getElementById("fsBizClose").onclick = () => document.getElementById("f
    TypeError, which took every handler below it with it). */
 document.getElementById("fsOffSetClose").onclick = () => document.getElementById("fsOffSetModal").classList.remove("show");
 document.getElementById("fsOffSetBiz").onclick = () => fsBizOpen();
+/* PASS 250 [250-B] - a row that NAVIGATES closes the sheet on its way, because Pricebook and
+   Service charges take over the Office screen behind it; leaving the sheet open over the thing
+   he just asked for would be the modal covering its own result. */
+document.getElementById("fsOffSetBook").onclick = () => {
+  document.getElementById("fsOffSetModal").classList.remove("show");
+  fsDashMode = "book"; fsBookRender();
+};
+document.getElementById("fsOffSetCharges").onclick = () => {
+  document.getElementById("fsOffSetModal").classList.remove("show");
+  fsDashMode = "charges"; fsChargeListRender();
+};
 document.getElementById("fsBizSave").onclick = () => fsBizSave();
 document.getElementById("fsBizGst").onchange = function () {
   /* PASS 76 [76-A2] — THE TRANSITION, and the only place the seed can fire.
@@ -30809,7 +30835,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v238";
+const FS_BUILD = "aa-v237";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
