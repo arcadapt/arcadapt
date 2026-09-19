@@ -84,6 +84,7 @@ try{if(localStorage.getItem("fs-boot-reg")==="1"){document.documentElement.class
 <script src="./jsqr.js" defer></script>
 <script src="./zxing.js" defer></script>
 <script src="./smart-plan.js" defer></script>
+<script src="./clean-plan.js" defer></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 /* PASS 28 item 1 — iOS shows a text-selection callout on long-press, which
@@ -770,7 +771,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.231 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.230 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -902,7 +903,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.231 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.230 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -2534,7 +2535,13 @@ const TOOLS_TAB = [
      send you something for inspiration." The inspiration has not arrived, so
      this is the plain tile style on purpose (walk sheet box). Gated like every
      other tile with fsModOn("wsTools.smartplan"). */
-  { id:"smartplan", label:"Smart Plan", icon:"\u2728", full:"Smart Plan reads the plan on screen: show it one detector, it finds the rest, reads the numbers and lets you check them before anything is saved" }
+  { id:"smartplan", label:"Smart Plan", icon:"\u2728", full:"Smart Plan reads the plan on screen: show it one detector, it finds the rest, reads the numbers and lets you check them before anything is saved" },
+  /* PASS 229 [CP-10/CP-11/CP-12] - Clean Plan. Reece, 18 Sep 2026: "all I want
+     is a tool that turns this into this. thats literally it." Same tile shape as
+     Smart Plan, same Tools home, same fsModOn gate.
+     PASS 250 [250-C] - RESTORED: this tile was reverted by a V0.229 deploy from another
+     session that was built on V0.228 bytes. See patch-p250b.py's header and T250-1. */
+  { id:"cleanplan", label:"Clean Plan", icon:"\u25f1", full:"Clean Plan redraws the plan on screen from your photo: walls and doors traced, zone colours kept, arrows and symbols dropped. It is a draft - check it, and Undo puts your photo back" }
 ];
 const MARKUP_TOOLS = [
   { id:"pen",     label:"Pen",         icon:"✏️" },
@@ -7543,6 +7550,7 @@ function buildPalette() {
       if (t.id === "sitenotes") { document.getElementById("btnNotes").onclick(); return; }
       if (t.id === "importsheet") { document.getElementById("btnOpenProj").onclick(); return; }
       if (t.id === "smartplan") { if (!window.ArcSmartPlan) { alert("Smart Plan is still loading \u2014 try again in a moment."); return; } if (fsSmartPlanStale()) { fsSmartPlanRefresh(); return; } ArcSmartPlan.open(); return; }
+      if (t.id === "cleanplan") { if (!window.ArcCleanPlan) { alert("Clean Plan is still loading \u2014 try again in a moment."); return; } ArcCleanPlan.open(); return; }   /* [250-C] restored */
       if (t.id !== "hatch" && MODIFY_TOOLS.some(m => m.id === t.id)) { modifyAction(t.id); return; }
       fsToolToggle(t.id);      /* [91-C2] press again to put it down */
     };
