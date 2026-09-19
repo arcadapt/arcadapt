@@ -22,7 +22,7 @@
      colour.js         59027f1fb7c8fc50  zone colour off the photograph - Arc's own, CP-12
      backdrop.js       7a0837fc8bee0a0e  the subtraction backdrop and its pastel rooms - Arc's own, CP-14/CP-15
      provider.js       5c48208389acccdc  the model call, browser port of clean-pdf-module server/provider.mjs
-     ui.js             e3b82cc2da6e7a92  the tool - Arc's own, CP-10/CP-11 */
+     ui.js             af66d6cdd8135f9a  the tool - Arc's own, CP-10/CP-11 */
 (function () {
   'use strict';
 
@@ -1669,9 +1669,9 @@ function cpCreateProvider(opts) {
       return;
     }
     paint([
-      el('p', { class: 'cpNote', text: 'Clean Plan takes the colour, the arrows, the fire symbols and the labels off the plan on the sheet and leaves you your own line work to draw on, with the zone colours kept in pastel.' }),
-      el('div', { class: 'cpWarn', html: '<b>Nothing is redrawn.</b> These are your own lines with the clutter taken out, so a wall cannot end up somewhere there is no wall. It is free, it needs no key and it takes about a second.' }),
-      el('p', { class: 'cpNote', text: 'Crop to the building and it runs straight away. Two AI options sit underneath the result if you want them.' }),
+      el('p', { class: 'cpNote', text: 'Clean Plan redraws the plan on the sheet as a clean, crisp drawing \u2014 walls and door swings kept, the colour, arrows, fire symbols and labels gone.' }),
+      el('div', { class: 'cpWarn', html: '<b>It is a draft.</b> An image model paints it, so a wall can move and a room can be invented. Check it against your photo before you work off it. Apply puts it on the sheet and <b>Undo</b> puts your photo straight back.' }),
+      el('p', { class: 'cpNote', text: 'About 5c and half a minute. There is a free version underneath the result that uses your own lines instead \u2014 rougher, but nothing in it is invented.' }),
     ], [
       el('button', { type: 'button', class: 'cpGo', text: 'Crop the plan', onclick: startCrop }),
       el('button', { type: 'button', text: 'Close', onclick: close }),
@@ -1699,7 +1699,10 @@ function cpCreateProvider(opts) {
     catch (_) { cut = null; }
     if (m) m.style.display = '';
     if (!cut) return screenStart();
-    runBackdrop(fitForModel(cut));
+    /* CP-19. He looked at both on his own Cessnock photo and ruled: the image
+       edit is the clean. The subtraction backdrop is the free alternative. */
+    state = { crop: fitForModel(cut) };
+    runPresentable(state.crop);
   }
 
   /* The model takes 32-3200 px a side and at most 10 MP. Scale down rather than
@@ -1780,17 +1783,17 @@ function cpCreateProvider(opts) {
     paint([
       el('div', { class: 'cpPair' }, [
         el('div', { class: 'cpPane' }, [el('h3', { text: 'Your photo' }), before]),
-        el('div', { class: 'cpPane' }, [el('h3', { text: 'Cleaned - your own lines' }), after]),
+        el('div', { class: 'cpPane' }, [el('h3', { text: 'Cleaned free - your own lines' }), after]),
       ]),
       facts,
       el('div', { class: 'cpRow' }, [
         el('label', { class: 'cpChk' }, [colourBox, el('span', { text: 'Keep the zone colours' })]),
       ]),
       el('label', { class: 'cpNote', text: 'How pale' }), slider,
-      el('p', { class: 'cpNote', html: '<b>Nothing here was redrawn</b> \u2014 the walls are the ones in your photo, so they cannot be in the wrong place. Apply puts it on the sheet and <b>Undo</b> brings your photo back.' }),
+      el('p', { class: 'cpNote', html: '<b>The free one.</b> Nothing here was redrawn \u2014 the walls are the ones in your photo, so they cannot be in the wrong place, and it keeps your coordinates. It is rougher, and on some plans it finds no colour at all.' }),
       el('div', { class: 'cpRow' }, [
-        el('button', { type: 'button', text: 'Redraw with AI \u00b7 ~50c', title: 'An AI traces the plan as clean CAD-style lines. It can put a wall where there is none.', onclick: function () { run(state.crop); } }),
-        el('button', { type: 'button', text: 'Make it presentable \u00b7 ~5c', title: 'An image model repaints the plan to look sharp. Good for a report; it does not stay in your plan\u2019s coordinates.', onclick: function () { runPresentable(state.crop); } }),
+        el('button', { type: 'button', text: 'Back to the AI clean \u00b7 ~5c', onclick: function () { runPresentable(state.crop); } }),
+        el('button', { type: 'button', text: 'Redraw as CAD lines \u00b7 ~50c', onclick: function () { run(state.crop); } }),
       ]),
     ], [
       el('button', { type: 'button', class: 'cpGo', text: 'Apply to the sheet', onclick: apply }),
@@ -1871,19 +1874,35 @@ function cpCreateProvider(opts) {
   function screenPresentable(crop, result) {
     const before = el('img', { alt: 'Your photo' });
     before.src = crop.toDataURL('image/png');
-    const after = el('img', { alt: 'The repainted plan' });
+    const after = el('img', { alt: 'The cleaned plan' });
     after.src = result.toDataURL('image/png');
+
+    /* The coordinate warning is CONDITIONAL, and that matters. The image model
+       reframes - its output came back at about 0.7 the size of the crop on both
+       test plans - so anything ALREADY on the sheet stops lining up. But the
+       usual order of work is import the photo, clean it, then place devices, and
+       at that moment there is nothing to misalign. Shouting about it every time
+       made a narrow risk look like a general one, and that is what pushed the
+       whole tool the wrong way. */
+    let placed = 0;
+    try { if (typeof objects !== 'undefined' && Array.isArray(objects)) placed = objects.length; } catch (_) {}
     const scale = (result.width / crop.width).toFixed(2) + '\u00d7';
+
     paint([
       el('div', { class: 'cpPair' }, [
         el('div', { class: 'cpPane' }, [el('h3', { text: 'Your photo' }), before]),
-        el('div', { class: 'cpPane' }, [el('h3', { text: 'Repainted - a picture, not a plan' }), after]),
+        el('div', { class: 'cpPane' }, [el('h3', { text: 'Cleaned - DRAFT' }), after]),
       ]),
-      el('div', { class: 'cpErr', html: '<b>Do not work off this one.</b> An image model painted it, so walls can move and rooms can be invented \u2014 measured at 30 to 42% recall against the real walls. It came back at ' + scale + ' the size of your crop, so <b>anything already on the sheet will not line up</b>. It is for a report or a quote.' }),
-      el('p', { class: 'cpNote', text: 'The cleaned backdrop is still there if you go back \u2014 that one is your own lines.' }),
+      placed
+        ? el('div', { class: 'cpErr', html: 'You already have <b>' + placed + ' thing' + (placed === 1 ? '' : 's') + ' on this sheet.</b> This drawing came back at ' + scale + ' the size of your crop, so <b>they will not line up with it any more</b>. Undo puts everything back if it goes wrong.' })
+        : el('div', { class: 'cpWarn', html: '<b>Check it against your photo before you work off it.</b> An image model painted it, so a wall can move and a room can be invented. Nothing else is on this sheet yet, so this is the right moment to do it \u2014 place your devices after.' }),
+      el('div', { class: 'cpRow' }, [
+        el('button', { type: 'button', text: 'Clean it without AI instead \u00b7 free', title: 'Deletes the clutter off your own line work. Rougher, but nothing in it is invented and it keeps your coordinates.', onclick: function () { runBackdrop(crop); } }),
+        el('button', { type: 'button', text: 'Redraw as CAD lines \u00b7 ~50c', title: 'Traces the plan as geometry and redraws it. Slower, and it keeps your coordinates.', onclick: function () { run(crop); } }),
+      ]),
     ], [
-      el('button', { type: 'button', class: 'cpGo', text: 'Apply anyway', onclick: apply }),
-      el('button', { type: 'button', text: 'Back to the cleaned plan', onclick: screenBackdrop }),
+      el('button', { type: 'button', class: 'cpGo', text: 'Apply to the sheet', onclick: apply }),
+      el('button', { type: 'button', text: 'Start again', onclick: screenStart }),
       el('button', { type: 'button', text: 'Close', onclick: close }),
     ]);
   }
