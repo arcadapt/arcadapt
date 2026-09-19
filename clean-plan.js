@@ -22,7 +22,7 @@
      colour.js         59027f1fb7c8fc50  zone colour off the photograph - Arc's own, CP-12
      backdrop.js       7a0837fc8bee0a0e  the subtraction backdrop and its pastel rooms - Arc's own, CP-14/CP-15
      provider.js       5c48208389acccdc  the model call, browser port of clean-pdf-module server/provider.mjs
-     ui.js             74fba63fe5ac80dd  the tool - Arc's own, CP-10/CP-11 */
+     ui.js             6b218f80ab06fd9c  the tool - Arc's own, CP-10/CP-11 */
 (function () {
   'use strict';
 
@@ -1671,9 +1671,9 @@ function cpCreateProvider(opts) {
       return;
     }
     paint([
-      el('p', { class: 'cpNote', text: 'Clean Plan redraws the plan on the sheet as a clean, crisp drawing \u2014 walls and door swings kept, the colour, arrows, fire symbols and labels gone.' }),
+      el('p', { class: 'cpNote', text: 'Clean Plan strips the colour, the arrows, the fire symbols and the labels off the plan on the sheet, leaving you a plan to work on.' }),
       el('div', { class: 'cpWarn', html: '<b>It is a draft.</b> An image model paints it, so a wall can move and a room can be invented. Check it against your photo before you work off it. Apply puts it on the sheet and <b>Undo</b> puts your photo straight back.' }),
-      el('p', { class: 'cpNote', html: 'After you crop you choose: <b>the AI clean at about 5c</b>, or <b>a free clean</b> that uses your own lines. <b>Nothing is spent until you tap.</b>' }),
+      el('p', { class: 'cpNote', html: '<b>The free clean is the default</b> \u2014 it uses your own line work, needs no key and no internet, and costs nothing. The AI clean is one tap away at about 5c if you want a crisper drawing.' }),
     ], [
       el('button', { type: 'button', class: 'cpGo', text: 'Crop the plan', onclick: startCrop }),
       el('button', { type: 'button', text: 'Close', onclick: close }),
@@ -1938,7 +1938,10 @@ function cpCreateProvider(opts) {
      is still a single tap, it just is not a silent one. */
 
   const LAST_CHOICE = 'arcCleanPlanLastChoice';
-  function lastChoice() { try { return localStorage.getItem(LAST_CHOICE) || 'ai'; } catch (_) { return 'ai'; } }
+  /* FREE IS THE DEFAULT. Reece, 19 Sep 2026: "yeah i literally just want free".
+     The AI clean is the better-looking one and it stays one tap away, but the
+     tool should not point at a charge before he has asked for one. */
+  function lastChoice() { try { return localStorage.getItem(LAST_CHOICE) || 'free'; } catch (_) { return 'free'; } }
   function rememberChoice(v) { try { localStorage.setItem(LAST_CHOICE, v); } catch (_) {} }
 
   function screenChoose(crop) {
@@ -1953,7 +1956,7 @@ function cpCreateProvider(opts) {
       el('div', { class: 'cpPane' }, [el('h3', { text: 'Your crop' }), shot]),
       el('p', { class: 'cpNote', html: '<b>Clean with AI</b> repaints the plan as a crisp drawing. It is the better-looking one and it costs about 5c and half a minute.' }),
       el('p', { class: 'cpNote', html: '<b>Clean free</b> deletes the colour, arrows, symbols and labels off your own line work. No cost, no internet, about a second \u2014 rougher, but nothing in it is invented.' }),
-      el('p', { class: 'cpNote', text: 'Nothing is spent until you tap. Whichever you pick is remembered and highlighted next time.' }),
+      el('p', { class: 'cpNote', text: 'The free one is the default. Nothing is spent unless you tap the AI one, and whichever you pick is remembered next time.' }),
     ], [preferAI ? ai : free, preferAI ? free : ai, el('button', { type: 'button', text: 'Close', onclick: close })]);
   }
 
