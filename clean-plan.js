@@ -22,7 +22,7 @@
      colour.js         59027f1fb7c8fc50  zone colour off the photograph - Arc's own, CP-12
      backdrop.js       7a0837fc8bee0a0e  the subtraction backdrop and its pastel rooms - Arc's own, CP-14/CP-15
      provider.js       5c48208389acccdc  the model call, browser port of clean-pdf-module server/provider.mjs
-     ui.js             44fb776f4900d795  the tool - Arc's own, CP-10/CP-11 */
+     ui.js             b87da19969713fd1  the tool - Arc's own, CP-10/CP-11 */
 (function () {
   'use strict';
 
@@ -1551,16 +1551,22 @@ function cpCreateProvider(opts) {
     s.id = STYLE_ID;
     s.textContent = [
       '#' + MODAL_ID + '{position:fixed;inset:0;z-index:9000;background:rgba(12,14,13,.72);display:flex;align-items:stretch;justify-content:center}',
-      '#' + MODAL_ID + ' .cpSheet{background:var(--card,#fff);color:var(--ink,#1c1e1d);width:100%;max-width:1100px;margin:0;display:flex;flex-direction:column;overflow:hidden}',
+      /* [W235-1] Reece, V0.235 walk: "make it look a little like every other part
+         of the workspace, the window the same colour, buttons orange etc". It was
+         styled with --card/--ink, which Arc does not define, so every fallback was
+         showing and the tool looked like a different program. These are Arc's own
+         tokens, and the buttons use Arc's own .btn classes rather than a hex copied
+         off them - the W127-17 lesson. Change Arc's palette and this follows. */
+      '#' + MODAL_ID + ' .cpSheet{background:var(--fs-card,#fff);color:var(--fs-text,#152229);width:100%;max-width:1100px;margin:0;display:flex;flex-direction:column;overflow:hidden}',
       '@media(min-width:820px){#' + MODAL_ID + '{padding:24px}#' + MODAL_ID + ' .cpSheet{border-radius:14px;margin:auto;max-height:calc(100vh - 48px)}}',
-      '#' + MODAL_ID + ' .cpHead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line,#dcdfdc);flex:0 0 auto}',
+      '#' + MODAL_ID + ' .cpHead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--fs-line,#c2ccd5);flex:0 0 auto;background:var(--fs-raised,#e4eaf0)}',
       '#' + MODAL_ID + ' .cpHead h2{font-size:17px;margin:0;flex:1;font-weight:600}',
       '#' + MODAL_ID + ' .cpBody{padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto}',
-      '#' + MODAL_ID + ' .cpFoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line,#dcdfdc);flex:0 0 auto;flex-wrap:wrap}',
-      '#' + MODAL_ID + ' button{min-height:44px;padding:0 16px;border-radius:9px;border:1px solid var(--line,#c9ccc9);background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}',
-      '#' + MODAL_ID + ' button.cpGo{background:#186a5a;border-color:#186a5a;color:#fff;font-weight:600}',
+      '#' + MODAL_ID + ' .cpFoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--fs-line,#c2ccd5);flex:0 0 auto;flex-wrap:wrap;background:var(--fs-raised,#e4eaf0)}',
+      '#' + MODAL_ID + ' button{min-height:44px;padding:0 16px;font:inherit;cursor:pointer}',
+      '#' + MODAL_ID + 
       '#' + MODAL_ID + ' button[disabled]{opacity:.5}',
-      '#' + MODAL_ID + ' input[type=password],#' + MODAL_ID + ' input[type=text]{width:100%;min-height:44px;padding:0 12px;border-radius:9px;border:1px solid var(--line,#c9ccc9);background:var(--card,#fff);color:inherit;font:inherit;box-sizing:border-box}',
+      '#' + MODAL_ID + ' input[type=text]{width:100%;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--fs-line,#c2ccd5);background:var(--fs-field,#fff);color:var(--fs-fieldText,inherit);font:inherit;box-sizing:border-box}',
       '#' + MODAL_ID + ' .cpNote{font-size:13px;line-height:1.5;opacity:.85}',
       '#' + MODAL_ID + ' .cpWarn{font-size:13px;line-height:1.5;border-left:3px solid #b77911;padding:8px 10px;background:rgba(183,121,17,.09);border-radius:0 8px 8px 0;margin:12px 0}',
       '#' + MODAL_ID + ' .cpErr{font-size:13px;line-height:1.5;border-left:3px solid #b4342b;padding:8px 10px;background:rgba(180,52,43,.09);border-radius:0 8px 8px 0;margin:12px 0}',
@@ -1573,27 +1579,34 @@ function cpCreateProvider(opts) {
       '@media(min-width:760px){#' + MODAL_ID + ' .cpPair{grid-template-columns:1fr 1fr}',
       '#' + MODAL_ID + ' .cpPair .cpPane:first-child{order:0}',
       '#' + MODAL_ID + ' .cpPair img{max-height:none}}',
-      '#' + MODAL_ID + ' .cpPane{border:1px solid var(--line,#dcdfdc);border-radius:10px;overflow:hidden;background:#fff}',
-      '#' + MODAL_ID + ' .cpPane h3{margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line,#eceeec);opacity:.75;font-weight:600}',
+      '#' + MODAL_ID + ' .cpPane{border:1px solid var(--fs-line,#c2ccd5);border-radius:10px;overflow:hidden;background:var(--fs-well,#fff)}',
+      '#' + MODAL_ID + ' .cpPane h3{margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--fs-line,#c2ccd5);color:var(--fs-sub,#495b63);font-weight:600}',
       '#' + MODAL_ID + ' .cpPane img{display:block;width:100%;height:auto;background:#fff}',
       '#' + MODAL_ID + ' .cpRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}',
       '#' + MODAL_ID + ' label.cpChk{display:flex;gap:8px;align-items:center;min-height:44px;font-size:14px}',
       '#' + MODAL_ID + ' .cpSteps{font-size:13px;line-height:1.9;margin:10px 0 0}',
       '#' + MODAL_ID + ' .cpSteps li{list-style:none}',
-      '#' + MODAL_ID + ' .cpSteps li.done::before{content:"\\2713 ";color:#186a5a;font-weight:700}',
+      '#' + MODAL_ID + ' .cpSteps li.done::before{content:"\\2713 ";color:var(--fs-primary,#1d5fd1);font-weight:700}',
       '#' + MODAL_ID + ' .cpSteps li.now::before{content:"\\2022 ";color:#b77911;font-weight:700}',
       '#' + MODAL_ID + ' .cpSteps li.wait{opacity:.5}',
       '#' + MODAL_ID + ' .cpSteps li.wait::before{content:"\\00a0\\00a0"}',
-      '#' + MODAL_ID + ' img.cpPick{width:84px;height:auto;border:2px solid var(--line,#c9ccc9);border-radius:8px;cursor:pointer;background:#fff;padding:2px}',
+      '#' + MODAL_ID + ' img.cpPick{width:84px;height:auto;border:2px solid var(--fs-line,#c2ccd5);border-radius:8px;cursor:pointer;background:#fff;padding:2px}',
       /* 44px is the tap target on his iPad, which is the only device that
          matters here. The ring, not a tick, marks the chosen one - a tick would
          sit on top of the colour being judged. */
-      '#' + MODAL_ID + ' .cpFloor{display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--line,#eceeec);flex-wrap:wrap}',
-      '#' + MODAL_ID + ' .cpFloorLabel{font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.75;font-weight:600}',
-      '#' + MODAL_ID + ' .cpSwatches{display:flex;gap:8px;flex-wrap:wrap;margin:0}',
-      '#' + MODAL_ID + ' button.cpSwatch{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:9px;border:2px solid var(--line,#c9ccc9);cursor:pointer}',
-      '#' + MODAL_ID + ' button.cpSwatch.on{border-color:#186a5a;box-shadow:0 0 0 2px rgba(24,106,90,.35)}',
-      '#' + MODAL_ID + ' img.cpPick.on{border-color:#186a5a;box-shadow:0 0 0 2px rgba(24,106,90,.25)}',
+      '#' + MODAL_ID + ' .cpFloor{display:block;padding:10px;border-top:1px solid var(--fs-line,#c2ccd5)}',
+      '#' + MODAL_ID + ' .cpFloorLabel{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--fs-sub,#495b63);font-weight:600;display:block}',
+      '#' + MODAL_ID + ' .cpSwatches{display:grid;grid-template-columns:repeat(4,44px);gap:8px;margin:6px 0 0;justify-content:start}',
+      /* Seven swatches in a flex row wrap 6 + 1 on a phone and the last one sits
+         alone looking like a mistake. Four across gives 4 + 3, which reads as a
+         block. Wide enough and they all fit on one line. */
+      '@media(min-width:520px){#' + MODAL_ID + ' .cpSwatches{grid-template-columns:repeat(7,44px)}}',
+      '#' + MODAL_ID + ' .cpShadeRow{display:flex;align-items:center;gap:10px;margin-top:12px}',
+      '#' + MODAL_ID + ' .cpShadeEnd{font-size:12px;color:var(--fs-sub,#495b63);white-space:nowrap}',
+      '#' + MODAL_ID + ' input[type=range]{flex:1;min-width:110px;height:44px;accent-color:var(--fs-primary,#1d5fd1);background:transparent}',
+      '#' + MODAL_ID + ' button.cpSwatch{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:8px;border:2px solid var(--fs-line,#c2ccd5);cursor:pointer}',
+      '#' + MODAL_ID + ' button.cpSwatch.on{border-color:var(--fs-primary,#1d5fd1);box-shadow:0 0 0 2px var(--fs-primary,#1d5fd1)}',
+      '#' + MODAL_ID + ' img.cpPick.on{border-color:var(--fs-primary,#1d5fd1);box-shadow:0 0 0 2px var(--fs-primary,#1d5fd1)}',
     ].join('');
     document.head.appendChild(s);
   }
@@ -1617,7 +1630,7 @@ function cpCreateProvider(opts) {
     m = el('div', { id: MODAL_ID, role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Clean Plan' });
     const head = el('div', { class: 'cpHead' }, [
       el('h2', { text: 'Clean Plan' }),
-      el('button', { type: 'button', id: 'fsCleanPlanClose', text: 'Close', 'aria-label': 'Close Clean Plan' }),
+      el('button', { type: 'button', class: 'btn', id: 'fsCleanPlanClose', text: 'Close', 'aria-label': 'Close Clean Plan' }),
     ]);
     const body = el('div', { class: 'cpBody', id: 'fsCleanPlanBody' });
     const foot = el('div', { class: 'cpFoot', id: 'fsCleanPlanFoot' });
@@ -1637,6 +1650,7 @@ function cpCreateProvider(opts) {
   }
 
   function close() {
+    if (state && state.tick) { clearInterval(state.tick); state.tick = null; }
     if (state && state.abort) { try { state.abort.abort(); } catch (_) {} }
     const m = document.getElementById(MODAL_ID);
     if (m) m.remove();
@@ -1655,7 +1669,7 @@ function cpCreateProvider(opts) {
     if (!plan) {
       paint([
         el('p', { class: 'cpNote', text: 'Open a plan first, then come back. Clean Plan works on the plan that is on the sheet.' }),
-      ], [el('button', { type: 'button', text: 'Close', onclick: close })]);
+      ], [el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close })]);
       return;
     }
     paint([
@@ -1663,8 +1677,8 @@ function cpCreateProvider(opts) {
       el('div', { class: 'cpWarn', html: '<b>It is a draft.</b> An image model paints it, so a wall can move and a room can be invented. Check it against your photo before you work off it. Apply puts it on the sheet and <b>Undo</b> puts your photo straight back.' }),
       el('p', { class: 'cpNote', text: 'Crop the part of the plan you want. It comes back cleaned in about half a minute, and you can change the floor colour afterwards as often as you like.' }),
     ], [
-      el('button', { type: 'button', class: 'cpGo', text: 'Crop the plan', onclick: startCrop }),
-      el('button', { type: 'button', text: 'Close', onclick: close }),
+      el('button', { type: 'button', class: 'btn primary', text: 'Crop the plan', onclick: startCrop }),
+      el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close }),
     ]);
   }
 
@@ -1782,13 +1796,13 @@ function cpCreateProvider(opts) {
       el('label', { class: 'cpNote', text: 'How pale' }), slider,
       el('p', { class: 'cpNote', html: '<b>The free one.</b> Nothing here was redrawn \u2014 the walls are the ones in your photo, so they cannot be in the wrong place, and it keeps your coordinates. It is rougher, and on some plans it finds no colour at all.' }),
       el('div', { class: 'cpRow' }, [
-        el('button', { type: 'button', text: 'Back to the AI clean \u00b7 ~5c', onclick: function () { runPresentable(state.crop); } }),
-        el('button', { type: 'button', text: 'Redraw as CAD lines \u00b7 ~50c', onclick: function () { run(state.crop); } }),
+        el('button', { type: 'button', class: 'btn', text: 'Back to the AI clean \u00b7 ~5c', onclick: function () { runPresentable(state.crop); } }),
+        el('button', { type: 'button', class: 'btn', text: 'Redraw as CAD lines \u00b7 ~50c', onclick: function () { run(state.crop); } }),
       ]),
     ], [
-      el('button', { type: 'button', class: 'cpGo', text: 'Apply to the sheet', onclick: apply }),
-      el('button', { type: 'button', text: 'Start again', onclick: screenStart }),
-      el('button', { type: 'button', text: 'Close', onclick: close }),
+      el('button', { type: 'button', class: 'btn primary', text: 'Apply to the sheet', onclick: apply }),
+      el('button', { type: 'button', class: 'btn', text: 'Start again', onclick: screenStart }),
+      el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close }),
     ]);
     refresh();
   }
@@ -1810,10 +1824,24 @@ function cpCreateProvider(opts) {
   async function runPresentable(crop) {
     const abort = new AbortController();
     state.abort = abort;
+    /* [W235-3] Reece, V0.235 walk: "a progress bar couldn't hurt if it made
+       sense. But if it's not showing anything then I guess not?" - and he is
+       right. The image API returns nothing at all until it returns everything,
+       so a bar that crept along would be inventing progress it cannot see.
+       A clock counting up against the measured 24-36s is true, and it tells him
+       the same thing a bar would: it is still working, and roughly how far in. */
+    const clock = el('p', { class: 'cpNote', id: 'fsCleanPlanClock', text: 'Repainting the plan \u2014 0s of about 30' });
+    const t0 = Date.now();
+    state.tick = setInterval(function () {
+      const n = Math.round((Date.now() - t0) / 1000);
+      clock.textContent = n > 45
+        ? 'Repainting the plan \u2014 ' + n + 's, longer than usual'
+        : 'Repainting the plan \u2014 ' + n + 's of about 30';
+    }, 1000);
     paint([
-      el('p', { class: 'cpNote', text: 'An image model is repainting the plan. About half a minute.' }),
+      clock,
       el('div', { class: 'cpWarn', html: 'This makes a <b>picture of your plan</b>, not your plan. It does not keep your coordinates, so do not apply it over a sheet you have already marked up.' }),
-    ], [el('button', { type: 'button', text: 'Cancel', onclick: close })]);
+    ], [el('button', { type: 'button', class: 'btn', text: 'Cancel', onclick: close })]);
     let out;
     try {
       const blob = await new Promise(function (ok) { crop.toBlob(ok, 'image/png'); });
@@ -1845,9 +1873,11 @@ function cpCreateProvider(opts) {
         i.src = 'data:image/png;base64,' + b64;
       });
     } catch (e) {
+      if (state && state.tick) { clearInterval(state.tick); state.tick = null; }
       if (abort.signal.aborted) return;
       return screenError(e, crop);
     }
+    if (state && state.tick) { clearInterval(state.tick); state.tick = null; }
     const c = document.createElement('canvas');
     c.width = out.naturalWidth; c.height = out.naturalHeight;
     c.getContext('2d').drawImage(out, 0, 0);
@@ -1862,6 +1892,7 @@ function cpCreateProvider(opts) {
     /* A fresh attempt comes back in the model's own lavender, so the swatch row
        has to agree with what is on screen. */
     state.colourIndex = 0;
+    state.shade = 1;
     state.flat = c;
     screenPresentable(crop, c);
   }
@@ -1881,7 +1912,21 @@ function cpCreateProvider(opts) {
      halo. Ink is held out by darkness, which is what keeps the walls black
      rather than turning them the new colour. */
 
+  /* [W235-2] Reece, V0.235 walk: "what happens if you clean a plan thats multi
+     colour, the goal that will pretty much always be is that it comes in the
+     same colour as the plan is but a lighter pastel version even if its multi
+     colour to show different zones."
+
+     So ONE flat fill was the wrong default. On a fire or evacuation plan the
+     colour coding IS information - it is what Zone 1 and Zone 2 mean - and
+     painting it all lavender threw that away. The worker's prompt now asks the
+     model to keep each area's own hue, lightened; proven on a three-zone plan,
+     which came back green, blue and purple with the courtyard left white.
+
+     Index 0 is therefore the plan's own colours, and it is the default. The six
+     flat colours stay as an override for when one colour is what he wants. */
   const SWATCHES = [
+    ["Plan's own", null],
     ['Lavender', [223, 219, 249]],
     ['Pale blue', [214, 228, 245]],
     ['Pale green', [216, 238, 220]],
@@ -1907,6 +1952,44 @@ function cpCreateProvider(opts) {
     for (const e of counts.values()) if (!best || e[0] > best[0]) best = e;
     if (!best) return null;
     return [best[1] / best[0], best[2] / best[0], best[3] / best[0]];
+  }
+
+  /* [W235-2] The light/dark slider - "Aw if we could have a slider light to
+     dark on the side?", and the half of CP-15 never built ("always need lighter
+     pastel colours").
+
+     It works on the DISTANCE FROM WHITE, not on the colour itself, which is what
+     makes it multi-colour by nature: every fill gets paler or stronger by the
+     same proportion, whether there is one of them or five, and no zone has to be
+     found or identified first. Paper is already at distance zero so it cannot
+     tint, and ink is held out by darkness so walls stay black.
+
+     scale < 1 is paler, scale > 1 is stronger, 1 is exactly what came back. */
+  function cpShade(source, scale) {
+    if (!(scale > 0) || scale === 1) return source;
+    const w = source.width, h = source.height;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    x.drawImage(source, 0, 0);
+    const img = x.getImageData(0, 0, w, h), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      if ((r * 299 + g * 587 + b * 114) / 1000 < INK_LUM) continue;  /* a wall stays a wall */
+      d[i] = 255 - Math.min(255, (255 - r) * scale);
+      d[i + 1] = 255 - Math.min(255, (255 - g) * scale);
+      d[i + 2] = 255 - Math.min(255, (255 - b) * scale);
+    }
+    x.putImageData(img, 0, 0);
+    return c;
+  }
+
+  /* base -> the picture on screen. One place, so the slider, the swatches and
+     the attempt picker can never disagree about what Apply will use. */
+  function cpRender(base, colourIndex, shade) {
+    const sw = SWATCHES[colourIndex || 0];
+    const coloured = (sw && sw[1]) ? cpRecolour(base, sw[1]) : base;
+    return cpShade(coloured, shade);
   }
 
   function cpRecolour(source, target) {
@@ -1950,27 +2033,50 @@ function cpCreateProvider(opts) {
        whole tool the wrong way. */
     let placed = 0;
     try { if (typeof objects !== 'undefined' && Array.isArray(objects)) placed = objects.length; } catch (_) {}
-    const scale = (result.width / crop.width).toFixed(2) + '\u00d7';
+    /* [W235-4] the size difference is corrected on apply now, so the warning
+       stops quoting a scale factor the user will never see. */
 
     /* The colours live INSIDE the cleaned pane, under the picture they change.
        Rendered at 390 with them below the pair, the photo pane filled the rest
        of the screen and the swatches - the whole point of this screen - were
        under the fold. Attached to the picture, they are visible on every
        viewport without a scroll. */
+    if (!(state.shade > 0)) state.shade = 1;
+    const base = state.attempts[state.chosen];
+
     const swatchRow = el('div', { class: 'cpRow cpSwatches', id: 'fsCleanPlanSwatches' }, SWATCHES.map(function (sw, k) {
       const b = el('button', {
         type: 'button',
         class: k === (state.colourIndex || 0) ? 'cpSwatch on' : 'cpSwatch',
         title: sw[0], 'aria-label': 'Floor colour: ' + sw[0], 'data-colour': sw[0],
       });
-      b.style.background = 'rgb(' + sw[1].join(',') + ')';
+      /* index 0 has no single colour to show, because that is the point of it */
+      b.style.background = sw[1] ? 'rgb(' + sw[1].join(',') + ')'
+        : 'linear-gradient(135deg,#cfe6cf 0 33%,#cfe0f2 33% 66%,#e6d4ee 66%)';
       b.onclick = function () {
         state.colourIndex = k;
-        state.flat = k === 0 ? state.attempts[state.chosen] : cpRecolour(state.attempts[state.chosen], sw[1]);
+        state.flat = cpRender(base, k, state.shade);
         screenPresentable(crop, state.flat);
       };
       return b;
     }));
+
+    /* The slider repaints on release, not on every pixel of drag: the returned
+       image is about 1.6 megapixels and redrawing it on every input event makes
+       the control feel stuck on an iPad. */
+    const shade = el('input', { type: 'range', id: 'fsCleanPlanShade', min: '40', max: '170', step: '5',
+      'aria-label': 'How light or strong the floor colour is' });
+    shade.value = String(Math.round(state.shade * 100));
+    shade.onchange = function () {
+      state.shade = Number(shade.value) / 100;
+      state.flat = cpRender(base, state.colourIndex || 0, state.shade);
+      screenPresentable(crop, state.flat);
+    };
+    const shadeRow = el('div', { class: 'cpShadeRow' }, [
+      el('span', { class: 'cpShadeEnd', text: 'Lighter' }),
+      shade,
+      el('span', { class: 'cpShadeEnd', text: 'Stronger' }),
+    ]);
 
     paint([
       el('div', { class: 'cpPair' }, [
@@ -1981,11 +2087,12 @@ function cpCreateProvider(opts) {
           el('div', { class: 'cpFloor' }, [
             el('span', { class: 'cpFloorLabel', text: 'Floor colour' }),
             swatchRow,
+            shadeRow,
           ]),
         ]),
       ]),
       placed
-        ? el('div', { class: 'cpErr', html: 'You already have <b>' + placed + ' thing' + (placed === 1 ? '' : 's') + ' on this sheet.</b> This drawing came back at ' + scale + ' the size of your crop, so <b>they will not line up with it any more</b>. Undo puts everything back if it goes wrong.' })
+        ? el('div', { class: 'cpErr', html: 'You already have <b>' + placed + ' thing' + (placed === 1 ? '' : 's') + ' on this sheet.</b> This is a repaint, not your plan, so <b>they will not line up with it any more</b>. Undo puts everything back if it goes wrong.' })
         : el('div', { class: 'cpWarn', html: '<b>Check it against your photo before you work off it.</b> An image model painted it, so a wall can move and a room can be invented. Nothing else is on this sheet yet, so this is the right moment to do it \u2014 place your devices after.' }),
       attempts.length > 1 ? el('p', { class: 'cpNote', text: 'Attempt ' + (state.chosen + 1) + ' of ' + attempts.length + ' \u2014 tap one to compare, Apply uses the one you pick.' }) : null,
       attempts.length > 1 ? el('div', { class: 'cpRow' }, attempts.map(function (c, k) {
@@ -1995,19 +2102,18 @@ function cpCreateProvider(opts) {
           state.chosen = k;
           /* Picking a different attempt must not throw away the colour he
              chose. Re-apply it to the attempt he just picked. */
-          const ci = state.colourIndex || 0;
-          state.flat = ci === 0 ? c : cpRecolour(c, SWATCHES[ci][1]);
+          state.flat = cpRender(c, state.colourIndex || 0, state.shade);
           screenPresentable(crop, state.flat);
         };
         return t;
       })) : null,
       el('div', { class: 'cpRow' }, [
-        el('button', { type: 'button', text: 'Try again', title: 'The same request again. Six runs on one plan varied by about 3 points of accuracy, so another go is often enough when one comes back wrong.', onclick: function () { runPresentable(crop); } }),
+        el('button', { type: 'button', class: 'btn', text: 'Try again', title: 'The same request again. Six runs on one plan varied by about 3 points of accuracy, so another go is often enough when one comes back wrong.', onclick: function () { runPresentable(crop); } }),
       ]),
     ], [
-      el('button', { type: 'button', class: 'cpGo', text: 'Apply to the sheet', onclick: apply }),
-      el('button', { type: 'button', text: 'Start again', onclick: screenStart }),
-      el('button', { type: 'button', text: 'Close', onclick: close }),
+      el('button', { type: 'button', class: 'btn primary', text: 'Apply to the sheet', onclick: apply }),
+      el('button', { type: 'button', class: 'btn', text: 'Start again', onclick: screenStart }),
+      el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close }),
     ]);
   }
 
@@ -2046,7 +2152,7 @@ function cpCreateProvider(opts) {
     const redraw = (extra) => paint([
       el('p', { class: 'cpNote', text: 'Working. Leave this open - it takes two to four minutes.' }),
       stageList(done, now, extra),
-    ], [el('button', { type: 'button', text: 'Cancel', onclick: close })]);
+    ], [el('button', { type: 'button', class: 'btn', text: 'Cancel', onclick: close })]);
     redraw();
 
     const provider = cpCreateProvider({ apiKey: key, model: 'gpt-5.5-2026-04-23' });
@@ -2119,11 +2225,11 @@ function cpCreateProvider(opts) {
   }
 
   function screenError(e, crop) {
-    const again = el('button', { type: 'button', class: 'cpGo', text: 'Try again', onclick: function () { runPresentable(crop); } });
+    const again = el('button', { type: 'button', class: 'btn primary', text: 'Try again', onclick: function () { runPresentable(crop); } });
     paint([
       el('div', { class: 'cpErr', text: (e && e.message) || 'Clean Plan could not finish.' }),
       el('p', { class: 'cpNote', text: 'Nothing has been changed on your sheet.' }),
-    ], [again, el('button', { type: 'button', text: 'Close', onclick: close })]);
+    ], [again, el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close })]);
   }
 
   async function screenResult(crop, result, composed) {
@@ -2165,9 +2271,9 @@ function cpCreateProvider(opts) {
       el('div', { class: 'cpWarn', html: '<b>Check it against the photo before you work off it.</b> This is an AI draft from a photograph, not a survey. Apply replaces the plan on the sheet; your markup stays, and <b>Undo</b> brings the photo back.' }),
       g.notes ? el('p', { class: 'cpNote', text: 'It said: ' + g.notes }) : null,
     ], [
-      el('button', { type: 'button', class: 'cpGo', text: 'Apply to the sheet', onclick: apply }),
-      el('button', { type: 'button', text: 'Back to the cleaned plan', onclick: screenBackdrop }),
-      el('button', { type: 'button', text: 'Close', onclick: close }),
+      el('button', { type: 'button', class: 'btn primary', text: 'Apply to the sheet', onclick: apply }),
+      el('button', { type: 'button', class: 'btn', text: 'Back to the cleaned plan', onclick: screenBackdrop }),
+      el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close }),
     ]);
     await refresh();
   }
@@ -2175,14 +2281,32 @@ function cpCreateProvider(opts) {
   /* Reversible by Arc's own Undo. pushUndo() snapshots objects + the plan image,
      setImage(..., keepObjects, keepView) swaps the picture and leaves his markup
      and his view alone. No new undo mechanism, so there is nothing to drift. */
+  /* [W235-4] Reece, V0.235 walk: "comes in a bit small? But thats okay if you
+     haven't already set the scale..." He is being generous. The model reframes -
+     both test plans came back at about 0.7x the crop - so Apply was replacing his
+     photo with a smaller picture and everything on the sheet shrank with it.
+     The fix is to put it back at the crop's own pixel size before applying, so
+     what lands is the same size as the thing it replaced. */
+  function cpToCropSize(flat, crop) {
+    if (!crop || !crop.width || !crop.height) return flat;
+    if (flat.width === crop.width && flat.height === crop.height) return flat;
+    const c = document.createElement('canvas');
+    c.width = crop.width; c.height = crop.height;
+    const x = c.getContext('2d');
+    x.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in x) x.imageSmoothingQuality = 'high';
+    x.drawImage(flat, 0, 0, c.width, c.height);
+    return c;
+  }
+
   function apply() {
     const flat = state && state.flat;
     if (!flat) return;
     if (typeof setImage !== 'function') {
       return paint([el('div', { class: 'cpErr', text: 'This build cannot place the plan on the sheet.' })],
-        [el('button', { type: 'button', text: 'Close', onclick: close })]);
+        [el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close })]);
     }
-    const url = flat.toDataURL('image/png');
+    const url = cpToCropSize(flat, state.crop).toDataURL('image/png');
     const im = new Image();
     im.onload = function () {
       if (typeof pushUndo === 'function') pushUndo();
@@ -2192,7 +2316,7 @@ function cpCreateProvider(opts) {
     };
     im.onerror = function () {
       paint([el('div', { class: 'cpErr', text: 'The clean plan could not be placed on the sheet. Nothing was changed.' })],
-        [el('button', { type: 'button', text: 'Close', onclick: close })]);
+        [el('button', { type: 'button', class: 'btn', text: 'Close', onclick: close })]);
     };
     im.src = url;
   }
@@ -2211,6 +2335,7 @@ function cpCreateProvider(opts) {
       endpoint: CLEAN_ENDPOINT,
       state: function () { return state; },
       recolour: cpRecolour, fillColour: cpFillColour, swatches: SWATCHES,
+      shade: cpShade, render: cpRender, toCropSize: cpToCropSize,
       findZones: typeof cpFindZones === 'function' ? cpFindZones : null,
       traceBackdrop: typeof cpTraceBackdrop === 'function' ? cpTraceBackdrop : null,
       backdropRooms: typeof cpBackdropRooms === 'function' ? cpBackdropRooms : null,
