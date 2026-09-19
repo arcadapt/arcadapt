@@ -771,7 +771,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.238 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.239 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -903,7 +903,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <button class="btn primary" id="fsBack" title="Back to site" style="font-weight:700">&#9664; Site</button><!-- PASS 251 [251-A] W127-17 - "The site button should just be the same size as start test, but perhaps be orange like export." The three size overrides Pass 121 added are gone, so this takes #topbar .btn exactly as #fsTestBtn does at every width; `primary` is EXPORT'S OWN CLASS, not a hex copied off it, so the two stay in step through a colourway change. Prominence moved from size to colour, on his word. PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.238 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.239 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -8316,7 +8316,11 @@ function wsSetOpen() {
   document.getElementById("wsSetSnapOn").checked = fsWsSnapOn;
   const vb = document.getElementById("fsVerBadge");
   document.getElementById("wsSetVer").textContent = (vb ? vb.textContent : "") +
-    (window.ArcSmartPlan ? " \u00b7 Smart Plan " + (fsSmartPlanStale() ? "OUT OF DATE (" + (ArcSmartPlan.build || "before V0.194") + ")" : "matches") : "");   /* [215-D] */
+    /* PASS 252 [252-C] - W251-1, his words: "Do we need this?" The clause is
+       appended ONLY when it is actually stale. A healthy row reads the app
+       version and nothing else; the CHECK is untouched, it just stops talking
+       when it has nothing to say. T251-1 is the case for keeping it. */
+    (window.ArcSmartPlan && fsSmartPlanStale() ? " \u00b7 Smart Plan OUT OF DATE (" + (ArcSmartPlan.build || "before V0.194") + ")" : "");   /* [215-D] [252-C] */
   document.getElementById("wsSetAutoT").textContent = wsLastAutoT ? "last ran " + new Date(wsLastAutoT).toLocaleTimeString() : "runs every 30 s while you work";
   wsSetTabsRender();
   /* PASS 144 [144-B] - the scale row, filled on every open. It says what the
@@ -11892,7 +11896,13 @@ cv.addEventListener("pointerdown", e => {
        left the Details sheet as the only way to untick, and he tests hundreds
        of devices a shift: "no way, can't do that its a major time waster for
        what I do". So the hold does the other half, in place, on the plan. */
-    fsTestHoldArm(p);
+    /* PASS 252 [252-B] - NOT ARMED ANY MORE. [153-A]'s 450 ms hold-to-untick
+       duplicates a tap now that [252-A] toggles, and he ruled the hold out of
+       this loop. fsTestHoldArm / fsTestHoldUntick / fsTestHoldCancel are left
+       in place unreferenced by the gesture, on the Pass 50 precedent -
+       reversible, and never a second implementation. W136-0's ask is still met
+       and its probe moves to the tap (repin-p252.py). Named on the walk sheet:
+       a gesture removed quietly is how this came back round the first time. */
     return;
   }
 
@@ -12661,17 +12671,21 @@ function endPointer(e) {
       const hit = hitObject(p.x, p.y);
       if (hit && hit.kind === "sym" && hit.type !== "campin") {
         pushUndo();
-        /* PASS 148 [148-A] - HIS CALL: the plan RECORDS tests, the Details
-           sheet EDITS the record. This used to toggle, so tapping a device
-           that was already ticked UNTICKED it - and a re-test therefore
-           never recorded a date. It never unticks now: an already-ticked
-           device is re-stamped with today and pulsed so he can see it
-           landed. Unticking moved to the year checkboxes in the sheet,
-           which are still a true toggle. */
+        /* PASS 252 [252-A] - HIS RULING, 19 Sep: "Tap the toggle, this feature is
+           used too often to change. Tap to say it's tested tap it again to
+           untest it in test mode. That's very important."
+           [148-A] IS REVERSED BY ITS OWN AUTHOR. It made this branch re-stamp
+           today's date rather than untick, which was his call in Pass 148 and
+           left [153-A]'s 450 ms hold as the only way back. He taps hundreds of
+           devices a shift and has ruled that the hold does not belong in that
+           loop.
+           "DISREGARD THE PULSE FEATURE OR ACHIEVE IT ANOTHER WAY" - achieved,
+           and by the bytes rather than a new gesture: fsTyTick(o, yr, true)
+           writes o.td[yr] = today on EVERY tick, so untick-then-tick is the
+           re-stamp, in two taps, with nothing to discover. */
         const yrSel = +testYearSel;
         if ((hit.ty || []).includes(yrSel)) {
-          fsTyStamp(hit, yrSel);
-          fsFlashOnly(hit);
+          if (fsTestUntickOk(hit, yrSel)) { fsTyTick(hit, yrSel, false); }
         } else {
           fsTyTick(hit, yrSel, true);
         }
@@ -30703,7 +30717,7 @@ document.getElementById("fsSettingsBtn").onclick = () => {
      actually reached his device — the whole point of this pass. */
   document.getElementById("fsSetVer").textContent =
     (vb ? vb.textContent : "") + " \u00b7 build " + FS_BUILD +
-    (window.ArcSmartPlan ? " \u00b7 Smart Plan " + (fsSmartPlanStale() ? "OUT OF DATE (" + (ArcSmartPlan.build || "before V0.194") + ") \u2014 open it from Tools to refresh" : "matches") : "");   /* [215-D] */
+    (window.ArcSmartPlan && fsSmartPlanStale() ? " \u00b7 Smart Plan OUT OF DATE (" + (ArcSmartPlan.build || "before V0.194") + ") \u2014 open it from Tools to refresh" : "");   /* [215-D] [252-C] */
   try { fsScreenReadout(); } catch (e) {}   /* PASS 108 [W107-1] */
   document.getElementById("fsSettingsModal").classList.add("show");
 };
@@ -30940,7 +30954,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v246";
+const FS_BUILD = "aa-v247";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
@@ -35696,6 +35710,31 @@ function fsTyStamp(o, yr, when) {
      stamp it always was. Every existing caller omits it. */
   o.td[String(yr)] = fsLocalIso(when || new Date());
   return true;
+}
+/* PASS 252 [252-A] - THE ONLY THING A TOGGLE HAS TO BE GUARDED AGAINST.
+   fsTyTick's untick branch DELETES the date, deliberately - its own comment
+   says a date left on an unticked year is a record of a test the register says
+   did not happen. Under [148-A] a tap could never destroy a record; under a
+   toggle it can, in exactly ONE case: a device someone already ticked on an
+   EARLIER DAY of this cycle.
+   SO THE GUARD IS THAT CASE AND NOTHING ELSE. A tick carrying today's date is
+   his own, made seconds ago - it unticks silently, which is his misclick case
+   and the whole of his daily loop, with no prompt in it. That is what he ruled
+   and it is not watered down here. An earlier day is somebody's recorded test
+   and is worth one question before a stray finger erases it.
+   NO DATE AT ALL means a tick from before [186-A] stamped them; treated as his
+   to remove, because refusing would strand every legacy tick as un-untickable. */
+const FS_TEST_TAP_TOGGLE = "252-A";
+function fsTestUntickDay(o, yr) {
+  const d = (o && o.td) ? o.td[String(yr)] : null;
+  return d ? String(d).slice(0, 10) : "";
+}
+function fsTestUntickOk(o, yr) {
+  const day = fsTestUntickDay(o, yr);
+  if (!day) return true;
+  if (day === fsLocalIso(new Date()).slice(0, 10)) return true;
+  return window.confirm("This device is recorded as tested on " + day + ".\n\n"
+    + "Untick it? That removes the record of that test.");
 }
 /* A TAP THAT CHANGES NOTHING VISIBLE HAS TO SAY SOMETHING. Re-stamping an
    already-ticked device leaves the tick badge exactly as it was, so without
