@@ -771,7 +771,7 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
       <span class="aaWm" style="font-size:24px;display:inline-flex;align-items:center;gap:9px"><img src="icon-192.png" style="width:34px;height:34px" alt=""> <span><span class="w1">ARC</span> <span class="w2">ADAPT</span></span></span>
       <!-- Arc Adapt lineage reset (Reece, 29 Jul 2026): v0.01 beta == the pre-rename V1.30 / fs-v66 feature state, for future diffing -->
-      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.235 beta</span>
+      <span id="fsVerBadge" style="font-size:11px;color:var(--fs-sub2)">V0.236 beta</span>
       <span style="flex:1"></span>
       <button class="fsbtn" id="fsFileBtn" title="File &mdash; load, save a copy, share, OneDrive, export one client"><svg class="fsBtnIco" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>File</button>
       <button class="fsbtn" id="fsLoadRegBtn" title="Load / replace the register file">&#128194; Load</button>
@@ -900,10 +900,10 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div id="app" style="display:none">
 
   <div id="topbar">
-    <button class="btn" id="fsBack" title="Back to site" style="min-height:40px;padding-left:16px;padding-right:16px;font-weight:600">&#9664; Site</button><!-- PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
+    <button class="btn primary" id="fsBack" title="Back to site" style="font-weight:700">&#9664; Site</button><!-- PASS 251 [251-A] W127-17 - "The site button should just be the same size as start test, but perhaps be orange like export." The three size overrides Pass 121 added are gone, so this takes #topbar .btn exactly as #fsTestBtn does at every width; `primary` is EXPORT'S OWN CLASS, not a hex copied off it, so the two stay in step through a colourway change. Prominence moved from size to colour, on his word. PASS 121 [W120-3] FS_WS_SITE_BTN - his words: "a button that is regularly pressed, way more than the start test button next to it which is larger". Start test is NOT shrunk; it is deliberately prominent. -->
     <button class="btn" id="fsTestBtn" title="Start or continue a Monthly / 6 Monthly / Annual / 5 Yearly test session" style="background:#1b8a3f;border-color:#2fae57;color:#fff;font-weight:700">&#9654; Start test</button>
     <button class="btn" id="fsBinBtn" style="display:none" title="Site recycle bin — replaced/deleted registered devices">&#128465; Bin</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
-    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.235 beta</span></span>
+    <span class="title">ARC ADAPT <span style="color:#888;font-weight:400;font-size:11px">V0.236 beta</span></span>
     <span id="fsSiteName" style="font-size:12px;color:#8ab4ff;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <button class="btn" id="btnPlans" style="display:none" title="Plans saved on this device">&#9776; Plans</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
     <button class="btn" id="btnNew" style="display:none" title="Start a new plan">&#65291; New</button><!-- PASS 50 [50-4]: moved to the cog; id+handler kept -->
@@ -1915,8 +1915,22 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
 <div class="modal" id="wsSetModal" style="z-index:121">
   <div class="modalbox" style="max-width:470px;width:94vw;max-height:82vh;overflow-y:auto;text-align:left">
     <h3 style="margin-bottom:12px">&#9881; Workspace settings</h3>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSelAfter"> After drawing a shape, switch to Select with it selected</label>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSnapOn"> Snap lines to nearby ends, middles, crossings and edges</label>
+    <!-- PASS 251 [251-C] W127-16 - his three asks, and the remainder had to go
+         somewhere, so four. The bar WRAPS at 360 rather than scrolling sideways:
+         a settings screen you have to swipe to read is worse than two rows. -->
+    <div id="wsSetTabBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <button class="btn" id="wsTab_work" style="font-size:12.5px">Workspace</button>
+      <button class="btn" id="wsTab_draw" style="font-size:12.5px">Drawing</button>
+      <button class="btn" id="wsTab_tabs" style="font-size:12.5px">Left strip</button>
+      <button class="btn" id="wsTab_keys" style="font-size:12.5px">Shortcuts</button>
+    </div>
+    <div id="wsPaneDraw" style="display:none">
+      <!-- PASS 251 [251-C] - "the two top drawing settings checkboxes dont even
+           have a sub heading". They have one now, and it is the tab. -->
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSelAfter"> After drawing a shape, switch to Select with it selected</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="wsSetSnapOn"> Snap lines to nearby ends, middles, crossings and edges</label>
+    </div>
+    <div id="wsPaneWork">
     <!-- PASS 93 [93-A10] - mm is the DEFAULT; this is the way back out of
          it. Same pattern as wsAngleOn (markup here, wiring beside the
          other cog handlers, localStorage) - a select rather than a
@@ -1955,35 +1969,28 @@ body { height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe U
       <span style="flex:1;font-size:13.5px;min-width:120px">Version: <b id="wsSetVer"></b></span>
       <button class="btn" id="wsSetUpd">&#8635; Check for updates</button>
     </div>
-    <!-- PASS 50 [50-4] — the four controls that left the topbar. Each row
-         fires the hidden button's own onclick; nothing here is a second
-         implementation. Reece asked for Plans to be REMOVED and for Bin to be
-         moved; both labels mislead, so both were moved and neither deleted —
-         "Plans" is the list of plan FILES on this device and may be the only
-         route back to a plan saved but never attached to a site, and "Bin" is
-         the site recycle bin holding replaced and deleted registered devices,
-         which is compliance-adjacent and should not be buried without saying
-         so. -->
+    <!-- PASS 251 [251-B] W127-15 + W147-C - the block rebuilt from his four
+         sentences. The `Plans and files` heading and its paragraph are gone
+         ("doesnt need a plan and files sub heading anymore"); the Plans row is
+         gone ("get rid of it") with #btnPlans left hidden and wired in the
+         topbar, which is the Pass 50 precedent; New is Delete plan, red and
+         asking twice, because he said it already WAS a delete; and the Bin sits
+         beside it, in the order he named. Save As is one arm of the Save choice
+         now rather than a button of its own. -->
     <div style="border-top:1px solid #3a4047;padding-top:10px;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:2px">Plans and files</div>
-      <div style="font-size:11.5px;color:#888;margin-bottom:8px">Moved off the top bar, which was too crowded to use on a phone. Nothing here changed what it does.</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        <button class="btn" id="wsSetPlans" title="Plans saved on this device">&#9776; Plans</button>
-        <button class="btn" id="wsSetNew" title="Start a new plan">&#65291; New</button>
-        <!-- PASS 159 [159-A] - Pass 50 moved New into this cog, so a door that
-             is only in the toolbar is half a door. -->
-        <button class="btn" id="wsSetBlank" title="Start on a blank white sheet">&#128459; Blank page</button>
-        <button class="btn" id="wsSetSaveAs" title="Save as a NEW project file (always asks where)">Save As</button>
+        <button class="btn" id="wsSetDelPlan" style="background:#c62828;border-color:#c62828;color:#fff;font-weight:700" title="Delete the plan open in this workspace - saved plans and project files are not touched">&#128465; Delete plan</button>
         <button class="btn" id="wsSetBin" title="Site recycle bin &mdash; replaced/deleted registered devices">&#128465; Bin</button>
+        <button class="btn" id="wsSetBlank" title="Start on a blank white sheet">&#128459; Blank page</button>
+        <button class="btn" id="wsSetSave" title="Save this plan - to where it saved last, or somewhere new">&#128190; Save&hellip;</button>
       </div>
     </div>
-    <div style="border-top:1px solid #3a4047;padding-top:10px;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:2px">Tabs on the left strip</div>
+    </div>
+    <div id="wsPaneTabs" style="display:none">
       <div style="font-size:11.5px;color:#888;margin-bottom:8px">Untick a trade you never work in and its tab goes, along with its symbols. Nothing is deleted &mdash; tick it back any time, and plans that already use those symbols still draw them.</div>
       <div id="wsSetTabs" style="display:flex;flex-wrap:wrap;gap:6px 14px"></div>
     </div>
-    <div style="border-top:1px solid #3a4047;padding-top:10px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px">Keyboard shortcuts (PC)</div>
+    <div id="wsPaneKeys" style="display:none">
       <div style="font-size:11.5px;color:#999;line-height:1.7">DL line &middot; AR arrow &middot; RE rectangle &middot; EL ellipse &middot; CD cloud &middot; TX text &middot; PE pen &middot; HL highlighter &middot; HT hatch &middot; MV select &middot; PA pan &middot; TS test mode &middot; TR trim / extend &middot; DI measure &middot; PN pin &middot; RO rotate 90&deg; &middot; CO duplicate &middot; AL align &middot; GP / UG group / ungroup &middot; FH / FV flip &middot; SS select same &middot; EH hide &middot; HC hide this type &middot; RH show hidden &middot; Shift while drawing = 0/45/90&deg; only; Shift while moving = horizontal, vertical or 45&deg; &middot; press a tool again, or Esc, to put it down &middot; Ctrl+Z / Ctrl+Y undo / redo<br>Line tools: <b>Chain</b> joins each new line to the last, and lines snap to nearby ends, middles and crossings (turn that off in &#9881;). <b>Trim / Extend</b> and <b>Crop plan</b> are in the Modify tab &mdash; Crop draws a box or an outline round the part of the plan you want and keeps your drawing with it.</div>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" id="wsSetClose">Close</button></div>
@@ -8326,6 +8333,11 @@ function wsSetOpen() {
       : "not set on this level";
     if (b) b.disabled = !curScaleMpp;
   }
+  {   /* [251-C] the pane he was last on */
+    let p = "work";
+    try { p = localStorage.getItem("fsWsPane") || "work"; } catch (e) {}
+    fsWsPane(p);
+  }
   document.getElementById("wsSetModal").classList.add("show");
 }
 document.getElementById("btnWsSet").onclick = wsSetOpen;
@@ -8369,11 +8381,41 @@ function fsWsCogFire(btnId) {
   document.getElementById("wsSetModal").classList.remove("show");
   b.onclick();
 }
-document.getElementById("wsSetPlans").onclick = () => fsWsCogFire("btnPlans");
-document.getElementById("wsSetNew").onclick = () => fsWsCogFire("btnNew");
 document.getElementById("wsSetBlank").onclick = () => fsWsCogFire("btnBlank");
-document.getElementById("wsSetSaveAs").onclick = () => fsWsCogFire("btnSaveAs");
 document.getElementById("wsSetBin").onclick = () => fsWsCogFire("fsBinBtn");
+document.getElementById("wsSetSave").onclick = () => { document.getElementById("wsSetModal").classList.remove("show"); fsWsSaveChoice(); };
+/* PASS 251 [251-C] W127-16 - the four panes. The last one is remembered: a
+   settings screen that always reopens on page one makes you re-navigate to
+   finish a thought, and he reaches this cog mid-drawing. */
+const FS_WS_PANES = { work:"wsPaneWork", draw:"wsPaneDraw", tabs:"wsPaneTabs", keys:"wsPaneKeys" };
+function fsWsPane(which) {
+  if (!FS_WS_PANES[which]) which = "work";
+  Object.keys(FS_WS_PANES).forEach(k => {
+    const p = document.getElementById(FS_WS_PANES[k]);
+    if (p) p.style.display = (k === which ? "" : "none");
+    const b = document.getElementById("wsTab_" + k);
+    if (b) b.classList.toggle("primary", k === which);
+  });
+  try { localStorage.setItem("fsWsPane", which); } catch (e) {}
+}
+Object.keys(FS_WS_PANES).forEach(k => {
+  const b = document.getElementById("wsTab_" + k);
+  if (b) b.onclick = () => fsWsPane(k);
+});
+/* PASS 251 [251-B] W127-15 + W147-C - New was a delete with an optimistic name:
+   one confirm() and then fsWsResetToEmpty(). It says what it does now, it is
+   red, and it asks twice. fsWsResetToEmpty() itself is untouched. */
+function fsWsDeletePlan() {
+  if (!img && !objects.length) { alert("There is no plan open in this workspace to delete."); return; }
+  if (!window.confirm("Delete the plan open in this workspace?\n\nThe drawing, levels, scale and notes on screen are removed.\n\nPlans and project files you have SAVED are not touched, and neither is the site register.")) return;
+  if (!window.confirm("Last check \u2014 delete it?\n\nThis cannot be undone.")) return;
+  fsWsResetToEmpty();
+  if (typeof noteSaved === "function") noteSaved("Plan deleted");
+}
+document.getElementById("wsSetDelPlan").onclick = () => {
+  document.getElementById("wsSetModal").classList.remove("show");
+  fsWsDeletePlan();
+};
 /* PASS 144 [144-B] - the second door, wired to the SAME function. It closes
    the settings sheet on success, because leaving a panel open over a plan he
    has just changed is how he loses track of what happened. */
@@ -9981,8 +10023,47 @@ function noteSaved(text) {
   updateStatus();
 }
 
-async function saveProject() {
+/* PASS 251 [251-B] W127-15 - "when you hit save it should come up with a save or
+   save as option, the save would obviously be saving to a premade save path."
+   WHAT "THE PREMADE SAVE PATH" CAN HONESTLY MEAN IS DIFFERENT ON HIS TWO
+   DEVICES, and the sheet says which one it is rather than promising a folder:
+     PC   - showSaveFilePicker hands back a real handle and Save writes straight
+            into that file. That already worked; it was invisible.
+     iPad - Safari has no file-handle API. The share sheet chooses the
+            destination, so the only thing that CAN be remembered is the name -
+            and remembering it is what removes the name box he was hitting every
+            single time, which is the actual complaint.
+   The Save tap inside this sheet is a fresh user gesture, which is what iOS
+   needs before it will open the share sheet at all ([the askFileName note]). */
+function fsSaveLastName() {
+  if (fileHandle && fileHandle.name) return fileHandle.name;
+  try { return localStorage.getItem("fsSaveLastName") || ""; } catch (e) { return ""; }
+}
+function fsWsSaveChoice() {
   if (!img) { alert("Load a block plan first."); return; }
+  const last = fsSaveLastName();
+  const d = document.createElement("div");
+  d.style.cssText = "position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
+  d.innerHTML = '<div style="background:var(--fs-card);color:var(--fs-text2);border-radius:12px;padding:18px 18px 14px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.5)">' +
+    '<div style="font-weight:700;margin-bottom:4px;font-size:15px">Save plan</div>' +
+    '<div id="fsSaveWhere" style="font-size:12px;color:#9aa;margin-bottom:12px"></div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px">' +
+    '<button class="btn primary" id="fsSaveGo" style="padding:11px;font-size:14px">&#128190; Save</button>' +
+    '<button class="btn" id="fsSaveAsGo" style="padding:11px;font-size:14px">&#128194; Save as&hellip;</button>' +
+    '<button class="btn" id="fsSaveX" style="padding:11px;font-size:14px">Cancel</button>' +
+    '</div></div>';
+  document.body.appendChild(d);
+  d.querySelector("#fsSaveWhere").textContent = last
+    ? "Save writes to " + last + " again. Save as\u2026 asks where."
+    : "Nothing saved yet, so both ask where. After this, Save comes back here.";
+  d.querySelector("#fsSaveX").onclick = () => d.remove();
+  d.querySelector("#fsSaveGo").onclick = () => { d.remove(); saveProject(false); };
+  d.querySelector("#fsSaveAsGo").onclick = () => { d.remove(); fileHandle = null; saveProject(true); };
+}
+async function saveProject(asNew) {
+  if (!img) { alert("Load a block plan first."); return; }
+  /* [251-B] the remembered name. asNew is the Save as arm and always asks. */
+  const remembered = asNew ? "" : fsSaveLastName();
   const name = "block-plan-project-" + new Date().toISOString().slice(0, 10) + ".json";
   // PC (Chrome/Edge): true save-in-place
   if (window.showSaveFilePicker && !isMobileShare()) {
@@ -9996,6 +10077,7 @@ async function saveProject() {
       const w = await fileHandle.createWritable();
       await w.write(projectBlob());
       await w.close();
+      fsSaveRemember(fileHandle && fileHandle.name);   /* [251-B] */
       noteSaved("Saved" + (fileHandle && fileHandle.name ? " \u2014 " + fileHandle.name : ""));
       return;
     } catch (err) {
@@ -10009,6 +10091,7 @@ async function saveProject() {
         const w2 = await fileHandle.createWritable();
         await w2.write(projectBlob());
         await w2.close();
+        fsSaveRemember(fileHandle && fileHandle.name);   /* [251-B] */
         noteSaved("Saved" + (fileHandle && fileHandle.name ? " \u2014 " + fileHandle.name : ""));
         return;
       } catch (err2) {
@@ -10019,16 +10102,30 @@ async function saveProject() {
   }
   // iPad / share-sheet path: in-page name box - its Save tap is the fresh gesture the
   // iOS share sheet needs (prompt() here made Save As silently do nothing on iPad/iPhone)
-  askFileName(name, nm => {
+  /* [251-B] THE iPAD PATH, AND THIS IS THE HALF THAT WAS HIS COMPLAINT. The name
+     box ran on every single Save, which is a Save As however the button reads.
+     With a remembered name, Save goes straight to the share sheet on the tap he
+     already made; Save as opens the box. */
+  const go = nm => {
     if (!/\.json$/i.test(nm)) nm += ".json";
+    fsSaveRemember(nm);
     deliverFile(projectBlob(), nm, "application/json").then(how => {
       if (how === "cancelled") { alert("\u26a0 Save cancelled \u2014 the plan was NOT saved to a file."); noteSaved("\u26a0 Save cancelled"); }
       else noteSaved("Exported " + nm);
     });
-  });
+  };
+  if (remembered) go(remembered); else askFileName(name, go);
 }
-document.getElementById("btnSaveProj").onclick = saveProject;
-document.getElementById("btnSaveAs").onclick = () => { fileHandle = null; saveProject(); };
+function fsSaveRemember(nm) {
+  if (!nm) return;
+  try { localStorage.setItem("fsSaveLastName", nm); } catch (e) {}
+}
+/* [251-B] "everytime I just hit Save outside of settings on the plan it acts as
+   a save as... when you hit save it should come up with a save or save as
+   option". The topbar Save is that choice now. #btnSaveAs keeps its id and its
+   behaviour so the hidden control and any caller of it still work. */
+document.getElementById("btnSaveProj").onclick = () => fsWsSaveChoice();
+document.getElementById("btnSaveAs").onclick = () => { fileHandle = null; saveProject(true); };
 
 function loadProjectFile(file) {
   const reader = new FileReader();
@@ -30843,7 +30940,7 @@ function fsSmartPlanRefresh() {
   const drop = ("caches" in window) ? caches.keys().then(ks => Promise.all(ks.map(k => caches.open(k).then(c => c.keys().then(rs => Promise.all(rs.filter(r => /smart-plan\.js/.test(r.url)).map(r => c.delete(r)))))))) : Promise.resolve();
   drop.catch(() => {}).then(() => { try { location.reload(); } catch (e) {} });
 }
-const FS_BUILD = "aa-v242";
+const FS_BUILD = "aa-v244";
 /* ---------- Colour styles (device-local, cosmetic only — never stored in the register or profile) ---------- */
 const FS_CWS = [
   ["teal", "Teal", "#0f5e6b", "#0b4954", "#2596ab", "#1b7487"],
